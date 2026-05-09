@@ -1,0 +1,1050 @@
+project:
+  name: "Drink POS / Getränkeliste"
+  language: "de"
+  currency: "EUR"
+  current_state: "guter Arbeitsstand für lokalen Vereinsbetrieb"
+  app_type: "lokale touch-freundliche PWA/Web-App mit FastAPI Backend und SQLite"
+  primary_goal: >-
+    Digitale Getränkeliste / Strichliste für Vereins- oder Veranstaltungsbetrieb.
+    Benutzer buchen Getraenke und bestaetigen bezahlte Runden; Admins verwalten Personen,
+    Artikel, Preise, Korrekturen, Zahlungen, Kassensturz, Statistik, Verlauf, Berichte und Exporte.
+  non_goal: >-
+    Kein öffentliches Internetprodukt, keine mandantenfähige SaaS-App, keine Offline-Schreiblogik.
+  core_principles:
+    - "Accounting/Audit hat Vorrang vor optischer Einfachheit."
+    - "Transaktionsverlauf bleibt unveränderlich; Korrekturen werden als neue Transaktionen geschrieben."
+    - "Offene Posten behalten Snapshots von VK, EK, Name, Kurzlabel und Admin-only-Status vom Konsumzeitpunkt."
+    - "Inaktive/archivierte Artikel bleiben in offenen Rechnungen sichtbar und zahlbar."
+    - "Personen werden archiviert/deaktiviert, nicht hart aus historischen Daten gelöscht."
+    - "'1 Runde' ist ein Systemartikel, kein normaler Getränkeartikel."
+    - "Aktuelle Strichliste und offene Gesamtrechnung sind getrennte Konzepte."
+    - "Kassensturz beendet nur die aktuelle Strichliste/event_open, nicht offene Schulden."
+    - "Offline-Buchungen sind absichtlich nicht vorgesehen, weil Konflikte im gemeinsamen Kassenbuch entstehen würden."
+
+source_layout:
+  backend:
+    file: "app/main.py"
+    framework: "FastAPI"
+    style: "Single-File-App ohne separates ORM"
+  frontend_cashier:
+    file: "app/index.html"
+    style: "Vanilla HTML/CSS/JS, keine Build-Pipeline"
+    purpose: "Touch-Kassenansicht für Benutzer und Adminmodus"
+  frontend_admin:
+    file: "app/admin.html"
+    style: "Vanilla HTML/CSS/JS, keine Build-Pipeline"
+    purpose: "Organisation, Einstellungen, Verlauf, Berichte, CSV"
+  pwa_files:
+    - "app/manifest.webmanifest"
+    - "app/service-worker.js"
+    - "app/icon.svg"
+    - "app/icon-192.png"
+    - "app/icon-512.png"
+  deployment:
+    file: "docker-compose.yml"
+    server: "uvicorn main:app --host 0.0.0.0 --port 8000"
+    exposed_port: "8088:8000"
+    volumes:
+      - "./app:/app"
+      - "./data:/app/data"
+  database:
+    engine: "SQLite"
+    mode: "WAL"
+    access: "sqlite3 direkt in main.py"
+
+runtime_environment:
+  environment_variables:
+    DRINK_POS_ENV:
+      default: "development"
+      allowed_values:
+        - "development"
+        - "production"
+        - "prod"
+      effects:
+        development:
+          database_default: "/app/data/drink_pos_dev.db"
+          debug_test_data_endpoint: "aktiv"
+          test_data_button: "sichtbar"
+          admin_devmode_warning: "sichtbar"
+          sync_connection_logging: "aktiv"
+        production:
+          database_default: "/app/data/drink_pos.db"
+          debug_test_data_endpoint: "deaktiviert"
+          test_data_button: "nicht sichtbar"
+          admin_devmode_warning: "nicht sichtbar"
+          sync_connection_logging: "deaktiviert"
+    DRINK_POS_DB:
+      default: "leer / nicht setzen"
+      behavior: >-
+        Wenn gesetzt, überschreibt dieser Pfad die env-basierte automatische DB-Auswahl.
+        Wenn nicht gesetzt, wird abhängig von DRINK_POS_ENV automatisch drink_pos_dev.db oder drink_pos.db verwendet.
+    DRINK_POS_PIN:
+      default: "1234"
+      behavior: "Wird nur beim ersten DB-Start als settings.admin_pin übernommen, wenn noch kein PIN existiert."
+  recommended_operation:
+    development: "DRINK_POS_ENV=development für Testdatenbank und Debug-Testdaten."
+    production: "DRINK_POS_ENV=production für echten Vereinsbetrieb."
+  reset_database:
+    development_files:
+      - "./data/drink_pos_dev.db"
+      - "./data/drink_pos_dev.db-wal"
+      - "./data/drink_pos_dev.db-shm"
+    production_files:
+      - "./data/drink_pos.db"
+      - "./data/drink_pos.db-wal"
+      - "./data/drink_pos.db-shm"
+    steps:
+      - "docker compose down"
+      - "passende DB-Dateien löschen"
+      - "docker compose up -d"
+
+pwa_and_app_feeling:
+  implemented: true
+  installability:
+    android: "Über Browser/Chrome als PWA installierbar."
+    ios_ipados: "Über Safari: Teilen -> Zum Home-Bildschirm; standalone Darstellung über Manifest/Meta-Tags."
+  required_for_reliable_pwa: "HTTPS oder localhost; Service Worker benötigen sicheren Kontext."
+  manifest:
+    display: "standalone"
+    icons:
+      - "icon.svg"
+      - "icon-192.png"
+      - "icon-512.png"
+  service_worker:
+    file: "app/service-worker.js"
+    role: "Shell-Caching statischer Dateien"
+    cache_version_rule: "Nach UI-Änderungen CACHE_NAME erhöhen."
+    current_expected_cache_name: "drink-pos-shell-v53"
+  offline_policy:
+    read_shell_offline: "statische App-Shell kann aus Cache kommen"
+    write_offline: false
+    reason: "Gemeinsames Kassenbuch; Offline-Schreibzugriffe würden Konflikte erzeugen."
+
+sync_and_connectivity:
+  concept: >-
+    Die App hat eine sichtbare Sync-/Verbindungsanzeige unten rechts. Sie ersetzt störende Toasts
+    für Hintergrundsynchronisation und zeigt Status plus letzten Sync an.
+  endpoints:
+    status: "GET /api/sync-status"
+    client_event: "POST /api/client-event"
+  behavior:
+    heartbeat: "leichter Status-Check, kein schweres Dauerpolling"
+    after_user_action: "nach Getränk/Korrektur/Zahlung/Settings etc. wird aktiv neu geladen"
+    reconnect: "bei Wiederverbindung wird synchronisiert"
+    no_auto_popup: "automatische Hintergrundsyncs zeigen kein Toast 'Daten neu synchronisiert'"
+    indicator_position: "fixed bottom right"
+    last_sync_format: "dd.mm.yy, HH:MM oder ähnlich lokales Format"
+  settings:
+    show_sync_status:
+      type: "boolean as TEXT '1'/'0'"
+      default: "1"
+      purpose: "Sync-/Verbindungsanzeige unten rechts anzeigen/verstecken"
+    sync_status_size_percent:
+      type: "integer as TEXT"
+      default: "100"
+      range: "70..180"
+      purpose: "Größe der Sync-Anzeige"
+  logging:
+    events:
+      - "CLIENT_OFFLINE / Verbindung verloren"
+      - "CLIENT_ONLINE / Verbindung aufgenommen"
+      - "CLIENT_SYNCED / Synchronisiert"
+    production: "keine Verlaufseinträge; Server bestätigt Events, schreibt aber nicht in transactions"
+    development: "Ereignisse werden in transactions geloggt"
+    anti_spam: "nur bei Statuswechsel oder echter Synchronisation; nicht bei jedem Heartbeat"
+  webhook_assessment:
+    use_webhooks: false
+    reason: "Webhooks sind Server-zu-Server; für Browser/iPad besser Heartbeat, Fetch, optional später SSE/WebSocket."
+    future_best_live_sync: "Server-Sent Events oder WebSocket, wenn mehrere Geräte sofort live synchron sein sollen."
+
+business_domain:
+  people:
+    description: "Mitglieder/Kunden, denen Getränke und Posten zugeordnet werden."
+    identity: "id"
+    display_name: "name als kompatibler Vollname, plus first_name/last_name"
+    deletion_policy: "archivieren/deaktivieren statt hart löschen"
+    sorting: "last_name, first_name, fallback name; Umlaute normalisiert"
+  items:
+    description: "Getränke/Artikel plus Systemartikel '1 Runde'."
+    normal_item_fields:
+      - "name"
+      - "short_label"
+      - "price_eur / VK"
+      - "purchase_price_eur / EK"
+      - "active"
+      - "admin_only"
+      - "sort_order"
+    system_item:
+      name: "1 Runde"
+      short_label: "Runde"
+      admin_only: true
+      purchase_price_eur: 0
+      managed_in_settings: true
+      hidden_from_normal_item_admin: true
+      user_can_request: true
+      user_can_add_directly: false
+      user_can_delete_request: true
+  consumption:
+    normal_user: "Darf aktive, nicht-admin-only Artikel buchen."
+    admin: "Darf normale und admin-only Artikel buchen/korrigieren."
+    effect:
+      - "order_lines quantity wird erhöht oder zusammengeführt"
+      - "transactions CONSUME wird geschrieben"
+      - "transaction_items Detailzeile wird geschrieben"
+  open_bill:
+    definition: "Summe aller order_lines mit quantity > 0, unabhängig von event_open."
+    payment: "Barzahlung schreibt PAID_CASH und setzt offene order_lines der Person auf quantity=0."
+  event_tally:
+    definition: "Aktuelle Veranstaltung seit letztem Kassensturz."
+    field: "order_lines.event_open"
+    new_consumption: "event_open=1"
+    cashup: "setzt event_open=0 für aktuelle offene Strichlisten-Zeilen, lässt offene Beträge bestehen"
+  delete_requests:
+    description: "Normale Benutzer können Löschung offener nicht-admin-only Posten beantragen."
+    current_ui: >-
+      Löschanfrage ist klein/einklappbar. Beim Öffnen werden löschbare Getränke angezeigt.
+      Mengen per +/- wählen; Button 'Anfragen' wird erst aktiv, wenn mindestens eine Löschung gewählt ist.
+      Menü kann jederzeit geschlossen werden ohne Änderung.
+    setting:
+      key: "enable_delete_requests"
+      default: "1"
+      server_enforced: true
+      purpose: "Löschanfragen komplett aktivieren/deaktivieren"
+  round_requests:
+    description: "Historischer Name im Code; fachlich heute: Benutzer bestaetigen, dass sie eine Runde zahlen."
+    decision: "Keine Admin-Genehmigung mehr noetig."
+    approved_effect: "Systemartikel '1 Runde' wird sofort als offener Posten zur Person gebucht und in round_requests als APPROVED protokolliert."
+  round_deduction:
+    description: "Automatischer Rundenabzug beim Kassensturz; die alte manuelle Adminfunktion bleibt als API vorhanden, ist in der Kasse aber ausgeblendet."
+    preview_endpoint: "POST /api/deduct-round-preview"
+    execute_endpoint: "POST /api/deduct-round"
+    precondition: "Automatik ignoriert Mengen, die bereits in offenen Loeschanfragen gebunden sind."
+    rules:
+      - "pro aktiver Person maximal ein Getränk"
+      - "günstigstes normales Getränk der aktuellen Strichliste wird entfernt"
+      - "nur event_open=1 und admin_only_snapshot=0"
+      - "alte offene Getränke früherer Veranstaltungen bleiben unberührt"
+      - "Gewinn für Runde = Rundenpreis - Summe EK der abgezogenen Getränke"
+  cashup:
+    description: "Abschluss der aktuellen Veranstaltung/Strichliste mit automatischem Rundenabzug."
+    preview: "zeigt Brutto-Strichliste, bestaetigte Runden, automatische Abzuege, Netto-Strichliste, EK/VK-Ergebnis"
+    execute: "zieht bestaetigte Runden ab, schreibt ROUND_DEDUCTED/round_events, setzt event_open=0, schreibt CASHUP"
+  payment:
+    description: "Barzahlung bedeutet echtes erhaltenes Bargeld."
+    ui: "eigener GUI-Dialog, kein Browser-confirm; gruppierte Posten mit Menge, Preis, Gesamt."
+
+number_and_currency_formatting:
+  visible_separator: ","
+  accepted_input_separators:
+    - ","
+    - "."
+  behavior:
+    - "Preisfelder akzeptieren 2,50 und 2.50."
+    - "Punkt-Eingaben werden im GUI zu Komma normalisiert."
+    - "Serverseitige Parser akzeptieren float/int sowie Strings mit Komma oder Punkt."
+    - "Geldanzeigen in GUI, Verlauf, Berichten und CSV sollen Komma nutzen."
+  internal_storage:
+    sqlite: "REAL für Geldwerte in Daten-/Snapshot-Tabellen"
+    settings: "TEXT, aber API konvertiert"
+
+settings:
+  storage_table: "settings"
+  storage_type: "key TEXT primary key, value TEXT, updated_at TEXT"
+  conversion: "API/Frontend konvertieren zu bool/int/float/string"
+  keys:
+    admin_pin:
+      type: "string"
+      default_from_env: "DRINK_POS_PIN"
+      security: "Plaintext, bewusst einfach für lokales vertrauenswürdiges Netzwerk"
+    currency:
+      type: "string"
+      default: "EUR"
+      currently_fixed: true
+    app_name:
+      type: "string"
+      default: "Drink POS"
+      purpose: "Header, Titel, PWA/App-Name"
+    round_item_price_eur:
+      type: "decimal string"
+      default: "10.00"
+      input_format: "Komma oder Punkt akzeptiert, GUI zeigt Komma"
+    show_total_on_overview:
+      type: "boolean"
+      default: true
+      purpose: "Gesamtpreis in Standardübersicht anzeigen; Admin sieht Gesamtpreis immer"
+    show_person_popup_total:
+      type: "boolean"
+      default: true
+      purpose: "Offene Gesamtsumme im Personen-Popup anzeigen/verstecken"
+    show_summary_label_on_overview:
+      type: "boolean"
+      default: true
+      purpose: "Label vor Kurzauflistung anzeigen"
+    overview_summary_label_text:
+      type: "string"
+      default: "Gesamt:"
+      purpose: "Text vor Kurzauflistung"
+    overview_name_size_px:
+      type: "float"
+      default: 15.5
+      range: "12.0..28.0"
+      purpose: "Schriftgröße der Namen in Personenübersicht"
+    overview_summary_size_percent:
+      type: "integer"
+      default: 100
+      range: "60..180"
+      purpose: "Größe des Gesamtauflistungsblocks"
+    tally_size_percent:
+      type: "integer"
+      default: 100
+      range: "60..180"
+      purpose: "Größe der Strichliste und Getränkelabel"
+    tally_roughness:
+      type: "integer"
+      default: 4
+      range: "1..10"
+      purpose: "Krackeligkeit der Striche"
+    show_sync_status:
+      type: "boolean"
+      default: true
+      purpose: "Sync-/Verbindungsanzeige unten rechts anzeigen"
+    sync_status_size_percent:
+      type: "integer"
+      default: 100
+      range: "70..180"
+      purpose: "Größe der Sync-Anzeige"
+    enable_delete_requests:
+      type: "boolean"
+      default: true
+      purpose: "Löschanfragen erlauben/verstecken und serverseitig sperren"
+    drink_feedback_enabled:
+      type: "boolean"
+      default: true
+      purpose: "Visuelles Feedback nach erfolgreicher Getraenkebuchung anzeigen"
+    drink_feedback_style:
+      type: "enum"
+      values: ["subtle", "normal", "strong"]
+      default: "strong"
+      purpose: "Staerke des Buchungsfeedbacks"
+    drink_feedback_duration_ms:
+      type: "integer"
+      default: 1400
+      range: "500..3000"
+      purpose: "Anzeigedauer des Buchungsfeedbacks"
+    drink_feedback_animation_intensity_percent:
+      type: "integer"
+      default: 100
+      range: "0..200"
+      purpose: "Animationsintensitaet des Feedbacks, Button-Impuls und Konfetti-Menge"
+    drink_feedback_position:
+      type: "enum"
+      values: ["above", "below"]
+      default: "below"
+      purpose: "Position des Buchungsfeedbacks im Personen-Popup"
+    drink_celebration_mode:
+      type: "enum"
+      values: ["always", "condition", "never"]
+      default: "condition"
+      purpose: "Konfetti-/Feier-Effekt nach Buchung ausloesen"
+    drink_celebration_condition_round:
+      type: "boolean"
+      default: true
+      purpose: "Konfetti bei bezahlter Runde ausloesen"
+    drink_celebration_condition_debt:
+      type: "boolean"
+      default: true
+      purpose: "Konfetti bei Ueberschreiten des offenen Grenzwerts ausloesen"
+    drink_celebration_debt_threshold_eur:
+      type: "decimal string"
+      default: "50.00"
+      purpose: "Grenzwert fuer offenen Betrag, ab dem Konfetti ausgeloest wird"
+    drink_celebration_sound_enabled:
+      type: "boolean"
+      default: true
+      purpose: "Feierlichen Web-Audio-Ton zusammen mit dem Konfetti abspielen"
+    app_background_color:
+      type: "CSS color"
+      default: "#f3f4f6"
+      purpose: "Hintergrundfarbe der App/Kassenansicht"
+    person_card_background_color:
+      type: "CSS color"
+      default: "#ffffff"
+      purpose: "Hintergrundfarbe der Personenkarte"
+    person_card_border_color:
+      type: "CSS color"
+      default: "#bfdbfe"
+      purpose: "Rahmenfarbe der Personenkarte"
+    person_card_border_width_px:
+      type: "integer"
+      default: 2
+      purpose: "Rahmendicke der Personenkarte"
+    person_card_gap_px:
+      type: "integer"
+      default: 10
+      purpose: "Abstand zwischen Personen"
+  admin_settings_ui:
+    live_previews:
+      - "Strichlisten-/Personenkarten-Vorschau mit Max Mustermann und Testmengen"
+      - "Sync-Indikator-Vorschau"
+      - "Popup-Vorschau sollte künftig echte Dialog-Komponente/Fake-Daten nutzen statt separater Fake-Struktur"
+
+sqlite_schema:
+  pragmas:
+    journal_mode: "WAL"
+    foreign_keys: "ON"
+  migration_strategy:
+    - "CREATE TABLE IF NOT EXISTS beim Startup"
+    - "add_column_if_missing für neue Spalten"
+    - "alte drinks/orders werden in items/order_lines migriert, falls vorhanden"
+    - "fehlende EK-Snapshots werden kontrolliert nachgefüllt, Systemartikel bleibt EK=0"
+  tables:
+    settings:
+      purpose: "Key-value Konfiguration"
+      columns:
+        key: {type: "TEXT", constraints: "PRIMARY KEY"}
+        value: {type: "TEXT", constraints: "NOT NULL"}
+        updated_at: {type: "TEXT", constraints: "NOT NULL"}
+    people:
+      purpose: "Personen/Mitglieder/Kunden"
+      columns:
+        id: {type: "INTEGER", constraints: "PRIMARY KEY AUTOINCREMENT"}
+        name: {type: "TEXT", constraints: "UNIQUE NOT NULL", meaning: "kompatibler Vollname"}
+        first_name: {type: "TEXT", constraints: "NOT NULL DEFAULT ''"}
+        last_name: {type: "TEXT", constraints: "NOT NULL DEFAULT ''"}
+        active: {type: "INTEGER", constraints: "NOT NULL DEFAULT 1"}
+        archived_at: {type: "TEXT", constraints: "nullable"}
+        created_at: {type: "TEXT", constraints: "nullable/filled for new records"}
+    items:
+      purpose: "Artikel/Getränke und Systemartikel"
+      columns:
+        id: {type: "INTEGER", constraints: "PRIMARY KEY AUTOINCREMENT"}
+        name: {type: "TEXT", constraints: "UNIQUE NOT NULL"}
+        short_label: {type: "TEXT", constraints: "NOT NULL"}
+        price_eur: {type: "REAL", constraints: "NOT NULL DEFAULT 0"}
+        purchase_price_eur: {type: "REAL", constraints: "NOT NULL DEFAULT 0"}
+        active: {type: "INTEGER", constraints: "NOT NULL DEFAULT 1"}
+        admin_only: {type: "INTEGER", constraints: "NOT NULL DEFAULT 0"}
+        sort_order: {type: "INTEGER", constraints: "NOT NULL DEFAULT 100"}
+        archived_at: {type: "TEXT", constraints: "nullable"}
+        created_at: {type: "TEXT", constraints: "NOT NULL"}
+    order_lines:
+      purpose: "Offene Rechnungsposten und aktuelle Strichliste"
+      grouping_logic: >-
+        Neue Buchung wird mit bestehender Zeile zusammengeführt, wenn person_id, item_id,
+        unit_price_eur, unit_purchase_price_eur, item_name_snapshot,
+        item_short_label_snapshot, admin_only_snapshot, consumed_date und event_open=1 übereinstimmen.
+      columns:
+        id: {type: "INTEGER", constraints: "PRIMARY KEY AUTOINCREMENT"}
+        person_id: {type: "INTEGER", constraints: "NOT NULL REFERENCES people(id)"}
+        item_id: {type: "INTEGER", constraints: "nullable REFERENCES items(id)"}
+        quantity: {type: "INTEGER", constraints: "NOT NULL DEFAULT 0"}
+        unit_price_eur: {type: "REAL", constraints: "NOT NULL"}
+        unit_purchase_price_eur: {type: "REAL", constraints: "NOT NULL DEFAULT 0"}
+        item_name_snapshot: {type: "TEXT", constraints: "NOT NULL"}
+        item_short_label_snapshot: {type: "TEXT", constraints: "NOT NULL"}
+        admin_only_snapshot: {type: "INTEGER", constraints: "NOT NULL DEFAULT 0"}
+        consumed_date: {type: "TEXT", constraints: "NOT NULL", format: "YYYY-MM-DD"}
+        event_open: {type: "INTEGER", constraints: "NOT NULL DEFAULT 1"}
+        created_at: {type: "TEXT", constraints: "NOT NULL"}
+        updated_at: {type: "TEXT", constraints: "NOT NULL"}
+    change_requests:
+      purpose: "Löschanfragen normaler Benutzer"
+      statuses: ["PENDING", "APPROVED", "REJECTED"]
+      columns:
+        id: {type: "INTEGER", constraints: "PRIMARY KEY AUTOINCREMENT"}
+        person_id: {type: "INTEGER", constraints: "NOT NULL REFERENCES people(id)"}
+        order_line_id: {type: "INTEGER", constraints: "NOT NULL REFERENCES order_lines(id)"}
+        item_id: {type: "INTEGER", constraints: "nullable REFERENCES items(id)"}
+        quantity_to_remove: {type: "INTEGER", constraints: "NOT NULL"}
+        reason: {type: "TEXT", constraints: "nullable"}
+        status: {type: "TEXT", constraints: "NOT NULL DEFAULT 'PENDING'"}
+        requested_at: {type: "TEXT", constraints: "NOT NULL"}
+        decided_at: {type: "TEXT", constraints: "nullable"}
+    round_requests:
+      purpose: "Anfragen für Systemartikel '1 Runde'"
+      statuses: ["PENDING", "APPROVED", "REJECTED"]
+      columns:
+        id: {type: "INTEGER", constraints: "PRIMARY KEY AUTOINCREMENT"}
+        person_id: {type: "INTEGER", constraints: "NOT NULL REFERENCES people(id)"}
+        item_id: {type: "INTEGER", constraints: "nullable REFERENCES items(id)"}
+        quantity: {type: "INTEGER", constraints: "NOT NULL DEFAULT 1"}
+        reason: {type: "TEXT", constraints: "nullable"}
+        status: {type: "TEXT", constraints: "NOT NULL DEFAULT 'PENDING'"}
+        requested_at: {type: "TEXT", constraints: "NOT NULL"}
+        decided_at: {type: "TEXT", constraints: "nullable"}
+    transactions:
+      purpose: "Haupt-Auditlog / Verlauf"
+      immutability: "niemals alte Einträge überschreiben/löschen für normale Korrekturen"
+      columns:
+        id: {type: "INTEGER", constraints: "PRIMARY KEY AUTOINCREMENT"}
+        person_id: {type: "INTEGER", constraints: "nullable REFERENCES people(id)"}
+        type: {type: "TEXT", constraints: "NOT NULL"}
+        total: {type: "REAL", constraints: "NOT NULL"}
+        details: {type: "TEXT", constraints: "nullable"}
+        timestamp: {type: "TEXT", constraints: "NOT NULL", format: "YYYY-MM-DD HH:MM:SS"}
+      known_types:
+        - "CONSUME"
+        - "CHANGE_REQUEST"
+        - "CHANGE_APPROVED"
+        - "CHANGE_REJECTED"
+        - "ROUND_REQUEST"
+        - "ROUND_REQUEST_APPROVED"
+        - "ROUND_REQUEST_REJECTED"
+        - "PAID_CASH"
+        - "ADMIN_ADJUSTMENT"
+        - "ROUND_DEDUCTED"
+        - "CASHUP"
+        - "DEBUG_TEST_DATA"
+        - "PERSON_CREATED"
+        - "PERSON_UPDATED"
+        - "PERSON_DELETED"
+        - "ITEM_CREATED"
+        - "ITEM_UPDATED"
+        - "ITEM_DELETED"
+        - "SETTINGS_UPDATED"
+        - "CLIENT_OFFLINE"
+        - "CLIENT_ONLINE"
+        - "CLIENT_SYNCED"
+    transaction_items:
+      purpose: "Mengen-/Preisdetails für Auswertungen"
+      columns:
+        id: {type: "INTEGER", constraints: "PRIMARY KEY AUTOINCREMENT"}
+        transaction_id: {type: "INTEGER", constraints: "NOT NULL REFERENCES transactions(id)"}
+        person_id: {type: "INTEGER", constraints: "nullable REFERENCES people(id)"}
+        item_id: {type: "INTEGER", constraints: "nullable REFERENCES items(id)"}
+        item_name_snapshot: {type: "TEXT", constraints: "NOT NULL"}
+        item_short_label_snapshot: {type: "TEXT", constraints: "NOT NULL"}
+        quantity: {type: "INTEGER", constraints: "NOT NULL", meaning: "kann negativ sein"}
+        unit_price_eur: {type: "REAL", constraints: "NOT NULL"}
+        unit_purchase_price_eur: {type: "REAL", constraints: "NOT NULL DEFAULT 0"}
+        total_eur: {type: "REAL", constraints: "NOT NULL"}
+        purchase_total_eur: {type: "REAL", constraints: "NOT NULL DEFAULT 0"}
+        profit_eur: {type: "REAL", constraints: "NOT NULL DEFAULT 0"}
+        kind: {type: "TEXT", constraints: "NOT NULL"}
+        timestamp: {type: "TEXT", constraints: "NOT NULL"}
+    round_events:
+      purpose: "Zusatzdaten für Rundenabzug/Gewinnberechnung"
+      columns:
+        id: {type: "INTEGER", constraints: "PRIMARY KEY AUTOINCREMENT"}
+        transaction_id: {type: "INTEGER", constraints: "nullable REFERENCES transactions(id)"}
+        timestamp: {type: "TEXT", constraints: "NOT NULL"}
+        round_price_eur: {type: "REAL", constraints: "NOT NULL"}
+        deducted_vk_eur: {type: "REAL", constraints: "NOT NULL"}
+        deducted_purchase_eur: {type: "REAL", constraints: "NOT NULL"}
+        profit_vs_purchase_eur: {type: "REAL", constraints: "NOT NULL"}
+        profit_vs_retail_eur: {type: "REAL", constraints: "NOT NULL"}
+        details: {type: "TEXT", constraints: "nullable"}
+
+api:
+  style: "JSON REST"
+  auth:
+    mechanism: "Admin-PIN im Request-Body"
+    sessions: false
+    frontend_storage: "sessionStorage adminPin"
+  static_routes:
+    - {method: "GET", path: "/", purpose: "Kassenansicht"}
+    - {method: "GET", path: "/admin", purpose: "Adminseite"}
+    - {method: "GET", path: "/manifest.webmanifest", purpose: "PWA manifest"}
+    - {method: "GET", path: "/service-worker.js", purpose: "PWA service worker"}
+    - {method: "GET", path: "/icon.svg", purpose: "Icon SVG"}
+    - {method: "GET", path: "/icon-192.png", purpose: "PWA Icon"}
+    - {method: "GET", path: "/icon-512.png", purpose: "PWA Icon"}
+  public_routes:
+    - {method: "GET", path: "/health", returns: "status, environment, DB info, people count"}
+    - {method: "GET", path: "/api/sync-status", returns: "server timestamp/version-like sync info"}
+    - {method: "POST", path: "/api/client-event", purpose: "Online/offline/sync Ereignisse; Logging nur DevMode"}
+    - {method: "GET", path: "/api/config", returns: "Settings, app info, items/user_items"}
+    - {method: "GET", path: "/api/people", returns: "aktive Personen mit offenen Posten, Summen, Strichliste, pending requests"}
+    - {method: "POST", path: "/api/add-drink", body: "AddDrinkRequest", purpose: "Konsum buchen"}
+    - {method: "POST", path: "/api/edit-request", body: "EditRequestIn", purpose: "Löschanfrage stellen"}
+    - {method: "POST", path: "/api/round-request", body: "RoundRequestIn", purpose: "Rundenanfrage stellen"}
+  admin_routes:
+    - {method: "POST", path: "/api/admin-login", body: "PinRequest", purpose: "PIN prüfen"}
+    - {method: "POST", path: "/api/admin/overview", body: "PinRequest", purpose: "Admin-Dashboard-Daten"}
+    - {method: "POST", path: "/api/admin/change-request/decide", body: "AdminChangeRequestDecision", purpose: "Löschanfrage entscheiden"}
+    - {method: "POST", path: "/api/admin/round-request/decide", body: "AdminRoundRequestDecision", purpose: "Rundenanfrage entscheiden"}
+    - {method: "POST", path: "/api/pay", body: "PayRequest", purpose: "Barzahlung buchen"}
+    - {method: "POST", path: "/api/admin/adjust-drink", body: "AdminAdjustItemRequest", purpose: "Admin +1/-1 Korrektur"}
+    - {method: "POST", path: "/api/admin/add-round-item", body: "PinRequest/person", purpose: "Admin bucht Runde direkt"}
+    - {method: "POST", path: "/api/admin/cashup-preview", body: "CashupRequest", purpose: "Kassensturz-Vorschau"}
+    - {method: "POST", path: "/api/admin/cashup", body: "CashupRequest", purpose: "Kassensturz ausführen"}
+    - {method: "POST", path: "/api/deduct-round-preview", body: "PinRequest", purpose: "Runde-abziehen Vorschau"}
+    - {method: "POST", path: "/api/deduct-round", body: "PinRequest", purpose: "Runde abziehen"}
+    - {method: "POST", path: "/api/debug/add-test-data", body: "PinRequest", purpose: "Testdaten nur development"}
+    - {method: "POST", path: "/api/admin/people/create", body: "AdminPersonCreate", purpose: "Person anlegen"}
+    - {method: "POST", path: "/api/admin/people/update", body: "AdminPersonUpdate", purpose: "Person ändern"}
+    - {method: "POST", path: "/api/admin/people/delete", body: "AdminPersonDelete", purpose: "Person archivieren"}
+    - {method: "POST", path: "/api/admin/drinks/create", body: "AdminItemCreate", purpose: "Artikel anlegen"}
+    - {method: "POST", path: "/api/admin/drinks/update", body: "AdminItemUpdate", purpose: "Artikel ändern"}
+    - {method: "POST", path: "/api/admin/drinks/delete", body: "AdminItemDelete", purpose: "Artikel archivieren"}
+    - {method: "POST", path: "/api/admin/settings/update", body: "SettingsUpdateRequest", purpose: "Einstellungen ändern"}
+    - {method: "POST", path: "/api/admin/transactions/filter", body: "TransactionFilterRequest", purpose: "Verlauf filtern"}
+    - {method: "POST", path: "/api/admin/transactions", body: "PinRequest", purpose: "letzte Transaktionen"}
+    - {method: "GET", path: "/api/transactions", purpose: "Kompatibilitäts-/Debugroute"}
+  exports_and_reports:
+    report_preview:
+      path: "/api/admin/report/preview"
+      report_types: ["consumption", "event_consumption", "revenue", "profit", "rounds"]
+      group_by: ["none", "date", "person", "item", "type", "item_person", "item_date", "person_date", "item_person_date"]
+    csv_exports:
+      - "/api/admin/export/report"
+      - "/api/admin/export/transactions"
+      - "/api/admin/export/open-balances"
+      - "/api/admin/export/open-lines"
+      - "/api/admin/export/item-summary"
+
+pydantic_models:
+  PinRequest: {fields: {pin: "str"}}
+  CashupRequest: {fields: {pin: "str"}}
+  AddDrinkRequest: {fields: {person_id: "int", item_id: "int|null", drink: "str|null compatibility", pin: "str|null for admin_only"}}
+  EditRequestIn: {fields: {person_id: "int", line_quantities: "dict|null", changes: "legacy|null", reason: "str|null"}}
+  RoundRequestIn: {fields: {person_id: "int", quantity: "int default 1", reason: "str|null"}}
+  PayRequest: {fields: {pin: "str", person_id: "int"}}
+  AdminAdjustItemRequest: {fields: {pin: "str", person_id: "int", item_id: "int", delta: "int"}}
+  AdminChangeRequestDecision: {fields: {pin: "str", request_id: "int", approve: "bool"}}
+  AdminRoundRequestDecision: {fields: {pin: "str", request_id: "int", approve: "bool"}}
+  AdminPersonCreate: {fields: {pin: "str", first_name: "str", last_name: "str", active: "bool"}}
+  AdminPersonUpdate: {fields: {pin: "str", person_id: "int", first_name: "str|null", last_name: "str|null", active: "bool|null"}}
+  AdminPersonDelete: {fields: {pin: "str", person_id: "int"}}
+  AdminItemCreate: {fields: {pin: "str", name: "str", short_label: "str", price_eur: "float|str", purchase_price_eur: "float|str", active: "bool", admin_only: "bool", sort_order: "int"}}
+  AdminItemUpdate: {fields: {pin: "str", item_id: "int", name: "str|null", short_label: "str|null", price_eur: "float|str|null", purchase_price_eur: "float|str|null", active: "bool|null", admin_only: "bool|null", sort_order: "int|null"}}
+  AdminItemDelete: {fields: {pin: "str", item_id: "int"}}
+  SettingsUpdateRequest:
+    fields:
+      pin: "str"
+      new_pin: "str|null"
+      round_item_price_eur: "float|str|null"
+      show_total_on_overview: "bool|null"
+      show_person_popup_total: "bool|null"
+      app_name: "str|null"
+      tally_roughness: "int|null"
+      overview_name_size_px: "float|null"
+      overview_summary_size_percent: "int|null"
+      show_summary_label_on_overview: "bool|null"
+      overview_summary_label_text: "str|null"
+      tally_size_percent: "int|null"
+      show_sync_status: "bool|null"
+      sync_status_size_percent: "int|null"
+      enable_delete_requests: "bool|null"
+      drink_feedback_enabled: "bool|null"
+      drink_feedback_style: "str|null"
+      drink_feedback_duration_ms: "int|null"
+      drink_feedback_animation_intensity_percent: "int|null"
+      drink_feedback_position: "str|null"
+      drink_celebration_mode: "str|null"
+      drink_celebration_condition_round: "bool|null"
+      drink_celebration_condition_debt: "bool|null"
+      drink_celebration_debt_threshold_eur: "float|str|null"
+      drink_celebration_sound_enabled: "bool|null"
+      app_background_color: "str|null"
+      person_card_background_color: "str|null"
+      person_card_border_color: "str|null"
+      person_card_border_width_px: "int|null"
+      person_card_gap_px: "int|null"
+  ClientEventRequest: {fields: {event_type: "str", page: "str|null", client_time: "str|null", last_sync_at: "str|null", device_info: "str|null", details: "str|null"}}
+  TransactionFilterRequest: {fields: {pin: "str", query: "str|null", type: "str|null legacy", types: "list[str]|null", date_from: "str|null", date_to: "str|null", limit: "int"}}
+  ReportRequest: {fields: {pin: "str", report_type: "str", group_by: "str", date_from: "str|null", date_to: "str|null", include_zero: "bool|null"}}
+
+frontend_cashier_index:
+  header:
+    app_name_from_settings: true
+    normal_buttons:
+      - "Admin Login"
+    admin_buttons:
+      - "Organisation"
+      - "Kassensturz"
+      - "Testdaten nur development"
+  overview:
+    layout:
+      line_1_left: "Name"
+      line_1_middle_right: "Kurzauflistung offener Posten optional mit Label"
+      line_1_right: "Gesamtpreis, je nach Setting/Admin"
+      line_2_center: "aktuelle Strichliste ohne Überschrift 'Strichliste'"
+    person_card_style_settings:
+      - "app_background_color"
+      - "person_card_background_color"
+      - "person_card_border_color"
+      - "person_card_border_width_px"
+      - "person_card_gap_px"
+      - "overview_name_size_px"
+      - "overview_summary_size_percent"
+      - "tally_size_percent"
+      - "tally_roughness"
+      - "drink_feedback_enabled"
+      - "drink_feedback_style"
+      - "drink_feedback_duration_ms"
+    tally_display:
+      - "5er-Blöcke aus vier vertikalen Strichen plus diagonalem Querstrich"
+      - "keine Zahl neben Strichen"
+      - "Krackeligkeit 1..10"
+      - "Strichformen stabil pro Person/Artikel, damit nicht alles bei jedem Konsum springt"
+  person_popup:
+    close_behavior:
+      - "Klick außerhalb schließt ohne Aktion"
+      - "ESC schließt ohne Aktion"
+      - "kein allgemeiner OK-Knopf am Ende"
+    normal_mode_order:
+      - "Getränke hinzufügen"
+      - "Button 'Fertig' direkt unter den Preisen schließt Popup"
+      - "Runde zahlen"
+      - "kompakte/einklappbare Löschanfrage"
+    delete_request_ui:
+      collapsed_by_default: true
+      reveal_items_on_open: true
+      request_button_enabled_when_quantity_selected: true
+      can_close_without_change: true
+      hidden_when_setting_disabled: true
+    admin_mode:
+      - "offene Posten/Verlauf im Popup"
+      - "Anfragen genehmigen/ablehnen"
+      - "Artikel direkt +1/-1 korrigieren"
+      - "Bar bezahlen über GUI-Dialog"
+    total_display_setting: "show_person_popup_total"
+  dialogs:
+    payment: "GUI-Dialog mit gruppierten Posten; kein browser confirm"
+    cashup: "GUI-Dialog mit Vorschau; kein browser confirm"
+    deduct_round: "GUI-Dialog mit Vorschau/Gewinnhinweis"
+  sync_indicator:
+    position: "bottom-right"
+    hidden_by_setting: "show_sync_status=false"
+
+frontend_admin_html:
+  tabs:
+    people: "Personen anlegen, ändern, aktivieren/deaktivieren, archivieren"
+    items: "Artikel & Preise ohne Systemartikel '1 Runde'"
+    settings: "App, Rundenpreis, Anzeige, Design, Sync, PIN"
+    statistics: "KPIs, Top-Artikel, offene Betraege, Finanzverlauf, Runden"
+    history: "Transaktionsverlauf filtern"
+    exports_reports: "Berichte und CSV"
+  settings_live_preview:
+    current_issue: >-
+      Popup-Vorschau wirkt noch nicht realistisch genug, weil sie zu stark separat/fake gebaut ist.
+      Bessere Architektur: echte Dialog-/Renderfunktion mit Fake-Daten im Preview-Modus wiederverwenden.
+    desired_solution:
+      - "gemeinsame Renderfunktion für echtes Popup und Admin-Vorschau"
+      - "Preview-Modus deaktiviert API-Aktionen"
+      - "mehrere Preview-Szenarien: normal, admin, viele Getränke, Löschmenü offen, ohne Popup-Gesamtsumme"
+  history_filter:
+    type_filter: "Checkboxen für mehrere Eventtypen"
+    select_all: true
+    deselect_all: true
+    exclusion_workflow: "Standard alle ausgewählt; einzelne abwählen zum Ausschließen"
+    empty_selection_behavior: "keine Verlaufseinträge"
+  reports:
+    charts: "noch nicht vorhanden; nur Tabelle/CSV"
+
+reporting:
+  consumption:
+    meaning: "Getränkeverbrauch; Systemartikel '1 Runde' ausgeschlossen"
+    source: "transaction_items"
+  event_consumption:
+    meaning: "Verbrauch der aktuellen Strichliste"
+    source: "order_lines WHERE event_open=1"
+  revenue:
+    meaning: "Einnahmen/Umsatz; für echte Kasse primär PAID_CASH betrachten"
+  profit:
+    meaning: "Gewinn aus VK/Einnahmen minus EK auf Snapshotbasis"
+  rounds:
+    meaning: "Rundengewinn/-verlust aus round_events"
+  csv_format:
+    decimal_separator: ","
+    encoding: "sollte Excel-freundlich sein; bei Problemen UTF-8-SIG erwägen"
+
+security:
+  intended_network: "vertrauenswürdiges lokales Netzwerk"
+  public_exposure: "nicht empfohlen"
+  admin_pin:
+    storage: "settings.admin_pin Plaintext"
+    reason: "bewusst einfach"
+    risk: "Jeder DB-Zugriff sieht PIN"
+  recommended_if_public:
+    - "nicht Port 8088 direkt ins Internet freigeben"
+    - "VPN/Tailscale oder Reverse Proxy mit HTTPS und zusätzlicher Auth"
+    - "regelmäßige SQLite-Backups"
+    - "später benannte Admins statt gemeinsamer PIN"
+
+testing_checklist:
+  commands:
+    python: "python3 -m py_compile app/main.py"
+    javascript_index: "node --check extracted-index-script.js oder entsprechender Extrakt aus index.html"
+    javascript_admin: "node --check extracted-admin-script.js oder entsprechender Extrakt aus admin.html"
+  backend_scenarios:
+    - "Neue development DB starten; /api/config und /api/people prüfen."
+    - "Production DB separat prüfen; keine Testdaten/Synclogs."
+    - "Konsum buchen; order_lines, transactions, transaction_items prüfen."
+    - "Komma- und Punktpreise über API und GUI testen."
+    - "Kurzlabel/Preis/EK ändern; alte offene Posten müssen Snapshots behalten."
+    - "Artikel deaktivieren/archivieren; offene Posten bleiben zahlbar."
+    - "Löschanfrage aktiv/deaktiviert testen, inkl. serverseitiger Sperre."
+    - "Rundenanfrage genehmigen/ablehnen."
+    - "Kassensturz: event_open=0, offene Beträge bleiben."
+    - "Runde abziehen: nur aktuelle event_open normale Artikel."
+    - "Barzahlung: alle offenen Posten quantity=0, PAID_CASH geschrieben."
+    - "History types Mehrfachfilter inkl. alle abwählen."
+  frontend_scenarios:
+    - "PWA installieren auf iPad/iOS und Android."
+    - "Sync-Anzeige offline/online simulieren."
+    - "Automatischer Sync darf keinen störenden Toast zeigen."
+    - "Personen-Popup: Getränke, Fertig, Runde, Löschmenü Reihenfolge."
+    - "Klick außerhalb Popup schließt ohne Aktion."
+    - "Designsettings Live-Vorschau und echte Ansicht vergleichen."
+    - "Popup-Gesamtsumme per Setting aus/ein."
+
+implementation_guidance_for_future_ai:
+  always_do:
+    - "main.py, index.html und admin.html gemeinsam betrachten, weil API und UI eng gekoppelt sind."
+    - "Bei Datenmodelländerungen Startup-Migrationen ergänzen."
+    - "Snapshots in order_lines und transaction_items respektieren."
+    - "Systemartikel '1 Runde' separat behandeln."
+    - "Bei UI-Änderungen service-worker CACHE_NAME erhöhen."
+    - "Python- und JavaScript-Syntaxchecks ausführen."
+    - "Komma als sichtbaren Dezimalseparator beibehalten."
+  avoid:
+    - "Nicht aktuelle item.price_eur für alte offene Posten verwenden; immer order_lines.unit_price_eur."
+    - "Nicht Name/short_label als Identität verwenden; item_id ist Identität."
+    - "event_open nicht mit bezahlt/offen verwechseln."
+    - "Keine Offline-Schreiblogik ohne Konfliktkonzept."
+    - "Runden-EK nicht über Systemartikel berechnen."
+    - "Keine zweite Fake-Popup-Struktur bauen, wenn eine gemeinsame Renderfunktion möglich ist."
+
+future_gui_ideas:
+  quick_wins:
+    - title: "Realistische Popup-Vorschau"
+      description: "Admin-Vorschau nutzt dieselbe Renderfunktion wie echtes Personen-Popup mit Fake-Daten und Preview-Modus."
+    - title: "Manueller Refresh-Button"
+      description: "Neben Sync-Anzeige ein kleiner Aktualisieren-Button."
+    - title: "Zuletzt aktualisiert deutlicher"
+      description: "Neben Offline/Online auch Alter der Daten anzeigen, z. B. 'vor 4 min'."
+    - title: "Adminmodus farblich markieren"
+      description: "Header/Rand in Warnfarbe, damit Adminaktionen nicht versehentlich passieren."
+    - title: "Schnellsuche als große Touch-Leiste"
+      description: "Name suchen plus großes Reset-X."
+    - title: "Kompakt-/Komfortmodus für Personenkarten"
+      description: "Für kleine Geräte und große Touchscreens umschaltbar."
+    - title: "Favoriten / häufige Getränke oben"
+      description: "Artikelbuttons nach Nutzung oder definierter Favoritenliste sortieren."
+    - title: "Toast nur für Benutzeraktionen"
+      description: "Keine Hintergrundsync-Toasts; nur direkt ausgelöste Aktionen bestätigen."
+  medium_effort:
+    - title: "Gemeinsame UI-Komponenten"
+      description: "Renderfunktionen für Personenkarte, Popup, Preview zwischen index/admin logisch teilen."
+    - title: "Grafische Berichtscharts"
+      description: "Balkendiagramme für Verbrauch, Einnahmen, Gewinn, Top-Personen."
+    - title: "Druckansicht offene Beträge"
+      description: "Aushang-/Kassieransicht mit allen offenen Beträgen."
+    - title: "Kassensturz-Protokollseite"
+      description: "Liste aller Kassenstürze mit Zeitpunkt, Strichen, Summe und optional Notiz."
+    - title: "Artikel-Farbmarkierungen"
+      description: "Getränke haben Farben, die Buttons und Strichliste dezent verwenden."
+    - title: "Rückgängig-Zeitfenster"
+      description: "Nach versehentlichem Konsum wenige Sekunden Undo, technisch als Audit-Korrektur."
+    - title: "Mehrgeräte-Hinweis"
+      description: "Wenn letzter Sync älter als X Minuten: Hinweis 'Ansicht evtl. veraltet'."
+    - title: "Namensgruppen"
+      description: "Personen nach Team/Familie/Alphabet-Gruppen filtern."
+    - title: "Admin-Dashboard"
+      description: "Kacheln für offene Summe, heutiger Umsatz, offene Anfragen, letzte Zahlung."
+  larger_features:
+    - title: "SSE/WebSocket Live-Sync"
+      description: "Andere Geräte sehen Änderungen sofort ohne Polling."
+    - title: "SQLite Backup im Adminmenü"
+      description: "DB-Download mit Datum; optional automatischer Backup-Hinweis."
+    - title: "Restore/Import für Backup"
+      description: "Mit sehr klarer Warnung und Prüfschritt, da Daten überschrieben werden."
+    - title: "CSV-Import für Mitglieder"
+      description: "Vorschau: hinzufügen, deaktivieren, ignorieren, Konflikte lösen."
+    - title: "Benannte Admins"
+      description: "Mehrere Admin-PINs/User für bessere Nachvollziehbarkeit."
+    - title: "Explizite Events/Veranstaltungen"
+      description: "Event mit Name, Start, Ende statt nur event_open/Kassensturz."
+    - title: "Kassenbestand-Modul"
+      description: "Startbestand, Bargeldzählung, Differenz, Abschlussprotokoll."
+    - title: "Schulden-/Mahnliste"
+      description: "Offene Beträge seit X Tagen anzeigen/exportieren."
+    - title: "QR-Code Nur-Lese-Übersicht"
+      description: "Personen sehen eigene offenen Beträge, aber buchen nicht; Datenschutz prüfen."
+    - title: "Bon/Quittungsexport"
+      description: "PDF/Print beim Bezahlen."
+    - title: "Rollenmodell"
+      description: "Nur lesen, Kassier, Admin, Superadmin."
+  visual_polish:
+    - "Strichliste als SVG statt HTML-Spans rendern."
+    - "Theme-Profile: hell, dunkel, Vereinsfarben."
+    - "Touch-optimierte Dialoge mit weniger Tabellen auf kleinen Displays."
+    - "Farbige Badges für offene Anfragen, Rundenanfragen und Admin-only Posten."
+    - "Animationsarm, aber mit klarer visueller Rückmeldung bei Buchung."
+    - "Bessere iPad-Landscape-Nutzung mit zwei Spalten."
+    - "Barriereärmere Kontraste und größere Mindest-Touchflächen."
+
+known_open_point_from_latest_conversation:
+  request: "Popup-Vorschau in Einstellungen wirkt noch komisch und soll realistisch werden."
+  recommended_patch_direction:
+    - "Nicht nur optischen Fake verbessern."
+    - "Eine reine Renderfunktion createPersonDialogContent(person, options) aus index.html extrahieren."
+    - "Für echte Dialoge options.preview=false, für Admin-Vorschau options.preview=true."
+    - "Preview deaktiviert API-Aufrufe und echte Buttons oder markiert sie als Demo."
+    - "Admin-Vorschau nutzt realistische Fake-Person mit Getränken, Runde, Löschmenü und optional Adminmodus."
+
+current_update_2026_05_05:
+  cache_name: "drink-pos-shell-v47"
+  branch_note: "Im aktuellen Projektordner existiert kein .git Repository; Aenderungen wurden direkt im Projektordner umgesetzt."
+  round_flow:
+    current_behavior:
+      - "Benutzer drueckt im Personen-Popup 'Runde zahlen' / '+ 1 Runde bestaetigen'."
+      - "Es erscheint eine Bestaetigung, dass die Runde sofort auf die offene Rechnung gebucht wird."
+      - "Backend schreibt sofort ROUND_REQUEST_APPROVED und einen offenen Systemartikel '1 Runde'."
+      - "Keine Admin-Genehmigung fuer Runden mehr noetig."
+      - "Falls eine Runde irrtuemlich eingetragen wurde, kann sie per Loeschanfrage entfernt werden."
+    cashup_automation:
+      - "Kassensturz-Preview erkennt offene event_open Systemposten '1 Runde'."
+      - "Pro bestaetigter Runde wird fuer jede aktive Person das guenstigste verfuegbare normale Getraenk der aktuellen Strichliste abgezogen."
+      - "Mengen, die bereits in offenen Loeschanfragen reserviert sind, werden beim automatischen Abzug nicht verwendet."
+      - "Beim Ausfuehren werden ROUND_DEDUCTED, transaction_items und round_events geschrieben."
+      - "Danach wird die verbleibende aktuelle Strichliste mit CASHUP geschlossen."
+  statistics:
+    endpoint: "POST /api/admin/statistics"
+    filters:
+      - "scope: today, event, month, all, custom"
+      - "date_from/date_to fuer benutzerdefinierte Zeitraeume"
+      - "include_admin_items"
+    blocks:
+      - "Zusammenfassungsleiste: Zeitraum-Ergebnis, offene Summe, aktuelle Strichliste, Verbrauch"
+      - "Automatische Hinweise: Top-Artikel, groesster offener Betrag, Anteil aktuelle Strichliste"
+      - "KPI-Zeile: offene Summe, aktuelle Strichliste, Verbrauch, Bar bezahlt, Kosten, Gewinn, Runden"
+      - "Top-Artikel nach konsumierter Menge"
+      - "Offene Betraege nach Person"
+      - "Umsatz/Kosten/Gewinn nach Zahlungsdatum"
+      - "Runden und Anfragen"
+      - "Artikeldetails mit Suchfilter und Summenzeile"
+    use_case_examples:
+      - "Top-Artikel: Statistik -> Zeitraum waehlen -> Top-Artikel und Artikeldetails pruefen."
+      - "Offene Betraege: Statistik -> Heute/Gesamt waehlen -> Offen nach Person pruefen."
+    performance:
+      - "Statistik-Zeitraeume werden in SQL nach timestamp gefiltert."
+      - "Indizes auf transaction_items, order_lines, round_events, transactions und Request-Status beschleunigen wiederholte Auswertungen."
+  sync:
+    heartbeat_seconds: 5
+    behavior:
+      - "Heartbeat fragt nur /api/sync-status ab und ist deshalb leichtgewichtig."
+      - "Nur bei geaenderter db_revision werden Daten neu geladen."
+      - "Automatische Hintergrund-Syncs schreiben keinen SYNC_COMPLETED-Verlaufseintrag mehr."
+      - "Manuelle Synchronisation und Wiederverbindung koennen weiterhin geloggt werden."
+      - "Client-Events enthalten device_info, z. B. iPad, iPhone, PC Windows, Aufloesung und Plattform."
+    pull_to_refresh:
+      enabled: true
+      behavior: "Wenn am oberen Rand weiter nach unten gezogen und losgelassen wird, synchronisiert die Seite manuell."
+    ipad_fullscreen_safe_area:
+      implemented: true
+      behavior: "viewport-fit=cover und Header-Padding mit safe-area-inset-top verhindern durchsichtige Statusleistenbereiche ueber dem Header."
+
+bedienszenarien_und_bedienreihenfolgen:
+  normaler_getraenkekonsum:
+    steps:
+      - "Kassenansicht oeffnen."
+      - "Person antippen."
+      - "Gewuenschtes Getraenk antippen."
+      - "Bei Bedarf weitere Getraenke antippen."
+      - "'Fertig' antippen oder ausserhalb des Popups tippen."
+    expected_result:
+      - "Getraenk erscheint sofort auf der offenen Rechnung."
+      - "Aktuelle Strichliste zeigt neue Striche."
+      - "Andere Geraete sehen die Aenderung nach spaetestens ca. 5 Sekunden oder sofort nach Pull-to-refresh."
+  runde_zahlen:
+    steps:
+      - "Person antippen."
+      - "Im Popup Bereich 'Runde zahlen' den Button '+ 1 Runde bestaetigen' antippen."
+      - "Bestaetigungsdialog lesen und bestaetigen."
+      - "Popup aktualisiert sich; '1 Runde' steht als offener Posten."
+    expected_result:
+      - "Kein Admin muss genehmigen."
+      - "Runde bleibt auf der Rechnung der zahlenden Person."
+      - "Beim naechsten Kassensturz werden automatisch passende Getraenke aus der aktuellen Strichliste abgezogen."
+  runde_irrtuemlich_eingetragen:
+    steps:
+      - "Person antippen."
+      - "Loeschanfrage oeffnen."
+      - "Bei '1 Runde' die zu entfernende Menge waehlen."
+      - "'Anfragen' antippen."
+      - "Admin entscheidet die Loeschanfrage im Adminmodus."
+    expected_result:
+      - "Bis zur Admin-Entscheidung bleibt die Menge sichtbar, ist aber fuer automatische Rundenabzuege reserviert."
+  kassensturz_mit_runden:
+    steps:
+      - "Adminmodus aktivieren."
+      - "'Kassensturz' antippen."
+      - "Popup pruefen: bestaetigte Runden, automatische Abzuege, Brutto-/Netto-Summe und EK/VK-Ergebnis."
+      - "Wenn die Vorschau passt, 'Kassensturz durchfuehren' antippen."
+    expected_result:
+      - "Bestaetigte Runden werden automatisch abgezogen."
+      - "Verbleibende aktuelle Strichliste wird geschlossen."
+      - "Offene Rechnungen bleiben bestehen."
+      - "Rundenabzug wird in round_events und Verlauf nachvollziehbar protokolliert."
+  barzahlung:
+    steps:
+      - "Adminmodus aktivieren."
+      - "Person antippen."
+      - "Im Adminbereich 'Bar bezahlen' waehlen."
+      - "Zahlungsdialog mit Posten und Summe pruefen."
+      - "Barzahlung bestaetigen."
+    expected_result:
+      - "PAID_CASH wird geschrieben."
+      - "Alle offenen Posten der Person werden auf quantity=0 gesetzt."
+  manuelle_synchronisierung:
+    steps:
+      - "Auf der Seite ganz nach oben scrollen."
+      - "Noch weiter nach unten ziehen, bis der Sync-Hinweis erscheint."
+      - "Loslassen."
+    expected_result:
+      - "Seite synchronisiert sofort."
+      - "Routine-Sync schreibt keinen Verlaufseintrag."
+      - "Manuelle Sync-Logs enthalten Geraeteinformationen."
+
+backup_and_recovery:
+  implemented: true
+  files:
+    script: "app/backup_database.py"
+    scheduler: "docker-compose.yml"
+  scheduler:
+    service: "drink-pos-backup"
+    hardcoded_time: "jeden Freitag um 03:00 Uhr"
+    timezone: "Europe/Zurich"
+    behavior:
+      - "Der Backup-Container prueft alle 30 Sekunden Wochentag und Uhrzeit."
+      - "Wenn Freitag 03:00 erreicht ist, wird app/backup_database.py ausgefuehrt."
+      - "Nach einem erfolgreichen Start wartet der Scheduler ca. 61 Minuten, damit derselbe Zeitpunkt nicht mehrfach exportiert wird."
+  output:
+    directory: "./data/backups"
+    filename_pattern: "drink_pos_backup_YYYY-MM-DD_HHMMSS.csv"
+    format: "CSV mit Semikolon-Trennung und UTF-8-BOM fuer Excel"
+    columns:
+      - "backup_created_at"
+      - "source_db"
+      - "section"
+      - "table_name"
+      - "row_id"
+      - "data_json"
+  exported_content:
+    metadata:
+      - "App-Name"
+      - "Umgebung development/production"
+      - "Quell-Datenbankpfad"
+      - "Datenbank-Dateigroesse"
+      - "Backup-Zeitpunkt"
+    schema: "sqlite_master Eintraege fuer Tabellen, Indizes, Views und Trigger"
+    summaries: "Zeilenanzahl und Spaltenliste pro wichtiger Tabelle"
+    tables:
+      - "settings"
+      - "people"
+      - "items"
+      - "order_lines"
+      - "change_requests"
+      - "round_requests"
+      - "transactions"
+      - "transaction_items"
+      - "round_events"
+  consistency:
+    method: "SQLite Online-Backup API erstellt zuerst eine temporaere Snapshot-Datenbank."
+    reason: "Der CSV-Export bleibt auch bei laufender App und WAL-Dateien konsistent."
+  restore_note: >-
+    Das CSV ist als Worst-Case-Rettungsformat gedacht. Die Zeilen liegen in data_json
+    als strukturierte Originaldaten. Ein automatischer Restore/Import ist noch nicht implementiert.

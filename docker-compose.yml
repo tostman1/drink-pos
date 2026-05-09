@@ -1,0 +1,52 @@
+services:
+  drink-pos:
+    image: python:3.12-slim
+    container_name: drink-pos
+    restart: unless-stopped
+
+    working_dir: /app
+
+    ports:
+      - "8088:8000"
+
+    volumes:
+      - ./app:/app
+      - ./data:/app/data
+
+    environment:
+      TZ: Europe/Zurich
+      # DRINK_POS_DB bewusst nicht gesetzt:
+      # development => /app/data/drink_pos_dev.db
+      # production  => /app/data/drink_pos.db
+      # Bei Bedarf kann DRINK_POS_DB hier manuell überschrieben werden.
+      DRINK_POS_PIN: "1234"
+      DRINK_POS_ENV: "development"
+
+    command: >
+      sh -c "pip install --no-cache-dir fastapi uvicorn &&
+             uvicorn main:app --host 0.0.0.0 --port 8000"
+
+  drink-pos-backup:
+    image: python:3.12-slim
+    container_name: drink-pos-backup
+    restart: unless-stopped
+    working_dir: /app
+    depends_on:
+      - drink-pos
+    volumes:
+      - ./app:/app
+      - ./data:/app/data
+    environment:
+      TZ: Europe/Zurich
+      DRINK_POS_PIN: "1234"
+      DRINK_POS_ENV: "development"
+      DRINK_POS_BACKUP_DIR: "/app/data/backups"
+    command: >
+      sh -c "echo 'Drink POS backup scheduler active: Friday 03:00';
+             while true; do
+               if [ \"$$(date +%u)\" = '5' ] && [ \"$$(date +%H%M)\" = '0300' ]; then
+                 python /app/backup_database.py;
+                 sleep 3700;
+               fi;
+               sleep 30;
+             done"

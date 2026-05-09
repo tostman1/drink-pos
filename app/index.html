@@ -1,0 +1,1460 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Drink POS</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Drink POS">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="theme-color" content="#111827">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <style>
+    :root { --bg:#f3f4f6; --text:#111827; --muted:#6b7280; --card:#fff; --dark:#111827; --blue:#dbeafe; --green:#86efac; --yellow:#fbbf24; --red:#dc2626; --red-bg:#fee2e2; --border:#e5e7eb; --app-bg:#f3f4f6; --person-card-bg:#ffffff; --person-card-border-color:#bfdbfe; --person-card-border-width:2px; --person-card-gap:10px; }
+    * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+    html { min-height:100%; background:var(--dark); }
+    body { margin:0; min-height:100%; font-family:system-ui,-apple-system,BlinkMacSystemFont,sans-serif; background:var(--app-bg); color:var(--text); }
+    header { position:sticky; top:0; background:var(--dark); color:white; padding:calc(10px + env(safe-area-inset-top, 0px)) 12px 10px; display:flex; justify-content:space-between; align-items:center; gap:8px; z-index:10; }
+    header h1 { margin:0; font-size:21px; white-space:nowrap; }
+    .header-buttons { display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
+    button { font-size:16px; border:0; border-radius:12px; padding:10px 13px; background:var(--border); cursor:pointer; touch-action:manipulation; font-weight:700; }
+    button:active { transform:scale(.98); }
+    button:disabled { opacity:.4; cursor:not-allowed; }
+    .admin-btn { background:var(--yellow); font-weight:800; }
+    .admin-on { background:var(--green); }
+    .toolbar { display:flex; gap:10px; padding:10px 12px 0; }
+    .toolbar input { width:100%; font-size:17px; padding:12px 14px; border-radius:12px; border:1px solid var(--border); }
+    .columns { display:grid; grid-template-columns:1fr 1fr; gap:var(--person-card-gap); padding:12px; padding-bottom:80px; }
+    .column { display:grid; gap:var(--person-card-gap); align-content:start; }
+    .person-row { background:var(--person-card-bg); border-radius:12px; padding:11px 13px; box-shadow:0 2px 8px rgba(0,0,0,.08); border:var(--person-card-border-width) solid var(--person-card-border-color); min-height:74px; }
+    .person-row.has-open { box-shadow:0 4px 14px rgba(37,99,235,.16); }
+    .row-main { display:grid; grid-template-columns:minmax(140px,1fr) minmax(150px,1.3fr) auto; gap:12px; align-items:center; }
+    .name { font-weight:850; font-size:var(--overview-name-size,15.5px); line-height:1.15; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:left; }
+    .summary { color:#374151; font-size:calc(12.5px * var(--overview-summary-scale,1)); line-height:1.25; text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:flex; justify-content:flex-end; gap:.35em; align-items:baseline; }
+    .summary-label { color:#111827; font-weight:900; flex-shrink:0; }
+    .summary-text { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .summary.empty { color:var(--muted); }
+    .total { font-weight:900; font-size:15px; text-align:right; white-space:nowrap; color:#111827; }
+    .total.zero { color:var(--muted); font-weight:650; }
+    .event-summary { margin-top:8px; min-height:30px; display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:8px 14px; }
+    .event-empty { color:var(--muted); font-size:12px; }
+    .tally-item { display:inline-flex; align-items:center; gap:7px; white-space:nowrap; }
+    .tally-name { font-weight:900; font-size:13px; }
+    .tally-marks { display:inline-flex; gap:4px; align-items:center; transform:translateY(1px); }
+    .tally-group { position:relative; display:inline-flex; gap:2px; width:33px; height:24px; align-items:flex-end; justify-content:flex-start; }
+    .tally-mark { display:block; width:2px; background:#111827; border-radius:999px; opacity:.96; transform-origin:bottom center; }
+    .tally-slash { position:absolute; background:#111827; border-radius:999px; transform-origin:center; opacity:.97; }
+    .pending-line { margin-top:4px; font-size:12.5px; color:var(--red); font-weight:800; line-height:1.25; }
+    dialog { border:0; border-radius:22px; padding:0; max-width:680px; width:calc(100% - 28px); box-shadow:0 20px 60px rgba(0,0,0,.35); position:relative; overflow:visible; background:transparent; }
+    dialog::backdrop { background:rgba(0,0,0,.45); }
+    .dialog-content { padding:18px; position:relative; z-index:2; background:#fff; border-radius:22px; overflow:auto; max-height:90vh; }
+    .dialog-content h2 { margin:0 0 6px 0; font-size:27px; }
+    .dialog-total { color:var(--muted); font-size:17px; margin-bottom:12px; }
+    #addPanel { position:relative; }
+    .drink-buttons { display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); margin:15px 0 8px; }
+    .drink-buttons button { width:100%; font-size:18px; padding:14px; background:var(--blue); font-weight:800; position:relative; overflow:hidden; transition:background-color .18s ease, transform .18s ease, box-shadow .18s ease; }
+    .drink-buttons button.is-writing { background:#bfdbfe; box-shadow:0 0 0 3px rgba(37,99,235,.16); cursor:wait; transform:scale(.985); }
+    .drink-buttons button.is-writing::before { content:''; position:absolute; inset:0; background:linear-gradient(110deg, transparent 0%, rgba(255,255,255,.55) 45%, transparent 70%); transform:translateX(-110%); animation:drinkSavingSweep .7s ease-in-out infinite; }
+    .drink-buttons button.drink-written { background:#bbf7d0; box-shadow:0 0 0 var(--drink-feedback-ring,5px) rgba(34,197,94,.24); animation:drinkWritten var(--drink-feedback-pop-duration,.52s) ease-out; }
+    .drink-buttons button.drink-written::after { content:'✓'; position:absolute; right:12px; top:50%; transform:translateY(-50%); width:28px; height:28px; border-radius:999px; display:grid; place-items:center; background:#16a34a; color:#fff; font-size:18px; font-weight:950; animation:drinkCheck .75s ease-out both; }
+    .drink-feedback { position:absolute; top:8px; left:150px; right:12px; z-index:4; min-height:34px; padding:5px 13px; margin:0; display:flex; align-items:center; justify-content:center; gap:8px; color:#064e3b; background:#d1fae5; border:1px solid #86efac; border-radius:14px; box-shadow:0 10px 24px rgba(22,163,74,.16); font-size:15px; font-weight:950; line-height:1.15; opacity:0; visibility:hidden; transform:translate3d(0,0,0); transition:opacity .16s ease, visibility .16s ease; pointer-events:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; will-change:opacity; }
+    .drink-feedback::before { content:'✓'; width:24px; height:24px; border-radius:999px; display:grid; place-items:center; background:#16a34a; color:#fff; font-size:16px; font-weight:950; }
+    .drink-feedback.subtle { min-height:30px; font-size:13px; background:transparent; border-color:transparent; box-shadow:none; color:#065f46; }
+    .drink-feedback.subtle::before { width:18px; height:18px; font-size:12px; }
+    .drink-feedback.normal { min-height:36px; font-size:14px; box-shadow:0 6px 18px rgba(22,163,74,.14); }
+    .drink-feedback.off { display:none; }
+    .drink-feedback.visible { opacity:1; visibility:visible; transform:translate3d(0,0,0); }
+    .drink-feedback.feedback-pop { animation:drinkToastFade var(--drink-feedback-toast-duration,.44s) ease-out; }
+    @keyframes drinkSavingSweep { 100% { transform:translateX(110%); } }
+    @keyframes drinkWritten { 0% { transform:scale(calc(1 - var(--drink-feedback-button-dip,.015))); } 45% { transform:scale(calc(1 + var(--drink-feedback-button-pop,.045))); } 100% { transform:scale(1); } }
+    @keyframes drinkCheck { 0% { opacity:0; transform:translateY(-50%) scale(.55); } 28% { opacity:1; transform:translateY(-50%) scale(1.2); } 100% { opacity:0; transform:translateY(-50%) scale(1); } }
+    @keyframes drinkToastFade { 0% { opacity:0; transform:translate3d(0,-3px,0); } 100% { opacity:1; transform:translate3d(0,0,0); } }
+    .celebration-layer { position:absolute; left:-70px; right:-70px; top:-180px; bottom:-30px; z-index:1; pointer-events:none; overflow:visible; }
+    .confetti-piece { position:absolute; left:50%; bottom:18%; width:10px; height:16px; border-radius:3px; background:var(--confetti-color,#fbbf24); opacity:0; transform:translate(-50%,0) rotate(0deg); animation:confettiBurst var(--confetti-duration,2200ms) cubic-bezier(.15,.78,.28,1) forwards; animation-delay:var(--confetti-delay,0ms); }
+    .confetti-piece.dot { border-radius:999px; width:8px; height:8px; }
+    .confetti-piece.ribbon { width:7px; height:22px; border-radius:999px; }
+    @keyframes confettiBurst { 0% { opacity:0; transform:translate(-50%,0) scale(.75) rotate(0deg); } 12% { opacity:1; } 42% { opacity:1; transform:translate(calc(-50% + var(--confetti-x,0px)), var(--confetti-y,-260px)) scale(1) rotate(var(--confetti-rot,180deg)); } 100% { opacity:0; transform:translate(calc(-50% + var(--confetti-fall-x,var(--confetti-x,0px))), var(--confetti-fall-y,60px)) scale(.96) rotate(calc(var(--confetti-rot,180deg) + 220deg)); } }
+    .panel { background:#f9fafb; border:1px solid var(--border); border-radius:14px; padding:12px; margin:12px 0; }
+    .panel h3 { margin:0 0 10px; font-size:17px; }
+    .round-celebration-panel { position:relative; overflow:hidden; background:linear-gradient(135deg,#fff7ed 0%,#fffbeb 48%,#ecfdf5 100%); border-color:#fbbf24; box-shadow:0 10px 24px rgba(245,158,11,.14); }
+    .round-celebration-panel::after { content:''; position:absolute; right:-34px; top:-58px; width:150px; height:150px; border-radius:999px; background:radial-gradient(circle,rgba(251,191,36,.34) 0%,rgba(251,191,36,.14) 46%,transparent 70%); pointer-events:none; }
+    .round-celebration-panel h3 { display:flex; align-items:center; gap:8px; color:#92400e; }
+    .round-celebration-panel h3::before { content:''; width:11px; height:11px; border-radius:999px; background:#f59e0b; box-shadow:0 0 0 5px rgba(245,158,11,.16); }
+    .round-pay-btn { width:100%; max-width:310px; background:linear-gradient(135deg,#fbbf24,#f59e0b); color:#111827; border:1px solid rgba(146,64,14,.14); font-weight:950; box-shadow:0 8px 20px rgba(245,158,11,.24); }
+    .round-pay-btn:active { transform:translateY(1px) scale(.99); }
+    .round-note { margin-top:8px; max-width:560px; color:#7c2d12; font-weight:650; }
+    .compact-panel { padding:9px 10px; margin:8px 0; }
+    .compact-panel h3 { font-size:15px; margin-bottom:6px; }
+    .compact-panel .muted { font-size:12px; }
+    .compact-panel button { font-size:13px; padding:7px 9px; }
+    .delete-toggle { width:100%; display:flex; justify-content:space-between; align-items:center; gap:8px; background:#fff7ed; color:#9a3412; border:1px solid #fed7aa; }
+    .delete-toggle::after { content:'aufklappen'; font-size:12px; color:#c2410c; font-weight:800; }
+    .delete-toggle.open::after { content:'schließen'; }
+    .delete-request-box { margin-top:8px; display:none; }
+    .delete-request-box.open { display:block; }
+    .delete-request-row { display:grid; grid-template-columns:1fr auto; gap:10px; align-items:center; border-top:1px solid var(--border); padding:8px 0; }
+    .qty-stepper { display:flex; align-items:center; gap:7px; }
+    .qty-stepper button { min-width:34px; font-size:16px; }
+    .qty-value { min-width:28px; text-align:center; font-weight:900; }
+    .delete-request-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
+    .finish-button { width:100%; margin:0 0 4px; background:var(--green); font-weight:900; font-size:19px; padding:14px; }
+    .action-total { display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin:12px 0; padding:12px; background:#f8fafc; border-radius:14px; font-size:18px; font-weight:900; }
+    .action-list { max-height:45vh; overflow:auto; border:1px solid var(--border); border-radius:14px; }
+    .action-list table { margin:0; }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    th, td { text-align:left; padding:7px 5px; border-bottom:1px solid var(--border); vertical-align:top; }
+    th { color:var(--muted); font-size:12px; }
+    .right { text-align:right; white-space:nowrap; }
+    .line-actions { display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap; }
+    .danger { background:var(--red-bg); color:var(--red); }
+    .pay-btn { background:var(--green); font-weight:850; }
+    .edit-btn { background:var(--yellow); font-weight:850; }
+    .ok-btn { background:var(--border); }
+    .bottom-row { display:flex; gap:9px; margin-top:14px; }
+    .bottom-row button { flex:1; }
+    .muted { color:var(--muted); font-size:13px; line-height:1.35; }
+    select { font:inherit; padding:8px; border-radius:10px; border:1px solid var(--border); }
+    .decision-buttons { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    @media (prefers-reduced-motion:reduce) { .drink-buttons button, .drink-feedback { transition:none; } .drink-buttons button.is-writing::before, .drink-buttons button.drink-written, .drink-buttons button.drink-written::after, .drink-feedback.feedback-pop, .confetti-piece { animation:none; } }
+    .approve-btn { background:var(--green); }
+    .reject-btn { background:var(--red-bg); color:var(--red); }
+    .approve-btn.selected { outline:3px solid #16a34a; }
+    .reject-btn.selected { outline:3px solid var(--red); }
+    .dev-banner { display:none; margin:10px 12px 0; background:#fffbeb; border:1px solid #fde68a; color:#92400e; border-radius:14px; padding:10px 12px; font-weight:800; line-height:1.35; }
+    .sync-line { position:fixed; right:12px; bottom:12px; z-index:35; display:flex; align-items:center; gap:calc(8px * var(--sync-status-scale,1)); max-width:calc(100vw - 24px); padding:calc(8px * var(--sync-status-scale,1)) calc(12px * var(--sync-status-scale,1)); background:#ecfdf5; color:#065f46; border:1px solid #bbf7d0; border-radius:999px; font-size:calc(13px * var(--sync-status-scale,1)); font-weight:850; line-height:1.25; box-shadow:0 8px 28px rgba(0,0,0,.18); }
+    .sync-line.offline { background:#fee2e2; color:#991b1b; border-color:#fecaca; }
+    .sync-line.syncing { background:#fffbeb; color:#92400e; border-color:#fde68a; }
+    .sync-line.hidden { display:none; }
+    .sync-dot { width:calc(10px * var(--sync-status-scale,1)); height:calc(10px * var(--sync-status-scale,1)); border-radius:999px; background:currentColor; flex:0 0 auto; box-shadow:0 0 0 3px rgba(255,255,255,.55); }
+    .sync-text { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .sync-refresh { font-size:calc(13px * var(--sync-status-scale,1)); padding:calc(5px * var(--sync-status-scale,1)) calc(9px * var(--sync-status-scale,1)); border-radius:999px; background:rgba(255,255,255,.62); color:inherit; }
+    .status { position:fixed; left:12px; right:12px; bottom:76px; background:var(--dark); color:white; padding:12px 16px; border-radius:14px; font-size:16px; display:none; z-index:20; box-shadow:0 8px 30px rgba(0,0,0,.25); }
+    @media (max-width:780px) { .columns { grid-template-columns:1fr; } .row-main { grid-template-columns:1fr auto; } .summary { grid-column:1 / -1; justify-content:flex-start; white-space:normal; } .summary-text { white-space:normal; } .event-summary { justify-content:flex-start; } }
+    @media (max-width:520px) { header { align-items:flex-start; } header h1 { font-size:18px; } button { font-size:14px; padding:9px 10px; } .name { font-size:14px; } .total { font-size:13px; } .drink-feedback { left:108px; right:10px; font-size:13px; padding:5px 10px; } table { font-size:12.5px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1 id="appTitle">Drink POS</h1>
+    <div class="header-buttons">
+      <button id="adminButton" class="admin-btn" onclick="toggleAdmin()">🔐 Admin</button>
+      <button id="orgButton" class="admin-btn" style="display:none" onclick="openAdminPage()">⚙ Organisation</button>
+      <button id="roundButton" class="admin-btn" style="display:none" onclick="deductRound()">🎁 Runde abziehen</button>
+      <button id="cashupButton" class="admin-btn" style="display:none" onclick="cashupEvent()">🧾 Kassensturz</button>
+      <button id="debugButton" class="admin-btn" style="display:none" onclick="addTestData()">🧪 Test</button>
+    </div>
+  </header>
+
+  <div id="syncLine" class="sync-line syncing" role="status" aria-live="polite">
+    <span class="sync-dot"></span>
+    <span id="syncText" class="sync-text">Verbindung wird geprüft…</span>
+    <button id="syncRefreshButton" class="sync-refresh" onclick="resyncNow()">↻</button>
+  </div>
+
+  <div id="devModeBanner" class="dev-banner">⚠ Entwicklungsmodus aktiv: Testfunktionen sind verfügbar. Nicht für den produktiven Betrieb verwenden.</div>
+
+  <div class="toolbar">
+    <input id="searchInput" type="search" placeholder="Name suchen..." oninput="renderPeople()">
+  </div>
+
+  <main class="columns">
+    <section class="column" id="leftColumn"></section>
+    <section class="column" id="rightColumn"></section>
+  </main>
+
+  <dialog id="personDialog" onclick="if (event.target === this) closeDialog()">
+    <div class="celebration-layer" id="celebrationLayer" aria-hidden="true"></div>
+    <div class="dialog-content">
+      <h2 id="dialogName"></h2>
+      <div class="dialog-total" id="dialogTotal"></div>
+
+      <div class="panel" id="billPanel">
+        <h3>Offene Posten</h3>
+        <div id="billBox"></div>
+      </div>
+
+      <div class="panel" id="addPanel">
+        <h3>Hinzufügen</h3>
+        <div class="drink-feedback" id="drinkFeedbackTop" aria-live="polite"></div>
+        <div class="drink-buttons" id="drinkButtons"></div>
+        <div class="drink-feedback" id="drinkFeedback" aria-live="polite"></div>
+        <button class="finish-button" onclick="closeDialog()">Fertig</button>
+        <div class="muted" id="adminOnlyHint" style="display:none">Admin-Modus: Admin-Artikel wie „1 Runde“ können ebenfalls hinzugefügt werden.</div>
+      </div>
+
+      <div class="panel" id="pendingPanel" style="display:none">
+        <h3>Änderungswünsche</h3>
+        <div id="pendingBox"></div>
+      </div>
+
+      <div class="panel round-celebration-panel" id="roundRequestPanel">
+        <h3>Runde zahlen</h3>
+        <button class="round-pay-btn" onclick="requestRound()">+ 1 Runde bestätigen</button>
+        <div class="muted round-note">Feierliche Runde: wird sofort auf deine offene Rechnung gesetzt und beim nächsten Kassensturz automatisch abgezogen.</div>
+      </div>
+
+      <div class="panel compact-panel" id="userEditPanel">
+        <h3>Löschanfrage</h3>
+        <button id="deleteToggleButton" class="delete-toggle" type="button" onclick="toggleDeleteRequestMenu()">Löschanfrage öffnen</button>
+        <div class="muted" style="margin-top:6px">Nur für seltene Fehlbuchungen. Erst aufklappen, Menge wählen und dann „Anfragen“ drücken.</div>
+        <div id="requestDeleteBox" class="delete-request-box"></div>
+      </div>
+
+      <div class="panel" id="adminEditPanel" style="display:none">
+        <h3>Admin: direkt korrigieren</h3>
+        <div id="adminAdjustBox"></div>
+      </div>
+
+      <div class="bottom-row" id="payRow" style="display:none">
+        <button id="payButton" class="pay-btn" style="display:none" onclick="payCurrentPerson()">💰 Bar bezahlt</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="actionDialog">
+    <div class="dialog-content">
+      <h2 id="actionTitle"></h2>
+      <div id="actionBody"></div>
+      <div class="bottom-row" id="actionButtons"></div>
+    </div>
+  </dialog>
+
+  <div class="status" id="status"></div>
+
+  <script>
+    let items = [];
+    let userItems = [];
+    let people = [];
+    let currentPerson = null;
+    let adminMode = false;
+    let adminPin = sessionStorage.getItem('drinkPosAdminPin') || null;
+    let debugEnabled = true;
+    let environment = 'development';
+    let showTotalOnOverview = true;
+    let tallyRoughness = 4;
+    let overviewNameSizePx = 15.5;
+    let overviewSummarySizePercent = 100;
+    let showSummaryLabelOnOverview = true;
+    let overviewSummaryLabelText = 'Gesamt:';
+    let tallySizePercent = 100;
+    let appName = 'Drink POS';
+    let syncStatusVisible = true;
+    let syncStatusSizePercent = 100;
+    let enableDeleteRequests = true;
+    let showPersonPopupTotal = true;
+    let deleteRequestMenuOpen = false;
+    let deleteRequestSelections = {};
+    let appBackgroundColor = '#f3f4f6';
+    let personCardBackgroundColor = '#ffffff';
+    let personCardBorderColor = '#bfdbfe';
+    let personCardBorderWidthPx = 2;
+    let personCardGapPx = 10;
+    let pendingDecisions = {};
+    let lastSyncAt = localStorage.getItem('drinkPosLastSyncAt') || '';
+    let lastServerRevision = localStorage.getItem('drinkPosServerRevision') || '';
+    let currentSyncState = 'unknown';
+    let flushingClientEvents = false;
+    let drinkFeedbackTimer = null;
+    let drinkFeedbackEnabled = true;
+    let drinkFeedbackStyle = 'strong';
+    let drinkFeedbackDurationMs = 1400;
+    let drinkFeedbackAnimationIntensityPercent = 100;
+    let drinkFeedbackPosition = 'above';
+    let drinkCelebrationMode = 'condition';
+    let drinkCelebrationConditionRound = true;
+    let drinkCelebrationConditionDebt = true;
+    let drinkCelebrationDebtThresholdEur = 50;
+    let drinkCelebrationConfettiIntensityPercent = 100;
+    let drinkCelebrationSoundEnabled = true;
+    let celebrationAudioCtx = null;
+    let syncCheckTimer = null;
+
+    function numberComma(value, minimumFractionDigits = 2, maximumFractionDigits = minimumFractionDigits) {
+      const n = Number(value || 0);
+      return n.toLocaleString('de-DE', { minimumFractionDigits, maximumFractionDigits });
+    }
+    function money(value) { return `€ ${numberComma(value, 2, 2)}`; }
+    function decimalText(value, digits = 2) { return numberComma(value, digits, digits); }
+    function normalizeDecimalText(text) {
+      return String(text ?? '').replace(/(€\s*-?\d+)\.(\d{1,2})(?=\D|$)/g, '$1,$2');
+    }
+    function escapeHtml(value) { return String(value ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;'); }
+    function showStatus(text) { const el = document.getElementById('status'); el.textContent = text; el.style.display = 'block'; clearTimeout(window.statusTimer); window.statusTimer = setTimeout(() => { el.style.display = 'none'; }, 2400); }
+
+    function formatSyncTime(value) {
+      if (!value) return 'nie';
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return 'nie';
+      return d.toLocaleString('de-CH', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' });
+    }
+
+    function pageNameForLog() { return 'Kasse'; }
+    function connectionLoggingEnabled() { return environment === 'development' && debugEnabled !== false; }
+    function deviceLabel() {
+      const ua = navigator.userAgent || '';
+      const platform = navigator.platform || '';
+      const touch = Number(navigator.maxTouchPoints || 0);
+      if (/iPad/i.test(ua) || (platform === 'MacIntel' && touch > 1)) return 'iPad';
+      if (/iPhone/i.test(ua)) return 'iPhone';
+      if (/Android/i.test(ua) && /Mobile/i.test(ua)) return 'Android Handy';
+      if (/Android/i.test(ua)) return 'Android Tablet';
+      if (/Windows/i.test(ua)) return 'PC Windows';
+      if (/Macintosh|Mac OS/i.test(ua)) return 'Mac';
+      return touch > 1 ? 'Touchgeraet' : 'PC';
+    }
+    function deviceInfoForLog() {
+      return `${deviceLabel()} · ${window.innerWidth}x${window.innerHeight} · ${navigator.platform || 'unknown'}`;
+    }
+
+    function applySyncAppearance() {
+      const line = document.getElementById('syncLine');
+      if (!line) return;
+      document.documentElement.style.setProperty('--sync-status-scale', String(Math.max(70, Math.min(180, syncStatusSizePercent)) / 100));
+      line.classList.toggle('hidden', !syncStatusVisible);
+    }
+
+    function applyVisualAppearance() {
+      const root = document.documentElement;
+      root.style.setProperty('--app-bg', appBackgroundColor || '#f3f4f6');
+      root.style.setProperty('--person-card-bg', personCardBackgroundColor || '#ffffff');
+      root.style.setProperty('--person-card-border-color', personCardBorderColor || '#bfdbfe');
+      root.style.setProperty('--person-card-border-width', `${Math.max(0, Math.min(8, Number(personCardBorderWidthPx || 2)))}px`);
+      root.style.setProperty('--person-card-gap', `${Math.max(4, Math.min(32, Number(personCardGapPx || 10)))}px`);
+    }
+
+    function updateStoredRevision(syncData = null) {
+      if (syncData?.db_revision) {
+        lastServerRevision = String(syncData.db_revision);
+        localStorage.setItem('drinkPosServerRevision', lastServerRevision);
+      }
+    }
+
+    function getPendingClientEvents() {
+      try { return JSON.parse(localStorage.getItem('drinkPosPendingClientEvents') || '[]'); }
+      catch { return []; }
+    }
+
+    function setPendingClientEvents(events) {
+      localStorage.setItem('drinkPosPendingClientEvents', JSON.stringify(events.slice(-20)));
+    }
+
+    function enqueueClientEvent(event_type, details = '') {
+      const events = getPendingClientEvents();
+      const last = events[events.length - 1];
+      if (last && last.event_type === event_type && Date.now() - Number(last.ts || 0) < 5 * 60 * 1000) return;
+      events.push({
+        event_type,
+        page: pageNameForLog(),
+        client_time: new Date().toISOString(),
+        last_sync_at: lastSyncAt || null,
+        device_info: deviceInfoForLog(),
+        details,
+        ts: Date.now(),
+      });
+      setPendingClientEvents(events);
+    }
+
+    async function sendClientEvent(event) {
+      const payload = {...event};
+      delete payload.ts;
+      const res = await fetch('/api/client-event', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(payload),
+        cache:'no-store',
+      });
+      if (!res.ok) throw new Error('event log failed');
+      const data = await res.json().catch(() => null);
+      updateStoredRevision(data);
+    }
+
+    async function flushClientEvents() {
+      if (flushingClientEvents) return;
+      flushingClientEvents = true;
+      try {
+        let events = getPendingClientEvents();
+        while (events.length) {
+          try { await sendClientEvent(events[0]); }
+          catch { break; }
+          events = events.slice(1);
+          setPendingClientEvents(events);
+        }
+      } finally {
+        flushingClientEvents = false;
+      }
+    }
+
+    function noteClientEvent(event_type, details = '') {
+      if (!connectionLoggingEnabled()) return;
+      enqueueClientEvent(event_type, details);
+      if (navigator.onLine) flushClientEvents();
+    }
+
+    function updateSyncUi(state, text) {
+      const line = document.getElementById('syncLine');
+      const label = document.getElementById('syncText');
+      if (!line || !label) return;
+      line.classList.toggle('offline', state === 'offline');
+      line.classList.toggle('syncing', state === 'syncing');
+      label.textContent = text;
+      applySyncAppearance();
+    }
+
+    function markSyncSuccess(syncData = null) {
+      const wasOffline = currentSyncState === 'offline';
+      currentSyncState = 'online';
+      lastSyncAt = new Date().toISOString();
+      localStorage.setItem('drinkPosLastSyncAt', lastSyncAt);
+      updateStoredRevision(syncData);
+      updateSyncUi('online', `Synchronisiert · letzter Sync: ${formatSyncTime(lastSyncAt)}`);
+      if (wasOffline) noteClientEvent('CONNECTION_RESTORED', 'Verbindung zum Server wieder erreichbar.');
+      else flushClientEvents();
+    }
+
+    function markSyncFailure() {
+      if (currentSyncState !== 'offline') noteClientEvent('CONNECTION_LOST', 'Server nicht erreichbar.');
+      currentSyncState = 'offline';
+      updateSyncUi('offline', `Offline · letzter Sync: ${formatSyncTime(lastSyncAt)}`);
+    }
+
+    async function apiGet(url) {
+      let res;
+      try { res = await fetch(url, { cache:'no-store' }); }
+      catch { markSyncFailure(); throw new Error('Keine Verbindung zum Server'); }
+      if (!res.ok) { markSyncSuccess(); throw new Error('Serverfehler'); }
+      const data = await res.json();
+      markSyncSuccess();
+      return data;
+    }
+
+    async function apiPost(url, body) {
+      let res;
+      try { res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body), cache:'no-store'}); }
+      catch { markSyncFailure(); throw new Error('Keine Verbindung zum Server. Änderung wurde nicht gespeichert.'); }
+      if (!res.ok) { markSyncSuccess(); const err = await res.json().catch(()=>({})); throw new Error(err.detail || 'Unbekannter Fehler'); }
+      const data = await res.json();
+      markSyncSuccess();
+      return data;
+    }
+
+    async function checkSyncStatus(options = {}) {
+      const resyncOnChange = options.resyncOnChange === true;
+      const previousRevision = lastServerRevision;
+      try {
+        const res = await fetch(`/api/sync-status?ts=${Date.now()}`, { cache:'no-store' });
+        if (!res.ok) throw new Error('sync failed');
+        const data = await res.json();
+        const newRevision = String(data.db_revision || '');
+        markSyncSuccess(data);
+        if (resyncOnChange && previousRevision && newRevision && previousRevision !== newRevision && !document.getElementById('personDialog')?.open) {
+          await loadConfig();
+          await loadPeople(false);
+          return true;
+          noteClientEvent('SYNC_COMPLETED', 'Automatisch nach Serveränderung synchronisiert.');
+        }
+        return true;
+      } catch {
+        markSyncFailure();
+        return false;
+      }
+    }
+
+    async function resyncNow() {
+      updateSyncUi('syncing', `Synchronisiere… letzter Sync: ${formatSyncTime(lastSyncAt)}`);
+      try {
+        await loadConfig();
+        await loadPeople(true);
+        await checkSyncStatus({ resyncOnChange:false });
+        noteClientEvent('SYNC_COMPLETED', 'Manuelle oder Wiederverbindungs-Synchronisierung abgeschlossen.');
+        showStatus('Synchronisiert');
+      } catch (err) {
+        markSyncFailure();
+        showStatus(err.message || 'Offline: Synchronisierung nicht möglich');
+      }
+    }
+
+    async function loadConfig() {
+      const cfg = await apiGet('/api/config');
+      items = cfg.items || [];
+      userItems = cfg.user_items || cfg.drinks || [];
+      debugEnabled = cfg.debug_enabled !== false;
+      environment = cfg.environment || 'development';
+      showTotalOnOverview = cfg.show_total_on_overview !== false;
+      syncStatusVisible = cfg.show_sync_status !== false;
+      syncStatusSizePercent = Math.max(70, Math.min(180, Number(cfg.sync_status_size_percent || 100)));
+      enableDeleteRequests = cfg.enable_delete_requests !== false;
+      drinkFeedbackEnabled = cfg.drink_feedback_enabled !== false;
+      drinkFeedbackStyle = ['subtle', 'normal', 'strong'].includes(cfg.drink_feedback_style) ? cfg.drink_feedback_style : 'strong';
+      drinkFeedbackDurationMs = Math.max(500, Math.min(3000, Number(cfg.drink_feedback_duration_ms || 1400)));
+      drinkFeedbackAnimationIntensityPercent = Math.max(0, Math.min(200, Number(cfg.drink_feedback_animation_intensity_percent ?? 100)));
+      drinkFeedbackPosition = 'above';
+      drinkCelebrationMode = ['always', 'condition', 'never'].includes(cfg.drink_celebration_mode) ? cfg.drink_celebration_mode : 'condition';
+      drinkCelebrationConditionRound = cfg.drink_celebration_condition_round !== false;
+      drinkCelebrationConditionDebt = cfg.drink_celebration_condition_debt !== false;
+      drinkCelebrationDebtThresholdEur = Math.max(0, Number(cfg.drink_celebration_debt_threshold_eur || 50));
+      drinkCelebrationConfettiIntensityPercent = Math.max(0, Math.min(200, Number(cfg.drink_celebration_confetti_intensity_percent || 100)));
+      drinkCelebrationSoundEnabled = cfg.drink_celebration_sound_enabled !== false;
+      syncDrinkFeedbackSlots();
+      showPersonPopupTotal = cfg.show_person_popup_total !== false;
+      appBackgroundColor = cfg.app_background_color || '#f3f4f6';
+      personCardBackgroundColor = cfg.person_card_background_color || '#ffffff';
+      personCardBorderColor = cfg.person_card_border_color || '#bfdbfe';
+      personCardBorderWidthPx = Number(cfg.person_card_border_width_px ?? 2);
+      personCardGapPx = Number(cfg.person_card_gap_px ?? 10);
+      applySyncAppearance();
+      applyVisualAppearance();
+      tallyRoughness = Math.max(1, Math.min(10, Number(cfg.tally_roughness || 4)));
+      overviewNameSizePx = Math.max(12, Math.min(28, Number(cfg.overview_name_size_px || 15.5)));
+      overviewSummarySizePercent = Math.max(70, Math.min(180, Number(cfg.overview_summary_size_percent || 100)));
+      showSummaryLabelOnOverview = cfg.show_summary_label_on_overview !== false;
+      overviewSummaryLabelText = cfg.overview_summary_label_text || 'Gesamt:';
+      tallySizePercent = Math.max(60, Math.min(180, Number(cfg.tally_size_percent || 100)));
+      document.documentElement.style.setProperty('--overview-name-size', `${overviewNameSizePx}px`);
+      document.documentElement.style.setProperty('--overview-summary-scale', `${overviewSummarySizePercent / 100}`);
+      appName = cfg.app_name || 'Drink POS';
+      document.title = appName;
+      const title = document.getElementById('appTitle'); if (title) title.textContent = appName;
+      updateAdminUi();
+      renderDrinkButtons();
+      renderPeople();
+    }
+
+    async function loadPeople(force = false) {
+      if (!force && document.getElementById('personDialog')?.open) return;
+      try {
+        people = await apiGet('/api/people');
+        renderPeople();
+        if (currentPerson) {
+          const updated = people.find(p => p.id === currentPerson.id);
+          if (updated) { currentPerson = updated; updateDialogInfo(); }
+        }
+      } catch (err) { showStatus('Verbindung zum Server fehlgeschlagen'); }
+    }
+
+
+    function personSummary(p) {
+      const lines = p.summary_lines || p.lines || [];
+      if (!lines.length) return { text: 'keine Posten', empty: true };
+      return { text: lines.map(l => `${escapeHtml(l.short_label || l.name)} ${Number(l.quantity)}`).join(' · '), empty: false };
+    }
+
+    function tallyNoise(seed) {
+      const x = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
+      return x - Math.floor(x);
+    }
+
+    function roughnessFactor() {
+      return Math.max(0, (Number(tallyRoughness || 4) - 1) / 9);
+    }
+
+    function tallyScale() {
+      return Math.max(0.6, Math.min(1.8, Number(tallySizePercent || 100) / 100));
+    }
+
+    function tallyGroupStyle() {
+      const scale = tallyScale();
+      return `width:${(33 * scale).toFixed(1)}px;height:${(24 * scale).toFixed(1)}px;gap:${Math.max(1, 2 * scale).toFixed(1)}px;`;
+    }
+
+    function tallyMarkStyle(groupIndex, markIndex, seedBase = 0) {
+      const rough = roughnessFactor();
+      const seed = seedBase + (groupIndex + 1) * 17 + (markIndex + 1) * 31;
+      const hNoise = tallyNoise(seed);
+      const rNoise = tallyNoise(seed + 3.17);
+      const yNoise = tallyNoise(seed + 6.31);
+      const widthNoise = tallyNoise(seed + 9.91);
+      const scale = tallyScale();
+      const height = (18 + ((hNoise - 0.5) * 12 * rough)) * scale;
+      const rotate = (rNoise - 0.5) * (2 + 28 * rough);
+      const translateY = (yNoise - 0.5) * (1 + 5 * rough) * scale;
+      const width = (2 + ((widthNoise - 0.5) * 1.2 * rough)) * Math.sqrt(scale);
+      return `height:${height.toFixed(1)}px;width:${Math.max(1.4, width).toFixed(2)}px;transform:rotate(${rotate.toFixed(1)}deg) translateY(${translateY.toFixed(1)}px);`;
+    }
+
+    function tallySlashStyle(groupIndex, seedBase = 0) {
+      const rough = roughnessFactor();
+      const seed = seedBase + (groupIndex + 1) * 41;
+      const scale = tallyScale();
+      const angle = -30 + (tallyNoise(seed) - 0.5) * (4 + 34 * rough);
+      const top = (10 + (tallyNoise(seed + 2) - 0.5) * (1 + 4 * rough)) * scale;
+      const left = (-1 + (tallyNoise(seed + 4) - 0.5) * (0.5 + 3 * rough)) * scale;
+      const width = (31 + (tallyNoise(seed + 6) - 0.5) * (1 + 6 * rough)) * scale;
+      const height = (2 + (tallyNoise(seed + 8) - 0.5) * (0.2 + 1.6 * rough)) * Math.sqrt(scale);
+      return `left:${left.toFixed(1)}px;top:${top.toFixed(1)}px;width:${width.toFixed(1)}px;height:${Math.max(1.3, height).toFixed(2)}px;transform:rotate(${angle.toFixed(1)}deg);`;
+    }
+
+    function tallyLabelStyle() {
+      const scale = tallyScale();
+      return `font-size:${(13 * scale).toFixed(1)}px;`;
+    }
+
+    function tallyHtml(quantity, seedBase = 0) {
+      let n = Math.max(0, Number(quantity || 0));
+      if (n <= 0) return '';
+      let html = '';
+      let groupIndex = 0;
+      while (n >= 5) {
+        html += `<span class="tally-group tally-five" style="${tallyGroupStyle()}">`;
+        for (let i = 0; i < 4; i++) html += `<span class="tally-mark" style="${tallyMarkStyle(groupIndex, i, seedBase)}"></span>`;
+        html += `<span class="tally-slash" style="${tallySlashStyle(groupIndex, seedBase)}"></span></span>`;
+        n -= 5;
+        groupIndex += 1;
+      }
+      if (n > 0) {
+        html += `<span class="tally-group" style="${tallyGroupStyle()}">`;
+        for (let i = 0; i < n; i++) html += `<span class="tally-mark" style="${tallyMarkStyle(groupIndex, i, seedBase)}"></span>`;
+        html += '</span>';
+      }
+      return html;
+    }
+
+    function stableSeedForTally(person, line, idx) {
+      const a = Number(person?.id || 0) * 101;
+      const b = Number(line?.item_id || 0) * 53;
+      const label = String(line?.short_label || line?.name || '');
+      let c = 0;
+      for (let i = 0; i < label.length; i++) c += label.charCodeAt(i) * (i + 1);
+      return a + b + c + (idx + 1) * 97;
+    }
+
+    function eventSummary(p) {
+      const lines = p.event_summary_lines || [];
+      if (!lines.length) return '<span class="event-empty">keine Striche</span>';
+      return lines.map((l, idx) => {
+        const seedBase = stableSeedForTally(p, l, idx);
+        return `<span class="tally-item"><span class="tally-name" style="${tallyLabelStyle()}">${escapeHtml(l.short_label || l.name)}</span><span class="tally-marks">${tallyHtml(l.quantity, seedBase)}</span></span>`;
+      }).join('');
+    }
+
+    function pendingSummary(requests) {
+      if (!requests || requests.length === 0) return '';
+      const grouped = {};
+      for (const r of requests) {
+        const kind = r.request_kind || 'DELETE';
+        const key = `${kind}:${r.item_id ?? r.item ?? r.drink}`;
+        const label = r.short_label || r.item || r.drink || 'Artikel';
+        if (!grouped[key]) grouped[key] = { label, qty: 0, kind };
+        grouped[key].qty += Number(r.quantity_to_add || r.quantity_to_remove || Math.abs(r.delta || 0));
+      }
+      return Object.values(grouped).map(r => `${r.kind === 'ROUND_ADD' ? '+' : '-'}${r.qty} ${r.label}`).join(', ');
+    }
+
+    function groupedDeleteRequestLines() {
+      const groups = new Map();
+      const lines = (currentPerson?.lines || []).filter(l => l.can_user_request_delete && Number(l.available_for_request || 0) > 0);
+      for (const l of lines) {
+        const key = l.item_id != null ? `item:${l.item_id}` : `line:${l.name}:${l.short_label}`;
+        if (!groups.has(key)) {
+          groups.set(key, {
+            key,
+            item_id: l.item_id,
+            name: l.name,
+            short_label: l.short_label || l.name,
+            available: 0,
+            lines: []
+          });
+        }
+        const group = groups.get(key);
+        group.name = l.name || group.name;
+        group.short_label = l.short_label || group.short_label;
+        group.available += Number(l.available_for_request || 0);
+        group.lines.push(l);
+      }
+      const result = Array.from(groups.values());
+      for (const group of result) {
+        // Für versehentliche neue Striche zuerst die aktuellste Veranstaltungs-Zeile verwenden,
+        // aber in der Anzeige nur einen Eintrag pro Artikel zeigen.
+        group.lines.sort((a, b) => {
+          const eventDiff = Number(b.event_open) - Number(a.event_open);
+          if (eventDiff) return eventDiff;
+          const dateDiff = String(b.consumed_date || '').localeCompare(String(a.consumed_date || ''));
+          if (dateDiff) return dateDiff;
+          return Number(b.line_id || 0) - Number(a.line_id || 0);
+        });
+      }
+      return result.sort((a, b) => String(a.short_label || a.name).localeCompare(String(b.short_label || b.name)));
+    }
+
+    function renderPeople() {
+      const left = document.getElementById('leftColumn');
+      const right = document.getElementById('rightColumn');
+      const q = document.getElementById('searchInput').value.trim().toLowerCase();
+      left.innerHTML = ''; right.innerHTML = '';
+      const filtered = people.filter(p => p.name.toLowerCase().includes(q));
+      const half = Math.ceil(filtered.length / 2);
+      filtered.slice(0, half).forEach(p => left.appendChild(makePersonRow(p)));
+      filtered.slice(half).forEach(p => right.appendChild(makePersonRow(p)));
+    }
+
+    function makePersonRow(p) {
+      const row = document.createElement('div');
+      row.className = 'person-row' + (p.total > 0 ? ' has-open' : '');
+      row.onclick = () => openPerson(p);
+      const pendingText = pendingSummary(p.pending_requests || []);
+      const summary = personSummary(p);
+      const summaryLabelHtml = showSummaryLabelOnOverview ? `<span class="summary-label">${escapeHtml(overviewSummaryLabelText)}</span>` : '';
+      const summaryHtml = `<div class="summary ${summary.empty ? 'empty' : ''}">${summaryLabelHtml}<span class="summary-text">${summary.text}</span></div>`;
+      const totalHtml = (showTotalOnOverview || adminMode) ? `<div class="total ${p.total === 0 ? 'zero' : ''}">${money(p.total)}</div>` : '';
+      const eventHtml = `<div class="event-summary">${eventSummary(p)}</div>`;
+      row.innerHTML = `<div class="row-main"><div class="name">${escapeHtml(p.name)}</div>${summaryHtml}${totalHtml}</div>${eventHtml}${pendingText ? `<div class="pending-line">⚠ Änderungswunsch: ${escapeHtml(pendingText)}</div>` : ''}`;
+      return row;
+    }
+
+    function openPerson(person) {
+      currentPerson = person;
+      pendingDecisions = {};
+      deleteRequestMenuOpen = false;
+      deleteRequestSelections = {};
+      updateDialogInfo();
+      document.getElementById('personDialog').showModal();
+    }
+
+    function closeDialog() {
+      const dialog = document.getElementById('personDialog');
+      if (dialog?.open) dialog.close();
+      clearDrinkFeedback();
+      currentPerson = null;
+      deleteRequestMenuOpen = false;
+      deleteRequestSelections = {};
+      loadPeople(true);
+    }
+
+    function clearDrinkFeedback() {
+      if (drinkFeedbackTimer) clearTimeout(drinkFeedbackTimer);
+      drinkFeedbackTimer = null;
+      syncDrinkFeedbackSlots();
+      const layer = document.getElementById('celebrationLayer');
+      if (layer) layer.innerHTML = '';
+    }
+
+    function syncDrinkFeedbackSlots() {
+      const top = document.getElementById('drinkFeedbackTop');
+      const bottom = document.getElementById('drinkFeedback');
+      const active = top;
+      const inactive = bottom;
+      for (const feedback of [top, bottom]) {
+        if (!feedback) continue;
+        feedback.textContent = '';
+        feedback.className = feedback === active && drinkFeedbackEnabled ? 'drink-feedback' : 'drink-feedback off';
+      }
+      return active;
+    }
+
+    function activeDrinkFeedbackElement() {
+      return syncDrinkFeedbackSlots() || document.getElementById('drinkFeedback') || document.getElementById('drinkFeedbackTop');
+    }
+
+    function celebrationShouldRun(context = {}) {
+      if (drinkCelebrationMode === 'never') return false;
+      if (!context.isRoundPayment) return false;
+      if (drinkCelebrationMode === 'always') return true;
+      return drinkCelebrationConditionRound;
+    }
+
+    function feedbackIntensityFactor() {
+      return Math.max(0, Math.min(2, Number(drinkFeedbackAnimationIntensityPercent || 0) / 100));
+    }
+
+    function confettiIntensityFactor() {
+      return Math.max(0, Math.min(2, Number(drinkCelebrationConfettiIntensityPercent || 0) / 100));
+    }
+
+    function applyFeedbackAnimationIntensity() {
+      const factor = feedbackIntensityFactor();
+      const root = document.documentElement;
+      root.style.setProperty('--drink-feedback-button-dip', (0.006 + 0.012 * factor).toFixed(3));
+      root.style.setProperty('--drink-feedback-button-pop', (0.012 + 0.04 * factor).toFixed(3));
+      root.style.setProperty('--drink-feedback-scale-dip', (0.02 + 0.07 * factor).toFixed(3));
+      root.style.setProperty('--drink-feedback-scale-pop', (0.01 + 0.045 * factor).toFixed(3));
+      root.style.setProperty('--drink-feedback-lift', `${Math.round(3 + 10 * factor)}px`);
+      root.style.setProperty('--drink-feedback-shadow-y', `${Math.round(8 + 12 * factor)}px`);
+      root.style.setProperty('--drink-feedback-shadow-blur', `${Math.round(18 + 24 * factor)}px`);
+      root.style.setProperty('--drink-feedback-shadow-alpha', Math.min(0.36, 0.08 + 0.18 * factor).toFixed(2));
+      root.style.setProperty('--drink-feedback-pop-duration', `${(0.34 + 0.22 * factor).toFixed(2)}s`);
+      root.style.setProperty('--drink-feedback-toast-duration', `${(0.42 + 0.36 * factor).toFixed(2)}s`);
+    }
+
+    function launchConfetti() {
+      const layer = document.getElementById('celebrationLayer');
+      if (!layer || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      const factor = confettiIntensityFactor();
+      if (factor <= 0) return;
+      const colors = ['#fbbf24', '#22c55e', '#38bdf8', '#f472b6', '#fb7185', '#a78bfa', '#f97316'];
+      layer.innerHTML = '';
+      const count = Math.round(14 + 44 * factor);
+      for (let i = 0; i < count; i++) {
+        const piece = document.createElement('span');
+        const shape = i % 5 === 0 ? 'dot' : (i % 7 === 0 ? 'ribbon' : '');
+        piece.className = `confetti-piece ${shape}`;
+        const side = i % 2 === 0 ? -1 : 1;
+        const spread = (22 + Math.random() * 210) * (0.65 + factor * 0.45);
+        const x = side * spread;
+        const y = -((145 + Math.random() * 230) * (0.7 + factor * 0.35));
+        const fallX = x + (Math.random() - 0.5) * 150 * (0.7 + factor * 0.4);
+        const fallY = 30 + Math.random() * 175 * (0.8 + factor * 0.35);
+        piece.style.setProperty('--confetti-color', colors[i % colors.length]);
+        piece.style.setProperty('--confetti-x', `${x.toFixed(0)}px`);
+        piece.style.setProperty('--confetti-y', `${y.toFixed(0)}px`);
+        piece.style.setProperty('--confetti-fall-x', `${fallX.toFixed(0)}px`);
+        piece.style.setProperty('--confetti-fall-y', `${fallY.toFixed(0)}px`);
+        piece.style.setProperty('--confetti-rot', `${(Math.random() * 720 - 360).toFixed(0)}deg`);
+        piece.style.setProperty('--confetti-delay', `${Math.random() * 170}ms`);
+        piece.style.setProperty('--confetti-duration', `${1900 + Math.random() * 950 + factor * 260}ms`);
+        layer.appendChild(piece);
+      }
+      window.setTimeout(() => { layer.innerHTML = ''; }, 3600);
+    }
+
+    function primeCelebrationAudio() {
+      if (!drinkCelebrationSoundEnabled) return;
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        if (!celebrationAudioCtx || celebrationAudioCtx.state === 'closed') celebrationAudioCtx = new AudioCtx();
+        celebrationAudioCtx.resume?.();
+      } catch (err) {}
+    }
+
+    function playCelebrationTone() {
+      if (!drinkCelebrationSoundEnabled) return;
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = celebrationAudioCtx && celebrationAudioCtx.state !== 'closed' ? celebrationAudioCtx : new AudioCtx();
+        celebrationAudioCtx = ctx;
+        ctx.resume?.();
+        const master = ctx.createGain();
+        const sparkle = ctx.createGain();
+        master.gain.setValueAtTime(0.0001, ctx.currentTime);
+        master.gain.exponentialRampToValueAtTime(0.16, ctx.currentTime + 0.025);
+        master.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.35);
+        master.connect(ctx.destination);
+        sparkle.gain.setValueAtTime(0.0001, ctx.currentTime);
+        sparkle.gain.exponentialRampToValueAtTime(0.06, ctx.currentTime + 0.08);
+        sparkle.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.1);
+        sparkle.connect(ctx.destination);
+
+        const now = ctx.currentTime;
+        const notes = [
+          [523.25, 0.00, 0.22],
+          [659.25, 0.08, 0.24],
+          [783.99, 0.16, 0.28],
+          [1046.50, 0.28, 0.36],
+          [1318.51, 0.43, 0.34],
+          [1567.98, 0.58, 0.42],
+        ];
+        notes.forEach(([freq, offset, length], idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = idx >= 3 ? 'triangle' : 'sine';
+          osc.frequency.value = freq;
+          const start = now + offset;
+          gain.gain.setValueAtTime(0.0001, start);
+          gain.gain.exponentialRampToValueAtTime(idx >= 3 ? 0.14 : 0.18, start + 0.018);
+          gain.gain.exponentialRampToValueAtTime(0.0001, start + length);
+          osc.connect(gain);
+          gain.connect(master);
+          osc.start(start);
+          osc.stop(start + length + 0.04);
+        });
+
+        [2093.00, 2637.02, 3135.96].forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.value = freq;
+          const start = now + 0.18 + idx * 0.13;
+          gain.gain.setValueAtTime(0.0001, start);
+          gain.gain.exponentialRampToValueAtTime(0.08, start + 0.012);
+          gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.16);
+          osc.connect(gain);
+          gain.connect(sparkle);
+          osc.start(start);
+          osc.stop(start + 0.2);
+        });
+      } catch (err) {}
+    }
+
+    function runCelebration(context = {}) {
+      if (!celebrationShouldRun(context)) return;
+      launchConfetti();
+      playCelebrationTone();
+    }
+
+    function showDrinkWrittenFeedback(button, itemName, context = {}) {
+      if (button) {
+        button.classList.remove('is-writing');
+        button.classList.remove('drink-written');
+        if (drinkFeedbackEnabled) {
+          applyFeedbackAnimationIntensity();
+          const factor = feedbackIntensityFactor();
+          const baseRing = drinkFeedbackStyle === 'subtle' ? 2 : (drinkFeedbackStyle === 'normal' ? 3 : 5);
+          document.documentElement.style.setProperty('--drink-feedback-ring', `${Math.round(baseRing * (0.55 + factor * 0.55))}px`);
+          void button.offsetWidth;
+          button.classList.add('drink-written');
+          window.setTimeout(() => button.classList.remove('drink-written'), 620);
+        }
+      }
+      const feedback = activeDrinkFeedbackElement();
+      if (!feedback) return;
+      if (drinkFeedbackTimer) clearTimeout(drinkFeedbackTimer);
+      if (!drinkFeedbackEnabled) {
+        feedback.textContent = '';
+        feedback.className = 'drink-feedback off';
+        return;
+      }
+      feedback.textContent = `${itemName} gebucht`;
+      feedback.className = `drink-feedback ${drinkFeedbackStyle}`;
+      feedback.classList.remove('feedback-pop');
+      void feedback.offsetWidth;
+      feedback.classList.add('visible', 'feedback-pop');
+      runCelebration(context);
+      drinkFeedbackTimer = window.setTimeout(() => {
+        feedback.classList.remove('visible', 'feedback-pop');
+        drinkFeedbackTimer = window.setTimeout(() => {
+          feedback.textContent = '';
+          feedback.className = 'drink-feedback';
+          drinkFeedbackTimer = null;
+        }, 200);
+      }, drinkFeedbackDurationMs);
+    }
+
+    function renderDrinkButtons() {
+      const box = document.getElementById('drinkButtons');
+      if (!box) return;
+      box.innerHTML = '';
+      const addable = adminMode ? items.filter(i => i.can_admin_add && !i.archived) : userItems;
+      if (addable.length === 0) {
+        box.innerHTML = '<div class="muted">Keine aktiven Artikel vorhanden.</div>';
+        return;
+      }
+      for (const item of addable) {
+        const btn = document.createElement('button');
+        btn.textContent = `+ ${item.name} · ${money(item.price)}`;
+        if (item.admin_only) btn.classList.add('edit-btn');
+        btn.onclick = () => addItem(item.id, item.name, btn, item.price);
+        box.appendChild(btn);
+      }
+    }
+
+    function updateDialogInfo() {
+      if (!currentPerson) return;
+      document.getElementById('dialogName').textContent = currentPerson.name;
+      const dialogTotal = document.getElementById('dialogTotal');
+      dialogTotal.textContent = `Offen: ${money(currentPerson.total)}`;
+      dialogTotal.style.display = showPersonPopupTotal ? 'block' : 'none';
+      document.getElementById('payButton').style.display = adminMode ? 'block' : 'none';
+      document.getElementById('payRow').style.display = adminMode ? 'flex' : 'none';
+      document.getElementById('billPanel').style.display = adminMode ? 'block' : 'none';
+      document.getElementById('roundRequestPanel').style.display = adminMode ? 'none' : 'block';
+      document.getElementById('userEditPanel').style.display = (!adminMode && enableDeleteRequests) ? 'block' : 'none';
+      document.getElementById('adminEditPanel').style.display = adminMode ? 'block' : 'none';
+      document.getElementById('adminOnlyHint').style.display = adminMode ? 'block' : 'none';
+      renderBill();
+      renderDeleteRequests();
+      renderPendingRequests();
+      renderAdminAdjustments();
+      renderDrinkButtons();
+    }
+
+    function renderBill() {
+      const box = document.getElementById('billBox');
+      const lines = currentPerson?.lines || [];
+      if (!lines.length) { box.innerHTML = '<div class="muted">Keine offenen Posten.</div>'; return; }
+      let html = '<table><thead><tr><th>Artikel</th><th class="right">Menge</th><th class="right">Preis</th><th class="right">Total</th><th>Datum</th></tr></thead><tbody>';
+      for (const l of lines) {
+        const flags = `${l.active ? '' : ' · inaktiv'}${l.item_archived ? ' · gelöscht' : ''}${l.admin_only ? ' · Admin' : ''}`;
+        html += `<tr><td><strong>${escapeHtml(l.name)}</strong><br><span class="muted">${escapeHtml(l.short_label || '')}${escapeHtml(flags)}</span></td><td class="right">${l.quantity}${l.pending_remove ? `<br><span class="pending-line">-${l.pending_remove} offen</span>` : ''}</td><td class="right">${money(l.price)}</td><td class="right">${money(l.subtotal)}</td><td>${escapeHtml(l.consumed_date)}</td></tr>`;
+      }
+      html += '</tbody></table>';
+      box.innerHTML = html;
+    }
+
+    function deleteSelectionTotal() {
+      return Object.values(deleteRequestSelections).reduce((sum, value) => sum + Number(value || 0), 0);
+    }
+
+    function clampDeleteSelections(groups) {
+      const allowed = new Map(groups.map(g => [g.key, Number(g.available || 0)]));
+      const next = {};
+      for (const [key, value] of Object.entries(deleteRequestSelections)) {
+        if (!allowed.has(key)) continue;
+        const qty = Math.max(0, Math.min(Number(value || 0), allowed.get(key)));
+        if (qty > 0) next[key] = qty;
+      }
+      deleteRequestSelections = next;
+    }
+
+    function toggleDeleteRequestMenu() {
+      if (deleteRequestMenuOpen) {
+        deleteRequestMenuOpen = false;
+        deleteRequestSelections = {};
+      } else {
+        deleteRequestMenuOpen = true;
+        deleteRequestSelections = {};
+      }
+      renderDeleteRequests();
+    }
+
+    function adjustDeleteSelection(groupKey, delta) {
+      const group = groupedDeleteRequestLines().find(g => g.key === groupKey);
+      if (!group) return;
+      const current = Number(deleteRequestSelections[groupKey] || 0);
+      const next = Math.max(0, Math.min(Number(group.available || 0), current + Number(delta || 0)));
+      if (next > 0) deleteRequestSelections[groupKey] = next;
+      else delete deleteRequestSelections[groupKey];
+      renderDeleteRequests();
+    }
+
+    function buildDeleteLineQuantities(groups) {
+      const line_quantities = {};
+      for (const group of groups) {
+        let remaining = Number(deleteRequestSelections[group.key] || 0);
+        if (remaining <= 0) continue;
+        for (const line of group.lines || []) {
+          if (remaining <= 0) break;
+          const lineId = line.line_id ?? line.id;
+          const available = Number(line.available_for_request || 0);
+          if (!lineId || available <= 0) continue;
+          const take = Math.min(available, remaining);
+          if (take > 0) {
+            line_quantities[String(lineId)] = take;
+            remaining -= take;
+          }
+        }
+      }
+      return line_quantities;
+    }
+
+    function renderDeleteRequests() {
+      const box = document.getElementById('requestDeleteBox');
+      const toggle = document.getElementById('deleteToggleButton');
+      if (!box || !toggle) return;
+      const groups = groupedDeleteRequestLines();
+      clampDeleteSelections(groups);
+      toggle.classList.toggle('open', deleteRequestMenuOpen);
+      toggle.disabled = groups.length === 0;
+      toggle.textContent = groups.length ? (deleteRequestMenuOpen ? 'Löschanfrage schließen' : 'Löschanfrage stellen') : 'Keine löschbaren Posten';
+      box.classList.toggle('open', deleteRequestMenuOpen);
+      if (!deleteRequestMenuOpen) { box.innerHTML = ''; return; }
+      if (!groups.length) { box.innerHTML = '<div class="muted">Keine löschbaren Posten vorhanden.</div>'; return; }
+      let html = '<div class="muted">Wähle die Menge je Getränk. Solange du nicht „Anfragen“ drückst, passiert nichts.</div>';
+      for (const group of groups) {
+        const selected = Number(deleteRequestSelections[group.key] || 0);
+        const disabledMinus = selected <= 0 ? 'disabled' : '';
+        const disabledPlus = selected >= Number(group.available || 0) ? 'disabled' : '';
+        const keyExpr = escapeHtml(JSON.stringify(group.key));
+        html += `
+          <div class="delete-request-row">
+            <div><strong>${escapeHtml(group.name)}</strong><br><span class="muted">löschbar: ${group.available}</span></div>
+            <div class="qty-stepper">
+              <button class="danger" type="button" ${disabledMinus} onclick="adjustDeleteSelection(${keyExpr}, -1)">−</button>
+              <span class="qty-value">${selected}</span>
+              <button type="button" ${disabledPlus} onclick="adjustDeleteSelection(${keyExpr}, 1)">+</button>
+            </div>
+          </div>`;
+      }
+      const total = deleteSelectionTotal();
+      html += `
+        <div class="delete-request-actions">
+          <button type="button" class="ok-btn" onclick="toggleDeleteRequestMenu()">Menü schließen</button>
+          <button type="button" class="danger" ${total > 0 ? '' : 'disabled'} onclick="submitDeleteRequests()">Anfragen${total > 0 ? ` (${total})` : ''}</button>
+        </div>`;
+      box.innerHTML = html;
+    }
+
+    function renderPendingRequests() {
+      const panel = document.getElementById('pendingPanel');
+      const box = document.getElementById('pendingBox');
+      const pending = currentPerson?.pending_requests || [];
+      panel.style.display = pending.length ? 'block' : 'none';
+      box.innerHTML = '';
+      if (!pending.length) return;
+      for (const r of pending) {
+        const row = document.createElement('div');
+        row.style.display = 'grid';
+        row.style.gridTemplateColumns = adminMode ? '1fr minmax(150px, 210px)' : '1fr';
+        row.style.gap = '8px';
+        row.style.alignItems = 'center';
+        row.style.borderTop = '1px solid var(--border)';
+        row.style.padding = '8px 0';
+        const kind = r.request_kind || 'DELETE';
+        const qty = Number(r.quantity_to_add || r.quantity_to_remove || Math.abs(r.delta || 0));
+        const sign = kind === 'ROUND_ADD' ? '+' : '-';
+        const label = kind === 'ROUND_ADD' ? 'Runde' : 'Löschanfrage';
+        row.innerHTML = `<div><strong>${sign}${qty}x ${escapeHtml(r.item || r.drink)}</strong><br><span class="muted">${label} · angefragt: ${escapeHtml(r.requested_at || '')}</span></div>`;
+        if (adminMode) {
+          const buttons = document.createElement('div');
+          buttons.className = 'decision-buttons';
+          const approve = document.createElement('button');
+          approve.type = 'button';
+          approve.className = 'approve-btn';
+          approve.title = 'Bestätigen';
+          approve.textContent = '✓';
+          approve.onclick = () => decidePendingRequest(r.raw_id || r.id, 'approve', kind);
+          const reject = document.createElement('button');
+          reject.type = 'button';
+          reject.className = 'reject-btn';
+          reject.title = 'Ablehnen';
+          reject.textContent = '✕';
+          reject.onclick = () => decidePendingRequest(r.raw_id || r.id, 'reject', kind);
+          buttons.appendChild(approve);
+          buttons.appendChild(reject);
+          row.appendChild(buttons);
+        }
+        box.appendChild(row);
+      }
+    }
+
+    async function decidePendingRequest(requestId, decision, kind = 'DELETE') {
+      if (!adminMode || !adminPin) { showStatus('Bitte zuerst Admin-Modus aktivieren.'); return; }
+      try {
+        const endpoint = kind === 'ROUND_ADD' ? '/api/admin/round-request/decide' : '/api/admin/change-request/decide';
+        await apiPost(endpoint, { pin: adminPin, request_id: Number(requestId), decision });
+        showStatus(decision === 'approve' ? 'Anfrage bestätigt' : 'Anfrage abgelehnt');
+        await loadPeople(true);
+      } catch (err) { showStatus(err.message); }
+    }
+
+    function renderAdminAdjustments() {
+      const box = document.getElementById('adminAdjustBox');
+      if (!adminMode) return;
+      box.innerHTML = '<div class="muted">+ fügt einen Artikel mit aktuellem Preis hinzu. − entfernt den neuesten offenen Posten dieses Artikels.</div>';
+      const activeItems = items.filter(i => i.can_admin_add && !i.archived);
+      for (const item of activeItems) {
+        const openQty = (currentPerson.lines || []).filter(l => l.item_id === item.id).reduce((s,l)=>s+Number(l.quantity),0);
+        const row = document.createElement('div');
+        row.style.display = 'grid';
+        row.style.gridTemplateColumns = '1fr auto auto';
+        row.style.gap = '8px';
+        row.style.alignItems = 'center';
+        row.style.borderTop = '1px solid var(--border)';
+        row.style.padding = '8px 0';
+        row.innerHTML = `<span><strong>${escapeHtml(item.name)}</strong><br><span class="muted">offen: ${openQty} · ${money(item.price)}${item.admin_only ? ' · Admin' : ''}</span></span>`;
+        const minus = document.createElement('button'); minus.className = 'danger'; minus.textContent = '−1'; minus.disabled = openQty <= 0; minus.onclick = () => adminAdjust(item.id, -1);
+        const plus = document.createElement('button'); plus.className = item.admin_only ? 'edit-btn' : ''; plus.textContent = '+1'; plus.onclick = () => adminAdjust(item.id, 1);
+        row.appendChild(minus); row.appendChild(plus); box.appendChild(row);
+      }
+    }
+
+    async function addItem(itemId, itemName, button = null, itemPrice = 0) {
+      if (!currentPerson) return;
+      if (button?.disabled) return;
+      if (button) {
+        button.disabled = true;
+        button.classList.add('is-writing');
+      }
+      try {
+        const totalAfter = Number(currentPerson.total || 0) + Number(itemPrice || 0);
+        if (celebrationShouldRun({ totalAfter, isRoundPayment: false })) primeCelebrationAudio();
+        await apiPost('/api/add-drink', { person_id: currentPerson.id, item_id: itemId, pin: adminMode ? adminPin : null });
+        showDrinkWrittenFeedback(button, itemName, { totalAfter, isRoundPayment: false });
+        await loadPeople(true);
+      } catch (err) {
+        if (button) button.classList.remove('is-writing');
+        alert(err.message);
+      } finally {
+        if (button) button.disabled = false;
+      }
+    }
+
+    async function submitDeleteRequests() {
+      if (!enableDeleteRequests) { showStatus('Löschanfragen sind aktuell deaktiviert.'); return; }
+      if (!currentPerson) return;
+      const groups = groupedDeleteRequestLines();
+      const total = deleteSelectionTotal();
+      if (total <= 0) { showStatus('Bitte zuerst eine Menge auswählen.'); return; }
+      const line_quantities = buildDeleteLineQuantities(groups);
+      if (!Object.keys(line_quantities).length) { showStatus('Keine löschbare Menge ausgewählt.'); return; }
+      try {
+        await apiPost('/api/edit-request', { person_id: currentPerson.id, line_quantities });
+        showStatus('Löschanfrage gespeichert');
+        deleteRequestMenuOpen = false;
+        deleteRequestSelections = {};
+        await loadPeople(true);
+      } catch (err) { alert(err.message); }
+    }
+
+    async function requestRound() {
+      if (!currentPerson) return;
+      const ok = confirm(`${currentPerson.name} zahlt eine Runde?\n\nDer Betrag wird sofort eingetragen. Beim Kassensturz wird die Runde automatisch von der aktuellen Strichliste abgezogen.`);
+      if (!ok) return;
+      try {
+        const roundItem = (items || []).find(item => item.name === '1 Runde');
+        const totalAfter = Number(currentPerson.total || 0) + Number(roundItem?.price || 0);
+        if (celebrationShouldRun({ isRoundPayment: true, totalAfter })) primeCelebrationAudio();
+        await apiPost('/api/round-request', { person_id: currentPerson.id, quantity: 1 });
+        showDrinkWrittenFeedback(null, 'Runde', { isRoundPayment: true, totalAfter });
+        await loadPeople(true);
+      } catch (err) { showStatus(err.message); }
+    }
+
+    async function adminAdjust(itemId, delta) {
+      if (!currentPerson || !adminMode || !adminPin) return;
+      try {
+        await apiPost('/api/admin/adjust-drink', { person_id: currentPerson.id, item_id: itemId, delta, pin: adminPin });
+        showStatus('Admin-Korrektur gespeichert');
+        await loadPeople(true);
+      } catch (err) { alert(err.message); }
+    }
+
+
+    function groupLinesForDisplay(lines, includePerson = false) {
+      const groups = new Map();
+      for (const l of (lines || [])) {
+        const itemId = l.item_id ?? '';
+        const personId = includePerson ? (l.person_id ?? '') : '';
+        const personLabel = includePerson ? (l.person || l.person_name || l.name || l.payer_name || '') : '';
+        const itemLabel = l.item || l.item_name || l.short_label || (!includePerson ? l.name : '') || '';
+        const price = Number(l.price ?? l.unit_price_eur ?? 0);
+        const key = `${personId}__${personLabel}__${itemId}__${itemLabel}__${price.toFixed(2)}`;
+        if (!groups.has(key)) {
+          groups.set(key, {
+            name: personLabel,
+            item: itemLabel,
+            quantity: 0,
+            price,
+            subtotal: 0,
+            item_id: l.item_id ?? null,
+          });
+        }
+        const g = groups.get(key);
+        const qty = Number(l.quantity || 1);
+        const subtotal = Number(l.subtotal ?? l.subtotal_eur ?? (qty * price));
+        g.quantity += qty;
+        g.subtotal += subtotal;
+      }
+      return Array.from(groups.values());
+    }
+
+    function compareDisplayLinesByPerson(a, b) {
+      const nameDiff = String(a.name || '').localeCompare(String(b.name || ''), 'de', { sensitivity: 'base' });
+      if (nameDiff !== 0) return nameDiff;
+      const itemDiff = String(a.item || '').localeCompare(String(b.item || ''), 'de', { sensitivity: 'base' });
+      if (itemDiff !== 0) return itemDiff;
+      return Number(a.price || 0) - Number(b.price || 0);
+    }
+
+    function lineTableHtml(lines, includePerson = false, options = {}) {
+      if (!lines || !lines.length) return '<div class="muted">Keine Einträge.</div>';
+      const displayLines = groupLinesForDisplay(lines, includePerson);
+      if (options.sort === 'person') displayLines.sort(compareDisplayLinesByPerson);
+      let html = '<div class="action-list"><table><thead><tr>';
+      if (includePerson) html += '<th>Name</th>';
+      html += '<th>Artikel</th><th class="right">Menge</th><th class="right">Preis</th><th class="right">Total</th></tr></thead><tbody>';
+      for (const l of displayLines) {
+        const qty = Number(l.quantity || 1);
+        const price = Number(l.price ?? l.unit_price_eur ?? 0);
+        const subtotal = Number(l.subtotal ?? l.subtotal_eur ?? (qty * price));
+        html += '<tr>';
+        if (includePerson) html += `<td>${escapeHtml(l.name || '')}</td>`;
+        html += `<td>${escapeHtml(l.item || l.name || l.short_label || '')}</td><td class="right">${qty}</td><td class="right">${money(price)}</td><td class="right">${money(subtotal)}</td></tr>`;
+      }
+      html += '</tbody></table></div>';
+      return html;
+    }
+
+    function openActionDialog(title, bodyHtml, confirmText, confirmClass, onConfirm) {
+      const dialog = document.getElementById('actionDialog');
+      document.getElementById('actionTitle').textContent = title;
+      document.getElementById('actionBody').innerHTML = bodyHtml;
+      const buttons = document.getElementById('actionButtons');
+      buttons.innerHTML = '';
+      const cancel = document.createElement('button');
+      cancel.className = 'ok-btn';
+      cancel.textContent = 'Abbrechen';
+      cancel.onclick = () => dialog.close();
+      const confirm = document.createElement('button');
+      confirm.className = confirmClass || 'save';
+      confirm.textContent = confirmText || 'Bestätigen';
+      confirm.onclick = async () => {
+        confirm.disabled = true;
+        try { await onConfirm(); dialog.close(); }
+        catch (err) { showStatus(err.message || 'Fehler'); confirm.disabled = false; }
+      };
+      buttons.appendChild(cancel);
+      buttons.appendChild(confirm);
+      dialog.showModal();
+    }
+
+    async function payCurrentPerson() {
+      if (!currentPerson || !adminMode || !adminPin) return;
+      if (currentPerson.total <= 0) { showStatus(`${currentPerson.name} hat keine offenen Posten.`); return; }
+      if ((currentPerson.pending_requests || []).length > 0) { showStatus('Bitte zuerst alle Anfragen mit ✓ oder ✕ abschließen.'); return; }
+      const body = `
+        <div class="muted">Barzahlung für <strong>${escapeHtml(currentPerson.name)}</strong></div>
+        ${lineTableHtml(currentPerson.lines || [])}
+        <div class="action-total"><span>Gesamtbetrag</span><span>${money(currentPerson.total)}</span></div>
+      `;
+      openActionDialog('Bar bezahlen', body, 'Bar bezahlt', 'pay-btn', async () => {
+        const data = await apiPost('/api/pay', { person_id: currentPerson.id, pin: adminPin });
+        showStatus(`Bar bezahlt: ${money(data.total)}`);
+        closeDialog();
+      });
+    }
+
+    async function toggleAdmin() {
+      if (adminMode) { adminMode = false; adminPin = null; sessionStorage.removeItem('drinkPosAdminPin'); updateAdminUi(); updateDialogInfo(); showStatus('Admin-Modus beendet'); return; }
+      const pin = prompt('Admin-PIN eingeben:', adminPin || ''); if (!pin) return;
+      try {
+        const data = await apiPost('/api/admin-login', { pin });
+        adminMode = true; adminPin = pin; sessionStorage.setItem('drinkPosAdminPin', pin); debugEnabled = data.debug_enabled !== false; environment = data.environment || environment; updateAdminUi(); updateDialogInfo(); showStatus('Admin-Modus aktiv');
+        if (data.pin_default_warning) showStatus('Hinweis: Standard-PIN 1234 ist noch aktiv');
+      } catch (err) { alert(err.message); }
+    }
+
+    function updateAdminUi() {
+      const adminButton = document.getElementById('adminButton');
+      document.getElementById('roundButton').style.display = 'none';
+      document.getElementById('cashupButton').style.display = adminMode ? 'inline-block' : 'none';
+      document.getElementById('orgButton').style.display = adminMode ? 'inline-block' : 'none';
+      document.getElementById('debugButton').style.display = adminMode && debugEnabled ? 'inline-block' : 'none';
+      const devBanner = document.getElementById('devModeBanner');
+      if (devBanner) devBanner.style.display = adminMode && debugEnabled ? 'block' : 'none';
+      if (adminMode) { adminButton.textContent = '🔓 Admin aktiv'; adminButton.classList.add('admin-on'); } else { adminButton.textContent = '🔐 Admin'; adminButton.classList.remove('admin-on'); }
+      renderDrinkButtons();
+      renderPeople();
+    }
+
+    function openAdminPage() { window.location.href = '/admin'; }
+
+    async function deductRound() {
+      if (!adminMode || !adminPin) { showStatus('Bitte zuerst Admin-Modus aktivieren.'); return; }
+      try {
+        const preview = await apiPost('/api/deduct-round-preview', { pin: adminPin });
+        if (preview.removed_count === 0) { showStatus('Keine Getränke in der aktuellen Strichliste vorhanden.'); return; }
+        const rows = (preview.details || []).map(d => {
+          const parts = String(d).split(':');
+          return { name: parts[0] || '', item: (parts.slice(1).join(':') || d).replace(/^\s*1x\s*/, ''), quantity: 1, unit_price_eur: 0, subtotal_eur: 0 };
+        });
+        const detailHtml = rows.length ? `<div class="action-list"><table><thead><tr><th>Name</th><th>Abzug</th></tr></thead><tbody>${rows.map(r => `<tr><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.item)}</td></tr>`).join('')}</tbody></table></div>` : '';
+        const body = `
+          <div class="muted">Pro Person wird das günstigste normale Getränk aus der aktuellen Strichliste seit dem letzten Kassensturz gelöscht.</div>
+          ${detailHtml}
+          <div class="action-total"><span>Abgezogener VK-Wert</span><span>${money(preview.total)}</span></div>
+          <div class="muted">Rundenpreis: ${money(preview.round_price_eur || 0)} · EK abgezogen: ${money(preview.deducted_purchase_eur || 0)} · Gewinn EK→Rundenpreis: ${money(preview.profit_vs_purchase_eur || 0)}</div>
+        `;
+        openActionDialog('Runde abziehen', body, 'Runde abziehen', 'danger', async () => {
+          const data = await apiPost('/api/deduct-round', { pin: adminPin });
+          showStatus(`Runde abgezogen: ${data.removed_count} Personen · ${money(data.total)}`);
+          await loadPeople(true);
+        });
+      } catch (err) { showStatus(err.message); }
+    }
+
+    function cashupBodyHtml(preview) {
+      const autoRounds = preview.auto_rounds || {};
+      const hasRounds = Number(autoRounds.rounds_count || 0) > 0;
+      const closedPositions = groupLinesForDisplay(preview.details || [], true).length;
+      if (!hasRounds) {
+        return `
+          <div class="muted">Die aktuelle Strichliste wird geschlossen. Die offenen Rechnungen bleiben unverändert.</div>
+          ${lineTableHtml(preview.details || [], true)}
+          <div class="action-total"><span>${preview.closed_items} Striche · ${closedPositions} Positionen</span><span>${money(preview.total)}</span></div>
+        `;
+      }
+      const chargesHtml = `
+        <h3>Bestätigte Runden</h3>
+        ${lineTableHtml(autoRounds.charges || [], true)}
+        <div class="action-total"><span>${autoRounds.rounds_count} Runde(n) werden bezahlt</span><span>${money(autoRounds.charged_total_eur || 0)}</span></div>
+      `;
+      const deductionsHtml = `
+        <h3>Automatischer Rundenabzug</h3>
+        ${(autoRounds.deductions || []).length ? lineTableHtml(autoRounds.deductions || [], true, { sort: 'person' }) : '<div class="muted">Keine normalen Getränke zum Abziehen gefunden. Die Runden bleiben trotzdem als Betrag offen.</div>'}
+        <div class="action-total"><span>${autoRounds.deducted_items || 0} Striche werden abgezogen</span><span>${money(autoRounds.deducted_vk_eur || 0)}</span></div>
+        <div class="muted">EK abgezogen: ${money(autoRounds.deducted_purchase_eur || 0)} · Ergebnis gegen EK: ${money(autoRounds.profit_vs_purchase_eur || 0)} · Ergebnis gegen VK: ${money(autoRounds.profit_vs_retail_eur || 0)}</div>
+      `;
+      return `
+        <div class="muted">Bestätigte Runden werden zuerst automatisch von der aktuellen Strichliste abgezogen. Danach wird die Strichliste geschlossen; die offenen Rechnungen bleiben bestehen.</div>
+        ${chargesHtml}
+        ${deductionsHtml}
+        <h3>Nach dem Rundenabzug</h3>
+        ${lineTableHtml(preview.details || [], true)}
+        <div class="action-total"><span>Vor Rundenabzug</span><span>${money(preview.gross_total || 0)}</span></div>
+        <div class="action-total"><span>Nach Rundenabzug zu schließen</span><span>${money(preview.total)}</span></div>
+      `;
+    }
+
+    async function cashupEvent() {
+      if (!adminMode || !adminPin) { showStatus('Bitte zuerst Admin-Modus aktivieren.'); return; }
+      try {
+        const preview = await apiPost('/api/admin/cashup-preview', { pin: adminPin });
+        if (Number(preview.gross_items ?? preview.closed_items ?? 0) === 0) { showStatus('Keine Striche für den Kassensturz vorhanden.'); return; }
+        const body = `
+          <div class="muted">Die aktuelle Strichliste wird geschlossen. Die offenen Rechnungen bleiben unverändert.</div>
+          ${lineTableHtml(preview.details || [], true)}
+          <div class="action-total"><span>${preview.closed_items} Striche · ${preview.closed_lines} Zeilen</span><span>${money(preview.total)}</span></div>
+        `;
+        const cashupBody = cashupBodyHtml(preview);
+        openActionDialog('Kassensturz', cashupBody, 'Kassensturz durchführen', 'pay-btn', async () => {
+          const data = await apiPost('/api/admin/cashup', { pin: adminPin });
+          const roundsText = Number(data.auto_rounds?.rounds_count || 0) > 0 ? ` · ${data.auto_rounds.rounds_count} Runde(n) automatisch` : '';
+          showStatus(`Kassensturz abgeschlossen: ${data.closed_items} Striche · ${money(data.total)}${roundsText}`);
+          await loadPeople(true);
+        });
+      } catch (err) { showStatus(err.message); }
+    }
+
+    async function addTestData() {
+      if (!adminMode || !adminPin) return;
+      const ok = confirm('Testdaten erzeugen? Es werden zufällige offene Getränke hinzugefügt.'); if (!ok) return;
+      try { const data = await apiPost('/api/debug/add-test-data', { pin: adminPin }); showStatus(`${data.items} Test-Posten hinzugefügt`); await loadPeople(); } catch (err) { alert(err.message); }
+    }
+
+    function installPullToRefresh() {
+      if (!('ontouchstart' in window)) return;
+      let startY = null;
+      let armed = false;
+      window.addEventListener('touchstart', event => {
+        if (document.getElementById('personDialog')?.open || window.scrollY > 0) { startY = null; return; }
+        startY = event.touches[0]?.clientY ?? null;
+        armed = false;
+      }, { passive:true });
+      window.addEventListener('touchmove', event => {
+        if (startY === null || window.scrollY > 0) return;
+        const delta = (event.touches[0]?.clientY ?? startY) - startY;
+        if (delta > 90 && !armed) {
+          armed = true;
+          updateSyncUi('syncing', `Zum Synchronisieren loslassen · letzter Sync: ${formatSyncTime(lastSyncAt)}`);
+        }
+      }, { passive:true });
+      window.addEventListener('touchend', () => {
+        if (armed) resyncNow();
+        startY = null;
+        armed = false;
+      }, { passive:true });
+    }
+
+    async function boot() {
+      updateSyncUi(navigator.onLine ? 'syncing' : 'offline', `${navigator.onLine ? 'Verbindung wird geprüft…' : 'Offline'} · letzter Sync: ${formatSyncTime(lastSyncAt)}`);
+      try {
+        await loadConfig();
+        await loadPeople(true);
+        await checkSyncStatus({ resyncOnChange:false });
+      } catch {
+        markSyncFailure();
+      }
+      if (adminPin) {
+        try { const data = await apiPost('/api/admin-login', { pin: adminPin }); adminMode = true; debugEnabled = data.debug_enabled !== false; environment = data.environment || environment; updateAdminUi(); } catch { adminPin = null; sessionStorage.removeItem('drinkPosAdminPin'); }
+      }
+      // Kein häufiges Datenpolling: Aktionen synchronisieren sofort; ein leichter Status-Heartbeat erkennt Verbindungsverlust und externe Änderungen.
+      syncCheckTimer = setInterval(() => checkSyncStatus({ resyncOnChange:true }), 5 * 1000);
+      setInterval(() => loadPeople(false), 60 * 60 * 1000);
+    }
+
+    installPullToRefresh();
+    boot();
+  
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js').catch(() => {}));
+    }
+    window.addEventListener('offline', () => { markSyncFailure(); showStatus('Offline: Änderungen sind erst wieder online möglich.'); });
+    window.addEventListener('online', () => { showStatus('Wieder online. Synchronisiere…'); resyncNow(); });
+    document.getElementById('personDialog')?.addEventListener('cancel', event => { event.preventDefault(); closeDialog(); });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) checkSyncStatus({ resyncOnChange:true }); });
+  </script>
+</body>
+</html>

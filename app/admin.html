@@ -1,0 +1,1964 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Drink POS · Organisation</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Drink POS">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="theme-color" content="#111827">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <style>
+    :root { --bg:#f3f4f6; --card:#fff; --text:#111827; --muted:#6b7280; --border:#e5e7eb; --dark:#111827; --yellow:#fbbf24; --green:#86efac; --red:#dc2626; --blue:#dbeafe; --app-bg:#f3f4f6; --person-card-bg:#ffffff; --person-card-border-color:#bfdbfe; --person-card-border-width:2px; --person-card-gap:10px; }
+    * { box-sizing:border-box; }
+    html { min-height:100%; background:var(--dark); }
+    body { margin:0; min-height:100%; font-family:system-ui,-apple-system,BlinkMacSystemFont,sans-serif; background:var(--app-bg); color:var(--text); }
+    header { background:var(--dark); color:white; padding:calc(14px + env(safe-area-inset-top, 0px)) 16px 14px; display:flex; justify-content:space-between; align-items:center; gap:12px; position:sticky; top:0; z-index:5; }
+    h1 { margin:0; font-size:22px; } h2 { margin:0 0 12px; } h3 { margin:0 0 8px; font-size:16px; }
+    a, button { font:inherit; }
+    a { color:white; text-decoration:none; background:#374151; padding:10px 12px; border-radius:12px; }
+    button { border:0; border-radius:12px; padding:10px 13px; background:var(--border); cursor:pointer; font-weight:750; }
+    button:disabled { opacity:.45; cursor:not-allowed; }
+    input, select { font:inherit; padding:10px 12px; border:1px solid var(--border); border-radius:10px; min-width:0; width:100%; }
+    main { padding:14px; display:grid; gap:14px; padding-bottom:80px; }
+    .card { background:var(--card); border-radius:16px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,.07); }
+    #adminDashboard { margin-bottom:16px; }
+    #adminContent > .tabs { margin-bottom:16px; }
+    #adminContent > .section.active { margin-top:0; }
+    .login { max-width:460px; margin:40px auto; display:grid; gap:10px; }
+    .tabs { display:flex; gap:8px; flex-wrap:wrap; }
+    .tabs button.active { background:var(--yellow); }
+    .section { display:none; } .section.active { display:block; }
+    .grid { display:grid; gap:8px; align-items:center; }
+    .person-add { grid-template-columns:1fr 1fr 140px; margin-bottom:12px; }
+    .item-add { grid-template-columns:1.3fr .7fr 120px 120px 110px 110px 120px; margin-bottom:12px; }
+    .settings-grid { grid-template-columns:220px 220px 160px; max-width:700px; }
+    .row { display:grid; gap:8px; align-items:center; padding:8px 0; border-top:1px solid var(--border); }
+    .person-row { grid-template-columns:1fr 1fr 95px 95px 110px 110px; }
+    .item-row { grid-template-columns:1.2fr .55fr 105px 105px 80px 95px 95px 105px 105px; }
+    .field { display:grid; gap:4px; min-width:0; }
+    .field-label { color:var(--muted); font-size:11px; font-weight:900; text-transform:uppercase; letter-spacing:.04em; }
+    .inline-field { display:flex; align-items:center; gap:7px; min-height:42px; font-weight:750; }
+    .muted { color:var(--muted); font-size:14px; line-height:1.35; }
+    .save { background:var(--green); } .danger { background:#fee2e2; color:var(--red); } .blue { background:var(--blue); } .yellow { background:var(--yellow); }
+    .filters { display:grid; grid-template-columns:minmax(180px,1fr) 160px 160px 120px; gap:8px; margin-bottom:10px; }
+    .type-filter-card { border:1px solid var(--border); border-radius:14px; padding:10px; background:#f9fafb; margin-bottom:12px; }
+    .type-filter-header { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:8px; }
+    .type-filter-actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .type-filter-actions button { padding:7px 10px; font-size:13px; }
+    .type-filter-box { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:7px 10px; max-height:210px; overflow:auto; padding:2px; }
+    .type-filter-option { display:flex; align-items:center; gap:7px; padding:7px 8px; border:1px solid #e5e7eb; border-radius:10px; background:#fff; font-weight:750; font-size:13px; }
+    .type-filter-option input { width:auto; padding:0; }
+    .report-grid { display:grid; grid-template-columns:1.2fr 1.2fr 150px 150px 130px 130px; gap:8px; align-items:end; margin-bottom:12px; }
+    .stat-page { display:none; }
+    .stat-page.active { display:block; }
+    .stats-toolbar { background:var(--card); border-radius:16px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,.07); margin-bottom:16px; display:grid; gap:12px; }
+    .stats-toolbar-top { display:grid; grid-template-columns:minmax(240px,1fr) auto; gap:10px; align-items:center; }
+    .stats-presets { display:flex; flex-wrap:wrap; gap:8px; }
+    .stats-presets button.active { background:var(--yellow); }
+    .stats-controls { display:grid; grid-template-columns:150px 150px minmax(220px,1fr) 130px; gap:8px; align-items:end; }
+    .stats-controls label { display:grid; gap:4px; font-weight:800; color:#374151; }
+    .stats-controls input[type="checkbox"] { width:auto; padding:0; }
+    .stats-summary { display:grid; grid-template-columns:1.3fr 1fr 1fr; gap:12px; margin-bottom:14px; }
+    .stats-summary-card { background:#fff; border:1px solid var(--border); border-radius:14px; padding:13px 14px; box-shadow:0 1px 5px rgba(0,0,0,.05); }
+    .stats-summary-card.primary { background:#0f172a; color:#fff; border-color:#0f172a; }
+    .stats-summary-card.primary .metric-note { color:#cbd5e1; }
+    .stats-summary-title { color:var(--muted); font-size:12px; font-weight:850; text-transform:uppercase; letter-spacing:.04em; }
+    .stats-summary-card.primary .stats-summary-title { color:#bfdbfe; }
+    .stats-summary-value { margin-top:4px; font-size:30px; line-height:1.05; font-weight:950; }
+    .stats-summary-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:10px; }
+    .stats-summary-chip { border-top:1px solid rgba(148,163,184,.28); padding-top:8px; }
+    .stats-summary-chip strong { display:block; font-size:17px; }
+    .stats-insights { display:grid; gap:8px; margin-bottom:14px; }
+    .stats-insight { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; background:#f8fafc; border:1px solid var(--border); border-radius:12px; padding:10px 12px; }
+    .stats-insight strong { display:block; }
+    .stats-insight span { color:var(--muted); font-size:12px; line-height:1.35; }
+    .stats-metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(165px,1fr)); gap:10px; margin-bottom:14px; }
+    .stats-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:14px; align-items:start; }
+    .stats-panel { background:#fff; border:1px solid var(--border); border-radius:16px; padding:14px; box-shadow:0 1px 5px rgba(0,0,0,.05); min-width:0; }
+    .stats-panel.wide { grid-column:1 / -1; }
+    .stats-panel-header { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:10px; }
+    .stats-panel-header h3 { margin:0; }
+    .stats-bar-list { display:grid; gap:10px; }
+    .stats-bar-row { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:center; }
+    .stats-bar-label { font-weight:850; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .stats-bar-note { color:var(--muted); font-size:12px; margin-top:2px; }
+    .stats-bar-track { height:9px; background:#eef2f7; border-radius:999px; overflow:hidden; margin-top:5px; }
+    .stats-bar-fill { display:block; height:100%; width:var(--bar-width,0%); background:#2563eb; border-radius:999px; }
+    .stats-bar-value { font-weight:900; white-space:nowrap; text-align:right; }
+    .stats-table-tools { display:grid; grid-template-columns:minmax(180px,280px) minmax(0,1fr); gap:10px; align-items:center; margin-top:10px; }
+    .stats-table-tools input { width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:12px; font-size:14px; }
+    .stats-table-total { font-weight:900; background:#f8fafc; }
+    .finance-list { display:grid; gap:9px; }
+    .finance-row { display:grid; grid-template-columns:92px minmax(0,1fr) 96px; gap:10px; align-items:center; }
+    .finance-bars { display:grid; gap:4px; }
+    .finance-line { display:grid; grid-template-columns:64px minmax(0,1fr); gap:7px; align-items:center; font-size:12px; color:var(--muted); }
+    .finance-track { height:7px; background:#eef2f7; border-radius:999px; overflow:hidden; }
+    .finance-fill { display:block; height:100%; width:var(--bar-width,0%); border-radius:999px; }
+    .finance-fill.revenue { background:#16a34a; }
+    .finance-fill.cost { background:#f59e0b; }
+    .finance-fill.profit { background:#2563eb; }
+    .finance-fill.loss { background:#dc2626; }
+    .stats-mini-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+    .stats-mini { border-top:1px solid var(--border); padding-top:10px; }
+    .stats-mini-value { font-size:22px; font-weight:900; line-height:1.1; }
+    .stats-mini-label { color:var(--muted); font-size:12px; font-weight:850; text-transform:uppercase; letter-spacing:.04em; margin-top:3px; }
+    .table-wrap { overflow:auto; max-height:70vh; margin-top:10px; border:1px solid var(--border); border-radius:12px; }
+    table { width:100%; border-collapse:separate; border-spacing:0; font-size:14px; }
+    th, td { text-align:left; padding:8px; border-bottom:1px solid var(--border); vertical-align:top; background:var(--card); }
+    th { background:#f9fafb; position:sticky; top:0; z-index:2; box-shadow:0 1px 0 var(--border); }
+    tbody tr:last-child td { border-bottom:0; }
+    .right { text-align:right; white-space:nowrap; }
+    .pill { display:inline-block; padding:4px 8px; border-radius:999px; background:#eef2ff; font-weight:750; font-size:12px; }
+    .sync-line { position:fixed; right:12px; bottom:12px; z-index:35; display:flex; align-items:center; gap:calc(8px * var(--sync-status-scale,1)); max-width:calc(100vw - 24px); padding:calc(8px * var(--sync-status-scale,1)) calc(12px * var(--sync-status-scale,1)); background:#ecfdf5; color:#065f46; border:1px solid #bbf7d0; border-radius:999px; font-size:calc(13px * var(--sync-status-scale,1)); font-weight:850; line-height:1.25; box-shadow:0 8px 28px rgba(0,0,0,.18); }
+    .sync-line.offline { background:#fee2e2; color:#991b1b; border-color:#fecaca; }
+    .sync-line.syncing { background:#fffbeb; color:#92400e; border-color:#fde68a; }
+    .sync-line.hidden { display:none; }
+    .sync-dot { width:calc(10px * var(--sync-status-scale,1)); height:calc(10px * var(--sync-status-scale,1)); border-radius:999px; background:currentColor; flex:0 0 auto; box-shadow:0 0 0 3px rgba(255,255,255,.55); }
+    .sync-text { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .sync-refresh { font-size:calc(13px * var(--sync-status-scale,1)); padding:calc(5px * var(--sync-status-scale,1)) calc(9px * var(--sync-status-scale,1)); border-radius:999px; background:rgba(255,255,255,.62); color:inherit; }
+    .status { position:fixed; left:12px; right:12px; bottom:76px; background:var(--dark); color:white; padding:12px 16px; border-radius:14px; display:none; z-index:20; }
+    .warning { background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:10px; margin-bottom:12px; }
+    .admin-dashboard { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; }
+    .metric-card { background:#fff; border:1px solid var(--border); border-radius:14px; padding:12px; box-shadow:0 1px 5px rgba(0,0,0,.05); }
+    .metric-label { color:var(--muted); font-size:12px; font-weight:850; text-transform:uppercase; letter-spacing:.04em; }
+    .metric-value { margin-top:4px; font-size:24px; line-height:1.05; font-weight:900; }
+    .metric-note { margin-top:4px; color:var(--muted); font-size:12px; line-height:1.3; }
+    .list-tools { display:grid; grid-template-columns:minmax(220px,1fr) auto auto; gap:8px; align-items:center; margin:10px 0; }
+    .list-tools label { display:flex; align-items:center; gap:6px; white-space:nowrap; font-weight:750; color:#374151; }
+    .list-tools input[type="checkbox"] { width:auto; padding:0; }
+    .list-info { min-height:20px; margin-bottom:8px; }
+    .appearance-grid { display:grid; grid-template-columns:minmax(320px,520px) minmax(300px,1fr); gap:16px; align-items:start; max-width:1120px; }
+    .appearance-controls { display:grid; gap:10px; }
+    .appearance-group { display:grid; gap:10px; padding:12px; border:1px solid var(--border); border-radius:14px; background:#f9fafb; }
+    .appearance-group h3 { margin:0; }
+    .setting-line { display:grid; gap:6px; }
+    .setting-line label { font-weight:800; }
+    .setting-line input[type="range"] { padding:0; }
+    .default-note { color:var(--muted); font-size:12px; line-height:1.35; }
+    .appearance-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; align-items:center; }
+    .preview-card { border:1px solid var(--border); border-radius:16px; padding:12px 14px; background:#fff; box-shadow:0 1px 5px rgba(0,0,0,.06); }
+    .preview-title { font-size:12px; color:var(--muted); font-weight:800; text-transform:uppercase; letter-spacing:.04em; margin-bottom:8px; }
+    .app-preview-stage { border:1px dashed #cbd5e1; border-radius:18px; padding:14px; background:var(--preview-app-bg,#f3f4f6); display:grid; gap:var(--preview-person-gap,10px); }
+    .person-preview-card { border-radius:12px; padding:11px 13px; background:var(--preview-person-bg,#fff); border:var(--preview-person-border-width,2px) solid var(--preview-person-border-color,#bfdbfe); box-shadow:0 2px 8px rgba(0,0,0,.08); }
+    .preview-row { display:grid; grid-template-columns:minmax(140px,1fr) minmax(150px,1.3fr) auto; gap:12px; align-items:center; }
+    .preview-name { font-weight:850; line-height:1.15; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .preview-summary { color:#374151; font-size:12.5px; line-height:1.25; text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:flex; justify-content:flex-end; gap:.35em; align-items:baseline; }
+    .preview-summary-label { color:#111827; font-weight:900; flex-shrink:0; }
+    .preview-summary-text { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .preview-total { font-weight:900; font-size:15px; text-align:right; white-space:nowrap; }
+    .preview-event { margin-top:8px; min-height:34px; display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:8px 14px; }
+    .preview-tally-item { display:inline-flex; align-items:center; gap:7px; white-space:nowrap; }
+    .preview-tally-name { font-weight:900; font-size:13px; }
+    .preview-tally-marks { display:inline-flex; gap:4px; align-items:center; transform:translateY(1px); }
+    .preview-tally-group { position:relative; display:inline-flex; align-items:flex-end; justify-content:flex-start; }
+    .preview-tally-mark { display:block; background:#111827; border-radius:999px; opacity:.96; transform-origin:bottom center; }
+    .preview-tally-slash { position:absolute; background:#111827; border-radius:999px; transform-origin:center; opacity:.97; }
+    .hidden { display:none !important; }
+    .popup-preview { margin-top:12px; border:1px dashed #cbd5e1; border-radius:18px; padding:14px; background:#f8fafc; }
+    .popup-preview-shell { max-width:430px; margin:0 auto; background:#fff; border-radius:22px; overflow:hidden; box-shadow:0 18px 45px rgba(15,23,42,.24); border:1px solid rgba(148,163,184,.35); }
+    .popup-preview-content { padding:16px; }
+    .popup-preview-content h2 { margin:0 0 6px; font-size:24px; line-height:1.1; }
+    .popup-preview-total { color:var(--muted); font-size:16px; margin-bottom:12px; }
+    .popup-preview-panel { background:#f9fafb; border:1px solid var(--border); border-radius:14px; padding:12px; margin:12px 0; }
+    .popup-preview-panel h3 { margin:0 0 10px; font-size:16px; }
+    .popup-preview-buttons { display:grid; gap:8px; grid-template-columns:repeat(2,minmax(0,1fr)); margin:12px 0; }
+    .popup-preview-button { display:block; width:100%; border-radius:12px; padding:12px 10px; background:var(--blue); color:#111827; text-align:center; font-size:15px; font-weight:850; }
+    .popup-preview-finish { display:block; width:100%; border-radius:12px; padding:12px; background:var(--green); text-align:center; font-size:17px; font-weight:900; }
+    .popup-preview-request { display:inline-block; border-radius:12px; padding:10px 12px; background:var(--yellow); color:#111827; font-weight:850; }
+    .popup-preview-delete-toggle { display:flex; justify-content:space-between; align-items:center; width:100%; border-radius:12px; padding:9px 10px; background:#fff7ed; color:#9a3412; border:1px solid #fed7aa; font-size:13px; font-weight:850; }
+    .popup-preview-delete-toggle::after { content:'aufklappen'; color:#c2410c; font-size:12px; }
+    .popup-preview-muted { color:var(--muted); font-size:12px; line-height:1.35; margin-top:6px; }
+    .sync-preview-stage { position:relative; min-height:110px; border:1px dashed #cbd5e1; border-radius:16px; background:#f8fafc; overflow:hidden; }
+    .sync-preview-stage::before { content:'Vorschau unten rechts'; position:absolute; left:12px; top:10px; color:var(--muted); font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
+    .sync-preview-bubble { position:absolute; right:10px; bottom:10px; display:flex; align-items:center; gap:calc(8px * var(--preview-sync-scale,1)); padding:calc(8px * var(--preview-sync-scale,1)) calc(12px * var(--preview-sync-scale,1)); border-radius:999px; border:1px solid #bbf7d0; background:#ecfdf5; color:#065f46; font-size:calc(13px * var(--preview-sync-scale,1)); font-weight:850; line-height:1.25; box-shadow:0 8px 24px rgba(0,0,0,.14); max-width:calc(100% - 20px); }
+    .sync-preview-bubble.hidden { display:none; }
+    .sync-preview-dot { width:calc(10px * var(--preview-sync-scale,1)); height:calc(10px * var(--preview-sync-scale,1)); border-radius:999px; background:currentColor; flex:0 0 auto; }
+    .sync-preview-text { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .sync-preview-refresh { font-size:calc(13px * var(--preview-sync-scale,1)); padding:calc(5px * var(--preview-sync-scale,1)) calc(9px * var(--preview-sync-scale,1)); border-radius:999px; background:rgba(255,255,255,.62); }
+    .feedback-preview { min-height:42px; margin-top:12px; display:flex; align-items:center; justify-content:center; gap:8px; color:#064e3b; background:#d1fae5; border:1px solid #86efac; border-radius:14px; box-shadow:0 10px 26px rgba(22,163,74,.18); font-size:16px; font-weight:950; transform-origin:center; }
+    .feedback-preview::before { content:'✓'; width:24px; height:24px; border-radius:999px; display:grid; place-items:center; background:#16a34a; color:#fff; font-size:16px; font-weight:950; }
+    .feedback-preview.subtle { min-height:30px; font-size:13px; background:transparent; border-color:transparent; box-shadow:none; color:#065f46; }
+    .feedback-preview.subtle::before { width:18px; height:18px; font-size:12px; }
+    .feedback-preview.normal { min-height:36px; font-size:14px; box-shadow:0 6px 18px rgba(22,163,74,.14); }
+    .feedback-preview.hidden-preview { opacity:.38; background:#f3f4f6; color:#6b7280; border-color:#e5e7eb; box-shadow:none; }
+    .feedback-preview.hidden-preview::before { content:'×'; background:#9ca3af; }
+    @media (max-width:1000px) { .row,.person-row,.item-row,.person-add,.item-add,.filters,.settings-grid,.report-grid,.appearance-grid,.list-tools,.stats-toolbar-top,.stats-controls,.stats-summary,.stats-layout,.stats-table-tools { grid-template-columns:1fr; } .list-tools label { white-space:normal; } table { font-size:13px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Organisation</h1>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end">
+      <a href="/">← Kasse</a>
+      <button onclick="logout()">Admin abmelden</button>
+    </div>
+  </header>
+
+  <div id="syncLine" class="sync-line syncing" role="status" aria-live="polite">
+    <span class="sync-dot"></span>
+    <span id="syncText" class="sync-text">Verbindung wird geprüft…</span>
+    <button id="syncRefreshButton" class="sync-refresh" onclick="resyncAdmin()">↻</button>
+  </div>
+
+  <main>
+    <section id="loginCard" class="card login">
+      <h2>Admin-PIN</h2>
+      <input id="pinInput" type="password" placeholder="PIN eingeben" onkeydown="if(event.key==='Enter') login()">
+      <button class="save" onclick="login()">Einloggen</button>
+      <div class="muted">Diese Seite ist für Namen, Artikel/Preise, Einstellungen, Exporte und den ausführlichen Verlauf.</div>
+    </section>
+
+    <section id="adminContent" style="display:none">
+      <div id="globalWarning" class="warning" style="display:none"></div>
+
+      <section class="admin-dashboard" id="adminDashboard" aria-label="Admin Überblick"></section>
+
+      <div class="card tabs">
+        <button id="tabPeople" class="active" onclick="showTab('people')">Namen</button>
+        <button id="tabItems" onclick="showTab('items')">Artikel & Preise</button>
+        <button id="tabSettings" onclick="showTab('settings')">Einstellungen</button>
+        <button id="tabAppearance" onclick="showTab('appearance')">Darstellung</button>
+        <button id="tabStats" onclick="showTab('stats')">Statistik</button>
+        <button id="tabHistory" onclick="showTab('history')">Verlauf</button>
+        <button id="tabExports" onclick="showTab('exports')">Exporte</button>
+      </div>
+
+      <section id="peopleSection" class="card section active">
+        <h2>Namenverwaltung</h2>
+        <div class="grid person-add">
+          <input id="newFirstName" placeholder="Vorname">
+          <input id="newLastName" placeholder="Nachname">
+          <button class="save" onclick="createPerson()">Hinzufügen</button>
+        </div>
+        <div class="muted">„Löschen“ archiviert die Person intern. Offene Posten und Verlauf bleiben sichtbar und exportierbar.</div>
+        <div class="list-tools">
+          <input id="peopleSearch" type="search" placeholder="Namen suchen..." oninput="renderPeople()">
+          <label><input id="peopleOnlyOpen" type="checkbox" onchange="renderPeople()"> Nur offene Posten</label>
+          <label><input id="peopleShowArchived" type="checkbox" onchange="renderPeople()"> Archivierte anzeigen</label>
+        </div>
+        <div id="peopleListInfo" class="muted list-info"></div>
+        <div id="peopleList"></div>
+      </section>
+
+      <section id="itemsSection" class="card section">
+        <h2>Artikel & Preise</h2>
+        <div class="grid item-add">
+          <input id="newItemName" placeholder="Neuer Artikel, z. B. Wasser">
+          <input id="newItemShort" placeholder="Kurzlabel">
+          <input id="newItemPrice" type="text" inputmode="decimal" data-decimal-input data-decimal-digits="2" placeholder="VK €">
+          <input id="newItemPurchasePrice" type="text" inputmode="decimal" data-decimal-input data-decimal-digits="2" placeholder="EK €">
+          <label><input id="newItemActive" type="checkbox" checked style="width:auto"> aktiv</label>
+          <label><input id="newItemAdminOnly" type="checkbox" style="width:auto"> Admin</label>
+          <button class="save" onclick="createItem()">Anlegen</button>
+        </div>
+        <div class="muted">Admin-Artikel sind auf Rechnungen sichtbar, können aber von normalen Benutzern nicht hinzugefügt oder gelöscht werden. „1 Runde“ wird separat unter Einstellungen verwaltet.</div>
+        <div class="list-tools item-tools">
+          <label><input id="itemOnlyAdmin" type="checkbox" onchange="renderItems()"> Nur Admin-Artikel</label>
+          <label><input id="itemShowArchived" type="checkbox" onchange="renderItems()"> Archivierte anzeigen</label>
+        </div>
+        <div id="itemListInfo" class="muted list-info"></div>
+        <div id="itemList"></div>
+      </section>
+
+      <section id="settingsSection" class="card section">
+        <h2>Einstellungen</h2>
+        <h3>App-Name</h3>
+        <div class="grid settings-grid">
+          <input id="appName" placeholder="z. B. Getränkeliste">
+          <button class="save" onclick="saveAppName()">App-Name speichern</button>
+          <span class="muted">Dieser Name erscheint in der Kassenansicht und als Seitentitel.</span>
+        </div>
+        <hr style="border:0; border-top:1px solid var(--border); margin:16px 0">
+        <h3>Rundenpreis</h3>
+        <div class="grid settings-grid">
+          <input id="roundPrice" type="text" inputmode="decimal" data-decimal-input data-decimal-digits="2" placeholder="Preis €">
+          <button class="save" onclick="saveRoundPrice()">Rundenpreis speichern</button>
+          <span class="muted">„1 Runde“ ist kein normaler Artikel. Der EK/Gewinn wird aus den tatsächlich abgezogenen Getränken berechnet.</span>
+        </div>
+        <div id="appearanceSettingsBlock">
+        <h3>Standardansicht</h3>
+        <div class="appearance-grid">
+          <div class="appearance-controls">
+            <div class="appearance-group">
+              <h3>Übersicht & Popup</h3>
+              <label><input id="showTotalOverview" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Gesamtpreis in Standardansicht anzeigen</label>
+              <span class="default-note">Standard: eingeschaltet</span>
+              <label><input id="showPersonPopupTotal" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Gesamtsumme im Personen-Popup anzeigen</label>
+              <span class="default-note">Standard: eingeschaltet</span>
+              <div class="setting-line">
+                <label><input id="showSummaryLabelOverview" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Beschriftung neben Gesamtauflistung anzeigen</label>
+                <input id="summaryLabelText" placeholder="z. B. Gesamt:" oninput="renderAppearancePreview()">
+                <span class="default-note">Standard: eingeschaltet, Text „Gesamt:“</span>
+              </div>
+              <div class="setting-line">
+                <label for="summarySizeSlider">Größe Gesamtauflistung: <strong id="summarySizeValue">100</strong>%</label>
+                <input id="summarySizeSlider" type="range" min="70" max="180" step="5" oninput="renderAppearancePreview()">
+                <span class="default-note">Standard: 100%</span>
+              </div>
+              <div class="setting-line">
+                <label for="nameSizeSlider">Namensgröße: <strong id="nameSizeValue">15,5</strong> px</label>
+                <input id="nameSizeSlider" type="range" min="12" max="28" step="0.5" oninput="renderAppearancePreview()">
+                <span class="default-note">Standard: 15,5 px</span>
+              </div>
+              <div class="setting-line">
+                <label><input id="enableDeleteRequests" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Löschanfrage für Benutzer aktivieren</label>
+                <span class="default-note">Standard: eingeschaltet</span>
+              </div>
+            </div>
+
+            <div class="appearance-group">
+              <h3>Farben & Karten</h3>
+              <div class="setting-line">
+                <label for="appBgColor">Hintergrundfarbe der App</label>
+                <input id="appBgColor" type="color" oninput="renderAppearancePreview()">
+                <span class="default-note">Standard: #f3f4f6</span>
+              </div>
+              <div class="setting-line">
+                <label for="personBgColor">Hintergrundfarbe der Personen</label>
+                <input id="personBgColor" type="color" oninput="renderAppearancePreview()">
+                <span class="default-note">Standard: #ffffff</span>
+              </div>
+              <div class="setting-line">
+                <label for="personBorderColor">Rahmenfarbe der Personen</label>
+                <input id="personBorderColor" type="color" oninput="renderAppearancePreview()">
+                <span class="default-note">Standard: #bfdbfe</span>
+              </div>
+              <div class="setting-line">
+                <label for="personBorderWidthSlider">Rahmendicke Personen: <strong id="personBorderWidthValue">2</strong> px</label>
+                <input id="personBorderWidthSlider" type="range" min="0" max="8" step="1" oninput="renderAppearancePreview()">
+                <span class="default-note">Standard: 2 px</span>
+              </div>
+              <div class="setting-line">
+                <label for="personGapSlider">Abstand zwischen Personen: <strong id="personGapValue">10</strong> px</label>
+                <input id="personGapSlider" type="range" min="4" max="32" step="1" oninput="renderAppearancePreview()">
+                <span class="default-note">Standard: 10 px</span>
+              </div>
+            </div>
+
+            <div class="appearance-group">
+              <h3>Strichliste</h3>
+              <div class="setting-line">
+                <label for="tallySizeSlider">Strichlisten-Größe: <strong id="tallySizeValue">100</strong>%</label>
+                <input id="tallySizeSlider" type="range" min="60" max="180" step="5" oninput="renderAppearancePreview()">
+                <span class="default-note">Standard: 100%</span>
+              </div>
+              <div class="setting-line">
+                <label for="tallyRoughness">Strich-Krackeligkeit: Stufe <strong id="tallyRoughnessValue">4</strong></label>
+                <input id="tallyRoughness" type="range" min="1" max="10" step="1" oninput="renderAppearancePreview()">
+                <span class="default-note">Standard: Stufe 4</span>
+              </div>
+            </div>
+
+            <div class="appearance-group">
+              <h3>Sync-Anzeige</h3>
+              <div class="setting-line">
+                <label><input id="showSyncStatus" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Sync-/Verbindungsanzeige unten rechts anzeigen</label>
+                <span class="default-note">Standard: eingeschaltet</span>
+              </div>
+              <div class="setting-line">
+                <label for="syncStatusSizeSlider">Größe Sync-Anzeige: <strong id="syncStatusSizeValue">100</strong>%</label>
+                <input id="syncStatusSizeSlider" type="range" min="70" max="180" step="5" oninput="renderAppearancePreview()">
+                <span class="default-note">Standard: 100%</span>
+              </div>
+            </div>
+
+            <div class="appearance-group">
+              <h3>Buchungsfeedback</h3>
+              <div class="setting-line">
+                <label><input id="drinkFeedbackEnabled" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Feedback nach Getränkebuchung anzeigen</label>
+                <span class="default-note">Standard: eingeschaltet</span>
+              </div>
+              <div class="setting-line">
+                <label for="drinkFeedbackStyle">Stärke des Feedbacks</label>
+                <select id="drinkFeedbackStyle" onchange="renderAppearancePreview()">
+                  <option value="subtle">Dezent</option>
+                  <option value="normal">Standard</option>
+                  <option value="strong">Deutlich</option>
+                </select>
+                <span class="default-note">Standard: deutlich</span>
+              </div>
+              <div class="setting-line">
+                <label for="drinkFeedbackDurationSlider">Anzeigedauer: <strong id="drinkFeedbackDurationValue">1400</strong> ms</label>
+                <input id="drinkFeedbackDurationSlider" type="range" min="500" max="3000" step="100" oninput="renderAppearancePreview()">
+                <span class="default-note">Standard: 1400 ms</span>
+              </div>
+              <div class="setting-line">
+                <label for="drinkFeedbackIntensitySlider">Animationsintensität: <strong id="drinkFeedbackIntensityValue">100</strong>%</label>
+                <input id="drinkFeedbackIntensitySlider" type="range" min="0" max="200" step="10" oninput="renderAppearancePreview()">
+                <span class="default-note">Standard: 100%, 0% ist nahezu ohne Bewegung</span>
+              </div>
+              <div class="setting-line">
+                <label for="drinkFeedbackPosition">Position im Personen-Popup</label>
+                <select id="drinkFeedbackPosition" onchange="renderAppearancePreview()">
+                  <option value="below">Unterhalb der Getränkebuttons</option>
+                  <option value="above">Oberhalb der Getränkebuttons</option>
+                </select>
+                <span class="default-note">Test aktiv: echte Kassenansicht zeigt Feedback immer oberhalb</span>
+              </div>
+              <div class="setting-line">
+                <label for="drinkCelebrationMode">Konfetti- und Feier-Effekt</label>
+                <select id="drinkCelebrationMode" onchange="renderAppearancePreview()">
+                  <option value="condition">Nur bei Bedingungen</option>
+                  <option value="always">Immer</option>
+                  <option value="never">Nie</option>
+                </select>
+                <span class="default-note">Standard: nur bei Bedingungen</span>
+              </div>
+              <div class="setting-line">
+                <label for="drinkConfettiIntensitySlider">Konfetti-Intensität: <strong id="drinkConfettiIntensityValue">100</strong>%</label>
+                <input id="drinkConfettiIntensitySlider" type="range" min="0" max="200" step="10" oninput="renderAppearancePreview()">
+                <span class="default-note">Standard: 100%, nur bei Rundenzahlung</span>
+              </div>
+              <label><input id="drinkCelebrationRound" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Bedingung: Runde wurde bezahlt</label>
+              <label style="display:none"><input id="drinkCelebrationDebt" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Bedingung: offener Betrag überschreitet Grenzwert</label>
+              <div class="setting-line" style="display:none">
+                <label for="drinkCelebrationDebtThreshold">Grenzwert offener Betrag</label>
+                <input id="drinkCelebrationDebtThreshold" type="text" inputmode="decimal" data-decimal-input data-decimal-digits="2" placeholder="50,00" oninput="renderAppearancePreview()">
+                <span class="default-note">Standard: € 50,00</span>
+              </div>
+              <label><input id="drinkCelebrationSound" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Feierlichen Ton bei Rundenzahlung abspielen</label>
+            </div>
+
+            <div class="appearance-actions">
+              <button class="save" onclick="saveAppearanceSettings()">Darstellung speichern</button>
+              <button class="yellow" onclick="resetAppearanceSettings()">Auf Standard zurücksetzen</button>
+            </div>
+            <span class="muted">Die Vorschau rechts aktualisiert sich sofort. In der echten Kassenansicht sieht der Admin den Gesamtpreis immer.</span>
+          </div>
+          <div class="preview-card">
+            <div class="preview-title">Live-Vorschau</div>
+            <div id="appPreviewStage" class="app-preview-stage">
+              <div id="personPreviewCard" class="person-preview-card">
+                <div class="preview-row">
+                  <div id="previewName" class="preview-name">Max Mustermann</div>
+                  <div id="previewSummary" class="preview-summary"><span id="previewSummaryLabel" class="preview-summary-label">Gesamt:</span><span class="preview-summary-text">Gross 12 · Klein 7 · Limo 3</span></div>
+                  <div id="previewTotal" class="preview-total">€ 42,00</div>
+                </div>
+                <div id="appearancePreviewMarks" class="preview-event"></div>
+              </div>
+              <div class="person-preview-card" style="opacity:.82">
+                <div class="preview-row">
+                  <div class="preview-name">Beispiel Person</div>
+                  <div class="preview-summary"><span class="preview-summary-label">Gesamt:</span><span class="preview-summary-text">Klein 2</span></div>
+                  <div class="preview-total">€ 3,60</div>
+                </div>
+              </div>
+            </div>
+            <div class="popup-preview">
+              <div class="preview-title">Personen-Popup-Vorschau</div>
+              <div class="popup-preview-shell">
+                <div class="popup-preview-content">
+                  <h2>Max Mustermann</h2>
+                  <div id="popupPreviewTotal" class="popup-preview-total">Offen: € 42,00</div>
+
+                  <div class="popup-preview-panel">
+                    <h3>Hinzufügen</h3>
+                    <div class="popup-preview-buttons">
+                      <span class="popup-preview-button">+ Gross · € 2,50</span>
+                      <span class="popup-preview-button">+ Klein · € 1,80</span>
+                      <span class="popup-preview-button">+ Limo · € 1,00</span>
+                      <span class="popup-preview-button">+ Wasser · € 1,20</span>
+                    </div>
+                    <span class="popup-preview-finish">Fertig</span>
+                  </div>
+
+                  <div class="popup-preview-panel">
+                    <h3>Runde zahlen</h3>
+                    <span class="popup-preview-request">+ 1 Runde bestätigen</span>
+                    <div class="popup-preview-muted">Die Runde wird sofort eingetragen und beim Kassensturz automatisch abgezogen.</div>
+                  </div>
+
+                  <div id="popupPreviewDeletePanel" class="popup-preview-panel">
+                    <h3>Löschanfrage</h3>
+                    <div class="popup-preview-delete-toggle">Löschanfrage öffnen</div>
+                    <div class="popup-preview-muted">Nur für seltene Fehlbuchungen. Erst aufklappen, Menge wählen und dann „Anfragen“ drücken.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="sync-preview-stage" style="margin-top:12px">
+              <div id="syncPreviewBubble" class="sync-preview-bubble">
+                <span class="sync-preview-dot"></span>
+                <span class="sync-preview-text">Synchronisiert · letzter Sync: 05.05.26, 11:43</span>
+                <span class="sync-preview-refresh">↻</span>
+              </div>
+            </div>
+            <div id="feedbackPreview" class="feedback-preview">Bier klein gebucht</div>
+          </div>
+        </div>
+        </div>
+        <hr style="border:0; border-top:1px solid var(--border); margin:16px 0">
+        <h3>Admin-PIN ändern</h3>
+        <div class="grid settings-grid">
+          <input id="newPin" type="password" placeholder="Neue PIN">
+          <button class="yellow" onclick="changePin()">PIN ändern</button>
+          <span class="muted">PIN wird im SQLite-Setting gespeichert.</span>
+        </div>
+        <div class="muted" id="settingsInfo" style="margin-top:12px"></div>
+      </section>
+
+      <section id="appearanceSection" class="card section">
+        <h2>Darstellung</h2>
+        <div class="muted" style="margin-bottom:12px">GUI-Einstellungen für Kassenansicht, Personen-Popup, Strichliste, Farben und Sync-Anzeige.</div>
+        <div id="appearanceMount"></div>
+      </section>
+
+      <section id="statsSection" class="section stat-page">
+        <div class="stats-toolbar">
+          <div class="stats-toolbar-top">
+            <div>
+              <h2 style="margin-bottom:4px">Statistik</h2>
+              <div id="statsInfo" class="muted">Noch nicht geladen.</div>
+            </div>
+            <div class="stats-presets">
+              <button type="button" class="active" data-stats-scope="today" onclick="setStatsScope('today')">Heute</button>
+              <button type="button" data-stats-scope="event" onclick="setStatsScope('event')">Aktuelle Strichliste</button>
+              <button type="button" data-stats-scope="month" onclick="setStatsScope('month')">Dieser Monat</button>
+              <button type="button" data-stats-scope="all" onclick="setStatsScope('all')">Gesamt</button>
+            </div>
+          </div>
+          <div class="stats-controls">
+            <label>Von <input id="statsDateFrom" type="date" onchange="setStatsScope('custom', false); loadStatistics()"></label>
+            <label>Bis <input id="statsDateTo" type="date" onchange="setStatsScope('custom', false); loadStatistics()"></label>
+            <label style="display:flex; align-items:center; gap:8px; min-height:42px"><input id="statsIncludeAdmin" type="checkbox" onchange="loadStatistics()"> Admin-Artikel einbeziehen</label>
+            <button id="statsRefreshButton" class="blue" onclick="loadStatistics()">Aktualisieren</button>
+          </div>
+        </div>
+
+        <section id="statsSummary" class="stats-summary" aria-label="Statistik-Zusammenfassung"></section>
+        <section id="statsInsights" class="stats-insights" aria-label="Statistik-Hinweise"></section>
+        <section id="statsMetrics" class="stats-metrics" aria-label="Kennzahlen"></section>
+
+        <div class="stats-layout">
+          <section class="stats-panel">
+            <div class="stats-panel-header">
+              <div>
+                <h3>Top-Artikel</h3>
+                <div class="muted">Nach Strichen im gewählten Zeitraum</div>
+              </div>
+            </div>
+            <div id="statsTopItems" class="stats-bar-list"></div>
+          </section>
+
+          <section class="stats-panel">
+            <div class="stats-panel-header">
+              <div>
+                <h3>Offen nach Person</h3>
+                <div class="muted">Die höchsten offenen Beträge</div>
+              </div>
+            </div>
+            <div id="statsOpenPeople" class="stats-bar-list"></div>
+          </section>
+
+          <section class="stats-panel wide">
+            <div class="stats-panel-header">
+              <div>
+                <h3>Umsatz, Kosten, Gewinn</h3>
+                <div class="muted">Nach Zahlungsdatum; Rundenabzüge wirken als Kosten.</div>
+              </div>
+            </div>
+            <div id="statsFinanceTimeline" class="finance-list"></div>
+          </section>
+
+          <section class="stats-panel">
+            <div class="stats-panel-header">
+              <div>
+                <h3>Runden</h3>
+                <div class="muted">Preis, abgezogene Werte und Ergebnis</div>
+              </div>
+            </div>
+            <div id="statsRounds" class="stats-mini-grid"></div>
+          </section>
+
+          <section class="stats-panel">
+            <div class="stats-panel-header">
+              <div>
+                <h3>Anfragen</h3>
+                <div class="muted">Offene Löschanfragen und bestätigte Runden</div>
+              </div>
+            </div>
+            <div id="statsRequests" class="stats-mini-grid"></div>
+          </section>
+
+          <section class="stats-panel wide">
+            <div class="stats-panel-header">
+              <div>
+                <h3>Artikeldetails</h3>
+                <div class="muted">Sortiert nach Menge, mit VK-Wert und Kosten.</div>
+              </div>
+            </div>
+            <div class="stats-table-tools">
+              <input id="statsItemFilter" placeholder="Artikel filtern" oninput="renderStatsItemTable(lastStatsData?.item_details || lastStatsData?.top_items || [])">
+              <div id="statsItemInfo" class="muted"></div>
+            </div>
+            <div class="table-wrap" style="max-height:48vh">
+              <table>
+                <thead><tr><th>Artikel</th><th>Kurz</th><th class="right">Striche</th><th class="right">VK-Wert</th><th class="right">EK/Kosten</th><th class="right">Differenz</th></tr></thead>
+                <tbody id="statsItemBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section id="historySection" class="card section">
+        <h2>Transaktionsverlauf</h2>
+        <div class="filters">
+          <input id="filterName" placeholder="Name filtern">
+          <input id="filterFrom" type="date">
+          <input id="filterTo" type="date">
+          <button class="blue" onclick="loadHistory()">Filtern</button>
+        </div>
+        <div class="type-filter-card">
+          <div class="type-filter-header">
+            <strong>Eventtypen filtern</strong>
+            <div class="type-filter-actions">
+              <button type="button" onclick="selectAllHistoryTypes()">Alle auswählen</button>
+              <button type="button" onclick="deselectAllHistoryTypes()">Alle abwählen</button>
+            </div>
+          </div>
+          <div id="filterTypesBox" class="type-filter-box"></div>
+          <div class="muted" id="typeFilterInfo" style="margin-top:8px">Alle Eventtypen ausgewählt.</div>
+        </div>
+        <div class="muted" id="historyInfo">Noch nicht geladen.</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Zeit</th><th>Typ</th><th>Name</th><th class="right">Betrag</th><th>Details</th></tr></thead>
+            <tbody id="historyBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="exportsSection" class="card section">
+        <h2>Berichte & CSV-Exporte</h2>
+        <div class="report-grid">
+          <label>Bericht
+            <select id="reportType">
+              <option value="consumption">Getränkeverbrauch</option>
+              <option value="event_consumption">Getränkeverbrauch dieser Veranstaltung / Strichliste</option>
+              <option value="revenue">Gesamteinnahmen</option>
+              <option value="profit">Gesamtgewinn</option>
+              <option value="rounds">Runden-Gewinn/Verlust</option>
+            </select>
+          </label>
+          <label>Gruppierung
+            <select id="reportGroupBy">
+              <option value="item">nach Getränk/Typ</option>
+              <option value="person">pro Person</option>
+              <option value="date">pro Datum</option>
+              <option value="item_person">Getränk + Person</option>
+              <option value="item_date">Getränk + Datum</option>
+              <option value="person_date">Person + Datum</option>
+              <option value="item_person_date">Getränk + Person + Datum</option>
+              <option value="none">Gesamt</option>
+            </select>
+          </label>
+          <label>Von <input id="reportFrom" type="date"></label>
+          <label>Bis <input id="reportTo" type="date"></label>
+          <button class="blue" onclick="previewReport()">Anzeigen</button>
+          <button class="save" onclick="downloadReport()">CSV Export</button>
+        </div>
+        <div class="muted" style="margin-bottom:10px">Damit sind z. B. Getränkeverbrauch mit Datumseingrenzung, Verbrauch nach Typ, aktuelle Strichliste, Einnahmen pro Person und Gesamtgewinn möglich.</div>
+        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; margin-bottom:10px">
+          <button class="blue" onclick="downloadExport('/api/admin/export/transactions','transactions.csv')">Transaktionsverlauf</button>
+          <button class="blue" onclick="downloadExport('/api/admin/export/open-balances','open_balances.csv')">Offene Beträge pro Person</button>
+          <button class="blue" onclick="downloadExport('/api/admin/export/open-lines','open_lines.csv')">Offene Einzelposten</button>
+          <button class="blue" onclick="downloadExport('/api/admin/export/item-summary','item_summary.csv')">Artikel-Zusammenfassung Rohdaten</button>
+        </div>
+        <div class="muted" id="reportInfo">Noch kein Bericht geladen.</div>
+        <div class="table-wrap" style="max-height:55vh">
+          <table>
+            <thead id="reportHead"></thead>
+            <tbody id="reportBody"></tbody>
+          </table>
+        </div>
+        <div class="muted" style="margin-top:12px">CSV-Dateien verwenden Semikolon als Trennzeichen und Euro-Beträge.</div>
+      </section>
+    </section>
+  </main>
+
+  <div class="status" id="status"></div>
+
+  <script>
+    let adminPin = sessionStorage.getItem('drinkPosAdminPin') || '';
+    let overview = {people: [], items: [], settings: {}, action_types: []};
+    let debugEnabled = true;
+    let environment = 'development';
+    let syncStatusVisible = true;
+    let syncStatusSizePercent = 100;
+    let enableDeleteRequests = true;
+    let showPersonPopupTotal = true;
+    let appBackgroundColor = '#f3f4f6';
+    let personCardBackgroundColor = '#ffffff';
+    let personCardBorderColor = '#bfdbfe';
+    let personCardBorderWidthPx = 2;
+    let personCardGapPx = 10;
+    let lastSyncAt = localStorage.getItem('drinkPosLastSyncAt') || '';
+    let lastServerRevision = localStorage.getItem('drinkPosServerRevision') || '';
+    let currentSyncState = 'unknown';
+    let flushingClientEvents = false;
+    let historyTypeSelection = null;
+    let renderedHistoryTypes = [];
+    let statsScope = 'today';
+    let statsLoaded = false;
+    let lastStatsData = null;
+    let statsRequestSeq = 0;
+    const APPEARANCE_DEFAULTS = {
+      show_total_on_overview: true,
+      show_person_popup_total: true,
+      show_summary_label_on_overview: true,
+      overview_summary_label_text: 'Gesamt:',
+      overview_summary_size_percent: 100,
+      overview_name_size_px: 15.5,
+      enable_delete_requests: true,
+      app_background_color: '#f3f4f6',
+      person_card_background_color: '#ffffff',
+      person_card_border_color: '#bfdbfe',
+      person_card_border_width_px: 2,
+      person_card_gap_px: 10,
+      tally_size_percent: 100,
+      tally_roughness: 4,
+      show_sync_status: true,
+      sync_status_size_percent: 100,
+      drink_feedback_enabled: true,
+      drink_feedback_style: 'strong',
+      drink_feedback_duration_ms: 1400,
+      drink_feedback_animation_intensity_percent: 100,
+      drink_feedback_position: 'below',
+      drink_celebration_mode: 'condition',
+      drink_celebration_condition_round: true,
+      drink_celebration_condition_debt: true,
+      drink_celebration_debt_threshold_eur: 50,
+      drink_celebration_confetti_intensity_percent: 100,
+      drink_celebration_sound_enabled: true
+    };
+
+    function numberComma(value, minimumFractionDigits = 2, maximumFractionDigits = minimumFractionDigits) {
+      const n = Number(value || 0);
+      return n.toLocaleString('de-DE', { minimumFractionDigits, maximumFractionDigits });
+    }
+    function money(value) { return `€ ${numberComma(value, 2, 2)}`; }
+    function decimalText(value, digits = 2) { return numberComma(value, digits, digits); }
+    function normalizeDecimalText(text) {
+      return String(text ?? '').replace(/(€\s*-?\d+)\.(\d{1,2})(?=\D|$)/g, '$1,$2');
+    }
+    function parseDecimalInput(value) {
+      const raw = String(value ?? '').trim().replace(/€/g, '').replace(/\s/g, '');
+      if (!raw) return NaN;
+      let normalized = raw;
+      if (normalized.includes(',') && normalized.includes('.')) {
+        normalized = normalized.lastIndexOf(',') > normalized.lastIndexOf('.')
+          ? normalized.replace(/\./g, '').replace(',', '.')
+          : normalized.replace(/,/g, '');
+      } else {
+        normalized = normalized.replace(',', '.');
+      }
+      return Number(normalized);
+    }
+    function formatDecimalInputValue(value, digits = 2) {
+      const n = parseDecimalInput(value);
+      return Number.isFinite(n) ? decimalText(n, digits) : '';
+    }
+    function normalizeDecimalInputField(input, { fixed = false } = {}) {
+      const before = input.value;
+      const cursor = input.selectionStart;
+      const replaced = before.replace(/\./g, ',');
+      if (replaced !== before) {
+        input.value = replaced;
+        if (cursor !== null) input.setSelectionRange(cursor, cursor);
+      }
+      if (fixed && input.value.trim() !== '') input.value = formatDecimalInputValue(input.value, Number(input.dataset.decimalDigits || 2));
+    }
+    function installDecimalInputNormalization() {
+      document.addEventListener('input', (event) => {
+        const input = event.target;
+        if (!(input instanceof HTMLInputElement) || !input.matches('[data-decimal-input]')) return;
+        normalizeDecimalInputField(input);
+      });
+      document.addEventListener('blur', (event) => {
+        const input = event.target;
+        if (!(input instanceof HTMLInputElement) || !input.matches('[data-decimal-input]')) return;
+        normalizeDecimalInputField(input, { fixed: true });
+      }, true);
+    }
+    function escapeHtml(value) { return String(value ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;'); }
+    function showStatus(text) { const el = document.getElementById('status'); el.textContent = text; el.style.display = 'block'; clearTimeout(window.statusTimer); window.statusTimer = setTimeout(()=>el.style.display='none', 2600); }
+
+    function formatSyncTime(value) {
+      if (!value) return 'nie';
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return 'nie';
+      return d.toLocaleString('de-CH', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' });
+    }
+
+    function pageNameForLog() { return 'Organisation'; }
+    function connectionLoggingEnabled() { return environment === 'development' && debugEnabled !== false; }
+    function deviceLabel() {
+      const ua = navigator.userAgent || '';
+      const platform = navigator.platform || '';
+      const touch = Number(navigator.maxTouchPoints || 0);
+      if (/iPad/i.test(ua) || (platform === 'MacIntel' && touch > 1)) return 'iPad';
+      if (/iPhone/i.test(ua)) return 'iPhone';
+      if (/Android/i.test(ua) && /Mobile/i.test(ua)) return 'Android Handy';
+      if (/Android/i.test(ua)) return 'Android Tablet';
+      if (/Windows/i.test(ua)) return 'PC Windows';
+      if (/Macintosh|Mac OS/i.test(ua)) return 'Mac';
+      return touch > 1 ? 'Touchgeraet' : 'PC';
+    }
+    function deviceInfoForLog() {
+      return `${deviceLabel()} · ${window.innerWidth}x${window.innerHeight} · ${navigator.platform || 'unknown'}`;
+    }
+
+    function applySyncAppearance() {
+      const line = document.getElementById('syncLine');
+      if (!line) return;
+      document.documentElement.style.setProperty('--sync-status-scale', String(Math.max(70, Math.min(180, syncStatusSizePercent)) / 100));
+      line.classList.toggle('hidden', !syncStatusVisible);
+    }
+
+    function applyVisualAppearance() {
+      const root = document.documentElement;
+      root.style.setProperty('--app-bg', appBackgroundColor || '#f3f4f6');
+      root.style.setProperty('--person-card-bg', personCardBackgroundColor || '#ffffff');
+      root.style.setProperty('--person-card-border-color', personCardBorderColor || '#bfdbfe');
+      root.style.setProperty('--person-card-border-width', `${Math.max(0, Math.min(8, Number(personCardBorderWidthPx || 2)))}px`);
+      root.style.setProperty('--person-card-gap', `${Math.max(4, Math.min(32, Number(personCardGapPx || 10)))}px`);
+    }
+
+    function updateStoredRevision(syncData = null) {
+      if (syncData?.db_revision) {
+        lastServerRevision = String(syncData.db_revision);
+        localStorage.setItem('drinkPosServerRevision', lastServerRevision);
+      }
+    }
+
+    function getPendingClientEvents() {
+      try { return JSON.parse(localStorage.getItem('drinkPosPendingClientEvents') || '[]'); }
+      catch { return []; }
+    }
+
+    function setPendingClientEvents(events) {
+      localStorage.setItem('drinkPosPendingClientEvents', JSON.stringify(events.slice(-20)));
+    }
+
+    function enqueueClientEvent(event_type, details = '') {
+      const events = getPendingClientEvents();
+      const last = events[events.length - 1];
+      if (last && last.event_type === event_type && Date.now() - Number(last.ts || 0) < 5 * 60 * 1000) return;
+      events.push({
+        event_type,
+        page: pageNameForLog(),
+        client_time: new Date().toISOString(),
+        last_sync_at: lastSyncAt || null,
+        device_info: deviceInfoForLog(),
+        details,
+        ts: Date.now(),
+      });
+      setPendingClientEvents(events);
+    }
+
+    async function sendClientEvent(event) {
+      const payload = {...event};
+      delete payload.ts;
+      const res = await fetch('/api/client-event', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(payload),
+        cache:'no-store',
+      });
+      if (!res.ok) throw new Error('event log failed');
+      const data = await res.json().catch(() => null);
+      updateStoredRevision(data);
+    }
+
+    async function flushClientEvents() {
+      if (flushingClientEvents) return;
+      flushingClientEvents = true;
+      try {
+        let events = getPendingClientEvents();
+        while (events.length) {
+          try { await sendClientEvent(events[0]); }
+          catch { break; }
+          events = events.slice(1);
+          setPendingClientEvents(events);
+        }
+      } finally {
+        flushingClientEvents = false;
+      }
+    }
+
+    function noteClientEvent(event_type, details = '') {
+      if (!connectionLoggingEnabled()) return;
+      enqueueClientEvent(event_type, details);
+      if (navigator.onLine) flushClientEvents();
+    }
+
+    function updateSyncUi(state, text) {
+      const line = document.getElementById('syncLine');
+      const label = document.getElementById('syncText');
+      if (!line || !label) return;
+      line.classList.toggle('offline', state === 'offline');
+      line.classList.toggle('syncing', state === 'syncing');
+      label.textContent = text;
+      applySyncAppearance();
+    }
+
+    function markSyncSuccess(syncData = null) {
+      const wasOffline = currentSyncState === 'offline';
+      currentSyncState = 'online';
+      lastSyncAt = new Date().toISOString();
+      localStorage.setItem('drinkPosLastSyncAt', lastSyncAt);
+      updateStoredRevision(syncData);
+      updateSyncUi('online', `Synchronisiert · letzter Sync: ${formatSyncTime(lastSyncAt)}`);
+      if (wasOffline) noteClientEvent('CONNECTION_RESTORED', 'Verbindung zum Server wieder erreichbar.');
+      else flushClientEvents();
+    }
+
+    function markSyncFailure() {
+      if (currentSyncState !== 'offline') noteClientEvent('CONNECTION_LOST', 'Server nicht erreichbar.');
+      currentSyncState = 'offline';
+      updateSyncUi('offline', `Offline · letzter Sync: ${formatSyncTime(lastSyncAt)}`);
+    }
+
+    async function apiFetch(url, body) {
+      let res;
+      try { res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body), cache:'no-store'}); }
+      catch { markSyncFailure(); throw new Error('Keine Verbindung zum Server. Änderung wurde nicht gespeichert.'); }
+      if (!res.ok) { markSyncSuccess(); const err = await res.json().catch(()=>({})); throw new Error(err.detail || 'Fehler'); }
+      const data = await res.json();
+      markSyncSuccess();
+      return data;
+    }
+
+    async function checkSyncStatus(options = {}) {
+      const resyncOnChange = options.resyncOnChange === true;
+      const previousRevision = lastServerRevision;
+      try {
+        const res = await fetch(`/api/sync-status?ts=${Date.now()}`, { cache:'no-store' });
+        if (!res.ok) throw new Error('sync failed');
+        const data = await res.json();
+        const newRevision = String(data.db_revision || '');
+        markSyncSuccess(data);
+        if (resyncOnChange && adminPin && previousRevision && newRevision && previousRevision !== newRevision) {
+          await loadOverview();
+          await loadHistory();
+          if (document.getElementById('statsSection')?.classList.contains('active')) await loadStatistics();
+          return true;
+          noteClientEvent('SYNC_COMPLETED', 'Automatisch nach Serveränderung synchronisiert.');
+        }
+        return true;
+      } catch {
+        markSyncFailure();
+        return false;
+      }
+    }
+
+
+    async function loadSyncDisplayConfig() {
+      try {
+        const res = await fetch(`/api/config?ts=${Date.now()}`, { cache:'no-store' });
+        if (!res.ok) return;
+        const cfg = await res.json();
+        syncStatusVisible = cfg.show_sync_status !== false;
+        syncStatusSizePercent = Math.max(70, Math.min(180, Number(cfg.sync_status_size_percent || 100)));
+        enableDeleteRequests = cfg.enable_delete_requests !== false;
+        appBackgroundColor = cfg.app_background_color || '#f3f4f6';
+        personCardBackgroundColor = cfg.person_card_background_color || '#ffffff';
+        personCardBorderColor = cfg.person_card_border_color || '#bfdbfe';
+        personCardBorderWidthPx = Number(cfg.person_card_border_width_px ?? 2);
+        personCardGapPx = Number(cfg.person_card_gap_px ?? 10);
+        applySyncAppearance();
+        applyVisualAppearance();
+      } catch {}
+    }
+
+    async function resyncAdmin() {
+      updateSyncUi('syncing', `Synchronisiere… letzter Sync: ${formatSyncTime(lastSyncAt)}`);
+      try {
+        if (adminPin) {
+          await loadOverview();
+          await loadHistory();
+          if (document.getElementById('statsSection')?.classList.contains('active')) await loadStatistics();
+        }
+        await checkSyncStatus({ resyncOnChange:false });
+        noteClientEvent('SYNC_COMPLETED', 'Manuelle oder Wiederverbindungs-Synchronisierung abgeschlossen.');
+        showStatus('Synchronisiert');
+      } catch (err) {
+        markSyncFailure();
+        showStatus(err.message || 'Offline: Synchronisierung nicht möglich');
+      }
+    }
+
+    function typeLabel(type) {
+      const labels = {
+        CONSUME: 'Konsum', CONSUMPTION: 'Konsum', PAID_CASH: 'Bar bezahlt', PAID: 'Bezahlt',
+        ROUND_DEDUCTED: 'Runde abgezogen', ROUND_REQUEST: 'Runde angefragt',
+        ROUND_REQUEST_APPROVED: 'Runde bestätigt', ROUND_REQUEST_REJECTED: 'Rundenanfrage abgelehnt',
+        ADMIN_ADJUSTMENT: 'Admin-Korrektur', CHANGE_REQUEST: 'Löschanfrage',
+        CHANGE_APPROVED: 'Anfrage bestätigt', CHANGE_REJECTED: 'Anfrage abgelehnt', EDIT_REQUEST: 'Änderungswunsch',
+        EDIT_APPROVED: 'Änderung bestätigt', EDIT_REJECTED: 'Änderung abgelehnt', DEBUG_TEST_DATA: 'Testdaten',
+        PERSON_CREATED: 'Name angelegt', PERSON_UPDATED: 'Name geändert', PERSON_DELETED: 'Name gelöscht',
+        ITEM_CREATED: 'Artikel angelegt', ITEM_UPDATED: 'Artikel geändert', ITEM_DELETED: 'Artikel gelöscht',
+        DRINK_CREATED: 'Artikel angelegt', DRINK_UPDATED: 'Artikel geändert', SETTINGS_UPDATED: 'Einstellungen',
+        CONNECTION_LOST: 'Verbindung verloren', CONNECTION_RESTORED: 'Verbindung aufgenommen', SYNC_COMPLETED: 'Synchronisiert'
+      };
+      return labels[type] || type || 'Unbekannt';
+    }
+
+    async function login() {
+      const pin = document.getElementById('pinInput').value || adminPin;
+      if (!pin) return;
+      try {
+        await apiFetch('/api/admin-login', {pin});
+        adminPin = pin;
+        sessionStorage.setItem('drinkPosAdminPin', pin);
+        document.getElementById('loginCard').style.display = 'none';
+        document.getElementById('adminContent').style.display = 'block';
+        await loadOverview();
+        await loadHistory();
+      } catch (err) { alert(err.message); }
+    }
+
+    function logout() { sessionStorage.removeItem('drinkPosAdminPin'); adminPin = ''; location.reload(); }
+
+    function mountAppearanceSettings() {
+      const block = document.getElementById('appearanceSettingsBlock');
+      const mount = document.getElementById('appearanceMount');
+      if (block && mount && block.parentElement !== mount) mount.appendChild(block);
+    }
+
+    function showTab(name) {
+      for (const t of ['people','items','settings','appearance','stats','history','exports']) {
+        document.getElementById(`${t}Section`).classList.toggle('active', t === name);
+        document.getElementById(`tab${t[0].toUpperCase()+t.slice(1)}`).classList.toggle('active', t === name);
+      }
+      if (name === 'stats') loadStatistics();
+      if (name === 'history') loadHistory();
+    }
+
+    async function loadOverview() {
+      overview = await apiFetch('/api/admin/overview', {pin: adminPin});
+      renderWarnings(); renderDashboard(); renderPeople(); renderItems(); renderSettings(); renderTypeFilter(overview.action_types || []);
+    }
+
+    function localDateIso(date = new Date()) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function setStatsScope(scope, shouldLoad = true) {
+      statsScope = scope || 'today';
+      const today = localDateIso();
+      const firstOfMonth = `${today.slice(0, 8)}01`;
+      if (statsScope === 'today') {
+        document.getElementById('statsDateFrom').value = today;
+        document.getElementById('statsDateTo').value = today;
+      } else if (statsScope === 'month') {
+        document.getElementById('statsDateFrom').value = firstOfMonth;
+        document.getElementById('statsDateTo').value = today;
+      } else if (statsScope === 'event' || statsScope === 'all') {
+        document.getElementById('statsDateFrom').value = '';
+        document.getElementById('statsDateTo').value = '';
+      }
+      document.querySelectorAll('[data-stats-scope]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.statsScope === statsScope);
+      });
+      if (shouldLoad && adminPin) loadStatistics();
+    }
+
+    function statsPayload() {
+      return {
+        pin: adminPin,
+        scope: statsScope,
+        date_from: document.getElementById('statsDateFrom').value || null,
+        date_to: document.getElementById('statsDateTo').value || null,
+        include_admin_items: document.getElementById('statsIncludeAdmin').checked
+      };
+    }
+
+    async function loadStatistics() {
+      if (!adminPin) return;
+      const seq = ++statsRequestSeq;
+      const info = document.getElementById('statsInfo');
+      const refresh = document.getElementById('statsRefreshButton');
+      if (info) info.textContent = 'Statistik wird geladen...';
+      if (refresh) refresh.disabled = true;
+      try {
+        const data = await apiFetch('/api/admin/statistics', statsPayload());
+        if (seq !== statsRequestSeq) return;
+        statsLoaded = true;
+        lastStatsData = data;
+        renderStatistics(data);
+      } catch (err) {
+        if (seq !== statsRequestSeq) return;
+        if (info) info.textContent = 'Statistik konnte nicht geladen werden.';
+        alert(err.message);
+      } finally {
+        if (seq === statsRequestSeq && refresh) refresh.disabled = false;
+      }
+    }
+
+    function statsPeriodText(data) {
+      const p = data.period || {};
+      const adminText = p.include_admin_items ? 'inkl. Admin-Artikel' : 'ohne Admin-Artikel';
+      if (p.scope === 'event') {
+        const since = p.since_timestamp ? `seit letztem Kassensturz (${p.since_timestamp})` : 'seit Projektstart';
+        return `${p.label || 'Aktuelle Strichliste'} · ${since} · ${adminText}`;
+      }
+      if (p.date_from || p.date_to) {
+        return `${p.label || 'Zeitraum'} · ${p.date_from || 'Anfang'} bis ${p.date_to || 'heute'} · ${adminText}`;
+      }
+      return `${p.label || 'Gesamt'} · alle vorhandenen Daten · ${adminText}`;
+    }
+
+    function renderStatistics(data) {
+      document.getElementById('statsInfo').textContent = statsPeriodText(data);
+      renderStatsSummary(data);
+      renderStatsInsights(data);
+      renderStatsMetrics(data);
+      renderStatsBars('statsTopItems', data.top_items || [], {
+        value: row => Number(row.quantity || 0),
+        valueText: row => `${Number(row.quantity || 0)} · ${money(row.vk_value_eur || 0)}`,
+        label: row => row.item || 'Unbekannt',
+        note: row => `EK ${money(row.cost_eur || 0)} · Differenz ${money(row.profit_eur || 0)}`
+      });
+      renderStatsBars('statsOpenPeople', data.open_people || [], {
+        value: row => Number(row.open_total_eur || 0),
+        valueText: row => money(row.open_total_eur || 0),
+        label: row => row.person || 'Unbekannt',
+        note: row => `${Number(row.open_items || 0)} offene Striche${row.archived ? ' · archiviert' : ''}`
+      });
+      renderFinanceTimeline(data.finance_by_date || []);
+      renderStatsRounds(data.rounds || {});
+      renderStatsRequests(data.requests || {});
+      renderStatsItemTable(data.item_details || data.top_items || []);
+    }
+
+    function percent(value) {
+      if (!Number.isFinite(Number(value))) return '0%';
+      return `${Number(value).toFixed(0)}%`;
+    }
+
+    function renderStatsSummary(data) {
+      const k = data.kpis || {};
+      const open = data.open || {};
+      const event = data.event || {};
+      const rounds = data.rounds || {};
+      const avgValue = Number(k.quantity || 0) > 0 ? Number(k.vk_value_eur || 0) / Number(k.quantity || 0) : 0;
+      const paidShare = Number(k.vk_value_eur || 0) > 0 ? Number(k.revenue_eur || 0) / Number(k.vk_value_eur || 0) * 100 : 0;
+      document.getElementById('statsSummary').innerHTML = `
+        <div class="stats-summary-card primary">
+          <div class="stats-summary-title">Zeitraum-Ergebnis</div>
+          <div class="stats-summary-value">${money(k.profit_eur || 0)}</div>
+          <div class="metric-note">Gewinn aus bezahlten Posten und Rundenabzug</div>
+          <div class="stats-summary-grid">
+            <div class="stats-summary-chip"><strong>${money(k.revenue_eur || 0)}</strong><span>Bar bezahlt</span></div>
+            <div class="stats-summary-chip"><strong>${money(k.cost_eur || 0)}</strong><span>EK/Kosten</span></div>
+          </div>
+        </div>
+        <div class="stats-summary-card">
+          <div class="stats-summary-title">Offen</div>
+          <div class="stats-summary-value">${money(open.total_eur || 0)}</div>
+          <div class="metric-note">${Number(open.items || 0)} offene Striche insgesamt</div>
+          <div class="stats-summary-grid">
+            <div class="stats-summary-chip"><strong>${money(event.total_eur || 0)}</strong><span>aktuelle Strichliste</span></div>
+            <div class="stats-summary-chip"><strong>${Number(event.items || 0)}</strong><span>aktuelle Striche</span></div>
+          </div>
+        </div>
+        <div class="stats-summary-card">
+          <div class="stats-summary-title">Verbrauch</div>
+          <div class="stats-summary-value">${Number(k.quantity || 0)}</div>
+          <div class="metric-note">${money(avgValue)} Durchschnitt pro Strich</div>
+          <div class="stats-summary-grid">
+            <div class="stats-summary-chip"><strong>${percent(paidShare)}</strong><span>bezahlt/VK</span></div>
+            <div class="stats-summary-chip"><strong>${Number(rounds.count || 0)}</strong><span>Runden</span></div>
+          </div>
+        </div>`;
+    }
+
+    function renderStatsInsights(data) {
+      const k = data.kpis || {};
+      const open = data.open || {};
+      const event = data.event || {};
+      const topItem = (data.top_items || [])[0];
+      const topOpen = (data.open_people || [])[0];
+      const insights = [];
+      if (topItem) {
+        const share = Number(k.quantity || 0) > 0 ? Number(topItem.quantity || 0) / Number(k.quantity || 0) * 100 : 0;
+        insights.push(['Top-Artikel', `${topItem.item || 'Unbekannt'} macht ${percent(share)} der Striche aus.`, `${Number(topItem.quantity || 0)} Striche · ${money(topItem.vk_value_eur || 0)}`]);
+      }
+      if (topOpen) {
+        insights.push(['Größter offener Betrag', `${topOpen.person || 'Unbekannt'} hat aktuell am meisten offen.`, `${money(topOpen.open_total_eur || 0)} · ${Number(topOpen.open_items || 0)} Striche`]);
+      }
+      if (Number(event.total_eur || 0) > 0) {
+        const share = Number(open.total_eur || 0) > 0 ? Number(event.total_eur || 0) / Number(open.total_eur || 0) * 100 : 0;
+        insights.push(['Aktuelle Strichliste', `${percent(share)} der offenen Summe stammt aus der aktuellen Strichliste.`, `${money(event.total_eur || 0)} von ${money(open.total_eur || 0)}`]);
+      }
+      const target = document.getElementById('statsInsights');
+      target.innerHTML = insights.length ? insights.slice(0, 3).map(row => `
+        <div class="stats-insight">
+          <div><strong>${escapeHtml(row[0])}</strong><span>${escapeHtml(row[1])}</span></div>
+          <strong>${escapeHtml(row[2])}</strong>
+        </div>`).join('') : '<div class="stats-insight"><div><strong>Keine Auffälligkeiten</strong><span>Für den gewählten Zeitraum liegen noch zu wenige Daten vor.</span></div></div>';
+    }
+
+    function renderStatsMetrics(data) {
+      const k = data.kpis || {};
+      const open = data.open || {};
+      const event = data.event || {};
+      const rounds = data.rounds || {};
+      const cards = [
+        ['Offen gesamt', money(open.total_eur || 0), `${Number(open.items || 0)} offene Striche`],
+        ['Aktuelle Strichliste', money(event.total_eur || 0), `${Number(event.items || 0)} offene Striche seit Kassensturz`],
+        ['Verbrauch', `${Number(k.quantity || 0)}`, `${money(k.vk_value_eur || 0)} VK-Wert`],
+        ['Bar bezahlt', money(k.revenue_eur || 0), 'nach Zahlungsdatum'],
+        ['EK/Kosten', money(k.cost_eur || 0), 'bezahlte Kosten und Rundenabzug'],
+        ['Gewinn', money(k.profit_eur || 0), 'bezahlter Zeitraum'],
+        ['Runden', money(rounds.profit_vs_purchase_eur || 0), `${Number(rounds.count || 0)} Runden nach EK`]
+      ];
+      document.getElementById('statsMetrics').innerHTML = cards.map(card => `
+        <div class="metric-card">
+          <div class="metric-label">${escapeHtml(card[0])}</div>
+          <div class="metric-value">${escapeHtml(card[1])}</div>
+          <div class="metric-note">${escapeHtml(card[2])}</div>
+        </div>`).join('');
+    }
+
+    function renderStatsBars(targetId, rows, config) {
+      const target = document.getElementById(targetId);
+      if (!target) return;
+      if (!rows.length) {
+        target.innerHTML = '<div class="muted">Keine Daten im gewählten Zeitraum.</div>';
+        return;
+      }
+      const max = Math.max(1, ...rows.map(row => Math.abs(Number(config.value(row) || 0))));
+      target.innerHTML = rows.map(row => {
+        const value = Math.abs(Number(config.value(row) || 0));
+        const width = Math.max(3, Math.round((value / max) * 100));
+        return `
+          <div class="stats-bar-row">
+            <div>
+              <div class="stats-bar-label">${escapeHtml(config.label(row))}</div>
+              <div class="stats-bar-note">${escapeHtml(config.note(row))}</div>
+              <div class="stats-bar-track"><span class="stats-bar-fill" style="--bar-width:${width}%"></span></div>
+            </div>
+            <div class="stats-bar-value">${escapeHtml(config.valueText(row))}</div>
+          </div>`;
+      }).join('');
+    }
+
+    function renderFinanceTimeline(rows) {
+      const target = document.getElementById('statsFinanceTimeline');
+      if (!target) return;
+      if (!rows.length) {
+        target.innerHTML = '<div class="muted">Noch keine bezahlten Werte im gewählten Zeitraum.</div>';
+        return;
+      }
+      const visible = rows.slice(-14);
+      const max = Math.max(1, ...visible.flatMap(row => [
+        Math.abs(Number(row.revenue_eur || 0)),
+        Math.abs(Number(row.cost_eur || 0)),
+        Math.abs(Number(row.profit_eur || 0))
+      ]));
+      target.innerHTML = visible.map(row => {
+        const revenueWidth = Math.max(2, Math.round(Math.abs(Number(row.revenue_eur || 0)) / max * 100));
+        const costWidth = Math.max(2, Math.round(Math.abs(Number(row.cost_eur || 0)) / max * 100));
+        const profit = Number(row.profit_eur || 0);
+        const profitWidth = Math.max(2, Math.round(Math.abs(profit) / max * 100));
+        return `
+          <div class="finance-row">
+            <strong>${escapeHtml(row.date)}</strong>
+            <div class="finance-bars">
+              <div class="finance-line"><span>Umsatz</span><span class="finance-track"><span class="finance-fill revenue" style="--bar-width:${revenueWidth}%"></span></span></div>
+              <div class="finance-line"><span>Kosten</span><span class="finance-track"><span class="finance-fill cost" style="--bar-width:${costWidth}%"></span></span></div>
+              <div class="finance-line"><span>Gewinn</span><span class="finance-track"><span class="finance-fill ${profit < 0 ? 'loss' : 'profit'}" style="--bar-width:${profitWidth}%"></span></span></div>
+            </div>
+            <div class="right"><strong>${money(profit)}</strong><br><span class="muted">${money(row.revenue_eur || 0)}</span></div>
+          </div>`;
+      }).join('');
+    }
+
+    function renderStatsRounds(rounds) {
+      const rows = [
+        ['Runden', Number(rounds.count || 0), 'Anzahl'],
+        ['Rundenpreis', money(rounds.round_price_eur || 0), 'eingenommen'],
+        ['Abgezogen VK', money(rounds.deducted_vk_eur || 0), 'Listenwert'],
+        ['Abgezogen EK', money(rounds.deducted_purchase_eur || 0), 'Kosten'],
+        ['Ergebnis EK', money(rounds.profit_vs_purchase_eur || 0), 'Rundenpreis minus EK'],
+        ['Ergebnis VK', money(rounds.profit_vs_retail_eur || 0), 'Rundenpreis minus VK']
+      ];
+      document.getElementById('statsRounds').innerHTML = rows.map(row => `
+        <div class="stats-mini">
+          <div class="stats-mini-value">${escapeHtml(row[1])}</div>
+          <div class="stats-mini-label">${escapeHtml(row[0])}</div>
+          <div class="metric-note">${escapeHtml(row[2])}</div>
+        </div>`).join('');
+    }
+
+    function renderStatsRequests(requests) {
+      const deleteReq = requests['delete'] || {};
+      const roundReq = requests.round || {};
+      const rows = [
+        ['Offen gesamt', Number(requests.pending_total || 0), 'alle Anfragen'],
+        ['Löschanfragen offen', Number(deleteReq.PENDING || 0), 'Benutzerkorrekturen'],
+        ['Runden offen', Number(roundReq.PENDING || 0), 'alte offene Rundenanfragen'],
+        ['Löschen erledigt', Number(deleteReq.APPROVED || 0) + Number(deleteReq.REJECTED || 0), 'bestätigt oder abgelehnt'],
+        ['Runden bestätigt', Number(roundReq.APPROVED || 0), 'direkt eingetragene Runden']
+      ];
+      document.getElementById('statsRequests').innerHTML = rows.map(row => `
+        <div class="stats-mini">
+          <div class="stats-mini-value">${escapeHtml(row[1])}</div>
+          <div class="stats-mini-label">${escapeHtml(row[0])}</div>
+          <div class="metric-note">${escapeHtml(row[2])}</div>
+        </div>`).join('');
+    }
+
+    function renderStatsItemTable(rows) {
+      const body = document.getElementById('statsItemBody');
+      const filter = (document.getElementById('statsItemFilter')?.value || '').trim().toLowerCase();
+      const filtered = (rows || []).filter(row => {
+        if (!filter) return true;
+        return `${row.item || ''} ${row.short_label || ''}`.toLowerCase().includes(filter);
+      });
+      const info = document.getElementById('statsItemInfo');
+      if (info) info.textContent = filter ? `${filtered.length} von ${(rows || []).length} Artikeln` : `${(rows || []).length} Artikel`;
+      if (!filtered.length) {
+        body.innerHTML = '<tr><td colspan="6" class="muted">Keine Artikeldaten im gewählten Zeitraum.</td></tr>';
+        return;
+      }
+      const totals = filtered.reduce((acc, row) => {
+        acc.quantity += Number(row.quantity || 0);
+        acc.vk += Number(row.vk_value_eur || 0);
+        acc.cost += Number(row.cost_eur || 0);
+        acc.profit += Number(row.profit_eur || 0);
+        return acc;
+      }, {quantity: 0, vk: 0, cost: 0, profit: 0});
+      body.innerHTML = filtered.map(row => `
+        <tr>
+          <td>${escapeHtml(row.item || '')}</td>
+          <td>${escapeHtml(row.short_label || '')}</td>
+          <td class="right">${Number(row.quantity || 0)}</td>
+          <td class="right">${money(row.vk_value_eur || 0)}</td>
+          <td class="right">${money(row.cost_eur || 0)}</td>
+          <td class="right">${money(row.profit_eur || 0)}</td>
+        </tr>`).join('') + `
+        <tr>
+          <td class="stats-table-total" colspan="2">Summe</td>
+          <td class="right stats-table-total">${totals.quantity}</td>
+          <td class="right stats-table-total">${money(totals.vk)}</td>
+          <td class="right stats-table-total">${money(totals.cost)}</td>
+          <td class="right stats-table-total">${money(totals.profit)}</td>
+        </tr>`;
+    }
+
+    function renderWarnings() {
+      const w = document.getElementById('globalWarning');
+      const s = overview.settings || {};
+      const notes = [];
+      if (s.pin_default_warning) notes.push('Hinweis: Die Standard-PIN 1234 ist noch aktiv.');
+      if (s.production) notes.push('Produktionsmodus ist aktiv; Testdaten sind deaktiviert.');
+      else notes.push('Entwicklungsmodus ist aktiv; Testdaten sind erlaubt.');
+      w.innerHTML = notes.map(escapeHtml).join('<br>');
+      w.style.display = notes.length ? 'block' : 'none';
+    }
+
+    function renderDashboard() {
+      const box = document.getElementById('adminDashboard');
+      if (!box) return;
+      const people = overview.people || [];
+      const items = (overview.items || overview.drinks || []).filter(i => !i.system_item && i.name !== '1 Runde');
+      const openPeople = people.filter(p => Number(p.open_items || 0) > 0);
+      const openTotal = openPeople.reduce((sum, p) => sum + Number(p.open_total || 0), 0);
+      const openItems = openPeople.reduce((sum, p) => sum + Number(p.open_items || 0), 0);
+      const activePeople = people.filter(p => p.active && !p.archived).length;
+      const archivedPeople = people.filter(p => p.archived).length;
+      const activeItems = items.filter(i => i.active && !i.archived).length;
+      const adminItems = items.filter(i => i.admin_only && !i.archived).length;
+      const archivedItems = items.filter(i => i.archived).length;
+      const s = overview.settings || {};
+      const envLabel = s.production ? 'Produktion' : 'Entwicklung';
+      box.innerHTML = `
+        <div class="metric-card">
+          <div class="metric-label">Offene Summe</div>
+          <div class="metric-value">${money(openTotal)}</div>
+          <div class="metric-note">${openPeople.length} Namen mit offenen Posten</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Offene Striche</div>
+          <div class="metric-value">${openItems}</div>
+          <div class="metric-note">über alle offenen Rechnungen</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Namen</div>
+          <div class="metric-value">${activePeople}</div>
+          <div class="metric-note">${archivedPeople} archiviert</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Artikel</div>
+          <div class="metric-value">${activeItems}</div>
+          <div class="metric-note">${adminItems} Admin · ${archivedItems} archiviert</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Modus</div>
+          <div class="metric-value">${escapeHtml(envLabel)}</div>
+          <div class="metric-note">${s.pin_default_warning ? 'Standard-PIN aktiv' : 'PIN geändert'}</div>
+        </div>`;
+    }
+
+    function renderPeople() {
+      const box = document.getElementById('peopleList'); box.innerHTML = '';
+      const info = document.getElementById('peopleListInfo');
+      const query = (document.getElementById('peopleSearch')?.value || '').trim().toLowerCase();
+      const showArchived = document.getElementById('peopleShowArchived')?.checked || false;
+      const onlyOpen = document.getElementById('peopleOnlyOpen')?.checked || false;
+      const all = overview.people || [];
+      const filtered = all.filter(p => {
+        const haystack = `${p.name || ''} ${p.first_name || ''} ${p.last_name || ''}`.toLowerCase();
+        if (!showArchived && p.archived) return false;
+        if (onlyOpen && Number(p.open_items || 0) <= 0) return false;
+        return !query || haystack.includes(query);
+      });
+      const filteredOpenTotal = filtered.reduce((sum, p) => sum + Number(p.open_total || 0), 0);
+      const filteredOpenItems = filtered.reduce((sum, p) => sum + Number(p.open_items || 0), 0);
+      if (info) info.textContent = `${filtered.length} von ${all.length} Namen angezeigt · ${filteredOpenItems} offene Striche · ${money(filteredOpenTotal)} offen`;
+      if (!filtered.length) {
+        box.innerHTML = '<div class="muted">Keine Namen passen zu den aktuellen Filtern.</div>';
+        return;
+      }
+      for (const p of filtered) {
+        const row = document.createElement('div'); row.className = 'row person-row';
+        row.innerHTML = `<input value="${escapeHtml(p.first_name || '')}" placeholder="Vorname"><input value="${escapeHtml(p.last_name || '')}" placeholder="Nachname"><label><input type="checkbox" ${p.active ? 'checked' : ''} style="width:auto"> aktiv</label><span class="muted">${p.archived ? 'archiviert' : `${p.open_items || 0} offen · ${money(p.open_total)}`}</span><button class="save">Speichern</button><button class="danger">Löschen</button>`;
+        const inputs = row.querySelectorAll('input');
+        const active = inputs[2];
+        row.querySelector('.save').onclick = () => updatePerson(p.id, inputs[0].value, inputs[1].value, active.checked);
+        row.querySelector('.danger').onclick = () => deletePerson(p);
+        box.appendChild(row);
+      }
+    }
+
+    function renderItems() {
+      const box = document.getElementById('itemList'); box.innerHTML = '';
+      const info = document.getElementById('itemListInfo');
+      const showArchived = document.getElementById('itemShowArchived')?.checked || false;
+      const onlyAdmin = document.getElementById('itemOnlyAdmin')?.checked || false;
+      const all = (overview.items || overview.drinks || []).filter(i => !i.system_item && i.name !== '1 Runde');
+      const filtered = all.filter(item => {
+        if (!showArchived && item.archived) return false;
+        if (onlyAdmin && !item.admin_only) return false;
+        return true;
+      });
+      const activeCount = filtered.filter(i => i.active && !i.archived).length;
+      const adminCount = filtered.filter(i => i.admin_only && !i.archived).length;
+      if (info) info.textContent = `${filtered.length} von ${all.length} Artikeln angezeigt · ${activeCount} aktiv · ${adminCount} Admin`;
+      if (!filtered.length) {
+        box.innerHTML = '<div class="muted">Keine Artikel passen zu den aktuellen Filtern.</div>';
+        return;
+      }
+      for (const item of filtered) {
+        const row = document.createElement('div'); row.className = 'row item-row';
+        row.innerHTML = `
+          <label class="field"><span class="field-label">Produkt</span><input value="${escapeHtml(item.name)}" placeholder="Name"></label>
+          <label class="field"><span class="field-label">Abkürzung</span><input value="${escapeHtml(item.short_label || '')}" placeholder="Kurz"></label>
+          <label class="field"><span class="field-label">VK</span><input type="text" inputmode="decimal" data-decimal-input data-decimal-digits="2" value="${formatDecimalInputValue(item.price)}"></label>
+          <label class="field"><span class="field-label">EK</span><input type="text" inputmode="decimal" data-decimal-input data-decimal-digits="2" value="${formatDecimalInputValue(item.purchase_price || 0)}"></label>
+          <label class="field"><span class="field-label">Reihung</span><input type="number" step="1" value="${Number(item.sort_order || 100)}"></label>
+          <label class="inline-field"><input type="checkbox" ${item.active ? 'checked' : ''} style="width:auto"> aktiv</label>
+          <label class="inline-field"><input type="checkbox" ${item.admin_only ? 'checked' : ''} style="width:auto"> Admin</label>
+          <button class="save">Speichern</button>
+          <button class="danger">Löschen</button>`;
+        const inputs = row.querySelectorAll('input');
+        row.querySelector('.save').onclick = () => updateItem(item.id, inputs[0].value, inputs[1].value, parseDecimalInput(inputs[2].value), parseDecimalInput(inputs[3].value), Number(inputs[4].value), inputs[5].checked, inputs[6].checked);
+        row.querySelector('.danger').onclick = () => deleteItem(item);
+        if (item.archived) {
+          row.style.opacity = '.55';
+          row.querySelector('.save').disabled = true;
+          row.querySelector('.danger').disabled = true;
+        }
+        box.appendChild(row);
+      }
+    }
+
+    function renderSettings() {
+      const s = overview.settings || {};
+      document.getElementById('appName').value = s.app_name || 'Drink POS';
+      document.title = `${s.app_name || 'Drink POS'} · Organisation`;
+      environment = s.environment || 'development';
+      debugEnabled = s.debug_enabled !== false;
+      document.getElementById('roundPrice').value = formatDecimalInputValue(s.round_item_price_eur || 10);
+      document.getElementById('showTotalOverview').checked = s.show_total_on_overview !== false;
+      document.getElementById('showPersonPopupTotal').checked = s.show_person_popup_total !== false;
+      document.getElementById('showSummaryLabelOverview').checked = s.show_summary_label_on_overview !== false;
+      document.getElementById('summaryLabelText').value = s.overview_summary_label_text || 'Gesamt:';
+      document.getElementById('summarySizeSlider').value = Number(s.overview_summary_size_percent || 100);
+      document.getElementById('tallyRoughness').value = Number(s.tally_roughness || 4);
+      document.getElementById('nameSizeSlider').value = Number(s.overview_name_size_px || 15.5);
+      document.getElementById('tallySizeSlider').value = Number(s.tally_size_percent || 100);
+      document.getElementById('showSyncStatus').checked = s.show_sync_status !== false;
+      document.getElementById('syncStatusSizeSlider').value = Number(s.sync_status_size_percent || 100);
+      document.getElementById('drinkFeedbackEnabled').checked = s.drink_feedback_enabled !== false;
+      document.getElementById('drinkFeedbackStyle').value = s.drink_feedback_style || 'strong';
+      document.getElementById('drinkFeedbackDurationSlider').value = Number(s.drink_feedback_duration_ms || 1400);
+      document.getElementById('drinkFeedbackIntensitySlider').value = Number(s.drink_feedback_animation_intensity_percent ?? 100);
+      document.getElementById('drinkFeedbackPosition').value = s.drink_feedback_position || 'below';
+      document.getElementById('drinkCelebrationMode').value = s.drink_celebration_mode || 'condition';
+      document.getElementById('drinkCelebrationRound').checked = s.drink_celebration_condition_round !== false;
+      document.getElementById('drinkCelebrationDebt').checked = s.drink_celebration_condition_debt !== false;
+      document.getElementById('drinkCelebrationDebtThreshold').value = formatDecimalInputValue(s.drink_celebration_debt_threshold_eur ?? 50);
+      document.getElementById('drinkConfettiIntensitySlider').value = Number(s.drink_celebration_confetti_intensity_percent ?? 100);
+      document.getElementById('drinkCelebrationSound').checked = s.drink_celebration_sound_enabled !== false;
+      document.getElementById('enableDeleteRequests').checked = s.enable_delete_requests !== false;
+      document.getElementById('appBgColor').value = s.app_background_color || '#f3f4f6';
+      document.getElementById('personBgColor').value = s.person_card_background_color || '#ffffff';
+      document.getElementById('personBorderColor').value = s.person_card_border_color || '#bfdbfe';
+      document.getElementById('personBorderWidthSlider').value = Number(s.person_card_border_width_px ?? 2);
+      document.getElementById('personGapSlider').value = Number(s.person_card_gap_px ?? 10);
+      syncStatusVisible = s.show_sync_status !== false;
+      syncStatusSizePercent = Math.max(70, Math.min(180, Number(s.sync_status_size_percent || 100)));
+      enableDeleteRequests = s.enable_delete_requests !== false;
+      showPersonPopupTotal = s.show_person_popup_total !== false;
+      appBackgroundColor = s.app_background_color || '#f3f4f6';
+      personCardBackgroundColor = s.person_card_background_color || '#ffffff';
+      personCardBorderColor = s.person_card_border_color || '#bfdbfe';
+      personCardBorderWidthPx = Number(s.person_card_border_width_px ?? 2);
+      personCardGapPx = Number(s.person_card_gap_px ?? 10);
+      applySyncAppearance();
+      applyVisualAppearance();
+      renderAppearancePreview();
+      const dbName = (s.database && s.database.path) ? s.database.path.split('/').pop() : 'Standard';
+      const dbSource = (s.database && s.database.source === 'DRINK_POS_DB') ? 'manuell gesetzt' : 'automatisch';
+      document.getElementById('settingsInfo').textContent = `Umgebung: ${s.environment || 'development'} · Datenbank: ${dbName} (${dbSource}) · Währung: EUR`;
+    }
+
+    function preferredHistoryTypes() {
+      return ['CONSUME','PAID_CASH','ROUND_DEDUCTED','ROUND_REQUEST','ROUND_REQUEST_APPROVED','ROUND_REQUEST_REJECTED','ADMIN_ADJUSTMENT','CHANGE_REQUEST','CHANGE_APPROVED','CHANGE_REJECTED','PERSON_CREATED','PERSON_UPDATED','PERSON_DELETED','ITEM_CREATED','ITEM_UPDATED','ITEM_DELETED','SETTINGS_UPDATED','CONNECTION_LOST','CONNECTION_RESTORED','SYNC_COMPLETED','DEBUG_TEST_DATA'];
+    }
+
+    function currentRenderedTypeSet() {
+      return new Set(renderedHistoryTypes);
+    }
+
+    function selectedHistoryTypes() {
+      if (historyTypeSelection === null) return [...renderedHistoryTypes];
+      const available = currentRenderedTypeSet();
+      return [...historyTypeSelection].filter(t => available.has(t));
+    }
+
+    function updateTypeFilterInfo() {
+      const info = document.getElementById('typeFilterInfo');
+      if (!info) return;
+      const selected = selectedHistoryTypes().length;
+      const total = renderedHistoryTypes.length;
+      if (!total) info.textContent = 'Noch keine Eventtypen vorhanden.';
+      else if (selected === total) info.textContent = `Alle ${total} Eventtypen ausgewählt.`;
+      else if (selected === 0) info.textContent = 'Alle Eventtypen abgewählt. Der Verlauf zeigt keine Einträge.';
+      else info.textContent = `${selected} von ${total} Eventtypen ausgewählt.`;
+    }
+
+    function syncHistoryTypeSelectionFromInputs() {
+      const checks = [...document.querySelectorAll('.history-type-check')];
+      historyTypeSelection = new Set(checks.filter(c => c.checked).map(c => c.value));
+      updateTypeFilterInfo();
+    }
+
+    function selectAllHistoryTypes() {
+      historyTypeSelection = new Set(renderedHistoryTypes);
+      renderTypeFilter(renderedHistoryTypes);
+    }
+
+    function deselectAllHistoryTypes() {
+      historyTypeSelection = new Set();
+      renderTypeFilter(renderedHistoryTypes);
+    }
+
+    function renderTypeFilter(types) {
+      const box = document.getElementById('filterTypesBox');
+      if (!box) return;
+      const all = [...new Set([...preferredHistoryTypes(), ...(types || [])].filter(Boolean))];
+      renderedHistoryTypes = all;
+      const selected = historyTypeSelection === null ? new Set(all) : new Set([...historyTypeSelection].filter(t => all.includes(t)));
+      box.innerHTML = all.map(t => `
+        <label class="type-filter-option">
+          <input class="history-type-check" type="checkbox" value="${escapeHtml(t)}" ${selected.has(t) ? 'checked' : ''} onchange="syncHistoryTypeSelectionFromInputs()">
+          <span>${escapeHtml(typeLabel(t))}</span>
+        </label>`).join('');
+      updateTypeFilterInfo();
+    }
+
+    async function createPerson() {
+      const first_name = document.getElementById('newFirstName').value.trim();
+      const last_name = document.getElementById('newLastName').value.trim();
+      if (!first_name && !last_name) return alert('Vorname oder Nachname eingeben.');
+      try { await apiFetch('/api/admin/people/create', {pin: adminPin, first_name, last_name}); document.getElementById('newFirstName').value=''; document.getElementById('newLastName').value=''; showStatus('Name angelegt'); await loadOverview(); } catch (err) { alert(err.message); }
+    }
+
+    async function updatePerson(person_id, first_name, last_name, active) {
+      try { await apiFetch('/api/admin/people/update', {pin: adminPin, person_id, first_name, last_name, active}); showStatus('Name gespeichert'); await loadOverview(); } catch (err) { alert(err.message); }
+    }
+
+    async function deletePerson(p) {
+      const msg = `${p.name} wirklich löschen/archivieren?\n\nOffene Posten: ${p.open_items || 0}\nOffen: ${money(p.open_total || 0)}\n\nDer Verlauf bleibt erhalten.`;
+      if (!confirm(msg)) return;
+      try { await apiFetch('/api/admin/people/delete', {pin: adminPin, person_id: p.id}); showStatus('Person archiviert'); await loadOverview(); } catch (err) { alert(err.message); }
+    }
+
+    async function createItem() {
+      const name = document.getElementById('newItemName').value.trim();
+      const short_label = document.getElementById('newItemShort').value.trim();
+      const price = parseDecimalInput(document.getElementById('newItemPrice').value);
+      const purchase_price = parseDecimalInput(document.getElementById('newItemPurchasePrice').value || 0);
+      const active = document.getElementById('newItemActive').checked;
+      const admin_only = document.getElementById('newItemAdminOnly').checked;
+      if (!name || Number.isNaN(price) || Number.isNaN(purchase_price)) { alert('Name, VK und EK eingeben.'); return; }
+      try { await apiFetch('/api/admin/drinks/create', {pin: adminPin, name, short_label, price, purchase_price, active, admin_only}); document.getElementById('newItemName').value=''; document.getElementById('newItemShort').value=''; document.getElementById('newItemPrice').value=''; document.getElementById('newItemPurchasePrice').value=''; showStatus('Artikel angelegt'); await loadOverview(); } catch (err) { alert(err.message); }
+    }
+
+    async function updateItem(item_id, name, short_label, price, purchase_price, sort_order, active, admin_only) {
+      try { await apiFetch('/api/admin/drinks/update', {pin: adminPin, item_id, name, short_label, price, purchase_price, active, admin_only, sort_order}); showStatus('Artikel gespeichert'); await loadOverview(); } catch (err) { alert(err.message); }
+    }
+
+    async function deleteItem(item) {
+      if (!confirm(`${item.name} wirklich löschen/archivieren?\n\nOffene alte Posten bleiben weiter zahlbar.`)) return;
+      try { await apiFetch('/api/admin/drinks/delete', {pin: adminPin, item_id: item.id}); showStatus('Artikel archiviert'); await loadOverview(); } catch (err) { alert(err.message); }
+    }
+
+    async function saveRoundPrice() {
+      const round_item_price_eur = parseDecimalInput(document.getElementById('roundPrice').value);
+      if (Number.isNaN(round_item_price_eur)) return alert('Bitte gültigen Preis eingeben.');
+      try { await apiFetch('/api/admin/settings/update', {pin: adminPin, round_item_price_eur}); showStatus('Rundenpreis gespeichert'); await loadOverview(); } catch (err) { alert(err.message); }
+    }
+
+    async function saveAppName() {
+      const app_name = document.getElementById('appName').value.trim();
+      if (!app_name) return alert('App-Name eingeben.');
+      try { await apiFetch('/api/admin/settings/update', {pin: adminPin, app_name}); showStatus('App-Name gespeichert'); await loadOverview(); } catch (err) { alert(err.message); }
+    }
+
+    function previewNoise(seed) {
+      const x = Math.sin(seed * 12.9898 + 78.233) * 43758.5453;
+      return x - Math.floor(x);
+    }
+
+    function previewRoughnessFactor() {
+      return Math.max(0, (Number(document.getElementById('tallyRoughness').value || 4) - 1) / 9);
+    }
+
+    function previewTallyScale() {
+      return Math.max(0.6, Math.min(1.8, Number(document.getElementById('tallySizeSlider').value || 100) / 100));
+    }
+
+    function previewTallyGroupStyle() {
+      const scale = previewTallyScale();
+      return `width:${(33 * scale).toFixed(1)}px;height:${(24 * scale).toFixed(1)}px;gap:${Math.max(1, 2 * scale).toFixed(1)}px;`;
+    }
+
+    function previewTallyMarkStyle(groupIndex, markIndex, seedBase = 0) {
+      const rough = previewRoughnessFactor();
+      const scale = previewTallyScale();
+      const seed = seedBase + (groupIndex + 1) * 17 + (markIndex + 1) * 31;
+      const height = (18 + ((previewNoise(seed) - 0.5) * 12 * rough)) * scale;
+      const rotate = (previewNoise(seed + 3.17) - 0.5) * (2 + 28 * rough);
+      const translateY = (previewNoise(seed + 6.31) - 0.5) * (1 + 5 * rough) * scale;
+      const width = (2 + ((previewNoise(seed + 9.91) - 0.5) * 1.2 * rough)) * Math.sqrt(scale);
+      return `height:${height.toFixed(1)}px;width:${Math.max(1.4, width).toFixed(2)}px;transform:rotate(${rotate.toFixed(1)}deg) translateY(${translateY.toFixed(1)}px);`;
+    }
+
+    function previewTallySlashStyle(groupIndex, seedBase = 0) {
+      const rough = previewRoughnessFactor();
+      const scale = previewTallyScale();
+      const seed = seedBase + (groupIndex + 1) * 41;
+      const angle = -30 + (previewNoise(seed) - 0.5) * (4 + 34 * rough);
+      const top = (10 + (previewNoise(seed + 2) - 0.5) * (1 + 4 * rough)) * scale;
+      const left = (-1 + (previewNoise(seed + 4) - 0.5) * (0.5 + 3 * rough)) * scale;
+      const width = (31 + (previewNoise(seed + 6) - 0.5) * (1 + 6 * rough)) * scale;
+      const height = (2 + (previewNoise(seed + 8) - 0.5) * (0.2 + 1.6 * rough)) * Math.sqrt(scale);
+      return `left:${left.toFixed(1)}px;top:${top.toFixed(1)}px;width:${width.toFixed(1)}px;height:${Math.max(1.3, height).toFixed(2)}px;transform:rotate(${angle.toFixed(1)}deg);`;
+    }
+
+    function previewTallyLabelStyle() {
+      const scale = previewTallyScale();
+      return `font-size:${(13 * scale).toFixed(1)}px;`;
+    }
+
+    function previewTallyHtml(quantity, seedBase = 0) {
+      let n = Math.max(0, Number(quantity || 0));
+      let html = '';
+      let groupIndex = 0;
+      while (n >= 5) {
+        html += `<span class="preview-tally-group" style="${previewTallyGroupStyle()}">`;
+        for (let i = 0; i < 4; i++) html += `<span class="preview-tally-mark" style="${previewTallyMarkStyle(groupIndex, i, seedBase)}"></span>`;
+        html += `<span class="preview-tally-slash" style="${previewTallySlashStyle(groupIndex, seedBase)}"></span></span>`;
+        n -= 5;
+        groupIndex += 1;
+      }
+      if (n > 0) {
+        html += `<span class="preview-tally-group" style="${previewTallyGroupStyle()}">`;
+        for (let i = 0; i < n; i++) html += `<span class="preview-tally-mark" style="${previewTallyMarkStyle(groupIndex, i, seedBase)}"></span>`;
+        html += '</span>';
+      }
+      return html;
+    }
+
+    function renderAppearancePreview() {
+      const nameSize = Number(document.getElementById('nameSizeSlider').value || 15.5);
+      const summarySize = Number(document.getElementById('summarySizeSlider').value || 100);
+      const tallySize = Number(document.getElementById('tallySizeSlider').value || 100);
+      const roughness = Number(document.getElementById('tallyRoughness').value || 4);
+      document.getElementById('nameSizeValue').textContent = numberComma(nameSize, nameSize % 1 ? 1 : 0, nameSize % 1 ? 1 : 0);
+      document.getElementById('summarySizeValue').textContent = summarySize;
+      document.getElementById('tallySizeValue').textContent = tallySize;
+      document.getElementById('tallyRoughnessValue').textContent = roughness;
+      const syncSize = Number(document.getElementById('syncStatusSizeSlider').value || 100);
+      document.getElementById('syncStatusSizeValue').textContent = syncSize;
+      const feedbackEnabled = document.getElementById('drinkFeedbackEnabled').checked;
+      const feedbackStyle = document.getElementById('drinkFeedbackStyle').value || 'strong';
+      const feedbackDuration = Number(document.getElementById('drinkFeedbackDurationSlider').value || 1400);
+      const feedbackIntensity = Number(document.getElementById('drinkFeedbackIntensitySlider').value || 100);
+      const feedbackPosition = document.getElementById('drinkFeedbackPosition').value || 'below';
+      const celebrationMode = document.getElementById('drinkCelebrationMode').value || 'condition';
+      const confettiIntensity = Number(document.getElementById('drinkConfettiIntensitySlider').value || 100);
+      document.getElementById('drinkFeedbackDurationValue').textContent = feedbackDuration;
+      document.getElementById('drinkFeedbackIntensityValue').textContent = feedbackIntensity;
+      document.getElementById('drinkConfettiIntensityValue').textContent = confettiIntensity;
+      const syncBubble = document.getElementById('syncPreviewBubble');
+      syncBubble.style.setProperty('--preview-sync-scale', String(syncSize / 100));
+      syncBubble.classList.toggle('hidden', !document.getElementById('showSyncStatus').checked);
+      const feedbackPreview = document.getElementById('feedbackPreview');
+      feedbackPreview.className = `feedback-preview ${feedbackEnabled ? feedbackStyle : 'hidden-preview'}`;
+      feedbackPreview.style.transform = feedbackEnabled ? `scale(${(1 + feedbackIntensity / 2000).toFixed(3)})` : '';
+      feedbackPreview.style.boxShadow = feedbackEnabled ? `0 ${Math.round(6 + feedbackIntensity / 10)}px ${Math.round(14 + feedbackIntensity / 4)}px rgba(22,163,74,${Math.min(0.32, 0.08 + feedbackIntensity / 700).toFixed(2)})` : '';
+      feedbackPreview.textContent = feedbackEnabled
+        ? `Bier klein gebucht · oben im Popup · Feedback ${feedbackIntensity}% · Konfetti ${confettiIntensity}% ${celebrationMode === 'never' ? 'aus' : 'nur bei Runde'}`
+        : 'Feedback ausgeschaltet';
+      const borderWidth = Number(document.getElementById('personBorderWidthSlider').value || 2);
+      const personGap = Number(document.getElementById('personGapSlider').value || 10);
+      document.getElementById('personBorderWidthValue').textContent = borderWidth;
+      document.getElementById('personGapValue').textContent = personGap;
+      const appBg = document.getElementById('appBgColor').value || '#f3f4f6';
+      const personBg = document.getElementById('personBgColor').value || '#ffffff';
+      const borderColor = document.getElementById('personBorderColor').value || '#bfdbfe';
+      const previewStage = document.getElementById('appPreviewStage');
+      previewStage.style.setProperty('--preview-app-bg', appBg);
+      previewStage.style.setProperty('--preview-person-bg', personBg);
+      previewStage.style.setProperty('--preview-person-border-color', borderColor);
+      previewStage.style.setProperty('--preview-person-border-width', `${borderWidth}px`);
+      previewStage.style.setProperty('--preview-person-gap', `${personGap}px`);
+      document.getElementById('previewName').style.fontSize = `${nameSize}px`;
+      document.getElementById('previewSummary').style.fontSize = `${(12.5 * summarySize / 100).toFixed(1)}px`;
+      document.getElementById('previewSummaryLabel').style.display = document.getElementById('showSummaryLabelOverview').checked ? 'inline' : 'none';
+      document.getElementById('previewSummaryLabel').textContent = document.getElementById('summaryLabelText').value.trim() || 'Gesamt:';
+      document.getElementById('previewTotal').style.display = document.getElementById('showTotalOverview').checked ? 'block' : 'none';
+      document.getElementById('popupPreviewTotal').classList.toggle('hidden', !document.getElementById('showPersonPopupTotal').checked);
+      document.getElementById('popupPreviewDeletePanel').classList.toggle('hidden', !document.getElementById('enableDeleteRequests').checked);
+      const test = [{label:'Gross', qty:12}, {label:'Klein', qty:7}, {label:'Limo', qty:3}];
+      document.getElementById('appearancePreviewMarks').innerHTML = test.map((item, idx) => {
+        let labelSeed = 0;
+        for (let i = 0; i < item.label.length; i++) labelSeed += item.label.charCodeAt(i) * (i + 1);
+        const seedBase = (idx + 1) * 97 + labelSeed;
+        return `<span class="preview-tally-item"><span class="preview-tally-name" style="${previewTallyLabelStyle()}">${item.label}</span><span class="preview-tally-marks">${previewTallyHtml(item.qty, seedBase)}</span></span>`;
+      }).join('');
+    }
+
+    function applyAppearanceDefaultsToInputs() {
+      document.getElementById('showTotalOverview').checked = APPEARANCE_DEFAULTS.show_total_on_overview;
+      document.getElementById('showPersonPopupTotal').checked = APPEARANCE_DEFAULTS.show_person_popup_total;
+      document.getElementById('showSummaryLabelOverview').checked = APPEARANCE_DEFAULTS.show_summary_label_on_overview;
+      document.getElementById('summaryLabelText').value = APPEARANCE_DEFAULTS.overview_summary_label_text;
+      document.getElementById('summarySizeSlider').value = APPEARANCE_DEFAULTS.overview_summary_size_percent;
+      document.getElementById('nameSizeSlider').value = APPEARANCE_DEFAULTS.overview_name_size_px;
+      document.getElementById('enableDeleteRequests').checked = APPEARANCE_DEFAULTS.enable_delete_requests;
+      document.getElementById('appBgColor').value = APPEARANCE_DEFAULTS.app_background_color;
+      document.getElementById('personBgColor').value = APPEARANCE_DEFAULTS.person_card_background_color;
+      document.getElementById('personBorderColor').value = APPEARANCE_DEFAULTS.person_card_border_color;
+      document.getElementById('personBorderWidthSlider').value = APPEARANCE_DEFAULTS.person_card_border_width_px;
+      document.getElementById('personGapSlider').value = APPEARANCE_DEFAULTS.person_card_gap_px;
+      document.getElementById('tallySizeSlider').value = APPEARANCE_DEFAULTS.tally_size_percent;
+      document.getElementById('tallyRoughness').value = APPEARANCE_DEFAULTS.tally_roughness;
+      document.getElementById('showSyncStatus').checked = APPEARANCE_DEFAULTS.show_sync_status;
+      document.getElementById('syncStatusSizeSlider').value = APPEARANCE_DEFAULTS.sync_status_size_percent;
+      document.getElementById('drinkFeedbackEnabled').checked = APPEARANCE_DEFAULTS.drink_feedback_enabled;
+      document.getElementById('drinkFeedbackStyle').value = APPEARANCE_DEFAULTS.drink_feedback_style;
+      document.getElementById('drinkFeedbackDurationSlider').value = APPEARANCE_DEFAULTS.drink_feedback_duration_ms;
+      document.getElementById('drinkFeedbackIntensitySlider').value = APPEARANCE_DEFAULTS.drink_feedback_animation_intensity_percent;
+      document.getElementById('drinkFeedbackPosition').value = APPEARANCE_DEFAULTS.drink_feedback_position;
+      document.getElementById('drinkCelebrationMode').value = APPEARANCE_DEFAULTS.drink_celebration_mode;
+      document.getElementById('drinkCelebrationRound').checked = APPEARANCE_DEFAULTS.drink_celebration_condition_round;
+      document.getElementById('drinkCelebrationDebt').checked = APPEARANCE_DEFAULTS.drink_celebration_condition_debt;
+      document.getElementById('drinkCelebrationDebtThreshold').value = formatDecimalInputValue(APPEARANCE_DEFAULTS.drink_celebration_debt_threshold_eur);
+      document.getElementById('drinkConfettiIntensitySlider').value = APPEARANCE_DEFAULTS.drink_celebration_confetti_intensity_percent;
+      document.getElementById('drinkCelebrationSound').checked = APPEARANCE_DEFAULTS.drink_celebration_sound_enabled;
+      renderAppearancePreview();
+    }
+
+    async function resetAppearanceSettings() {
+      if (!confirm('Darstellung wirklich auf die Standardwerte zurücksetzen?')) return;
+      applyAppearanceDefaultsToInputs();
+      await saveAppearanceSettings('Darstellung auf Standardwerte zurückgesetzt');
+    }
+
+    async function saveAppearanceSettings(successText = 'Darstellung gespeichert') {
+      const show_total_on_overview = document.getElementById('showTotalOverview').checked;
+      const show_person_popup_total = document.getElementById('showPersonPopupTotal').checked;
+      const show_summary_label_on_overview = document.getElementById('showSummaryLabelOverview').checked;
+      const overview_summary_label_text = document.getElementById('summaryLabelText').value.trim() || 'Gesamt:';
+      const overview_summary_size_percent = Number(document.getElementById('summarySizeSlider').value || 100);
+      const tally_roughness = Number(document.getElementById('tallyRoughness').value || 4);
+      const overview_name_size_px = Number(document.getElementById('nameSizeSlider').value || 15.5);
+      const tally_size_percent = Number(document.getElementById('tallySizeSlider').value || 100);
+      const show_sync_status = document.getElementById('showSyncStatus').checked;
+      const sync_status_size_percent = Number(document.getElementById('syncStatusSizeSlider').value || 100);
+      const drink_feedback_enabled = document.getElementById('drinkFeedbackEnabled').checked;
+      const drink_feedback_style = document.getElementById('drinkFeedbackStyle').value || 'strong';
+      const drink_feedback_duration_ms = Number(document.getElementById('drinkFeedbackDurationSlider').value || 1400);
+      const drink_feedback_animation_intensity_percent = Number(document.getElementById('drinkFeedbackIntensitySlider').value || 100);
+      const drink_feedback_position = document.getElementById('drinkFeedbackPosition').value || 'below';
+      const drink_celebration_mode = document.getElementById('drinkCelebrationMode').value || 'condition';
+      const drink_celebration_condition_round = document.getElementById('drinkCelebrationRound').checked;
+      const drink_celebration_condition_debt = document.getElementById('drinkCelebrationDebt').checked;
+      const drink_celebration_debt_threshold_eur = parseDecimalInput(document.getElementById('drinkCelebrationDebtThreshold').value || '50');
+      const drink_celebration_confetti_intensity_percent = Number(document.getElementById('drinkConfettiIntensitySlider').value || 100);
+      const drink_celebration_sound_enabled = document.getElementById('drinkCelebrationSound').checked;
+      const enable_delete_requests = document.getElementById('enableDeleteRequests').checked;
+      const app_background_color = document.getElementById('appBgColor').value || '#f3f4f6';
+      const person_card_background_color = document.getElementById('personBgColor').value || '#ffffff';
+      const person_card_border_color = document.getElementById('personBorderColor').value || '#bfdbfe';
+      const person_card_border_width_px = Number(document.getElementById('personBorderWidthSlider').value || 2);
+      const person_card_gap_px = Number(document.getElementById('personGapSlider').value || 10);
+      try { await apiFetch('/api/admin/settings/update', {pin: adminPin, show_total_on_overview, show_person_popup_total, show_summary_label_on_overview, overview_summary_label_text, overview_summary_size_percent, tally_roughness, overview_name_size_px, tally_size_percent, show_sync_status, sync_status_size_percent, drink_feedback_enabled, drink_feedback_style, drink_feedback_duration_ms, drink_feedback_animation_intensity_percent, drink_feedback_position, drink_celebration_mode, drink_celebration_condition_round, drink_celebration_condition_debt, drink_celebration_debt_threshold_eur, drink_celebration_confetti_intensity_percent, drink_celebration_sound_enabled, enable_delete_requests, app_background_color, person_card_background_color, person_card_border_color, person_card_border_width_px, person_card_gap_px}); showStatus(successText); await loadOverview(); } catch (err) { alert(err.message); }
+    }
+
+    async function saveOverviewSettings() { return saveAppearanceSettings(); }
+    async function saveTallySettings() { return saveAppearanceSettings(); }
+
+    async function changePin() {
+      const new_pin = document.getElementById('newPin').value.trim();
+      if (!new_pin) return alert('Neue PIN eingeben.');
+      if (!confirm('Admin-PIN wirklich ändern? Danach musst du dich mit der neuen PIN erneut anmelden.')) return;
+      try { await apiFetch('/api/admin/settings/update', {pin: adminPin, new_pin}); sessionStorage.setItem('drinkPosAdminPin', new_pin); adminPin = new_pin; document.getElementById('newPin').value = ''; showStatus('PIN geändert'); await loadOverview(); } catch (err) { alert(err.message); }
+    }
+
+    async function loadHistory() {
+      if (!adminPin) return;
+      try {
+        const data = await apiFetch('/api/admin/transactions/filter', {
+          pin: adminPin,
+          name: document.getElementById('filterName').value.trim() || null,
+          date_from: document.getElementById('filterFrom').value || null,
+          date_to: document.getElementById('filterTo').value || null,
+          action_types: selectedHistoryTypes(),
+          limit: 1000
+        });
+        renderTypeFilter(data.action_types || []);
+        const rows = data.rows || [];
+        document.getElementById('historyInfo').textContent = `${rows.length} Einträge`;
+        const body = document.getElementById('historyBody'); body.innerHTML = '';
+        for (const r of rows) {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${escapeHtml(r.timestamp)}</td><td><span class="pill">${escapeHtml(typeLabel(r.type))}</span></td><td>${escapeHtml(r.name || 'System/Admin')}</td><td class="right">${money(r.total)}</td><td>${escapeHtml(normalizeDecimalText(r.details || ''))}</td>`;
+          body.appendChild(tr);
+        }
+      } catch (err) { alert(err.message); }
+    }
+
+    async function downloadExport(url, filename) {
+      try {
+        const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({pin: adminPin})});
+        if (!res.ok) { const err = await res.json().catch(()=>({})); throw new Error(err.detail || 'Export fehlgeschlagen'); }
+        const blob = await res.blob();
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        document.body.appendChild(link); link.click(); link.remove();
+        setTimeout(()=>URL.revokeObjectURL(link.href), 1000);
+      } catch (err) { alert(err.message); }
+    }
+
+    function reportPayload() {
+      return {
+        pin: adminPin,
+        report_type: document.getElementById('reportType').value,
+        group_by: document.getElementById('reportGroupBy').value,
+        date_from: document.getElementById('reportFrom').value || null,
+        date_to: document.getElementById('reportTo').value || null
+      };
+    }
+
+    async function previewReport() {
+      try {
+        const data = await apiFetch('/api/admin/report/preview', reportPayload());
+        const head = document.getElementById('reportHead');
+        const body = document.getElementById('reportBody');
+        head.innerHTML = `<tr>${(data.headers || []).map(h => `<th>${escapeHtml(h)}</th>`).join('')}</tr>`;
+        body.innerHTML = '';
+        for (const row of data.rows || []) {
+          const tr = document.createElement('tr');
+          tr.innerHTML = row.map(v => `<td>${escapeHtml(v)}</td>`).join('');
+          body.appendChild(tr);
+        }
+        document.getElementById('reportInfo').textContent = `${(data.rows || []).length} Zeilen`;
+      } catch (err) { alert(err.message); }
+    }
+
+    async function downloadReport() {
+      try {
+        const payload = reportPayload();
+        const res = await fetch('/api/admin/export/report', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+        if (!res.ok) { const err = await res.json().catch(()=>({})); throw new Error(err.detail || 'Export fehlgeschlagen'); }
+        const blob = await res.blob();
+        const filename = `bericht_${payload.report_type}_${payload.group_by}.csv`;
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob); link.download = filename; document.body.appendChild(link); link.click(); link.remove();
+        setTimeout(()=>URL.revokeObjectURL(link.href), 1000);
+      } catch (err) { alert(err.message); }
+    }
+
+    function installPullToRefresh() {
+      if (!('ontouchstart' in window)) return;
+      let startY = null;
+      let armed = false;
+      window.addEventListener('touchstart', event => {
+        if (window.scrollY > 0) { startY = null; return; }
+        startY = event.touches[0]?.clientY ?? null;
+        armed = false;
+      }, { passive:true });
+      window.addEventListener('touchmove', event => {
+        if (startY === null || window.scrollY > 0) return;
+        const delta = (event.touches[0]?.clientY ?? startY) - startY;
+        if (delta > 90 && !armed) {
+          armed = true;
+          updateSyncUi('syncing', `Zum Synchronisieren loslassen · letzter Sync: ${formatSyncTime(lastSyncAt)}`);
+        }
+      }, { passive:true });
+      window.addEventListener('touchend', () => {
+        if (armed) resyncAdmin();
+        startY = null;
+        armed = false;
+      }, { passive:true });
+    }
+
+    mountAppearanceSettings();
+    installDecimalInputNormalization();
+    setStatsScope(statsScope, false);
+    installPullToRefresh();
+    updateSyncUi(navigator.onLine ? 'syncing' : 'offline', `${navigator.onLine ? 'Verbindung wird geprüft…' : 'Offline'} · letzter Sync: ${formatSyncTime(lastSyncAt)}`);
+    loadSyncDisplayConfig();
+    checkSyncStatus({ resyncOnChange:false });
+    setInterval(() => checkSyncStatus({ resyncOnChange:true }), 5 * 1000);
+
+    if (adminPin) login();
+  
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js').catch(() => {}));
+    }
+    window.addEventListener('offline', () => { markSyncFailure(); showStatus('Offline: Änderungen sind erst wieder online möglich.'); });
+    window.addEventListener('online', () => { showStatus('Wieder online. Synchronisiere…'); resyncAdmin(); });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) checkSyncStatus({ resyncOnChange:true }); });
+  </script>
+</body>
+</html>
