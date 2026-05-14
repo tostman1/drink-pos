@@ -114,7 +114,7 @@ pwa_and_app_feeling:
     file: "app/service-worker.js"
     role: "Shell-Caching statischer Dateien"
     cache_version_rule: "Nach UI-Änderungen CACHE_NAME erhöhen."
-    current_expected_cache_name: "drink-pos-shell-v63"
+    current_expected_cache_name: "drink-pos-shell-v64"
   offline_policy:
     read_shell_offline: "statische App-Shell kann aus Cache kommen"
     write_offline: false
@@ -133,7 +133,19 @@ sync_and_connectivity:
     reconnect: "bei Wiederverbindung wird synchronisiert"
     no_auto_popup: "automatische Hintergrundsyncs zeigen kein Toast 'Daten neu synchronisiert'"
     indicator_position: "fixed bottom right"
-    last_sync_format: "dd.mm.yy, HH:MM oder ähnlich lokales Format"
+    last_sync_format: "dd.mm.yy, HH:MM oder aehnlich lokales Format"
+    tablet_recovery:
+      trigger: "mehrere fehlgeschlagene Sync-Checks, obwohl navigator.onLine weiterhin true meldet"
+      steps:
+        - "Sync-Feld zeigt 'Nicht synchronisiert' und ab Stufe 3 'Auto-Reconnect aktiv'."
+        - "Client prueft /api/sync-status mit Cache-Control:no-cache und kurzer Timeout-Grenze."
+        - "Falls vorhanden, wird die Service-Worker-Registration aktualisiert."
+        - "Bei Erfolg werden Config und Daten neu geladen."
+        - "Falls der haengende Zustand laenger als 45 Sekunden besteht, laedt die Seite sich einmal kontrolliert neu."
+      safeguards:
+        - "Kein Auto-Reload bei geoeffnetem Personen-/Aktionsdialog in der Kasse."
+        - "Kein Auto-Reload waehrend Eingabefelder in der Adminseite aktiv sind."
+        - "Reload-Cooldown vier Minuten gegen Schleifen."
   settings:
     show_sync_status:
       type: "boolean as TEXT '1'/'0'"
@@ -903,7 +915,7 @@ known_open_point_from_latest_conversation:
     - "Admin-Vorschau nutzt realistische Fake-Person mit Getränken, Runde, Löschmenü und optional Adminmodus."
 
 current_update_2026_05_05:
-  cache_name: "drink-pos-shell-v63"
+  cache_name: "drink-pos-shell-v64"
   branch_note: "Im aktuellen Projektordner existiert kein .git Repository; Aenderungen wurden direkt im Projektordner umgesetzt."
   round_flow:
     current_behavior:

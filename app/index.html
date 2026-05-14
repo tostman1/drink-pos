@@ -298,6 +298,14 @@
     let drinkFeedbackRecentCount = 0;
     let drinkFeedbackRecentAt = 0;
     let syncCheckTimer = null;
+    const SYNC_RECOVERY_FAILURE_LIMIT = 3;
+    const SYNC_RECOVERY_DELAY_MS = 1500;
+    const SYNC_RECOVERY_RELOAD_AFTER_MS = 45000;
+    const SYNC_RECOVERY_RELOAD_COOLDOWN_MS = 4 * 60 * 1000;
+    let syncFailureCount = 0;
+    let syncOfflineSince = 0;
+    let syncRecoveryTimer = null;
+    let syncRecoveryRunning = false;
 
     function numberComma(value, minimumFractionDigits = 2, maximumFractionDigits = minimumFractionDigits) {
       const n = Number(value || 0);
@@ -430,21 +438,109 @@
       applySyncAppearance();
     }
 
+    function resetSyncRecovery() {
+      syncFailureCount = 0;
+      syncOfflineSince = 0;
+      if (syncRecoveryTimer) {
+        clearTimeout(syncRecoveryTimer);
+        syncRecoveryTimer = null;
+      }
+    }
+
+    function syncRequestOptions(timeoutMs = 4500) {
+      const options = { cache:'no-store', headers:{'Cache-Control':'no-cache'} };
+      if (typeof AbortController !== 'undefined') {
+        const controller = new AbortController();
+        options.signal = controller.signal;
+        options._cancelTimer = window.setTimeout(() => controller.abort(), timeoutMs);
+      }
+      return options;
+    }
+
+    async function fetchSyncStatus(kind = 'ts', timeoutMs = 4500) {
+      const options = syncRequestOptions(timeoutMs);
+      try {
+        return await fetch(`/api/sync-status?${kind}=${Date.now()}`, options);
+      } finally {
+        if (options._cancelTimer) clearTimeout(options._cancelTimer);
+      }
+    }
+
+    function syncInteractionInProgress() {
+      return document.getElementById('personDialog')?.open || document.getElementById('actionDialog')?.open;
+    }
+
+    function maybeReloadForSyncRecovery() {
+      if (!navigator.onLine || !syncOfflineSince || document.hidden || syncInteractionInProgress()) return false;
+      if (Date.now() - syncOfflineSince < SYNC_RECOVERY_RELOAD_AFTER_MS) return false;
+      const lastReload = Number(localStorage.getItem('drinkPosLastSyncRecoveryReload') || 0);
+      if (Date.now() - lastReload < SYNC_RECOVERY_RELOAD_COOLDOWN_MS) return false;
+      localStorage.setItem('drinkPosLastSyncRecoveryReload', String(Date.now()));
+      noteClientEvent('SYNC_COMPLETED', 'Automatische Aktualisierung nach haengendem Sync-Zustand gestartet.');
+      updateSyncUi('syncing', `Verbindung wird neu aufgebaut… letzter Sync: ${formatSyncTime(lastSyncAt)}`);
+      window.setTimeout(() => window.location.reload(), 350);
+      return true;
+    }
+
+    function queueSyncRecovery() {
+      if (!navigator.onLine || syncRecoveryTimer || syncRecoveryRunning) return;
+      if (syncFailureCount < SYNC_RECOVERY_FAILURE_LIMIT && Date.now() - syncOfflineSince < 12000) return;
+      syncRecoveryTimer = window.setTimeout(() => {
+        syncRecoveryTimer = null;
+        recoverSyncConnection();
+      }, SYNC_RECOVERY_DELAY_MS);
+    }
+
+    async function handleSyncRecovered() {
+      await loadConfig();
+      await loadPeople(false);
+    }
+
+    async function recoverSyncConnection() {
+      if (syncRecoveryRunning) return false;
+      syncRecoveryRunning = true;
+      updateSyncUi('syncing', `Verbindung wird geprüft… letzter Sync: ${formatSyncTime(lastSyncAt)}`);
+      try {
+        if ('serviceWorker' in navigator) {
+          const registration = await navigator.serviceWorker.getRegistration().catch(() => null);
+          await registration?.update?.().catch(() => {});
+        }
+        const res = await fetchSyncStatus('recover', 5500);
+        if (!res.ok) throw new Error('sync recovery failed');
+        const data = await res.json();
+        markSyncSuccess(data);
+        await handleSyncRecovered();
+        showStatus('Verbindung wiederhergestellt');
+        return true;
+      } catch {
+        updateSyncUi('offline', `Nicht synchronisiert · letzter Sync: ${formatSyncTime(lastSyncAt)}`);
+        maybeReloadForSyncRecovery();
+        return false;
+      } finally {
+        syncRecoveryRunning = false;
+      }
+    }
+
     function markSyncSuccess(syncData = null) {
       const wasOffline = currentSyncState === 'offline';
       currentSyncState = 'online';
       lastSyncAt = new Date().toISOString();
       localStorage.setItem('drinkPosLastSyncAt', lastSyncAt);
       updateStoredRevision(syncData);
+      resetSyncRecovery();
       updateSyncUi('online', `Synchronisiert · letzter Sync: ${formatSyncTime(lastSyncAt)}`);
       if (wasOffline) noteClientEvent('CONNECTION_RESTORED', 'Verbindung zum Server wieder erreichbar.');
       else flushClientEvents();
     }
 
     function markSyncFailure() {
+      syncFailureCount += 1;
+      if (!syncOfflineSince) syncOfflineSince = Date.now();
       if (currentSyncState !== 'offline') noteClientEvent('CONNECTION_LOST', 'Server nicht erreichbar.');
       currentSyncState = 'offline';
-      updateSyncUi('offline', `Offline · letzter Sync: ${formatSyncTime(lastSyncAt)}`);
+      const hint = navigator.onLine && syncFailureCount >= SYNC_RECOVERY_FAILURE_LIMIT ? ' · Auto-Reconnect aktiv' : '';
+      updateSyncUi('offline', `Nicht synchronisiert${hint} · letzter Sync: ${formatSyncTime(lastSyncAt)}`);
+      queueSyncRecovery();
     }
 
     async function apiGet(url) {
@@ -471,7 +567,7 @@
       const resyncOnChange = options.resyncOnChange === true;
       const previousRevision = lastServerRevision;
       try {
-        const res = await fetch(`/api/sync-status?ts=${Date.now()}`, { cache:'no-store' });
+        const res = await fetchSyncStatus('ts');
         if (!res.ok) throw new Error('sync failed');
         const data = await res.json();
         const newRevision = String(data.db_revision || '');
@@ -1605,7 +1701,10 @@
     boot();
   
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => navigator.serviceWorker.register('/service-worker.js').catch(() => {}));
+      window.addEventListener('load', async () => {
+        const registration = await navigator.serviceWorker.register('/service-worker.js').catch(() => null);
+        await registration?.update?.().catch(() => {});
+      });
     }
     window.addEventListener('offline', () => { markSyncFailure(); showStatus('Offline: Änderungen sind erst wieder online möglich.'); });
     window.addEventListener('online', () => { showStatus('Wieder online. Synchronisiere…'); resyncNow(); });
