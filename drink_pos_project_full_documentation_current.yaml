@@ -114,7 +114,7 @@ pwa_and_app_feeling:
     file: "app/service-worker.js"
     role: "Shell-Caching statischer Dateien"
     cache_version_rule: "Nach UI-Änderungen CACHE_NAME erhöhen."
-    current_expected_cache_name: "drink-pos-shell-v53"
+    current_expected_cache_name: "drink-pos-shell-v63"
   offline_policy:
     read_shell_offline: "statische App-Shell kann aus Cache kommen"
     write_offline: false
@@ -331,6 +331,15 @@ settings:
       default: 1400
       range: "500..3000"
       purpose: "Anzeigedauer des Buchungsfeedbacks"
+    drink_booking_sound_enabled:
+      type: "boolean"
+      default: true
+      purpose: "Kurzen, angenehmen Buchungston bei normaler Getraenkebuchung abspielen"
+    drink_booking_sound_preset:
+      type: "enum"
+      values: ["warm", "soft", "clear", "bell", "calm"]
+      default: "warm"
+      purpose: "Klangcharakter des Buchungstons; wird in Admin-Darstellung gespeichert und von der Kassenansicht ueber /api/config uebernommen"
     drink_feedback_animation_intensity_percent:
       type: "integer"
       default: 100
@@ -629,6 +638,8 @@ pydantic_models:
       drink_feedback_enabled: "bool|null"
       drink_feedback_style: "str|null"
       drink_feedback_duration_ms: "int|null"
+      drink_booking_sound_enabled: "bool|null"
+      drink_booking_sound_preset: "str|null"
       drink_feedback_animation_intensity_percent: "int|null"
       drink_feedback_position: "str|null"
       drink_celebration_mode: "str|null"
@@ -673,6 +684,8 @@ frontend_cashier_index:
       - "drink_feedback_enabled"
       - "drink_feedback_style"
       - "drink_feedback_duration_ms"
+      - "drink_booking_sound_enabled"
+      - "drink_booking_sound_preset"
     tally_display:
       - "5er-Blöcke aus vier vertikalen Strichen plus diagonalem Querstrich"
       - "keine Zahl neben Strichen"
@@ -684,10 +697,14 @@ frontend_cashier_index:
       - "ESC schließt ohne Aktion"
       - "kein allgemeiner OK-Knopf am Ende"
     normal_mode_order:
-      - "Getränke hinzufügen"
-      - "Button 'Fertig' direkt unter den Preisen schließt Popup"
-      - "Runde zahlen"
-      - "kompakte/einklappbare Löschanfrage"
+      - "Primaerbereich: Getraenke hinzufuegen"
+      - "Button 'Fertig' direkt unter den Preisen schliesst Popup"
+      - "Sekundaerbereich: Runde zahlen, freundlich/feierlich aber nicht dominanter als Getraenkebuchung"
+      - "Tertiaerbereich: kompakte/einklappbare Loeschanfrage"
+    layout_notes:
+      - "Buchungsfeedback liegt absolut im Hinzufuegen-Bereich, damit Getraenkebuttons bei schnellen Mehrfachbuchungen nicht verschoben werden."
+      - "Getraenkebuttons haben feste Touchflaechen mit Plus-Zone, Produktname und Preis-Pill; Bier/Limo/Runde koennen dezent farblich unterschieden werden."
+      - "Rundenbereich ist bewusst kompakt als Sekundaeraktion gehalten; Detailhinweis kommt erst in der Bestaetigung."
     delete_request_ui:
       collapsed_by_default: true
       reveal_items_on_open: true
@@ -886,7 +903,7 @@ known_open_point_from_latest_conversation:
     - "Admin-Vorschau nutzt realistische Fake-Person mit Getränken, Runde, Löschmenü und optional Adminmodus."
 
 current_update_2026_05_05:
-  cache_name: "drink-pos-shell-v47"
+  cache_name: "drink-pos-shell-v63"
   branch_note: "Im aktuellen Projektordner existiert kein .git Repository; Aenderungen wurden direkt im Projektordner umgesetzt."
   round_flow:
     current_behavior:
@@ -952,7 +969,7 @@ bedienszenarien_und_bedienreihenfolgen:
   runde_zahlen:
     steps:
       - "Person antippen."
-      - "Im Popup Bereich 'Runde zahlen' den Button '+ 1 Runde bestaetigen' antippen."
+      - "Im Popup Bereich 'Runde zahlen' den Button '+ 1 Runde fuer alle' antippen."
       - "Bestaetigungsdialog lesen und bestaetigen."
       - "Popup aktualisiert sich; '1 Runde' steht als offener Posten."
     expected_result:

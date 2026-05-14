@@ -856,6 +856,10 @@ def ensure_settings(conn: sqlite3.Connection):
         set_setting(conn, "drink_feedback_animation_intensity_percent", "100")
     if get_setting(conn, "drink_feedback_position") is None:
         set_setting(conn, "drink_feedback_position", "below")
+    if get_setting(conn, "drink_booking_sound_enabled") is None:
+        set_setting(conn, "drink_booking_sound_enabled", "1")
+    if get_setting(conn, "drink_booking_sound_preset") is None:
+        set_setting(conn, "drink_booking_sound_preset", "warm")
     if get_setting(conn, "drink_celebration_mode") is None:
         set_setting(conn, "drink_celebration_mode", "condition")
     if get_setting(conn, "drink_celebration_condition_round") is None:
@@ -1017,6 +1021,8 @@ class SettingsUpdateRequest(BaseModel):
     drink_feedback_duration_ms: int | None = None
     drink_feedback_animation_intensity_percent: int | None = None
     drink_feedback_position: str | None = None
+    drink_booking_sound_enabled: bool | None = None
+    drink_booking_sound_preset: str | None = None
     drink_celebration_mode: str | None = None
     drink_celebration_condition_round: bool | None = None
     drink_celebration_condition_debt: bool | None = None
@@ -1439,6 +1445,9 @@ def ui_appearance_settings(conn: sqlite3.Connection) -> dict:
     celebration_mode = (get_setting(conn, "drink_celebration_mode", "condition") or "condition").strip().lower()
     if celebration_mode not in {"always", "condition", "never"}:
         celebration_mode = "condition"
+    booking_sound_preset = (get_setting(conn, "drink_booking_sound_preset", "warm") or "warm").strip().lower()
+    if booking_sound_preset not in {"warm", "soft", "clear", "bell", "calm"}:
+        booking_sound_preset = "warm"
     return {
         "enable_delete_requests": setting_bool(conn, "enable_delete_requests", "1"),
         "show_person_popup_total": setting_bool(conn, "show_person_popup_total", "1"),
@@ -1452,6 +1461,8 @@ def ui_appearance_settings(conn: sqlite3.Connection) -> dict:
         "drink_feedback_duration_ms": max(500, min(3000, int(get_setting(conn, "drink_feedback_duration_ms", "1400") or 1400))),
         "drink_feedback_animation_intensity_percent": max(0, min(200, int(get_setting(conn, "drink_feedback_animation_intensity_percent", "100") or 100))),
         "drink_feedback_position": feedback_position,
+        "drink_booking_sound_enabled": setting_bool(conn, "drink_booking_sound_enabled", "1"),
+        "drink_booking_sound_preset": booking_sound_preset,
         "drink_celebration_mode": celebration_mode,
         "drink_celebration_condition_round": setting_bool(conn, "drink_celebration_condition_round", "1"),
         "drink_celebration_condition_debt": setting_bool(conn, "drink_celebration_condition_debt", "1"),
@@ -2949,6 +2960,16 @@ def admin_update_settings(req: SettingsUpdateRequest):
                 raise HTTPException(status_code=400, detail="Ungültige Feedback-Position")
             set_setting(conn, "drink_feedback_position", position)
             details.append("Buchungsfeedback oberhalb der Getränkebuttons" if position == "above" else "Buchungsfeedback unterhalb der Getränkebuttons")
+        if req.drink_booking_sound_enabled is not None:
+            set_setting(conn, "drink_booking_sound_enabled", "1" if req.drink_booking_sound_enabled else "0")
+            details.append("Buchungston aktiviert" if req.drink_booking_sound_enabled else "Buchungston deaktiviert")
+        if req.drink_booking_sound_preset is not None:
+            preset = req.drink_booking_sound_preset.strip().lower()
+            preset_labels = {"warm": "warm", "soft": "sanft", "clear": "klar", "bell": "Glocke", "calm": "ruhig"}
+            if preset not in preset_labels:
+                raise HTTPException(status_code=400, detail="Ungültiger Buchungston")
+            set_setting(conn, "drink_booking_sound_preset", preset)
+            details.append(f"Buchungston auf {preset_labels[preset]} gesetzt")
         if req.drink_celebration_mode is not None:
             mode = req.drink_celebration_mode.strip().lower()
             if mode not in {"always", "condition", "never"}:

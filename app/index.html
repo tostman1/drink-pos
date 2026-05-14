@@ -48,19 +48,31 @@
     .tally-mark { display:block; width:2px; background:#111827; border-radius:999px; opacity:.96; transform-origin:bottom center; }
     .tally-slash { position:absolute; background:#111827; border-radius:999px; transform-origin:center; opacity:.97; }
     .pending-line { margin-top:4px; font-size:12.5px; color:var(--red); font-weight:800; line-height:1.25; }
-    dialog { border:0; border-radius:22px; padding:0; max-width:680px; width:calc(100% - 28px); box-shadow:0 20px 60px rgba(0,0,0,.35); position:relative; overflow:visible; background:transparent; }
+    dialog { border:0; border-radius:24px; padding:0; max-width:720px; width:calc(100% - 28px); box-shadow:0 22px 70px rgba(0,0,0,.34); position:relative; overflow:visible; background:transparent; }
     dialog::backdrop { background:rgba(0,0,0,.45); }
-    .dialog-content { padding:18px; position:relative; z-index:2; background:#fff; border-radius:22px; overflow:auto; max-height:90vh; }
-    .dialog-content h2 { margin:0 0 6px 0; font-size:27px; }
-    .dialog-total { color:var(--muted); font-size:17px; margin-bottom:12px; }
-    #addPanel { position:relative; }
-    .drink-buttons { display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); margin:15px 0 8px; }
-    .drink-buttons button { width:100%; font-size:18px; padding:14px; background:var(--blue); font-weight:800; position:relative; overflow:hidden; transition:background-color .18s ease, transform .18s ease, box-shadow .18s ease; }
-    .drink-buttons button.is-writing { background:#bfdbfe; box-shadow:0 0 0 3px rgba(37,99,235,.16); cursor:wait; transform:scale(.985); }
+    .dialog-content { padding:20px; position:relative; z-index:2; background:#fff; border-radius:24px; overflow:auto; max-height:90vh; }
+    .dialog-content h2 { margin:0 0 5px 0; font-size:29px; line-height:1.08; letter-spacing:0; color:#0f172a; }
+    .dialog-total { color:#64748b; font-size:17px; margin-bottom:14px; }
+    #addPanel { position:relative; background:#fff; border-color:#bfdbfe; border-radius:18px; padding:14px; box-shadow:0 1px 0 rgba(15,23,42,.03), 0 10px 24px rgba(37,99,235,.07); }
+    #addPanel h3 { margin-bottom:12px; color:#0f172a; font-size:18px; }
+    .drink-buttons { display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(176px,1fr)); margin:14px 0 10px; }
+    .drink-buttons button { width:100%; min-height:68px; display:grid; grid-template-columns:34px minmax(0,1fr); grid-template-areas:'plus main' 'plus price'; align-items:center; justify-items:stretch; gap:2px 10px; font-size:17px; padding:10px 11px; background:linear-gradient(180deg,#f8fbff 0%,#eaf3ff 100%); color:#0f172a; border:1px solid #bfdbfe; border-radius:14px; font-weight:850; text-align:left; position:relative; overflow:hidden; transition:background-color .14s ease, transform .11s ease, box-shadow .14s ease, border-color .14s ease, filter .14s ease; box-shadow:inset 0 1px 0 rgba(255,255,255,.85), 0 1px 4px rgba(37,99,235,.08); }
+    .drink-buttons button:active { transform:translateY(1px); filter:brightness(.98); }
+    .drink-button-plus { grid-area:plus; width:34px; height:34px; border-radius:12px; display:grid; place-items:center; background:#2563eb; color:#fff; font-size:23px; font-weight:950; line-height:1; box-shadow:0 5px 12px rgba(37,99,235,.2); }
+    .drink-button-main { grid-area:main; min-width:0; font-size:17.5px; line-height:1.08; font-weight:920; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .drink-button-price { grid-area:price; justify-self:start; min-width:0; text-align:left; padding:0; border-radius:0; background:transparent; border:0; color:#1e3a8a; font-size:16px; line-height:1.05; font-weight:950; box-shadow:none; }
+    .drink-kind-beer { background:linear-gradient(180deg,#fff8e7 0%,#ffefc9 100%); border-color:#fde68a; box-shadow:inset 0 1px 0 rgba(255,255,255,.85), 0 1px 4px rgba(217,119,6,.08); }
+    .drink-kind-beer .drink-button-plus { background:#d97706; box-shadow:0 5px 12px rgba(217,119,6,.2); }
+    .drink-kind-beer .drink-button-price { color:#92400e; }
+    .drink-kind-limo .drink-button-plus { background:#0284c7; box-shadow:0 5px 12px rgba(2,132,199,.2); }
+    .drink-kind-round { background:linear-gradient(180deg,#fff7ed 0%,#ffedd5 100%); border-color:#fed7aa; }
+    .drink-kind-round .drink-button-plus { background:#f59e0b; color:#111827; }
+    .drink-buttons button.is-writing { background:#dbeafe; border-color:#93c5fd; box-shadow:0 0 0 3px rgba(37,99,235,.16); cursor:wait; transform:translateY(1px); }
     .drink-buttons button.is-writing::before { content:''; position:absolute; inset:0; background:linear-gradient(110deg, transparent 0%, rgba(255,255,255,.55) 45%, transparent 70%); transform:translateX(-110%); animation:drinkSavingSweep .7s ease-in-out infinite; }
-    .drink-buttons button.drink-written { background:#bbf7d0; box-shadow:0 0 0 var(--drink-feedback-ring,5px) rgba(34,197,94,.24); animation:drinkWritten var(--drink-feedback-pop-duration,.52s) ease-out; }
-    .drink-buttons button.drink-written::after { content:'✓'; position:absolute; right:12px; top:50%; transform:translateY(-50%); width:28px; height:28px; border-radius:999px; display:grid; place-items:center; background:#16a34a; color:#fff; font-size:18px; font-weight:950; animation:drinkCheck .75s ease-out both; }
-    .drink-feedback { position:absolute; top:8px; left:150px; right:12px; z-index:4; min-height:34px; padding:5px 13px; margin:0; display:flex; align-items:center; justify-content:center; gap:8px; color:#064e3b; background:#d1fae5; border:1px solid #86efac; border-radius:14px; box-shadow:0 10px 24px rgba(22,163,74,.16); font-size:15px; font-weight:950; line-height:1.15; opacity:0; visibility:hidden; transform:translate3d(0,0,0); transition:opacity .16s ease, visibility .16s ease; pointer-events:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; will-change:opacity; }
+    .drink-buttons button.drink-written { background:linear-gradient(180deg,#bbf7d0 0%,#86efac 100%); border-color:#22c55e; box-shadow:0 0 0 var(--drink-feedback-ring,5px) rgba(34,197,94,.22); animation:drinkWritten var(--drink-feedback-pop-duration,.34s) ease-out; }
+    .drink-buttons button.drink-written .drink-button-plus { background:#16a34a; color:#fff; box-shadow:0 5px 12px rgba(22,163,74,.24); }
+    .drink-buttons button.drink-written::after { content:'✓'; position:absolute; left:14px; top:50%; transform:translateY(-50%); width:28px; height:28px; border-radius:999px; display:grid; place-items:center; background:#16a34a; color:#fff; font-size:18px; font-weight:950; animation:drinkCheck .75s ease-out both; }
+    .drink-feedback { position:absolute; top:9px; left:150px; right:14px; z-index:4; min-height:34px; padding:5px 13px; margin:0; display:flex; align-items:center; justify-content:center; gap:8px; color:#064e3b; background:#d1fae5; border:1px solid #86efac; border-radius:14px; box-shadow:0 10px 24px rgba(22,163,74,.16); font-size:15px; font-weight:950; line-height:1.15; opacity:0; visibility:hidden; transform:translate3d(0,0,0); transition:opacity .16s ease, visibility .16s ease; pointer-events:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; will-change:opacity; }
     .drink-feedback::before { content:'✓'; width:24px; height:24px; border-radius:999px; display:grid; place-items:center; background:#16a34a; color:#fff; font-size:16px; font-weight:950; }
     .drink-feedback.subtle { min-height:30px; font-size:13px; background:transparent; border-color:transparent; box-shadow:none; color:#065f46; }
     .drink-feedback.subtle::before { width:18px; height:18px; font-size:12px; }
@@ -69,30 +81,35 @@
     .drink-feedback.visible { opacity:1; visibility:visible; transform:translate3d(0,0,0); }
     .drink-feedback.feedback-pop { animation:drinkToastFade var(--drink-feedback-toast-duration,.44s) ease-out; }
     @keyframes drinkSavingSweep { 100% { transform:translateX(110%); } }
-    @keyframes drinkWritten { 0% { transform:scale(calc(1 - var(--drink-feedback-button-dip,.015))); } 45% { transform:scale(calc(1 + var(--drink-feedback-button-pop,.045))); } 100% { transform:scale(1); } }
+    @keyframes drinkWritten { 0% { filter:saturate(1); } 40% { filter:saturate(1.18) brightness(1.03); } 100% { filter:saturate(1); } }
     @keyframes drinkCheck { 0% { opacity:0; transform:translateY(-50%) scale(.55); } 28% { opacity:1; transform:translateY(-50%) scale(1.2); } 100% { opacity:0; transform:translateY(-50%) scale(1); } }
     @keyframes drinkToastFade { 0% { opacity:0; transform:translate3d(0,-3px,0); } 100% { opacity:1; transform:translate3d(0,0,0); } }
-    .celebration-layer { position:absolute; left:-70px; right:-70px; top:-180px; bottom:-30px; z-index:1; pointer-events:none; overflow:visible; }
-    .confetti-piece { position:absolute; left:50%; bottom:18%; width:10px; height:16px; border-radius:3px; background:var(--confetti-color,#fbbf24); opacity:0; transform:translate(-50%,0) rotate(0deg); animation:confettiBurst var(--confetti-duration,2200ms) cubic-bezier(.15,.78,.28,1) forwards; animation-delay:var(--confetti-delay,0ms); }
+    .celebration-layer { position:absolute; left:-190px; right:-190px; top:-280px; bottom:-130px; z-index:1; pointer-events:none; overflow:visible; }
+    .confetti-piece { position:absolute; left:50%; bottom:9%; width:10px; height:16px; border-radius:3px; background:var(--confetti-color,#fbbf24); opacity:0; transform:translate(-50%,0) rotate(0deg); animation:confettiBurst var(--confetti-duration,2500ms) cubic-bezier(.15,.78,.28,1) forwards; animation-delay:var(--confetti-delay,0ms); }
     .confetti-piece.dot { border-radius:999px; width:8px; height:8px; }
     .confetti-piece.ribbon { width:7px; height:22px; border-radius:999px; }
     @keyframes confettiBurst { 0% { opacity:0; transform:translate(-50%,0) scale(.75) rotate(0deg); } 12% { opacity:1; } 42% { opacity:1; transform:translate(calc(-50% + var(--confetti-x,0px)), var(--confetti-y,-260px)) scale(1) rotate(var(--confetti-rot,180deg)); } 100% { opacity:0; transform:translate(calc(-50% + var(--confetti-fall-x,var(--confetti-x,0px))), var(--confetti-fall-y,60px)) scale(.96) rotate(calc(var(--confetti-rot,180deg) + 220deg)); } }
-    .panel { background:#f9fafb; border:1px solid var(--border); border-radius:14px; padding:12px; margin:12px 0; }
+    .panel { background:#f9fafb; border:1px solid var(--border); border-radius:16px; padding:12px; margin:12px 0; }
     .panel h3 { margin:0 0 10px; font-size:17px; }
-    .round-celebration-panel { position:relative; overflow:hidden; background:linear-gradient(135deg,#fff7ed 0%,#fffbeb 48%,#ecfdf5 100%); border-color:#fbbf24; box-shadow:0 10px 24px rgba(245,158,11,.14); }
-    .round-celebration-panel::after { content:''; position:absolute; right:-34px; top:-58px; width:150px; height:150px; border-radius:999px; background:radial-gradient(circle,rgba(251,191,36,.34) 0%,rgba(251,191,36,.14) 46%,transparent 70%); pointer-events:none; }
-    .round-celebration-panel h3 { display:flex; align-items:center; gap:8px; color:#92400e; }
-    .round-celebration-panel h3::before { content:''; width:11px; height:11px; border-radius:999px; background:#f59e0b; box-shadow:0 0 0 5px rgba(245,158,11,.16); }
-    .round-pay-btn { width:100%; max-width:310px; background:linear-gradient(135deg,#fbbf24,#f59e0b); color:#111827; border:1px solid rgba(146,64,14,.14); font-weight:950; box-shadow:0 8px 20px rgba(245,158,11,.24); }
+    .round-celebration-panel { position:relative; overflow:hidden; display:flex; gap:10px; align-items:center; justify-content:space-between; background:linear-gradient(135deg,#fff7ed 0%,#fffbeb 58%,#f8fafc 100%); border-color:#fde68a; box-shadow:0 6px 16px rgba(245,158,11,.08); padding:10px 12px; }
+    .round-celebration-panel::after { content:''; position:absolute; right:-36px; top:-56px; width:130px; height:130px; border-radius:999px; background:radial-gradient(circle,rgba(251,191,36,.2) 0%,rgba(251,191,36,.08) 50%,transparent 74%); pointer-events:none; }
+    .round-copy { position:relative; z-index:1; flex:1 1 auto; display:flex; gap:9px; align-items:center; min-width:0; }
+    .round-mark { flex:0 0 auto; width:32px; height:32px; border-radius:999px; background:linear-gradient(135deg,#fde68a,#fbbf24); box-shadow:0 5px 12px rgba(245,158,11,.16); position:relative; }
+    .round-mark::before, .round-mark::after { content:''; position:absolute; border-radius:999px; background:#fff7ed; border:2px solid #92400e; }
+    .round-mark::before { width:11px; height:11px; left:7px; top:8px; }
+    .round-mark::after { width:13px; height:13px; right:6px; top:11px; }
+    .round-copy h3 { margin:0; color:#78350f; font-size:16px; }
+    .round-pay-btn { position:relative; z-index:1; width:auto; margin-left:auto; justify-self:end; min-width:168px; white-space:nowrap; background:linear-gradient(135deg,#fbbf24,#f59e0b); color:#111827; border:1px solid rgba(146,64,14,.12); font-weight:950; box-shadow:0 5px 14px rgba(245,158,11,.18); padding:9px 12px; border-radius:12px; }
     .round-pay-btn:active { transform:translateY(1px) scale(.99); }
-    .round-note { margin-top:8px; max-width:560px; color:#7c2d12; font-weight:650; }
-    .compact-panel { padding:9px 10px; margin:8px 0; }
-    .compact-panel h3 { font-size:15px; margin-bottom:6px; }
+    .round-note { display:none; margin:0; max-width:none; color:#7c2d12; font-weight:650; font-size:12.5px; }
+    .compact-panel { padding:10px 12px; margin:8px 0; background:#fff; border-color:#e5e7eb; box-shadow:none; }
+    .compact-panel h3 { font-size:15px; margin-bottom:7px; color:#475569; }
     .compact-panel .muted { font-size:12px; }
     .compact-panel button { font-size:13px; padding:7px 9px; }
-    .delete-toggle { width:100%; display:flex; justify-content:space-between; align-items:center; gap:8px; background:#fff7ed; color:#9a3412; border:1px solid #fed7aa; }
-    .delete-toggle::after { content:'aufklappen'; font-size:12px; color:#c2410c; font-weight:800; }
-    .delete-toggle.open::after { content:'schließen'; }
+    .delete-toggle { width:100%; display:flex; justify-content:space-between; align-items:center; gap:8px; background:#fff; color:#334155; border:1px solid #cbd5e1; }
+    .delete-toggle.open { background:#fff7ed; color:#9a3412; border-color:#fed7aa; }
+    .delete-toggle::after { content:'anzeigen'; font-size:12px; color:#64748b; font-weight:800; }
+    .delete-toggle.open::after { content:'schließen'; color:#c2410c; }
     .delete-request-box { margin-top:8px; display:none; }
     .delete-request-box.open { display:block; }
     .delete-request-row { display:grid; grid-template-columns:1fr auto; gap:10px; align-items:center; border-top:1px solid var(--border); padding:8px 0; }
@@ -100,7 +117,7 @@
     .qty-stepper button { min-width:34px; font-size:16px; }
     .qty-value { min-width:28px; text-align:center; font-weight:900; }
     .delete-request-actions { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px; }
-    .finish-button { width:100%; margin:0 0 4px; background:var(--green); font-weight:900; font-size:19px; padding:14px; }
+    .finish-button { width:100%; margin:0 0 4px; background:linear-gradient(180deg,#86efac,#74e89b); color:#052e16; font-weight:900; font-size:19px; padding:14px; border:1px solid #6ee7b7; }
     .action-total { display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin:12px 0; padding:12px; background:#f8fafc; border-radius:14px; font-size:18px; font-weight:900; }
     .action-list { max-height:45vh; overflow:auto; border:1px solid var(--border); border-radius:14px; }
     .action-list table { margin:0; }
@@ -118,6 +135,7 @@
     .muted { color:var(--muted); font-size:13px; line-height:1.35; }
     select { font:inherit; padding:8px; border-radius:10px; border:1px solid var(--border); }
     .decision-buttons { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    @media (max-width:640px) { dialog { width:calc(100% - 18px); } .dialog-content { padding:14px; } .dialog-content h2 { font-size:25px; } .drink-feedback { left:132px; right:14px; font-size:13px; } .drink-buttons { grid-template-columns:1fr; } .drink-buttons button { min-height:64px; grid-template-columns:32px minmax(0,1fr); gap:2px 9px; } .drink-button-plus { width:32px; height:32px; } .round-celebration-panel { flex-direction:column; align-items:stretch; gap:9px; } .round-mark { width:32px; height:32px; } .round-mark::before { width:11px; height:11px; left:7px; top:8px; } .round-mark::after { width:13px; height:13px; right:6px; top:11px; } .round-pay-btn { width:100%; justify-self:stretch; min-width:0; max-width:none; } }
     @media (prefers-reduced-motion:reduce) { .drink-buttons button, .drink-feedback { transition:none; } .drink-buttons button.is-writing::before, .drink-buttons button.drink-written, .drink-buttons button.drink-written::after, .drink-feedback.feedback-pop, .confetti-piece { animation:none; } }
     .approve-btn { background:var(--green); }
     .reject-btn { background:var(--red-bg); color:var(--red); }
@@ -180,7 +198,6 @@
         <h3>Hinzufügen</h3>
         <div class="drink-feedback" id="drinkFeedbackTop" aria-live="polite"></div>
         <div class="drink-buttons" id="drinkButtons"></div>
-        <div class="drink-feedback" id="drinkFeedback" aria-live="polite"></div>
         <button class="finish-button" onclick="closeDialog()">Fertig</button>
         <div class="muted" id="adminOnlyHint" style="display:none">Admin-Modus: Admin-Artikel wie „1 Runde“ können ebenfalls hinzugefügt werden.</div>
       </div>
@@ -191,9 +208,14 @@
       </div>
 
       <div class="panel round-celebration-panel" id="roundRequestPanel">
-        <h3>Runde zahlen</h3>
-        <button class="round-pay-btn" onclick="requestRound()">+ 1 Runde bestätigen</button>
-        <div class="muted round-note">Feierliche Runde: wird sofort auf deine offene Rechnung gesetzt und beim nächsten Kassensturz automatisch abgezogen.</div>
+        <div class="round-copy">
+          <div class="round-mark" aria-hidden="true"></div>
+          <div>
+            <h3>Runde zahlen</h3>
+            <div class="muted round-note">Für alle. Beim Kassensturz automatisch abgezogen.</div>
+          </div>
+        </div>
+        <button class="round-pay-btn" onclick="requestRound()">+ 1 Runde für alle</button>
       </div>
 
       <div class="panel compact-panel" id="userEditPanel">
@@ -269,7 +291,12 @@
     let drinkCelebrationDebtThresholdEur = 50;
     let drinkCelebrationConfettiIntensityPercent = 100;
     let drinkCelebrationSoundEnabled = true;
+    let drinkBookingSoundEnabled = true;
+    let drinkBookingSoundPreset = 'warm';
     let celebrationAudioCtx = null;
+    let drinkFeedbackRecentName = '';
+    let drinkFeedbackRecentCount = 0;
+    let drinkFeedbackRecentAt = 0;
     let syncCheckTimer = null;
 
     function numberComma(value, minimumFractionDigits = 2, maximumFractionDigits = minimumFractionDigits) {
@@ -497,6 +524,8 @@
       drinkCelebrationDebtThresholdEur = Math.max(0, Number(cfg.drink_celebration_debt_threshold_eur || 50));
       drinkCelebrationConfettiIntensityPercent = Math.max(0, Math.min(200, Number(cfg.drink_celebration_confetti_intensity_percent || 100)));
       drinkCelebrationSoundEnabled = cfg.drink_celebration_sound_enabled !== false;
+      drinkBookingSoundEnabled = cfg.drink_booking_sound_enabled !== false;
+      drinkBookingSoundPreset = bookingSoundPresetKey(cfg.drink_booking_sound_preset || 'warm');
       syncDrinkFeedbackSlots();
       showPersonPopupTotal = cfg.show_person_popup_total !== false;
       appBackgroundColor = cfg.app_background_color || '#f3f4f6';
@@ -734,7 +763,6 @@
       const top = document.getElementById('drinkFeedbackTop');
       const bottom = document.getElementById('drinkFeedback');
       const active = top;
-      const inactive = bottom;
       for (const feedback of [top, bottom]) {
         if (!feedback) continue;
         feedback.textContent = '';
@@ -744,7 +772,7 @@
     }
 
     function activeDrinkFeedbackElement() {
-      return syncDrinkFeedbackSlots() || document.getElementById('drinkFeedback') || document.getElementById('drinkFeedbackTop');
+      return document.getElementById('drinkFeedbackTop') || document.getElementById('drinkFeedback');
     }
 
     function celebrationShouldRun(context = {}) {
@@ -760,6 +788,14 @@
 
     function confettiIntensityFactor() {
       return Math.max(0, Math.min(2, Number(drinkCelebrationConfettiIntensityPercent || 0) / 100));
+    }
+
+    function feedbackAudioContext() {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return null;
+      if (!celebrationAudioCtx || celebrationAudioCtx.state === 'closed') celebrationAudioCtx = new AudioCtx();
+      celebrationAudioCtx.resume?.();
+      return celebrationAudioCtx;
     }
 
     function applyFeedbackAnimationIntensity() {
@@ -784,76 +820,167 @@
       if (factor <= 0) return;
       const colors = ['#fbbf24', '#22c55e', '#38bdf8', '#f472b6', '#fb7185', '#a78bfa', '#f97316'];
       layer.innerHTML = '';
-      const count = Math.round(14 + 44 * factor);
+      const count = Math.round(28 + 84 * factor);
       for (let i = 0; i < count; i++) {
         const piece = document.createElement('span');
-        const shape = i % 5 === 0 ? 'dot' : (i % 7 === 0 ? 'ribbon' : '');
+        const shape = i % 4 === 0 ? 'dot' : (i % 6 === 0 ? 'ribbon' : '');
         piece.className = `confetti-piece ${shape}`;
         const side = i % 2 === 0 ? -1 : 1;
-        const spread = (22 + Math.random() * 210) * (0.65 + factor * 0.45);
-        const x = side * spread;
-        const y = -((145 + Math.random() * 230) * (0.7 + factor * 0.35));
-        const fallX = x + (Math.random() - 0.5) * 150 * (0.7 + factor * 0.4);
-        const fallY = 30 + Math.random() * 175 * (0.8 + factor * 0.35);
+        const originJitter = (Math.random() - 0.5) * 180;
+        const spread = (55 + Math.random() * 330) * (0.78 + factor * 0.5);
+        const x = originJitter + side * spread;
+        const y = -((175 + Math.random() * 330) * (0.82 + factor * 0.38));
+        const fallX = x + (Math.random() - 0.5) * 300 * (0.85 + factor * 0.45);
+        const fallY = 70 + Math.random() * 260 * (0.9 + factor * 0.4);
         piece.style.setProperty('--confetti-color', colors[i % colors.length]);
         piece.style.setProperty('--confetti-x', `${x.toFixed(0)}px`);
         piece.style.setProperty('--confetti-y', `${y.toFixed(0)}px`);
         piece.style.setProperty('--confetti-fall-x', `${fallX.toFixed(0)}px`);
         piece.style.setProperty('--confetti-fall-y', `${fallY.toFixed(0)}px`);
         piece.style.setProperty('--confetti-rot', `${(Math.random() * 720 - 360).toFixed(0)}deg`);
-        piece.style.setProperty('--confetti-delay', `${Math.random() * 170}ms`);
-        piece.style.setProperty('--confetti-duration', `${1900 + Math.random() * 950 + factor * 260}ms`);
+        piece.style.setProperty('--confetti-delay', `${Math.random() * 240}ms`);
+        piece.style.setProperty('--confetti-duration', `${2300 + Math.random() * 1250 + factor * 420}ms`);
         layer.appendChild(piece);
       }
-      window.setTimeout(() => { layer.innerHTML = ''; }, 3600);
+      window.setTimeout(() => { layer.innerHTML = ''; }, 4600);
     }
 
     function primeCelebrationAudio() {
       if (!drinkCelebrationSoundEnabled) return;
       try {
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtx) return;
-        if (!celebrationAudioCtx || celebrationAudioCtx.state === 'closed') celebrationAudioCtx = new AudioCtx();
-        celebrationAudioCtx.resume?.();
+        feedbackAudioContext();
+      } catch (err) {}
+    }
+
+    function primeBookingAudio() {
+      if (!drinkBookingSoundEnabled) return;
+      try {
+        feedbackAudioContext();
+      } catch (err) {}
+    }
+
+    const BOOKING_SOUND_PRESETS = {
+      warm: {
+        filter: 1800, q: 0.45, master: 0.045, attack: 0.025, release: 0.34,
+        notes: [
+          { freq: 261.63, offset: 0.000, type: 'triangle', gain: 0.72, stop: 0.30 },
+          { freq: 329.63, offset: 0.012, type: 'sine', gain: 0.52, stop: 0.28 },
+          { freq: 392.00, offset: 0.024, type: 'sine', gain: 0.46, stop: 0.26 },
+        ],
+      },
+      soft: {
+        filter: 1650, q: 0.38, master: 0.040, attack: 0.030, release: 0.42,
+        notes: [
+          { freq: 349.23, offset: 0.000, type: 'sine', gain: 0.54, stop: 0.35 },
+          { freq: 440.00, offset: 0.018, type: 'sine', gain: 0.40, stop: 0.33 },
+          { freq: 523.25, offset: 0.036, type: 'triangle', gain: 0.28, stop: 0.31 },
+        ],
+      },
+      clear: {
+        filter: 2400, q: 0.5, master: 0.036, attack: 0.020, release: 0.36,
+        notes: [
+          { freq: 392.00, offset: 0.000, type: 'triangle', gain: 0.48, stop: 0.28 },
+          { freq: 493.88, offset: 0.026, type: 'sine', gain: 0.36, stop: 0.26 },
+          { freq: 587.33, offset: 0.052, type: 'sine', gain: 0.28, stop: 0.24 },
+        ],
+      },
+      bell: {
+        filter: 3400, q: 0.6, master: 0.030, attack: 0.018, release: 0.58,
+        notes: [
+          { freq: 523.25, offset: 0.000, type: 'sine', gain: 0.40, stop: 0.50 },
+          { freq: 659.25, offset: 0.016, type: 'sine', gain: 0.28, stop: 0.46 },
+          { freq: 783.99, offset: 0.032, type: 'triangle', gain: 0.20, stop: 0.42 },
+          { freq: 1046.50, offset: 0.060, type: 'sine', gain: 0.10, stop: 0.34 },
+        ],
+      },
+      calm: {
+        filter: 1500, q: 0.35, master: 0.043, attack: 0.035, release: 0.46,
+        notes: [
+          { freq: 293.66, offset: 0.000, type: 'triangle', gain: 0.62, stop: 0.38 },
+          { freq: 369.99, offset: 0.020, type: 'sine', gain: 0.42, stop: 0.35 },
+          { freq: 440.00, offset: 0.040, type: 'sine', gain: 0.30, stop: 0.32 },
+        ],
+      },
+    };
+
+    function bookingSoundPresetKey(value) {
+      const key = String(value || 'warm').toLowerCase();
+      return BOOKING_SOUND_PRESETS[key] ? key : 'warm';
+    }
+
+    function playBookingSoundPreset(ctx, presetName, volume = 1) {
+      const preset = BOOKING_SOUND_PRESETS[bookingSoundPresetKey(presetName)];
+      const now = ctx.currentTime;
+      const master = ctx.createGain();
+      const toneFilter = ctx.createBiquadFilter();
+      toneFilter.type = 'lowpass';
+      toneFilter.frequency.setValueAtTime(preset.filter, now);
+      toneFilter.Q.setValueAtTime(preset.q, now);
+      master.gain.setValueAtTime(0.0001, now);
+      master.gain.exponentialRampToValueAtTime(Math.max(0.001, preset.master * volume), now + preset.attack);
+      master.gain.exponentialRampToValueAtTime(0.0001, now + preset.release);
+      toneFilter.connect(master);
+      master.connect(ctx.destination);
+
+      preset.notes.forEach(({ freq, offset, type, gain: level, stop }) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = type;
+        const start = now + offset;
+        osc.frequency.setValueAtTime(freq, start);
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, level), start + preset.attack);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + stop);
+        osc.connect(gain);
+        gain.connect(toneFilter);
+        osc.start(start);
+        osc.stop(start + stop + 0.04);
+      });
+    }
+
+    function playBookingTone(itemName = '') {
+      if (!drinkBookingSoundEnabled) return;
+      try {
+        const ctx = feedbackAudioContext();
+        if (!ctx) return;
+        playBookingSoundPreset(ctx, drinkBookingSoundPreset);
       } catch (err) {}
     }
 
     function playCelebrationTone() {
       if (!drinkCelebrationSoundEnabled) return;
       try {
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtx) return;
-        const ctx = celebrationAudioCtx && celebrationAudioCtx.state !== 'closed' ? celebrationAudioCtx : new AudioCtx();
-        celebrationAudioCtx = ctx;
-        ctx.resume?.();
+        const ctx = feedbackAudioContext();
+        if (!ctx) return;
         const master = ctx.createGain();
         const sparkle = ctx.createGain();
         master.gain.setValueAtTime(0.0001, ctx.currentTime);
-        master.gain.exponentialRampToValueAtTime(0.16, ctx.currentTime + 0.025);
-        master.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.35);
+        master.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.025);
+        master.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.65);
         master.connect(ctx.destination);
         sparkle.gain.setValueAtTime(0.0001, ctx.currentTime);
-        sparkle.gain.exponentialRampToValueAtTime(0.06, ctx.currentTime + 0.08);
-        sparkle.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.1);
+        sparkle.gain.exponentialRampToValueAtTime(0.085, ctx.currentTime + 0.08);
+        sparkle.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.35);
         sparkle.connect(ctx.destination);
 
         const now = ctx.currentTime;
         const notes = [
-          [523.25, 0.00, 0.22],
-          [659.25, 0.08, 0.24],
-          [783.99, 0.16, 0.28],
-          [1046.50, 0.28, 0.36],
-          [1318.51, 0.43, 0.34],
-          [1567.98, 0.58, 0.42],
+          [392.00, 0.00, 0.32, 0.11],
+          [523.25, 0.00, 0.30, 0.12],
+          [659.25, 0.08, 0.32, 0.13],
+          [783.99, 0.18, 0.36, 0.14],
+          [1046.50, 0.34, 0.44, 0.13],
+          [1318.51, 0.52, 0.44, 0.11],
+          [1567.98, 0.70, 0.52, 0.10],
         ];
-        notes.forEach(([freq, offset, length], idx) => {
+        notes.forEach(([freq, offset, length, level], idx) => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
           osc.type = idx >= 3 ? 'triangle' : 'sine';
           osc.frequency.value = freq;
           const start = now + offset;
           gain.gain.setValueAtTime(0.0001, start);
-          gain.gain.exponentialRampToValueAtTime(idx >= 3 ? 0.14 : 0.18, start + 0.018);
+          gain.gain.exponentialRampToValueAtTime(level, start + 0.018);
           gain.gain.exponentialRampToValueAtTime(0.0001, start + length);
           osc.connect(gain);
           gain.connect(master);
@@ -861,15 +988,15 @@
           osc.stop(start + length + 0.04);
         });
 
-        [2093.00, 2637.02, 3135.96].forEach((freq, idx) => {
+        [1760.00, 2349.32, 3135.96, 4186.01].forEach((freq, idx) => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
           osc.type = 'triangle';
           osc.frequency.value = freq;
-          const start = now + 0.18 + idx * 0.13;
+          const start = now + 0.14 + idx * 0.12;
           gain.gain.setValueAtTime(0.0001, start);
-          gain.gain.exponentialRampToValueAtTime(0.08, start + 0.012);
-          gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.16);
+          gain.gain.exponentialRampToValueAtTime(idx === 0 ? 0.09 : 0.07, start + 0.012);
+          gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.18);
           osc.connect(gain);
           gain.connect(sparkle);
           osc.start(start);
@@ -900,17 +1027,31 @@
       }
       const feedback = activeDrinkFeedbackElement();
       if (!feedback) return;
+      const now = Date.now();
+      if (itemName === drinkFeedbackRecentName && now - drinkFeedbackRecentAt < Math.max(900, drinkFeedbackDurationMs + 350)) {
+        drinkFeedbackRecentCount += 1;
+      } else {
+        drinkFeedbackRecentName = itemName;
+        drinkFeedbackRecentCount = 1;
+      }
+      drinkFeedbackRecentAt = now;
       if (drinkFeedbackTimer) clearTimeout(drinkFeedbackTimer);
       if (!drinkFeedbackEnabled) {
         feedback.textContent = '';
         feedback.className = 'drink-feedback off';
         return;
       }
-      feedback.textContent = `${itemName} gebucht`;
+      const repeated = drinkFeedbackRecentCount > 1;
+      feedback.textContent = repeated ? `${itemName} +${drinkFeedbackRecentCount}` : `${itemName} gebucht`;
+      const alreadyVisible = feedback.classList.contains('visible');
       feedback.className = `drink-feedback ${drinkFeedbackStyle}`;
-      feedback.classList.remove('feedback-pop');
-      void feedback.offsetWidth;
-      feedback.classList.add('visible', 'feedback-pop');
+      if (alreadyVisible) {
+        feedback.classList.add('visible');
+      } else {
+        feedback.classList.remove('feedback-pop');
+        void feedback.offsetWidth;
+        feedback.classList.add('visible', 'feedback-pop');
+      }
       runCelebration(context);
       drinkFeedbackTimer = window.setTimeout(() => {
         feedback.classList.remove('visible', 'feedback-pop');
@@ -918,6 +1059,8 @@
           feedback.textContent = '';
           feedback.className = 'drink-feedback';
           drinkFeedbackTimer = null;
+          drinkFeedbackRecentName = '';
+          drinkFeedbackRecentCount = 0;
         }, 200);
       }, drinkFeedbackDurationMs);
     }
@@ -933,11 +1076,21 @@
       }
       for (const item of addable) {
         const btn = document.createElement('button');
-        btn.textContent = `+ ${item.name} · ${money(item.price)}`;
+        const itemKind = drinkButtonKind(item.name);
+        btn.classList.add(`drink-kind-${itemKind}`);
+        btn.innerHTML = `<span class="drink-button-plus" aria-hidden="true">+</span><span class="drink-button-main">${escapeHtml(item.name)}</span><span class="drink-button-price">${money(item.price)}</span>`;
         if (item.admin_only) btn.classList.add('edit-btn');
         btn.onclick = () => addItem(item.id, item.name, btn, item.price);
         box.appendChild(btn);
       }
+    }
+
+    function drinkButtonKind(name) {
+      const text = String(name || '').toLowerCase();
+      if (text.includes('bier')) return 'beer';
+      if (text.includes('limo')) return 'limo';
+      if (text.includes('runde')) return 'round';
+      return 'drink';
     }
 
     function updateDialogInfo() {
@@ -1149,8 +1302,11 @@
       }
       try {
         const totalAfter = Number(currentPerson.total || 0) + Number(itemPrice || 0);
+        const isRoundItem = itemName === '1 Runde';
+        if (!isRoundItem) primeBookingAudio();
         if (celebrationShouldRun({ totalAfter, isRoundPayment: false })) primeCelebrationAudio();
         await apiPost('/api/add-drink', { person_id: currentPerson.id, item_id: itemId, pin: adminMode ? adminPin : null });
+        if (!isRoundItem) playBookingTone(itemName);
         showDrinkWrittenFeedback(button, itemName, { totalAfter, isRoundPayment: false });
         await loadPeople(true);
       } catch (err) {

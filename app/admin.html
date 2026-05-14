@@ -187,6 +187,13 @@
     .feedback-preview.normal { min-height:36px; font-size:14px; box-shadow:0 6px 18px rgba(22,163,74,.14); }
     .feedback-preview.hidden-preview { opacity:.38; background:#f3f4f6; color:#6b7280; border-color:#e5e7eb; box-shadow:none; }
     .feedback-preview.hidden-preview::before { content:'×'; background:#9ca3af; }
+    .feedback-settings-block { border:1px solid #e5e7eb; border-radius:12px; padding:12px; background:#fff; margin:12px 0; }
+    .feedback-settings-block h4 { margin:0 0 9px; font-size:14px; color:#334155; }
+    .feedback-settings-block .setting-line:last-child { margin-bottom:0; }
+    .feedback-test-buttons { display:flex; gap:8px; flex-wrap:wrap; }
+    .sound-preset-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(88px,1fr)); gap:7px; }
+    .sound-preset-grid button { padding:8px 9px; font-size:13px; background:#f8fafc; border:1px solid #cbd5e1; }
+    .sound-preset-grid button.active { background:#dbeafe; border-color:#60a5fa; color:#1e3a8a; }
     @media (max-width:1000px) { .row,.person-row,.item-row,.person-add,.item-add,.filters,.settings-grid,.report-grid,.appearance-grid,.list-tools,.stats-toolbar-top,.stats-controls,.stats-summary,.stats-layout,.stats-table-tools { grid-template-columns:1fr; } .list-tools label { white-space:normal; } table { font-size:13px; } }
   </style>
 </head>
@@ -369,59 +376,87 @@
 
             <div class="appearance-group">
               <h3>Buchungsfeedback</h3>
-              <div class="setting-line">
-                <label><input id="drinkFeedbackEnabled" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Feedback nach Getränkebuchung anzeigen</label>
-                <span class="default-note">Standard: eingeschaltet</span>
+              <div class="feedback-settings-block">
+                <h4>Normale Getränkebuchung</h4>
+                <div class="setting-line">
+                  <label><input id="drinkFeedbackEnabled" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Sichtbare Bestätigung anzeigen</label>
+                  <span class="default-note">Standard: eingeschaltet</span>
+                </div>
+                <div class="setting-line">
+                  <label><input id="drinkBookingSound" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Buchungston abspielen</label>
+                  <span class="default-note">Standard: eingeschaltet</span>
+                </div>
+                <div class="setting-line">
+                  <label for="drinkBookingSoundPreset">Ton-Charakter</label>
+                  <select id="drinkBookingSoundPreset" onchange="selectBookingSoundPreset(this.value)">
+                    <option value="warm">Warm</option>
+                    <option value="soft">Sanft</option>
+                    <option value="clear">Klar</option>
+                    <option value="bell">Glocke</option>
+                    <option value="calm">Ruhig</option>
+                  </select>
+                  <span class="default-note">Standard: Warm. Fünf angenehme Töne sind fest einprogrammiert; eigener Upload bleibt ein eigener späterer Schritt.</span>
+                </div>
+                <div class="sound-preset-grid" aria-label="Buchungston Presets">
+                  <button type="button" data-sound-preset="warm" onclick="selectBookingSoundPreset('warm')">Warm</button>
+                  <button type="button" data-sound-preset="soft" onclick="selectBookingSoundPreset('soft')">Sanft</button>
+                  <button type="button" data-sound-preset="clear" onclick="selectBookingSoundPreset('clear')">Klar</button>
+                  <button type="button" data-sound-preset="bell" onclick="selectBookingSoundPreset('bell')">Glocke</button>
+                  <button type="button" data-sound-preset="calm" onclick="selectBookingSoundPreset('calm')">Ruhig</button>
+                </div>
+                <div class="setting-line">
+                  <label for="drinkFeedbackStyle">Stärke der Meldung</label>
+                  <select id="drinkFeedbackStyle" onchange="renderAppearancePreview()">
+                    <option value="subtle">Dezent</option>
+                    <option value="normal">Standard</option>
+                    <option value="strong">Deutlich</option>
+                  </select>
+                  <span class="default-note">Standard: deutlich</span>
+                </div>
+                <div class="setting-line">
+                  <label for="drinkFeedbackDurationSlider">Anzeigedauer: <strong id="drinkFeedbackDurationValue">1400</strong> ms</label>
+                  <input id="drinkFeedbackDurationSlider" type="range" min="500" max="3000" step="100" oninput="renderAppearancePreview()">
+                  <span class="default-note">Standard: 1400 ms</span>
+                </div>
+                <div class="setting-line">
+                  <label for="drinkFeedbackIntensitySlider">Button-Feedback: <strong id="drinkFeedbackIntensityValue">100</strong>%</label>
+                  <input id="drinkFeedbackIntensitySlider" type="range" min="0" max="200" step="10" oninput="renderAppearancePreview()">
+                  <span class="default-note">Standard: 100%</span>
+                </div>
+                <input id="drinkFeedbackPosition" type="hidden" value="above">
               </div>
-              <div class="setting-line">
-                <label for="drinkFeedbackStyle">Stärke des Feedbacks</label>
-                <select id="drinkFeedbackStyle" onchange="renderAppearancePreview()">
-                  <option value="subtle">Dezent</option>
-                  <option value="normal">Standard</option>
-                  <option value="strong">Deutlich</option>
-                </select>
-                <span class="default-note">Standard: deutlich</span>
+              <div class="feedback-settings-block">
+                <h4>Runde zahlen</h4>
+                <div class="setting-line">
+                  <label for="drinkCelebrationMode">Feier-Effekt</label>
+                  <select id="drinkCelebrationMode" onchange="renderAppearancePreview()">
+                    <option value="condition">Bei Rundenzahlung</option>
+                    <option value="always">Bei Rundenzahlung erzwingen</option>
+                    <option value="never">Nie</option>
+                  </select>
+                  <span class="default-note">Standard: bei Rundenzahlung</span>
+                </div>
+                <div class="setting-line">
+                  <label for="drinkConfettiIntensitySlider">Konfetti-Radius: <strong id="drinkConfettiIntensityValue">100</strong>%</label>
+                  <input id="drinkConfettiIntensitySlider" type="range" min="0" max="200" step="10" oninput="renderAppearancePreview()">
+                  <span class="default-note">Standard: 100%</span>
+                </div>
+                <label><input id="drinkCelebrationRound" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Konfetti und Rundenton bei Rundenzahlung</label>
+                <label><input id="drinkCelebrationSound" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Feierlichen Rundenton abspielen</label>
               </div>
-              <div class="setting-line">
-                <label for="drinkFeedbackDurationSlider">Anzeigedauer: <strong id="drinkFeedbackDurationValue">1400</strong> ms</label>
-                <input id="drinkFeedbackDurationSlider" type="range" min="500" max="3000" step="100" oninput="renderAppearancePreview()">
-                <span class="default-note">Standard: 1400 ms</span>
-              </div>
-              <div class="setting-line">
-                <label for="drinkFeedbackIntensitySlider">Animationsintensität: <strong id="drinkFeedbackIntensityValue">100</strong>%</label>
-                <input id="drinkFeedbackIntensitySlider" type="range" min="0" max="200" step="10" oninput="renderAppearancePreview()">
-                <span class="default-note">Standard: 100%, 0% ist nahezu ohne Bewegung</span>
-              </div>
-              <div class="setting-line">
-                <label for="drinkFeedbackPosition">Position im Personen-Popup</label>
-                <select id="drinkFeedbackPosition" onchange="renderAppearancePreview()">
-                  <option value="below">Unterhalb der Getränkebuttons</option>
-                  <option value="above">Oberhalb der Getränkebuttons</option>
-                </select>
-                <span class="default-note">Test aktiv: echte Kassenansicht zeigt Feedback immer oberhalb</span>
-              </div>
-              <div class="setting-line">
-                <label for="drinkCelebrationMode">Konfetti- und Feier-Effekt</label>
-                <select id="drinkCelebrationMode" onchange="renderAppearancePreview()">
-                  <option value="condition">Nur bei Bedingungen</option>
-                  <option value="always">Immer</option>
-                  <option value="never">Nie</option>
-                </select>
-                <span class="default-note">Standard: nur bei Bedingungen</span>
-              </div>
-              <div class="setting-line">
-                <label for="drinkConfettiIntensitySlider">Konfetti-Intensität: <strong id="drinkConfettiIntensityValue">100</strong>%</label>
-                <input id="drinkConfettiIntensitySlider" type="range" min="0" max="200" step="10" oninput="renderAppearancePreview()">
-                <span class="default-note">Standard: 100%, nur bei Rundenzahlung</span>
-              </div>
-              <label><input id="drinkCelebrationRound" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Bedingung: Runde wurde bezahlt</label>
               <label style="display:none"><input id="drinkCelebrationDebt" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Bedingung: offener Betrag überschreitet Grenzwert</label>
               <div class="setting-line" style="display:none">
                 <label for="drinkCelebrationDebtThreshold">Grenzwert offener Betrag</label>
                 <input id="drinkCelebrationDebtThreshold" type="text" inputmode="decimal" data-decimal-input data-decimal-digits="2" placeholder="50,00" oninput="renderAppearancePreview()">
                 <span class="default-note">Standard: € 50,00</span>
               </div>
-              <label><input id="drinkCelebrationSound" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Feierlichen Ton bei Rundenzahlung abspielen</label>
+              <div class="feedback-settings-block">
+                <h4>Tonvorschau</h4>
+                <div class="feedback-test-buttons">
+                  <button type="button" onclick="previewFeedbackSound('booking')">Buchungston testen</button>
+                  <button type="button" onclick="previewFeedbackSound('round')">Rundenton testen</button>
+                </div>
+              </div>
             </div>
 
             <div class="appearance-actions">
@@ -726,6 +761,8 @@
       show_sync_status: true,
       sync_status_size_percent: 100,
       drink_feedback_enabled: true,
+      drink_booking_sound_enabled: true,
+      drink_booking_sound_preset: 'warm',
       drink_feedback_style: 'strong',
       drink_feedback_duration_ms: 1400,
       drink_feedback_animation_intensity_percent: 100,
@@ -1503,6 +1540,8 @@
       document.getElementById('showSyncStatus').checked = s.show_sync_status !== false;
       document.getElementById('syncStatusSizeSlider').value = Number(s.sync_status_size_percent || 100);
       document.getElementById('drinkFeedbackEnabled').checked = s.drink_feedback_enabled !== false;
+      document.getElementById('drinkBookingSound').checked = s.drink_booking_sound_enabled !== false;
+      document.getElementById('drinkBookingSoundPreset').value = bookingSoundPresetKey(s.drink_booking_sound_preset || 'warm');
       document.getElementById('drinkFeedbackStyle').value = s.drink_feedback_style || 'strong';
       document.getElementById('drinkFeedbackDurationSlider').value = Number(s.drink_feedback_duration_ms || 1400);
       document.getElementById('drinkFeedbackIntensitySlider').value = Number(s.drink_feedback_animation_intensity_percent ?? 100);
@@ -1705,11 +1744,132 @@
       return html;
     }
 
+    const BOOKING_SOUND_PRESETS = {
+      warm: {
+        filter: 1800, q: 0.45, master: 0.045, attack: 0.025, release: 0.34,
+        notes: [[261.63,0.000,'triangle',0.72,0.30],[329.63,0.012,'sine',0.52,0.28],[392.00,0.024,'sine',0.46,0.26]],
+      },
+      soft: {
+        filter: 1650, q: 0.38, master: 0.040, attack: 0.030, release: 0.42,
+        notes: [[349.23,0.000,'sine',0.54,0.35],[440.00,0.018,'sine',0.40,0.33],[523.25,0.036,'triangle',0.28,0.31]],
+      },
+      clear: {
+        filter: 2400, q: 0.5, master: 0.036, attack: 0.020, release: 0.36,
+        notes: [[392.00,0.000,'triangle',0.48,0.28],[493.88,0.026,'sine',0.36,0.26],[587.33,0.052,'sine',0.28,0.24]],
+      },
+      bell: {
+        filter: 3400, q: 0.6, master: 0.030, attack: 0.018, release: 0.58,
+        notes: [[523.25,0.000,'sine',0.40,0.50],[659.25,0.016,'sine',0.28,0.46],[783.99,0.032,'triangle',0.20,0.42],[1046.50,0.060,'sine',0.10,0.34]],
+      },
+      calm: {
+        filter: 1500, q: 0.35, master: 0.043, attack: 0.035, release: 0.46,
+        notes: [[293.66,0.000,'triangle',0.62,0.38],[369.99,0.020,'sine',0.42,0.35],[440.00,0.040,'sine',0.30,0.32]],
+      },
+    };
+
+    function bookingSoundPresetKey(value) {
+      const key = String(value || 'warm').toLowerCase();
+      return BOOKING_SOUND_PRESETS[key] ? key : 'warm';
+    }
+
+    function selectBookingSoundPreset(preset) {
+      const key = bookingSoundPresetKey(preset);
+      document.getElementById('drinkBookingSoundPreset').value = key;
+      document.getElementById('drinkBookingSound').checked = true;
+      renderAppearancePreview();
+      previewFeedbackSound('booking');
+    }
+
+    function updateSoundPresetButtons() {
+      const key = bookingSoundPresetKey(document.getElementById('drinkBookingSoundPreset')?.value || 'warm');
+      document.querySelectorAll('[data-sound-preset]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.soundPreset === key);
+      });
+    }
+
+    let previewAudioCtx = null;
+    function previewAudioContext() {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return null;
+      if (!previewAudioCtx || previewAudioCtx.state === 'closed') previewAudioCtx = new AudioCtx();
+      previewAudioCtx.resume?.();
+      return previewAudioCtx;
+    }
+
+    function playBookingSoundPreset(ctx, presetName, volume = 1) {
+      const preset = BOOKING_SOUND_PRESETS[bookingSoundPresetKey(presetName)];
+      const now = ctx.currentTime;
+      const master = ctx.createGain();
+      const toneFilter = ctx.createBiquadFilter();
+      toneFilter.type = 'lowpass';
+      toneFilter.frequency.setValueAtTime(preset.filter, now);
+      toneFilter.Q.setValueAtTime(preset.q, now);
+      master.gain.setValueAtTime(0.0001, now);
+      master.gain.exponentialRampToValueAtTime(Math.max(0.001, preset.master * volume), now + preset.attack);
+      master.gain.exponentialRampToValueAtTime(0.0001, now + preset.release);
+      toneFilter.connect(master);
+      master.connect(ctx.destination);
+      preset.notes.forEach(([freq, offset, type, level, stop]) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = type;
+        const start = now + offset;
+        osc.frequency.setValueAtTime(freq, start);
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(Math.max(0.0001, level), start + preset.attack);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + stop);
+        osc.connect(gain);
+        gain.connect(toneFilter);
+        osc.start(start);
+        osc.stop(start + stop + 0.04);
+      });
+    }
+
+    function previewFeedbackSound(kind) {
+      try {
+        const ctx = previewAudioContext();
+        if (!ctx) return;
+        if (kind === 'booking') {
+          playBookingSoundPreset(ctx, document.getElementById('drinkBookingSoundPreset')?.value || 'warm');
+          return;
+        }
+        const now = ctx.currentTime;
+        const master = ctx.createGain();
+        const toneFilter = ctx.createBiquadFilter();
+        toneFilter.type = 'lowpass';
+        toneFilter.frequency.setValueAtTime(3600, now);
+        toneFilter.Q.setValueAtTime(0.65, now);
+        master.gain.setValueAtTime(0.0001, now);
+        master.gain.exponentialRampToValueAtTime(0.18, now + 0.014);
+        master.gain.exponentialRampToValueAtTime(0.0001, now + 1.35);
+        toneFilter.connect(master);
+        master.connect(ctx.destination);
+        const notes = [[392,0,0.3,0.12],[523.25,0,0.3,0.12],[659.25,.08,.34,0.12],[783.99,.18,.38,0.12],[1046.5,.34,.42,0.11],[1567.98,.58,.5,0.09]];
+        notes.forEach(([freq, offset, length, level], idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = idx > 2 ? 'triangle' : 'sine';
+          osc.frequency.value = freq;
+          const start = now + offset;
+          gain.gain.setValueAtTime(0.0001, start);
+          gain.gain.exponentialRampToValueAtTime(level, start + 0.012);
+          gain.gain.exponentialRampToValueAtTime(0.0001, start + length);
+          osc.connect(gain);
+          gain.connect(toneFilter);
+          osc.start(start);
+          osc.stop(start + length + 0.02);
+        });
+      } catch (err) {}
+    }
+
     function renderAppearancePreview() {
       const nameSize = Number(document.getElementById('nameSizeSlider').value || 15.5);
       const summarySize = Number(document.getElementById('summarySizeSlider').value || 100);
       const tallySize = Number(document.getElementById('tallySizeSlider').value || 100);
       const roughness = Number(document.getElementById('tallyRoughness').value || 4);
+      const bookingPresetSelect = document.getElementById('drinkBookingSoundPreset');
+      if (bookingPresetSelect) bookingPresetSelect.value = bookingSoundPresetKey(bookingPresetSelect.value || 'warm');
+      updateSoundPresetButtons();
       document.getElementById('nameSizeValue').textContent = numberComma(nameSize, nameSize % 1 ? 1 : 0, nameSize % 1 ? 1 : 0);
       document.getElementById('summarySizeValue').textContent = summarySize;
       document.getElementById('tallySizeValue').textContent = tallySize;
@@ -1783,6 +1943,8 @@
       document.getElementById('showSyncStatus').checked = APPEARANCE_DEFAULTS.show_sync_status;
       document.getElementById('syncStatusSizeSlider').value = APPEARANCE_DEFAULTS.sync_status_size_percent;
       document.getElementById('drinkFeedbackEnabled').checked = APPEARANCE_DEFAULTS.drink_feedback_enabled;
+      document.getElementById('drinkBookingSound').checked = APPEARANCE_DEFAULTS.drink_booking_sound_enabled;
+      document.getElementById('drinkBookingSoundPreset').value = APPEARANCE_DEFAULTS.drink_booking_sound_preset;
       document.getElementById('drinkFeedbackStyle').value = APPEARANCE_DEFAULTS.drink_feedback_style;
       document.getElementById('drinkFeedbackDurationSlider').value = APPEARANCE_DEFAULTS.drink_feedback_duration_ms;
       document.getElementById('drinkFeedbackIntensitySlider').value = APPEARANCE_DEFAULTS.drink_feedback_animation_intensity_percent;
@@ -1814,6 +1976,8 @@
       const show_sync_status = document.getElementById('showSyncStatus').checked;
       const sync_status_size_percent = Number(document.getElementById('syncStatusSizeSlider').value || 100);
       const drink_feedback_enabled = document.getElementById('drinkFeedbackEnabled').checked;
+      const drink_booking_sound_enabled = document.getElementById('drinkBookingSound').checked;
+      const drink_booking_sound_preset = bookingSoundPresetKey(document.getElementById('drinkBookingSoundPreset').value || 'warm');
       const drink_feedback_style = document.getElementById('drinkFeedbackStyle').value || 'strong';
       const drink_feedback_duration_ms = Number(document.getElementById('drinkFeedbackDurationSlider').value || 1400);
       const drink_feedback_animation_intensity_percent = Number(document.getElementById('drinkFeedbackIntensitySlider').value || 100);
@@ -1830,7 +1994,7 @@
       const person_card_border_color = document.getElementById('personBorderColor').value || '#bfdbfe';
       const person_card_border_width_px = Number(document.getElementById('personBorderWidthSlider').value || 2);
       const person_card_gap_px = Number(document.getElementById('personGapSlider').value || 10);
-      try { await apiFetch('/api/admin/settings/update', {pin: adminPin, show_total_on_overview, show_person_popup_total, show_summary_label_on_overview, overview_summary_label_text, overview_summary_size_percent, tally_roughness, overview_name_size_px, tally_size_percent, show_sync_status, sync_status_size_percent, drink_feedback_enabled, drink_feedback_style, drink_feedback_duration_ms, drink_feedback_animation_intensity_percent, drink_feedback_position, drink_celebration_mode, drink_celebration_condition_round, drink_celebration_condition_debt, drink_celebration_debt_threshold_eur, drink_celebration_confetti_intensity_percent, drink_celebration_sound_enabled, enable_delete_requests, app_background_color, person_card_background_color, person_card_border_color, person_card_border_width_px, person_card_gap_px}); showStatus(successText); await loadOverview(); } catch (err) { alert(err.message); }
+      try { await apiFetch('/api/admin/settings/update', {pin: adminPin, show_total_on_overview, show_person_popup_total, show_summary_label_on_overview, overview_summary_label_text, overview_summary_size_percent, tally_roughness, overview_name_size_px, tally_size_percent, show_sync_status, sync_status_size_percent, drink_feedback_enabled, drink_booking_sound_enabled, drink_booking_sound_preset, drink_feedback_style, drink_feedback_duration_ms, drink_feedback_animation_intensity_percent, drink_feedback_position, drink_celebration_mode, drink_celebration_condition_round, drink_celebration_condition_debt, drink_celebration_debt_threshold_eur, drink_celebration_confetti_intensity_percent, drink_celebration_sound_enabled, enable_delete_requests, app_background_color, person_card_background_color, person_card_border_color, person_card_border_width_px, person_card_gap_px}); showStatus(successText); await loadOverview(); } catch (err) { alert(err.message); }
     }
 
     async function saveOverviewSettings() { return saveAppearanceSettings(); }
