@@ -302,10 +302,15 @@
     const SYNC_RECOVERY_DELAY_MS = 1500;
     const SYNC_RECOVERY_RELOAD_AFTER_MS = 45000;
     const SYNC_RECOVERY_RELOAD_COOLDOWN_MS = 4 * 60 * 1000;
+    const OFFLINE_DRINK_QUEUE_KEY = 'drinkPosOfflineDrinkQueue';
+    const OFFLINE_CONFIG_CACHE_KEY = 'drinkPosCachedConfig';
+    const OFFLINE_PEOPLE_CACHE_KEY = 'drinkPosCachedPeople';
     let syncFailureCount = 0;
     let syncOfflineSince = 0;
     let syncRecoveryTimer = null;
     let syncRecoveryRunning = false;
+    let offlineDrinkFlushing = false;
+    let offlineDrinkFlushTimer = null;
 
     function numberComma(value, minimumFractionDigits = 2, maximumFractionDigits = minimumFractionDigits) {
       const n = Number(value || 0);
@@ -318,6 +323,39 @@
     }
     function escapeHtml(value) { return String(value ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;'); }
     function showStatus(text) { const el = document.getElementById('status'); el.textContent = text; el.style.display = 'block'; clearTimeout(window.statusTimer); window.statusTimer = setTimeout(() => { el.style.display = 'none'; }, 2400); }
+
+    function readJsonStorage(key, fallback) {
+      try { return JSON.parse(localStorage.getItem(key) || ''); }
+      catch { return fallback; }
+    }
+
+    function writeJsonStorage(key, value) {
+      localStorage.setItem(key, JSON.stringify(value));
+    }
+
+    function getOfflineDrinkQueue() {
+      const queue = readJsonStorage(OFFLINE_DRINK_QUEUE_KEY, []);
+      return Array.isArray(queue) ? queue : [];
+    }
+
+    function setOfflineDrinkQueue(queue) {
+      writeJsonStorage(OFFLINE_DRINK_QUEUE_KEY, queue.slice(-250));
+    }
+
+    function offlineDrinkQueueCount() {
+      return getOfflineDrinkQueue().length;
+    }
+
+    function syncTextWithOfflineQueue(text) {
+      const count = offlineDrinkQueueCount();
+      if (!count) return text;
+      return `${text} · ${count} offline vorgemerkt`;
+    }
+
+    function makeClientOperationId() {
+      if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+      return `${Date.now()}-${Math.random().toString(16).slice(2)}-${Math.random().toString(16).slice(2)}`;
+    }
 
     function formatSyncTime(value) {
       if (!value) return 'nie';
@@ -434,7 +472,7 @@
       if (!line || !label) return;
       line.classList.toggle('offline', state === 'offline');
       line.classList.toggle('syncing', state === 'syncing');
-      label.textContent = text;
+      label.textContent = syncTextWithOfflineQueue(text);
       applySyncAppearance();
     }
 
@@ -529,6 +567,7 @@
       updateStoredRevision(syncData);
       resetSyncRecovery();
       updateSyncUi('online', `Synchronisiert · letzter Sync: ${formatSyncTime(lastSyncAt)}`);
+      queueOfflineDrinkFlush();
       if (wasOffline) noteClientEvent('CONNECTION_RESTORED', 'Verbindung zum Server wieder erreichbar.');
       else flushClientEvents();
     }
@@ -546,7 +585,12 @@
     async function apiGet(url) {
       let res;
       try { res = await fetch(url, { cache:'no-store' }); }
-      catch { markSyncFailure(); throw new Error('Keine Verbindung zum Server'); }
+      catch {
+        markSyncFailure();
+        const err = new Error('Keine Verbindung zum Server');
+        err.offline = true;
+        throw err;
+      }
       if (!res.ok) { markSyncSuccess(); throw new Error('Serverfehler'); }
       const data = await res.json();
       markSyncSuccess();
@@ -556,7 +600,12 @@
     async function apiPost(url, body) {
       let res;
       try { res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body), cache:'no-store'}); }
-      catch { markSyncFailure(); throw new Error('Keine Verbindung zum Server. Änderung wurde nicht gespeichert.'); }
+      catch {
+        markSyncFailure();
+        const err = new Error('Keine Verbindung zum Server. Änderung wurde vorgemerkt, falls möglich.');
+        err.offline = true;
+        throw err;
+      }
       if (!res.ok) { markSyncSuccess(); const err = await res.json().catch(()=>({})); throw new Error(err.detail || 'Unbekannter Fehler'); }
       const data = await res.json();
       markSyncSuccess();
@@ -599,8 +648,7 @@
       }
     }
 
-    async function loadConfig() {
-      const cfg = await apiGet('/api/config');
+    function applyConfig(cfg) {
       items = cfg.items || [];
       userItems = cfg.user_items || cfg.drinks || [];
       debugEnabled = cfg.debug_enabled !== false;
@@ -647,16 +695,209 @@
       renderPeople();
     }
 
+    async function loadConfig() {
+      const cfg = await apiGet('/api/config');
+      writeJsonStorage(OFFLINE_CONFIG_CACHE_KEY, cfg);
+      applyConfig(cfg);
+    }
+
     async function loadPeople(force = false) {
       if (!force && document.getElementById('personDialog')?.open) return;
       try {
-        people = await apiGet('/api/people');
+        const serverPeople = await apiGet('/api/people');
+        writeJsonStorage(OFFLINE_PEOPLE_CACHE_KEY, serverPeople);
+        people = serverPeople;
+        applyOfflineQueueToPeople();
         renderPeople();
         if (currentPerson) {
           const updated = people.find(p => p.id === currentPerson.id);
           if (updated) { currentPerson = updated; updateDialogInfo(); }
         }
       } catch (err) { showStatus('Verbindung zum Server fehlgeschlagen'); }
+    }
+
+    function restoreCachedState() {
+      const cachedConfig = readJsonStorage(OFFLINE_CONFIG_CACHE_KEY, null);
+      const cachedPeople = readJsonStorage(OFFLINE_PEOPLE_CACHE_KEY, null);
+      if (!cachedConfig || !Array.isArray(cachedPeople)) return false;
+      applyConfig(cachedConfig);
+      people = cachedPeople;
+      applyOfflineQueueToPeople();
+      renderPeople();
+      if (currentPerson) {
+        const updated = people.find(p => p.id === currentPerson.id);
+        if (updated) { currentPerson = updated; updateDialogInfo(); }
+      }
+      return true;
+    }
+
+    function offlineQueueEligible(itemId, itemName) {
+      if (adminMode) return false;
+      if (itemName === '1 Runde') return false;
+      const item = (userItems || []).find(entry => Number(entry.id) === Number(itemId));
+      return Boolean(item && item.can_user_add !== false && !item.admin_only);
+    }
+
+    function offlineDrinkEntry(person, itemId, itemName, itemPrice, clientOperationId = null) {
+      const item = (items || []).find(entry => Number(entry.id) === Number(itemId)) || {};
+      return {
+        client_operation_id: clientOperationId || makeClientOperationId(),
+        person_id: Number(person.id),
+        person_name: person.name,
+        item_id: Number(itemId),
+        item_name: itemName,
+        item_short_label: item.short_label || itemName,
+        item_price: Number(itemPrice || item.price || 0),
+        sort_order: Number(item.sort_order ?? 100),
+        client_time: new Date().toISOString(),
+        device_info: deviceInfoForLog(),
+      };
+    }
+
+    function queueOfflineDrink(entry) {
+      const queue = getOfflineDrinkQueue();
+      queue.push(entry);
+      setOfflineDrinkQueue(queue);
+      updateSyncUi('offline', `Nicht synchronisiert · letzter Sync: ${formatSyncTime(lastSyncAt)}`);
+      return entry;
+    }
+
+    function bumpSummaryLines(lines, entry) {
+      if (!Array.isArray(lines)) return;
+      const existing = lines.find(line => Number(line.item_id) === Number(entry.item_id));
+      if (existing) {
+        existing.quantity = Number(existing.quantity || 0) + 1;
+        return;
+      }
+      lines.push({
+        item_id: entry.item_id,
+        name: entry.item_name,
+        short_label: entry.item_short_label,
+        quantity: 1,
+        sort_order: entry.sort_order,
+        offline_pending: true,
+      });
+      lines.sort((a, b) => Number(a.sort_order ?? 9999) - Number(b.sort_order ?? 9999));
+    }
+
+    function applyOfflineDrinkOptimistic(entry) {
+      const person = people.find(p => Number(p.id) === Number(entry.person_id));
+      if (!person) return;
+      person.total = Math.round((Number(person.total || 0) + Number(entry.item_price || 0)) * 100) / 100;
+      person.counts = person.counts || {};
+      person.counts[String(entry.item_id)] = Number(person.counts[String(entry.item_id)] || 0) + 1;
+      person.counts[entry.item_short_label] = Number(person.counts[entry.item_short_label] || 0) + 1;
+      person.summary_lines = Array.isArray(person.summary_lines) ? person.summary_lines : [];
+      person.event_summary_lines = Array.isArray(person.event_summary_lines) ? person.event_summary_lines : [];
+      bumpSummaryLines(person.summary_lines, entry);
+      bumpSummaryLines(person.event_summary_lines, entry);
+      person.lines = Array.isArray(person.lines) ? person.lines : [];
+      const existingLine = person.lines.find(line => Number(line.item_id) === Number(entry.item_id) && line.offline_pending);
+      if (existingLine) {
+        existingLine.quantity = Number(existingLine.quantity || 0) + 1;
+        existingLine.subtotal = Math.round(Number(existingLine.quantity || 0) * Number(entry.item_price || 0) * 100) / 100;
+      } else {
+        person.lines.push({
+          line_id: `offline:${entry.client_operation_id}`,
+          item_id: entry.item_id,
+          name: entry.item_name,
+          short_label: entry.item_short_label,
+          quantity: 1,
+          price: entry.item_price,
+          unit_price_eur: entry.item_price,
+          subtotal: entry.item_price,
+          can_user_request_delete: false,
+          event_open: true,
+          offline_pending: true,
+        });
+      }
+      if (currentPerson && Number(currentPerson.id) === Number(entry.person_id)) {
+        currentPerson = person;
+        updateDialogInfo();
+      }
+      renderPeople();
+    }
+
+    function applyOfflineQueueToPeople() {
+      for (const entry of getOfflineDrinkQueue()) applyOfflineDrinkOptimistic(entry);
+    }
+
+    function queueOfflineDrinkFlush(delay = 300) {
+      if (offlineDrinkFlushTimer || offlineDrinkFlushing || !offlineDrinkQueueCount()) return;
+      offlineDrinkFlushTimer = window.setTimeout(() => {
+        offlineDrinkFlushTimer = null;
+        flushOfflineDrinkQueue();
+      }, delay);
+    }
+
+    async function postQueuedDrink(entry) {
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timer = controller ? window.setTimeout(() => controller.abort(), 8000) : null;
+      try {
+        return await fetch('/api/add-drink', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            person_id: entry.person_id,
+            item_id: entry.item_id,
+            client_operation_id: entry.client_operation_id,
+            client_time: entry.client_time,
+            device_info: entry.device_info,
+            offline_queued: true,
+          }),
+          cache:'no-store',
+          signal: controller?.signal,
+        });
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+    }
+
+    async function flushOfflineDrinkQueue() {
+      if (offlineDrinkFlushing || !navigator.onLine) return false;
+      let queue = getOfflineDrinkQueue();
+      if (!queue.length) return true;
+      offlineDrinkFlushing = true;
+      updateSyncUi('syncing', `Synchronisiere Offline-Buchungen… letzter Sync: ${formatSyncTime(lastSyncAt)}`);
+      let synced = 0;
+      let dropped = 0;
+      try {
+        while (queue.length) {
+          let res;
+          try { res = await postQueuedDrink(queue[0]); }
+          catch { markSyncFailure(); break; }
+          if (res.ok) {
+            const data = await res.json().catch(() => null);
+            updateStoredRevision(data);
+            queue = queue.slice(1);
+            setOfflineDrinkQueue(queue);
+            synced += 1;
+            continue;
+          }
+          if ([400, 403, 404].includes(res.status)) {
+            queue = queue.slice(1);
+            setOfflineDrinkQueue(queue);
+            dropped += 1;
+            continue;
+          }
+          markSyncFailure();
+          break;
+        }
+      } finally {
+        offlineDrinkFlushing = false;
+      }
+      if (synced || dropped) {
+        await loadPeople(true);
+        if (!queue.length) {
+          currentSyncState = 'online';
+          lastSyncAt = new Date().toISOString();
+          localStorage.setItem('drinkPosLastSyncAt', lastSyncAt);
+        }
+        updateSyncUi(queue.length ? 'offline' : 'online', queue.length ? `Nicht synchronisiert · letzter Sync: ${formatSyncTime(lastSyncAt)}` : `Synchronisiert · letzter Sync: ${formatSyncTime(lastSyncAt)}`);
+        if (synced) showStatus(`${synced} Offline-Buchung${synced === 1 ? '' : 'en'} synchronisiert`);
+        if (dropped) showStatus(`${dropped} Offline-Buchung${dropped === 1 ? '' : 'en'} verworfen`);
+      }
+      return queue.length === 0;
     }
 
 
@@ -1392,20 +1633,32 @@
     async function addItem(itemId, itemName, button = null, itemPrice = 0) {
       if (!currentPerson) return;
       if (button?.disabled) return;
+      const totalAfter = Number(currentPerson.total || 0) + Number(itemPrice || 0);
+      const isRoundItem = itemName === '1 Runde';
+      const clientOperationId = makeClientOperationId();
+      const clientTime = new Date().toISOString();
       if (button) {
         button.disabled = true;
         button.classList.add('is-writing');
       }
       try {
-        const totalAfter = Number(currentPerson.total || 0) + Number(itemPrice || 0);
-        const isRoundItem = itemName === '1 Runde';
         if (!isRoundItem) primeBookingAudio();
         if (celebrationShouldRun({ totalAfter, isRoundPayment: false })) primeCelebrationAudio();
-        await apiPost('/api/add-drink', { person_id: currentPerson.id, item_id: itemId, pin: adminMode ? adminPin : null });
+        await apiPost('/api/add-drink', { person_id: currentPerson.id, item_id: itemId, pin: adminMode ? adminPin : null, client_operation_id: clientOperationId, client_time: clientTime, device_info: deviceInfoForLog() });
         if (!isRoundItem) playBookingTone(itemName);
         showDrinkWrittenFeedback(button, itemName, { totalAfter, isRoundPayment: false });
         await loadPeople(true);
       } catch (err) {
+        if (err.offline && offlineQueueEligible(itemId, itemName)) {
+          const entry = queueOfflineDrink(offlineDrinkEntry(currentPerson, itemId, itemName, itemPrice, clientOperationId));
+          entry.client_time = clientTime;
+          applyOfflineDrinkOptimistic(entry);
+          if (!isRoundItem) playBookingTone(itemName);
+          showDrinkWrittenFeedback(button, itemName, { totalAfter, isRoundPayment: false });
+          showStatus(`${itemName} offline vorgemerkt`);
+          if (button) button.classList.remove('is-writing');
+          return;
+        }
         if (button) button.classList.remove('is-writing');
         alert(err.message);
       } finally {
@@ -1686,8 +1939,10 @@
         await loadConfig();
         await loadPeople(true);
         await checkSyncStatus({ resyncOnChange:false });
+        queueOfflineDrinkFlush();
       } catch {
         markSyncFailure();
+        if (restoreCachedState()) showStatus('Offline-Modus: Getränkebuchungen werden vorgemerkt');
       }
       if (adminPin) {
         try { const data = await apiPost('/api/admin-login', { pin: adminPin }); adminMode = true; debugEnabled = data.debug_enabled !== false; environment = data.environment || environment; updateAdminUi(); } catch { adminPin = null; sessionStorage.removeItem('drinkPosAdminPin'); }
@@ -1706,7 +1961,7 @@
         await registration?.update?.().catch(() => {});
       });
     }
-    window.addEventListener('offline', () => { markSyncFailure(); showStatus('Offline: Änderungen sind erst wieder online möglich.'); });
+    window.addEventListener('offline', () => { markSyncFailure(); showStatus('Offline: Getränkebuchungen werden vorgemerkt.'); });
     window.addEventListener('online', () => { showStatus('Wieder online. Synchronisiere…'); resyncNow(); });
     document.getElementById('personDialog')?.addEventListener('cancel', event => { event.preventDefault(); closeDialog(); });
     document.addEventListener('visibilitychange', () => { if (!document.hidden) checkSyncStatus({ resyncOnChange:true }); });

@@ -499,6 +499,20 @@ def init_db():
 
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS client_operations (
+                client_operation_id TEXT PRIMARY KEY,
+                endpoint TEXT NOT NULL,
+                transaction_id INTEGER,
+                client_time TEXT,
+                device_info TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY(transaction_id) REFERENCES transactions(id)
+            )
+            """
+        )
+
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS transaction_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 transaction_id INTEGER NOT NULL,
@@ -896,6 +910,10 @@ class AddDrinkRequest(BaseModel):
     item_id: int | None = None
     drink: str | None = None
     pin: str | None = None
+    client_operation_id: str | None = None
+    client_time: str | None = None
+    device_info: str | None = None
+    offline_queued: bool = False
 
 
 class EditRequestIn(BaseModel):
@@ -1481,6 +1499,13 @@ def connection_event_label(event_type: str) -> str:
     return labels.get(event_type, event_type)
 
 
+def normalize_client_operation_id(value: str | None) -> str | None:
+    if not value:
+        return None
+    clean = re.sub(r"[^A-Za-z0-9_.:-]", "", value.strip())[:80]
+    return clean or None
+
+
 # ---------------------------------------------------------------------------
 # Static pages + public APIs
 # ---------------------------------------------------------------------------
@@ -1644,14 +1669,52 @@ def add_drink(req: AddDrinkRequest):
             if not req.pin:
                 raise HTTPException(status_code=403, detail="Dieser Artikel darf nur vom Admin hinzugefügt werden")
             require_pin(conn, req.pin)
+        client_operation_id = normalize_client_operation_id(req.client_operation_id)
+        if client_operation_id:
+            existing_operation = conn.execute(
+                "SELECT transaction_id FROM client_operations WHERE client_operation_id = ?",
+                (client_operation_id,),
+            ).fetchone()
+            if existing_operation:
+                return {"status": "ok", "duplicate": True, "transaction_id": existing_operation["transaction_id"], **get_sync_state(conn)}
+            try:
+                conn.execute(
+                    """
+                    INSERT INTO client_operations (
+                        client_operation_id, endpoint, client_time, device_info, created_at
+                    ) VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        client_operation_id,
+                        "/api/add-drink",
+                        (req.client_time or "")[:80] or None,
+                        (req.device_info or "")[:160] or None,
+                        now_text(),
+                    ),
+                )
+            except sqlite3.IntegrityError:
+                existing_operation = conn.execute(
+                    "SELECT transaction_id FROM client_operations WHERE client_operation_id = ?",
+                    (client_operation_id,),
+                ).fetchone()
+                return {"status": "ok", "duplicate": True, "transaction_id": existing_operation["transaction_id"] if existing_operation else None, **get_sync_state(conn)}
 
         add_order_line(conn, person["id"], item, 1)
+        detail_parts = [f"+1x {item['name']} à {eur_text(item['price_eur'])}"]
+        if client_operation_id and req.offline_queued:
+            detail_parts.append("offline/Client-Queue")
+        if req.client_time:
+            detail_parts.append(f"Client-Zeit: {req.client_time[:40]}")
+        if req.device_info:
+            safe_device = re.sub(r"[^A-Za-z0-9_.,:/() -]", "", req.device_info).strip()[:100]
+            if safe_device:
+                detail_parts.append(f"Geraet: {safe_device}")
         tx_id = log_transaction(
             conn,
             person["id"],
             "CONSUME",
             float(item["price_eur"]),
-            f"+1x {item['name']} à {eur_text(item['price_eur'])}",
+            " · ".join(detail_parts),
         )
         log_transaction_item(conn, tx_id, person["id"], {
             "item_id": item["id"],
@@ -1660,8 +1723,13 @@ def add_drink(req: AddDrinkRequest):
             "unit_price_eur": item["price_eur"],
             "unit_purchase_price_eur": item["purchase_price_eur"] if "purchase_price_eur" in item.keys() else 0,
         }, 1, "CONSUME")
+        if client_operation_id:
+            conn.execute(
+                "UPDATE client_operations SET transaction_id = ? WHERE client_operation_id = ?",
+                (tx_id, client_operation_id),
+            )
         conn.commit()
-    return {"status": "ok"}
+        return {"status": "ok", "transaction_id": tx_id, **get_sync_state(conn)}
 
 
 @app.post("/api/edit-request")

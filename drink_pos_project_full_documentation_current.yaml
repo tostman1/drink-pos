@@ -114,11 +114,11 @@ pwa_and_app_feeling:
     file: "app/service-worker.js"
     role: "Shell-Caching statischer Dateien"
     cache_version_rule: "Nach UI-Änderungen CACHE_NAME erhöhen."
-    current_expected_cache_name: "drink-pos-shell-v64"
+    current_expected_cache_name: "drink-pos-shell-v65"
   offline_policy:
     read_shell_offline: "statische App-Shell kann aus Cache kommen"
-    write_offline: false
-    reason: "Gemeinsames Kassenbuch; Offline-Schreibzugriffe würden Konflikte erzeugen."
+    write_offline: "nur normale Getraenkebuchungen"
+    reason: "Normale Getraenkebuchungen sind additiv und koennen lokal vorgemerkt werden; Kassensturz, Zahlung, Runden und Admin-Aktionen bleiben online-only."
 
 sync_and_connectivity:
   concept: >-
@@ -146,6 +146,18 @@ sync_and_connectivity:
         - "Kein Auto-Reload bei geoeffnetem Personen-/Aktionsdialog in der Kasse."
         - "Kein Auto-Reload waehrend Eingabefelder in der Adminseite aktiv sind."
         - "Reload-Cooldown vier Minuten gegen Schleifen."
+    offline_drink_queue:
+      scope: "nur normale Benutzer-Getraenkebuchungen aus der Kassenansicht"
+      storage: "localStorage Queue plus letzter erfolgreicher Config-/Personen-Cache"
+      sync: "chronologisch nach /api/add-drink senden, sobald Verbindung wieder da ist"
+      idempotency: "client_operation_id verhindert Doppelbuchungen bei verlorenen Antworten"
+      ui: "Sync-Feld zeigt wartende Offline-Buchungen; Personensumme und Strichliste werden lokal optimistisch erhoeht"
+      excluded:
+        - "Rundenzahlung"
+        - "Barzahlung"
+        - "Kassensturz"
+        - "Loeschanfragen"
+        - "Admin-Korrekturen und Einstellungen"
   settings:
     show_sync_status:
       type: "boolean as TEXT '1'/'0'"
@@ -526,6 +538,15 @@ sqlite_schema:
         - "CLIENT_OFFLINE"
         - "CLIENT_ONLINE"
         - "CLIENT_SYNCED"
+    client_operations:
+      purpose: "Idempotenz fuer nachtraeglich synchronisierte Offline-Getraenkebuchungen"
+      columns:
+        client_operation_id: {type: "TEXT", constraints: "PRIMARY KEY"}
+        endpoint: {type: "TEXT", constraints: "NOT NULL"}
+        transaction_id: {type: "INTEGER", constraints: "nullable REFERENCES transactions(id)"}
+        client_time: {type: "TEXT", constraints: "nullable"}
+        device_info: {type: "TEXT", constraints: "nullable"}
+        created_at: {type: "TEXT", constraints: "NOT NULL"}
     transaction_items:
       purpose: "Mengen-/Preisdetails für Auswertungen"
       columns:
@@ -617,7 +638,7 @@ api:
 pydantic_models:
   PinRequest: {fields: {pin: "str"}}
   CashupRequest: {fields: {pin: "str"}}
-  AddDrinkRequest: {fields: {person_id: "int", item_id: "int|null", drink: "str|null compatibility", pin: "str|null for admin_only"}}
+  AddDrinkRequest: {fields: {person_id: "int", item_id: "int|null", drink: "str|null compatibility", pin: "str|null for admin_only", client_operation_id: "str|null idempotency", client_time: "str|null", device_info: "str|null", offline_queued: "bool"}}
   EditRequestIn: {fields: {person_id: "int", line_quantities: "dict|null", changes: "legacy|null", reason: "str|null"}}
   RoundRequestIn: {fields: {person_id: "int", quantity: "int default 1", reason: "str|null"}}
   PayRequest: {fields: {pin: "str", person_id: "int"}}
@@ -915,7 +936,7 @@ known_open_point_from_latest_conversation:
     - "Admin-Vorschau nutzt realistische Fake-Person mit Getränken, Runde, Löschmenü und optional Adminmodus."
 
 current_update_2026_05_05:
-  cache_name: "drink-pos-shell-v64"
+  cache_name: "drink-pos-shell-v65"
   branch_note: "Im aktuellen Projektordner existiert kein .git Repository; Aenderungen wurden direkt im Projektordner umgesetzt."
   round_flow:
     current_behavior:
