@@ -18,6 +18,7 @@ IMPORTANT_TABLES = [
     "change_requests",
     "round_requests",
     "transactions",
+    "client_operations",
     "transaction_items",
     "round_events",
 ]

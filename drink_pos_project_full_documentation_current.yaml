@@ -9,7 +9,8 @@ project:
     Benutzer buchen Getraenke und bestaetigen bezahlte Runden; Admins verwalten Personen,
     Artikel, Preise, Korrekturen, Zahlungen, Kassensturz, Statistik, Verlauf, Berichte und Exporte.
   non_goal: >-
-    Kein öffentliches Internetprodukt, keine mandantenfähige SaaS-App, keine Offline-Schreiblogik.
+    Kein öffentliches Internetprodukt, keine mandantenfähige SaaS-App, keine vollwertige Offline-Kasse.
+    Nur normale Getränkebuchungen werden lokal vorgemerkt und später synchronisiert.
   core_principles:
     - "Accounting/Audit hat Vorrang vor optischer Einfachheit."
     - "Transaktionsverlauf bleibt unveränderlich; Korrekturen werden als neue Transaktionen geschrieben."
@@ -19,7 +20,7 @@ project:
     - "'1 Runde' ist ein Systemartikel, kein normaler Getränkeartikel."
     - "Aktuelle Strichliste und offene Gesamtrechnung sind getrennte Konzepte."
     - "Kassensturz beendet nur die aktuelle Strichliste/event_open, nicht offene Schulden."
-    - "Offline-Buchungen sind absichtlich nicht vorgesehen, weil Konflikte im gemeinsamen Kassenbuch entstehen würden."
+    - "Offline-Schreiblogik ist bewusst auf normale Getränkebuchungen begrenzt; Runden, Korrekturen, Zahlungen und Adminaktionen bleiben online-only."
 
 source_layout:
   backend:
@@ -170,9 +171,9 @@ sync_and_connectivity:
       purpose: "Größe der Sync-Anzeige"
   logging:
     events:
-      - "CLIENT_OFFLINE / Verbindung verloren"
-      - "CLIENT_ONLINE / Verbindung aufgenommen"
-      - "CLIENT_SYNCED / Synchronisiert"
+      - "CONNECTION_LOST / Verbindung verloren"
+      - "CONNECTION_RESTORED / Verbindung aufgenommen"
+      - "SYNC_COMPLETED / Synchronisiert"
     production: "keine Verlaufseinträge; Server bestätigt Events, schreibt aber nicht in transactions"
     development: "Ereignisse werden in transactions geloggt"
     anti_spam: "nur bei Statuswechsel oder echter Synchronisation; nicht bei jedem Heartbeat"
@@ -368,7 +369,7 @@ settings:
       type: "integer"
       default: 100
       range: "0..200"
-      purpose: "Animationsintensitaet des Feedbacks, Button-Impuls und Konfetti-Menge"
+      purpose: "Animationsintensitaet des Buchungsfeedbacks und Button-Impulses"
     drink_feedback_position:
       type: "enum"
       values: ["above", "below"]
@@ -378,7 +379,7 @@ settings:
       type: "enum"
       values: ["always", "condition", "never"]
       default: "condition"
-      purpose: "Konfetti-/Feier-Effekt nach Buchung ausloesen"
+      purpose: "Konfetti-/Feier-Effekt fuer Rundenzahlungen steuern"
     drink_celebration_condition_round:
       type: "boolean"
       default: true
@@ -386,11 +387,16 @@ settings:
     drink_celebration_condition_debt:
       type: "boolean"
       default: true
-      purpose: "Konfetti bei Ueberschreiten des offenen Grenzwerts ausloesen"
+      purpose: "Legacy/ausgeblendet; aktuell nicht wirksam, weil der Feier-Effekt bewusst nur bei Rundenzahlung laeuft"
     drink_celebration_debt_threshold_eur:
       type: "decimal string"
       default: "50.00"
-      purpose: "Grenzwert fuer offenen Betrag, ab dem Konfetti ausgeloest wird"
+      purpose: "Legacy/ausgeblendet; fuer eine moegliche spaetere Schulden-Grenzwert-Condition gespeichert"
+    drink_celebration_confetti_intensity_percent:
+      type: "integer"
+      default: 100
+      range: "0..200"
+      purpose: "Radius/Menge des Konfettis rund um das Personen-Popup"
     drink_celebration_sound_enabled:
       type: "boolean"
       default: true
@@ -494,7 +500,7 @@ sqlite_schema:
         requested_at: {type: "TEXT", constraints: "NOT NULL"}
         decided_at: {type: "TEXT", constraints: "nullable"}
     round_requests:
-      purpose: "Anfragen für Systemartikel '1 Runde'"
+      purpose: "Audit-/Kompatibilitätstabelle für bezahlte Runden; neue Runden werden sofort APPROVED geschrieben"
       statuses: ["PENDING", "APPROVED", "REJECTED"]
       columns:
         id: {type: "INTEGER", constraints: "PRIMARY KEY AUTOINCREMENT"}
@@ -535,9 +541,9 @@ sqlite_schema:
         - "ITEM_UPDATED"
         - "ITEM_DELETED"
         - "SETTINGS_UPDATED"
-        - "CLIENT_OFFLINE"
-        - "CLIENT_ONLINE"
-        - "CLIENT_SYNCED"
+        - "CONNECTION_LOST"
+        - "CONNECTION_RESTORED"
+        - "SYNC_COMPLETED"
     client_operations:
       purpose: "Idempotenz fuer nachtraeglich synchronisierte Offline-Getraenkebuchungen"
       columns:
@@ -597,14 +603,14 @@ api:
     - {method: "POST", path: "/api/client-event", purpose: "Online/offline/sync Ereignisse; Logging nur DevMode"}
     - {method: "GET", path: "/api/config", returns: "Settings, app info, items/user_items"}
     - {method: "GET", path: "/api/people", returns: "aktive Personen mit offenen Posten, Summen, Strichliste, pending requests"}
-    - {method: "POST", path: "/api/add-drink", body: "AddDrinkRequest", purpose: "Konsum buchen"}
+    - {method: "POST", path: "/api/add-drink", body: "AddDrinkRequest", purpose: "Konsum buchen; optional idempotente Offline-Nachsynchronisierung ueber client_operation_id"}
     - {method: "POST", path: "/api/edit-request", body: "EditRequestIn", purpose: "Löschanfrage stellen"}
-    - {method: "POST", path: "/api/round-request", body: "RoundRequestIn", purpose: "Rundenanfrage stellen"}
+    - {method: "POST", path: "/api/round-request", body: "RoundRequestIn", purpose: "Runde zahlen; wird sofort als APPROVED protokolliert und gebucht"}
   admin_routes:
     - {method: "POST", path: "/api/admin-login", body: "PinRequest", purpose: "PIN prüfen"}
     - {method: "POST", path: "/api/admin/overview", body: "PinRequest", purpose: "Admin-Dashboard-Daten"}
     - {method: "POST", path: "/api/admin/change-request/decide", body: "AdminChangeRequestDecision", purpose: "Löschanfrage entscheiden"}
-    - {method: "POST", path: "/api/admin/round-request/decide", body: "AdminRoundRequestDecision", purpose: "Rundenanfrage entscheiden"}
+    - {method: "POST", path: "/api/admin/round-request/decide", body: "AdminRoundRequestDecision", purpose: "Legacy-/Adminentscheidung alter Rundenanfragen; neue Runden brauchen keine Genehmigung"}
     - {method: "POST", path: "/api/pay", body: "PayRequest", purpose: "Barzahlung buchen"}
     - {method: "POST", path: "/api/admin/adjust-drink", body: "AdminAdjustItemRequest", purpose: "Admin +1/-1 Korrektur"}
     - {method: "POST", path: "/api/admin/add-round-item", body: "PinRequest/person", purpose: "Admin bucht Runde direkt"}
@@ -641,15 +647,15 @@ pydantic_models:
   AddDrinkRequest: {fields: {person_id: "int", item_id: "int|null", drink: "str|null compatibility", pin: "str|null for admin_only", client_operation_id: "str|null idempotency", client_time: "str|null", device_info: "str|null", offline_queued: "bool"}}
   EditRequestIn: {fields: {person_id: "int", line_quantities: "dict|null", changes: "legacy|null", reason: "str|null"}}
   RoundRequestIn: {fields: {person_id: "int", quantity: "int default 1", reason: "str|null"}}
-  PayRequest: {fields: {pin: "str", person_id: "int"}}
-  AdminAdjustItemRequest: {fields: {pin: "str", person_id: "int", item_id: "int", delta: "int"}}
-  AdminChangeRequestDecision: {fields: {pin: "str", request_id: "int", approve: "bool"}}
-  AdminRoundRequestDecision: {fields: {pin: "str", request_id: "int", approve: "bool"}}
-  AdminPersonCreate: {fields: {pin: "str", first_name: "str", last_name: "str", active: "bool"}}
-  AdminPersonUpdate: {fields: {pin: "str", person_id: "int", first_name: "str|null", last_name: "str|null", active: "bool|null"}}
+  PayRequest: {fields: {person_id: "int", pin: "str", approve_request_ids: "list[int]", reject_request_ids: "list[int]", approve_pending: "bool legacy", reject_pending: "bool legacy"}}
+  AdminAdjustItemRequest: {fields: {person_id: "int", pin: "str", delta: "int", item_id: "int|null", drink: "str|null compatibility"}}
+  AdminChangeRequestDecision: {fields: {pin: "str", request_id: "int", decision: "approve|reject|APPROVED|REJECTED"}}
+  AdminRoundRequestDecision: {fields: {pin: "str", request_id: "int", decision: "approve|reject|APPROVED|REJECTED"}}
+  AdminPersonCreate: {fields: {pin: "str", first_name: "str|null", last_name: "str|null", name: "str|null compatibility"}}
+  AdminPersonUpdate: {fields: {pin: "str", person_id: "int", first_name: "str|null", last_name: "str|null", name: "str|null compatibility", active: "bool"}}
   AdminPersonDelete: {fields: {pin: "str", person_id: "int"}}
-  AdminItemCreate: {fields: {pin: "str", name: "str", short_label: "str", price_eur: "float|str", purchase_price_eur: "float|str", active: "bool", admin_only: "bool", sort_order: "int"}}
-  AdminItemUpdate: {fields: {pin: "str", item_id: "int", name: "str|null", short_label: "str|null", price_eur: "float|str|null", purchase_price_eur: "float|str|null", active: "bool|null", admin_only: "bool|null", sort_order: "int|null"}}
+  AdminItemCreate: {fields: {pin: "str", name: "str", short_label: "str|null", price: "float|str", purchase_price: "float|str", purchase_price_eur: "float|str|null", active: "bool", admin_only: "bool", sort_order: "int|null"}}
+  AdminItemUpdate: {fields: {pin: "str", item_id: "int|null", old_name: "str|null", name: "str", short_label: "str|null", price: "float|str", purchase_price: "float|str", purchase_price_eur: "float|str|null", active: "bool", admin_only: "bool", sort_order: "int"}}
   AdminItemDelete: {fields: {pin: "str", item_id: "int"}}
   SettingsUpdateRequest:
     fields:
@@ -679,15 +685,16 @@ pydantic_models:
       drink_celebration_condition_round: "bool|null"
       drink_celebration_condition_debt: "bool|null"
       drink_celebration_debt_threshold_eur: "float|str|null"
+      drink_celebration_confetti_intensity_percent: "int|null"
       drink_celebration_sound_enabled: "bool|null"
       app_background_color: "str|null"
       person_card_background_color: "str|null"
       person_card_border_color: "str|null"
       person_card_border_width_px: "int|null"
       person_card_gap_px: "int|null"
-  ClientEventRequest: {fields: {event_type: "str", page: "str|null", client_time: "str|null", last_sync_at: "str|null", device_info: "str|null", details: "str|null"}}
-  TransactionFilterRequest: {fields: {pin: "str", query: "str|null", type: "str|null legacy", types: "list[str]|null", date_from: "str|null", date_to: "str|null", limit: "int"}}
-  ReportRequest: {fields: {pin: "str", report_type: "str", group_by: "str", date_from: "str|null", date_to: "str|null", include_zero: "bool|null"}}
+  ClientEventRequest: {fields: {event_type: "CONNECTION_LOST|CONNECTION_RESTORED|SYNC_COMPLETED", page: "str|null", client_time: "str|null", last_sync_at: "str|null", device_info: "str|null", details: "str|null"}}
+  TransactionFilterRequest: {fields: {pin: "str", name: "str|null", person_id: "int|null", action_type: "str|null legacy", action_types: "list[str]|null", excluded_action_types: "list[str]|null", date_from: "str|null", date_to: "str|null", limit: "int"}}
+  ReportRequest: {fields: {pin: "str", report_type: "str", group_by: "str", date_from: "str|null", date_to: "str|null"}}
 
 frontend_cashier_index:
   header:
@@ -757,6 +764,8 @@ frontend_cashier_index:
   sync_indicator:
     position: "bottom-right"
     hidden_by_setting: "show_sync_status=false"
+    offline_queue_badge: "zeigt Anzahl lokal vorgemerkter Getraenkebuchungen im Sync-Text"
+    manual_refresh: "Button loest resyncNow aus und synchronisiert auch wartende Offline-Buchungen"
 
 frontend_admin_html:
   tabs:
@@ -767,10 +776,10 @@ frontend_admin_html:
     history: "Transaktionsverlauf filtern"
     exports_reports: "Berichte und CSV"
   settings_live_preview:
-    current_issue: >-
-      Popup-Vorschau wirkt noch nicht realistisch genug, weil sie zu stark separat/fake gebaut ist.
-      Bessere Architektur: echte Dialog-/Renderfunktion mit Fake-Daten im Preview-Modus wiederverwenden.
-    desired_solution:
+    limitation: >-
+      Die Vorschau ist optisch an die echte Kassenansicht angenähert, nutzt aber noch eine eigene
+      Preview-Struktur statt dieselbe Dialog-Renderfunktion wie index.html.
+    possible_future_solution:
       - "gemeinsame Renderfunktion für echtes Popup und Admin-Vorschau"
       - "Preview-Modus deaktiviert API-Aktionen"
       - "mehrere Preview-Szenarien: normal, admin, viele Getränke, Löschmenü offen, ohne Popup-Gesamtsumme"
@@ -826,14 +835,20 @@ testing_checklist:
     - "Kurzlabel/Preis/EK ändern; alte offene Posten müssen Snapshots behalten."
     - "Artikel deaktivieren/archivieren; offene Posten bleiben zahlbar."
     - "Löschanfrage aktiv/deaktiviert testen, inkl. serverseitiger Sperre."
-    - "Rundenanfrage genehmigen/ablehnen."
+    - "Runde zahlen: /api/round-request bucht sofort APPROVED und offenen Systemartikel."
     - "Kassensturz: event_open=0, offene Beträge bleiben."
     - "Runde abziehen: nur aktuelle event_open normale Artikel."
     - "Barzahlung: alle offenen Posten quantity=0, PAID_CASH geschrieben."
+    - "Offline-Getraenkebuchung mit client_operation_id zweimal senden; Menge darf nur einmal steigen."
+    - "client_operations muss transaction_id der ersten erfolgreichen Buchung speichern."
     - "History types Mehrfachfilter inkl. alle abwählen."
   frontend_scenarios:
     - "PWA installieren auf iPad/iOS und Android."
     - "Sync-Anzeige offline/online simulieren."
+    - "Kasse offline starten mit Cache; normale Getraenkebuchung vormerken und im Sync-Feld zaehlen."
+    - "Wieder online: Offline-Queue wird chronologisch gesendet und verschwindet aus dem Sync-Feld."
+    - "Runde, Zahlung, Kassensturz, Loeschanfrage und Admin-Aktionen bleiben offline blockiert."
+    - "Auto-Reconnect bei haengendem Sync pruefen; kein Reload bei offenem Personen-/Aktionsdialog."
     - "Automatischer Sync darf keinen störenden Toast zeigen."
     - "Personen-Popup: Getränke, Fertig, Runde, Löschmenü Reihenfolge."
     - "Klick außerhalb Popup schließt ohne Aktion."
@@ -844,6 +859,7 @@ implementation_guidance_for_future_ai:
   always_do:
     - "main.py, index.html und admin.html gemeinsam betrachten, weil API und UI eng gekoppelt sind."
     - "Bei Datenmodelländerungen Startup-Migrationen ergänzen."
+    - "Bei Offline-Buchungen client_operation_id/idempotente Verarbeitung beibehalten."
     - "Snapshots in order_lines und transaction_items respektieren."
     - "Systemartikel '1 Runde' separat behandeln."
     - "Bei UI-Änderungen service-worker CACHE_NAME erhöhen."
@@ -853,16 +869,12 @@ implementation_guidance_for_future_ai:
     - "Nicht aktuelle item.price_eur für alte offene Posten verwenden; immer order_lines.unit_price_eur."
     - "Nicht Name/short_label als Identität verwenden; item_id ist Identität."
     - "event_open nicht mit bezahlt/offen verwechseln."
-    - "Keine Offline-Schreiblogik ohne Konfliktkonzept."
+    - "Keine weitere Offline-Schreiblogik ohne Konfliktkonzept; aktuell nur normale Getraenkebuchungen."
     - "Runden-EK nicht über Systemartikel berechnen."
     - "Keine zweite Fake-Popup-Struktur bauen, wenn eine gemeinsame Renderfunktion möglich ist."
 
 future_gui_ideas:
   quick_wins:
-    - title: "Realistische Popup-Vorschau"
-      description: "Admin-Vorschau nutzt dieselbe Renderfunktion wie echtes Personen-Popup mit Fake-Daten und Preview-Modus."
-    - title: "Manueller Refresh-Button"
-      description: "Neben Sync-Anzeige ein kleiner Aktualisieren-Button."
     - title: "Zuletzt aktualisiert deutlicher"
       description: "Neben Offline/Online auch Alter der Daten anzeigen, z. B. 'vor 4 min'."
     - title: "Adminmodus farblich markieren"
@@ -873,8 +885,6 @@ future_gui_ideas:
       description: "Für kleine Geräte und große Touchscreens umschaltbar."
     - title: "Favoriten / häufige Getränke oben"
       description: "Artikelbuttons nach Nutzung oder definierter Favoritenliste sortieren."
-    - title: "Toast nur für Benutzeraktionen"
-      description: "Keine Hintergrundsync-Toasts; nur direkt ausgelöste Aktionen bestätigen."
   medium_effort:
     - title: "Gemeinsame UI-Komponenten"
       description: "Renderfunktionen für Personenkarte, Popup, Preview zwischen index/admin logisch teilen."
@@ -926,18 +936,20 @@ future_gui_ideas:
     - "Bessere iPad-Landscape-Nutzung mit zwei Spalten."
     - "Barriereärmere Kontraste und größere Mindest-Touchflächen."
 
-known_open_point_from_latest_conversation:
-  request: "Popup-Vorschau in Einstellungen wirkt noch komisch und soll realistisch werden."
-  recommended_patch_direction:
-    - "Nicht nur optischen Fake verbessern."
-    - "Eine reine Renderfunktion createPersonDialogContent(person, options) aus index.html extrahieren."
-    - "Für echte Dialoge options.preview=false, für Admin-Vorschau options.preview=true."
-    - "Preview deaktiviert API-Aufrufe und echte Buttons oder markiert sie als Demo."
-    - "Admin-Vorschau nutzt realistische Fake-Person mit Getränken, Runde, Löschmenü und optional Adminmodus."
+known_open_points_current:
+  tailscale_remote_access:
+    status: "nicht implementiert; als Betriebsoption empfohlen"
+    note: "Fuer externen Zugriff ohne Port-Forwarding soll spaeter Tailscale genutzt werden."
+  card_terminal_nexi_ccv_a77:
+    status: "nicht implementiert; Abhaengigkeit von Nexi/CCV API-Freischaltung"
+    recommended_integration: "Cloud/API-Integration statt Browser-Direktzugriff; Karte bezahlt waere spaeter eigener Zahlungstyp."
+  shared_popup_preview_renderer:
+    status: "optional"
+    note: "Admin-Vorschau ist verbessert, nutzt aber weiterhin eigene Preview-Struktur statt gemeinsamer Renderfunktion mit index.html."
 
-current_update_2026_05_05:
+current_update_2026_05_14:
   cache_name: "drink-pos-shell-v65"
-  branch_note: "Im aktuellen Projektordner existiert kein .git Repository; Aenderungen wurden direkt im Projektordner umgesetzt."
+  branch_note: "Git-Repository aktiv; master enthaelt den Sound-/Einstellungsstand, codex/tablet-sync-recovery enthaelt Auto-Reconnect und Offline-Getraenkebuchungen."
   round_flow:
     current_behavior:
       - "Benutzer drueckt im Personen-Popup 'Runde zahlen' / '+ 1 Runde bestaetigen'."
@@ -980,6 +992,8 @@ current_update_2026_05_05:
       - "Automatische Hintergrund-Syncs schreiben keinen SYNC_COMPLETED-Verlaufseintrag mehr."
       - "Manuelle Synchronisation und Wiederverbindung koennen weiterhin geloggt werden."
       - "Client-Events enthalten device_info, z. B. iPad, iPhone, PC Windows, Aufloesung und Plattform."
+      - "Bei haengendem Sync wird Auto-Reconnect versucht; nach laengerem Haenger kontrollierter Reload mit Cooldown."
+      - "Normale Offline-Getraenkebuchungen werden lokal vorgemerkt und bei Wiederverbindung chronologisch gesendet."
     pull_to_refresh:
       enabled: true
       behavior: "Wenn am oberen Rand weiter nach unten gezogen und losgelassen wird, synchronisiert die Seite manuell."
@@ -999,6 +1013,19 @@ bedienszenarien_und_bedienreihenfolgen:
       - "Getraenk erscheint sofort auf der offenen Rechnung."
       - "Aktuelle Strichliste zeigt neue Striche."
       - "Andere Geraete sehen die Aenderung nach spaetestens ca. 5 Sekunden oder sofort nach Pull-to-refresh."
+  offline_getraenkekonsum:
+    constraints:
+      - "Nur normale Getraenkebuchungen, kein Adminmodus und kein Systemartikel '1 Runde'."
+      - "Mindestens ein vorheriger Online-Start muss Config und Personenliste im Browser-Cache hinterlegt haben."
+    steps:
+      - "Kasse verliert Verbindung oder wird offline aus der PWA-Shell geoeffnet."
+      - "Person antippen und normales Getraenk buchen."
+      - "Sync-Feld zeigt 'Nicht synchronisiert' plus Anzahl der offline vorgemerkten Buchungen."
+      - "Bei Wiederverbindung oder manuellem Refresh sendet die Queue alle Eintraege chronologisch an /api/add-drink."
+    expected_result:
+      - "Personensumme und Strichliste werden lokal sofort optimistisch erhoeht."
+      - "Server bekommt jede Buchung mit client_operation_id und verarbeitet doppelte Nachsendungen idempotent."
+      - "Nach erfolgreicher Synchronisierung verschwindet die Offline-Anzahl aus dem Sync-Feld."
   runde_zahlen:
     steps:
       - "Person antippen."
@@ -1090,6 +1117,7 @@ backup_and_recovery:
       - "change_requests"
       - "round_requests"
       - "transactions"
+      - "client_operations"
       - "transaction_items"
       - "round_events"
   consistency:
