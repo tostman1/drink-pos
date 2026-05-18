@@ -774,7 +774,7 @@
       drink_feedback_style: 'strong',
       drink_feedback_duration_ms: 1400,
       drink_feedback_animation_intensity_percent: 100,
-      drink_feedback_position: 'below',
+      drink_feedback_position: 'above',
       drink_celebration_mode: 'condition',
       drink_celebration_condition_round: true,
       drink_celebration_condition_debt: true,
@@ -1646,7 +1646,7 @@
       document.getElementById('drinkFeedbackStyle').value = s.drink_feedback_style || 'strong';
       document.getElementById('drinkFeedbackDurationSlider').value = Number(s.drink_feedback_duration_ms || 1400);
       document.getElementById('drinkFeedbackIntensitySlider').value = Number(s.drink_feedback_animation_intensity_percent ?? 100);
-      document.getElementById('drinkFeedbackPosition').value = s.drink_feedback_position || 'below';
+      document.getElementById('drinkFeedbackPosition').value = 'above';
       document.getElementById('drinkCelebrationMode').value = s.drink_celebration_mode || 'condition';
       document.getElementById('drinkCelebrationRound').checked = s.drink_celebration_condition_round !== false;
       document.getElementById('drinkCelebrationDebt').checked = s.drink_celebration_condition_debt !== false;
@@ -1981,7 +1981,7 @@
       const feedbackStyle = document.getElementById('drinkFeedbackStyle').value || 'strong';
       const feedbackDuration = Number(document.getElementById('drinkFeedbackDurationSlider').value || 1400);
       const feedbackIntensity = Number(document.getElementById('drinkFeedbackIntensitySlider').value || 100);
-      const feedbackPosition = document.getElementById('drinkFeedbackPosition').value || 'below';
+      const feedbackPosition = document.getElementById('drinkFeedbackPosition').value || 'above';
       const celebrationMode = document.getElementById('drinkCelebrationMode').value || 'condition';
       const confettiIntensity = Number(document.getElementById('drinkConfettiIntensitySlider').value || 100);
       document.getElementById('drinkFeedbackDurationValue').textContent = feedbackDuration;
@@ -2082,7 +2082,7 @@
       const drink_feedback_style = document.getElementById('drinkFeedbackStyle').value || 'strong';
       const drink_feedback_duration_ms = Number(document.getElementById('drinkFeedbackDurationSlider').value || 1400);
       const drink_feedback_animation_intensity_percent = Number(document.getElementById('drinkFeedbackIntensitySlider').value || 100);
-      const drink_feedback_position = document.getElementById('drinkFeedbackPosition').value || 'below';
+      const drink_feedback_position = document.getElementById('drinkFeedbackPosition').value || 'above';
       const drink_celebration_mode = document.getElementById('drinkCelebrationMode').value || 'condition';
       const drink_celebration_condition_round = document.getElementById('drinkCelebrationRound').checked;
       const drink_celebration_condition_debt = document.getElementById('drinkCelebrationDebt').checked;

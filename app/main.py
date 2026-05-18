@@ -7,10 +7,12 @@ from pathlib import Path
 import random
 import re
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime
+from collections.abc import Iterator
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
@@ -29,6 +31,11 @@ def default_db_path_for_env(env: str) -> str:
 
 DB_PATH = os.getenv("DRINK_POS_DB") or default_db_path_for_env(APP_ENV)
 DB_PATH_SOURCE = "DRINK_POS_DB" if os.getenv("DRINK_POS_DB") else "environment-default"
+DB_TIMEOUT_SECONDS = 15
+DB_BUSY_TIMEOUT_MS = 15000
+ADMIN_LOGIN_RATE_WINDOW_SECONDS = 300
+ADMIN_LOGIN_RATE_LIMIT = 8
+ADMIN_LOGIN_ATTEMPTS: dict[str, list[float]] = {}
 
 DEFAULT_ITEMS = [
     {"name": "Bier gross", "short_label": "Gross", "price_eur": 2.50, "purchase_price_eur": 1.40, "admin_only": False},
@@ -163,17 +170,28 @@ def is_production() -> bool:
 
 
 def database_info() -> dict:
-    return {
-        "path": DB_PATH,
+    info = {
         "source": DB_PATH_SOURCE,
         "profile": "production" if is_production() else "development",
     }
+    info["path"] = "hidden" if is_production() else DB_PATH
+    return info
 
 
-def get_conn():
-    conn = sqlite3.connect(DB_PATH, timeout=15)
+def configure_connection(conn: sqlite3.Connection) -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute(f"PRAGMA busy_timeout={DB_BUSY_TIMEOUT_MS}")
     return conn
+
+
+@contextmanager
+def get_conn() -> Iterator[sqlite3.Connection]:
+    conn = configure_connection(sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT_SECONDS))
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 
 def normalize_for_sort(text: str) -> str:
@@ -573,10 +591,14 @@ def ensure_indexes(conn: sqlite3.Connection):
         "CREATE INDEX IF NOT EXISTS idx_transaction_items_kind_timestamp ON transaction_items(kind, timestamp)",
         "CREATE INDEX IF NOT EXISTS idx_transaction_items_timestamp ON transaction_items(timestamp)",
         "CREATE INDEX IF NOT EXISTS idx_order_lines_quantity_event ON order_lines(quantity, event_open)",
+        "CREATE INDEX IF NOT EXISTS idx_order_lines_person_quantity_event ON order_lines(person_id, quantity, event_open)",
         "CREATE INDEX IF NOT EXISTS idx_round_events_timestamp ON round_events(timestamp)",
         "CREATE INDEX IF NOT EXISTS idx_transactions_type_timestamp ON transactions(type, timestamp)",
+        "CREATE INDEX IF NOT EXISTS idx_transactions_person_timestamp ON transactions(person_id, timestamp)",
         "CREATE INDEX IF NOT EXISTS idx_change_requests_status ON change_requests(status)",
+        "CREATE INDEX IF NOT EXISTS idx_change_requests_line_status ON change_requests(order_line_id, status)",
         "CREATE INDEX IF NOT EXISTS idx_round_requests_status ON round_requests(status)",
+        "CREATE INDEX IF NOT EXISTS idx_round_requests_person_status ON round_requests(person_id, status)",
     ]
     for sql in indexes:
         conn.execute(sql)
@@ -869,7 +891,7 @@ def ensure_settings(conn: sqlite3.Connection):
     if get_setting(conn, "drink_feedback_animation_intensity_percent") is None:
         set_setting(conn, "drink_feedback_animation_intensity_percent", "100")
     if get_setting(conn, "drink_feedback_position") is None:
-        set_setting(conn, "drink_feedback_position", "below")
+        set_setting(conn, "drink_feedback_position", "above")
     if get_setting(conn, "drink_booking_sound_enabled") is None:
         set_setting(conn, "drink_booking_sound_enabled", "1")
     if get_setting(conn, "drink_booking_sound_preset") is None:
@@ -1457,9 +1479,9 @@ def ui_appearance_settings(conn: sqlite3.Connection) -> dict:
     feedback_style = (get_setting(conn, "drink_feedback_style", "strong") or "strong").strip().lower()
     if feedback_style not in {"subtle", "normal", "strong"}:
         feedback_style = "strong"
-    feedback_position = (get_setting(conn, "drink_feedback_position", "below") or "below").strip().lower()
+    feedback_position = (get_setting(conn, "drink_feedback_position", "above") or "above").strip().lower()
     if feedback_position not in {"above", "below"}:
-        feedback_position = "below"
+        feedback_position = "above"
     celebration_mode = (get_setting(conn, "drink_celebration_mode", "condition") or "condition").strip().lower()
     if celebration_mode not in {"always", "condition", "never"}:
         celebration_mode = "condition"
@@ -1504,6 +1526,31 @@ def normalize_client_operation_id(value: str | None) -> str | None:
         return None
     clean = re.sub(r"[^A-Za-z0-9_.:-]", "", value.strip())[:80]
     return clean or None
+
+
+def admin_rate_key(request: Request) -> str:
+    client = request.client.host if request.client else "unknown"
+    forwarded = request.headers.get("x-forwarded-for", "").split(",", 1)[0].strip()
+    return forwarded or client
+
+
+def check_admin_login_rate_limit(request: Request) -> None:
+    key = admin_rate_key(request)
+    now_ts = datetime.now().timestamp()
+    attempts = [
+        ts
+        for ts in ADMIN_LOGIN_ATTEMPTS.get(key, [])
+        if now_ts - ts < ADMIN_LOGIN_RATE_WINDOW_SECONDS
+    ]
+    if len(attempts) >= ADMIN_LOGIN_RATE_LIMIT:
+        ADMIN_LOGIN_ATTEMPTS[key] = attempts
+        raise HTTPException(status_code=429, detail="Zu viele Loginversuche. Bitte kurz warten.")
+    attempts.append(now_ts)
+    ADMIN_LOGIN_ATTEMPTS[key] = attempts
+
+
+def clear_admin_login_rate_limit(request: Request) -> None:
+    ADMIN_LOGIN_ATTEMPTS.pop(admin_rate_key(request), None)
 
 
 # ---------------------------------------------------------------------------
@@ -2142,9 +2189,11 @@ def admin_adjust_drink(req: AdminAdjustItemRequest):
 
 
 @app.post("/api/admin-login")
-def admin_login(req: PinRequest):
+def admin_login(req: PinRequest, request: Request):
+    check_admin_login_rate_limit(request)
     with get_conn() as conn:
         require_pin(conn, req.pin)
+        clear_admin_login_rate_limit(request)
         return {
             "status": "ok",
             "environment": APP_ENV,
@@ -3027,7 +3076,7 @@ def admin_update_settings(req: SettingsUpdateRequest):
             if position not in {"above", "below"}:
                 raise HTTPException(status_code=400, detail="Ungültige Feedback-Position")
             set_setting(conn, "drink_feedback_position", position)
-            details.append("Buchungsfeedback oberhalb der Getränkebuttons" if position == "above" else "Buchungsfeedback unterhalb der Getränkebuttons")
+            details.append("Buchungsfeedback-Position gespeichert; Kassenansicht nutzt oben/rechts")
         if req.drink_booking_sound_enabled is not None:
             set_setting(conn, "drink_booking_sound_enabled", "1" if req.drink_booking_sound_enabled else "0")
             details.append("Buchungston aktiviert" if req.drink_booking_sound_enabled else "Buchungston deaktiviert")
@@ -3058,7 +3107,7 @@ def admin_update_settings(req: SettingsUpdateRequest):
         if req.drink_celebration_confetti_intensity_percent is not None:
             intensity = max(0, min(200, int(req.drink_celebration_confetti_intensity_percent)))
             set_setting(conn, "drink_celebration_confetti_intensity_percent", str(intensity))
-            details.append(f"Konfetti-IntensitÃ¤t auf {intensity}% gesetzt")
+            details.append(f"Konfetti-Intensität auf {intensity}% gesetzt")
         if req.drink_celebration_sound_enabled is not None:
             set_setting(conn, "drink_celebration_sound_enabled", "1" if req.drink_celebration_sound_enabled else "0")
             details.append("Feierlicher Ton aktiviert" if req.drink_celebration_sound_enabled else "Feierlicher Ton deaktiviert")
@@ -3148,8 +3197,9 @@ def admin_transactions(req: PinRequest):
 
 
 @app.get("/api/transactions")
-def transactions():
+def transactions(pin: str | None = None):
     with get_conn() as conn:
+        require_pin(conn, pin or "")
         rows = conn.execute(
             """
             SELECT t.id, COALESCE(p.name, 'System/Admin') AS name, t.type, t.total, t.details, t.timestamp

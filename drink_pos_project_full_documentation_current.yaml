@@ -43,6 +43,10 @@ source_layout:
     - "app/icon-512.png"
   deployment:
     file: "docker-compose.yml"
+    helper_files:
+      - "requirements.txt"
+      - ".env.example"
+      - "README.md"
     server: "uvicorn main:app --host 0.0.0.0 --port 8000"
     exposed_port: "8088:8000"
     volumes:
@@ -52,6 +56,11 @@ source_layout:
     engine: "SQLite"
     mode: "WAL"
     access: "sqlite3 direkt in main.py"
+    connection_defaults:
+      timeout_seconds: 15
+      busy_timeout_ms: 15000
+      foreign_keys_per_connection: true
+      closes_per_request_context: true
 
 runtime_environment:
   environment_variables:
@@ -115,7 +124,7 @@ pwa_and_app_feeling:
     file: "app/service-worker.js"
     role: "Shell-Caching statischer Dateien"
     cache_version_rule: "Nach UI-Änderungen CACHE_NAME erhöhen."
-    current_expected_cache_name: "drink-pos-shell-v65"
+    current_expected_cache_name: "drink-pos-shell-v66"
   offline_policy:
     read_shell_offline: "statische App-Shell kann aus Cache kommen"
     write_offline: "nur normale Getraenkebuchungen"
@@ -371,10 +380,10 @@ settings:
       range: "0..200"
       purpose: "Animationsintensitaet des Buchungsfeedbacks und Button-Impulses"
     drink_feedback_position:
-      type: "enum"
+      type: "legacy enum"
       values: ["above", "below"]
-      default: "below"
-      purpose: "Position des Buchungsfeedbacks im Personen-Popup"
+      default: "above"
+      purpose: "Kompatibilitaetsfeld; die Kassenansicht positioniert das Buchungsfeedback aktuell fest oben/rechts im Hinzufuegen-Bereich"
     drink_celebration_mode:
       type: "enum"
       values: ["always", "condition", "never"]
@@ -430,7 +439,8 @@ settings:
 sqlite_schema:
   pragmas:
     journal_mode: "WAL"
-    foreign_keys: "ON"
+    foreign_keys: "ON pro Verbindung via get_conn/configure_connection"
+    busy_timeout: "15000 ms pro Verbindung"
   migration_strategy:
     - "CREATE TABLE IF NOT EXISTS beim Startup"
     - "add_column_if_missing für neue Spalten"
@@ -582,6 +592,18 @@ sqlite_schema:
         profit_vs_purchase_eur: {type: "REAL", constraints: "NOT NULL"}
         profit_vs_retail_eur: {type: "REAL", constraints: "NOT NULL"}
         details: {type: "TEXT", constraints: "nullable"}
+  indexes:
+    - "idx_transaction_items_kind_timestamp ON transaction_items(kind, timestamp)"
+    - "idx_transaction_items_timestamp ON transaction_items(timestamp)"
+    - "idx_order_lines_quantity_event ON order_lines(quantity, event_open)"
+    - "idx_order_lines_person_quantity_event ON order_lines(person_id, quantity, event_open)"
+    - "idx_round_events_timestamp ON round_events(timestamp)"
+    - "idx_transactions_type_timestamp ON transactions(type, timestamp)"
+    - "idx_transactions_person_timestamp ON transactions(person_id, timestamp)"
+    - "idx_change_requests_status ON change_requests(status)"
+    - "idx_change_requests_line_status ON change_requests(order_line_id, status)"
+    - "idx_round_requests_status ON round_requests(status)"
+    - "idx_round_requests_person_status ON round_requests(person_id, status)"
 
 api:
   style: "JSON REST"
@@ -589,6 +611,7 @@ api:
     mechanism: "Admin-PIN im Request-Body"
     sessions: false
     frontend_storage: "sessionStorage adminPin"
+    login_rate_limit: "8 Versuche pro Client in 5 Minuten"
   static_routes:
     - {method: "GET", path: "/", purpose: "Kassenansicht"}
     - {method: "GET", path: "/admin", purpose: "Adminseite"}
@@ -598,7 +621,7 @@ api:
     - {method: "GET", path: "/icon-192.png", purpose: "PWA Icon"}
     - {method: "GET", path: "/icon-512.png", purpose: "PWA Icon"}
   public_routes:
-    - {method: "GET", path: "/health", returns: "status, environment, DB info, people count"}
+    - {method: "GET", path: "/health", returns: "status, environment, DB info, people count; DB-Pfad in production redacted"}
     - {method: "GET", path: "/api/sync-status", returns: "server timestamp/version-like sync info"}
     - {method: "POST", path: "/api/client-event", purpose: "Online/offline/sync Ereignisse; Logging nur DevMode"}
     - {method: "GET", path: "/api/config", returns: "Settings, app info, items/user_items"}
@@ -628,7 +651,7 @@ api:
     - {method: "POST", path: "/api/admin/settings/update", body: "SettingsUpdateRequest", purpose: "Einstellungen ändern"}
     - {method: "POST", path: "/api/admin/transactions/filter", body: "TransactionFilterRequest", purpose: "Verlauf filtern"}
     - {method: "POST", path: "/api/admin/transactions", body: "PinRequest", purpose: "letzte Transaktionen"}
-    - {method: "GET", path: "/api/transactions", purpose: "Kompatibilitäts-/Debugroute"}
+    - {method: "GET", path: "/api/transactions?pin=...", purpose: "PIN-pflichtige Kompatibilitäts-/Debugroute; Verlauf nicht mehr öffentlich"}
   exports_and_reports:
     report_preview:
       path: "/api/admin/report/preview"
@@ -743,6 +766,7 @@ frontend_cashier_index:
       - "Tertiaerbereich: kompakte/einklappbare Loeschanfrage"
     layout_notes:
       - "Buchungsfeedback liegt absolut im Hinzufuegen-Bereich, damit Getraenkebuttons bei schnellen Mehrfachbuchungen nicht verschoben werden."
+      - "Die Position ist aktuell fest oben/rechts neben der Ueberschrift 'Hinzufuegen'; alte above/below Settings werden gespeichert, aber die Kassenansicht erzwingt oben."
       - "Getraenkebuttons haben feste Touchflaechen mit Plus-Zone, Produktname und Preis-Pill; Bier/Limo/Runde koennen dezent farblich unterschieden werden."
       - "Rundenbereich ist bewusst kompakt als Sekundaeraktion gehalten; Detailhinweis kommt erst in der Bestaetigung."
     delete_request_ui:
@@ -816,18 +840,27 @@ security:
     storage: "settings.admin_pin Plaintext"
     reason: "bewusst einfach"
     risk: "Jeder DB-Zugriff sieht PIN"
+  implemented_hardening:
+    - "/api/transactions ist PIN-pflichtig und liefert Verlauf nicht mehr öffentlich aus."
+    - "/api/admin-login hat ein einfaches In-Memory Rate Limit pro Client."
+    - "/health und /api/config redigieren den DB-Pfad in production."
+    - "SQLite Foreign Keys und busy_timeout werden in get_conn pro Verbindung gesetzt."
   recommended_if_public:
     - "nicht Port 8088 direkt ins Internet freigeben"
     - "VPN/Tailscale oder Reverse Proxy mit HTTPS und zusätzlicher Auth"
     - "regelmäßige SQLite-Backups"
+    - "admin_pin später mit Argon2/bcrypt hashen"
+    - "kurzlebige Admin-Session-Tokens statt PIN in jedem Request"
     - "später benannte Admins statt gemeinsamer PIN"
 
 testing_checklist:
   commands:
     python: "python3 -m py_compile app/main.py"
+    backend_unittest: "py -m unittest discover -s tests"
     javascript_index: "node --check extracted-index-script.js oder entsprechender Extrakt aus index.html"
     javascript_admin: "node --check extracted-admin-script.js oder entsprechender Extrakt aus admin.html"
   backend_scenarios:
+    - "Automatisierte Tests in tests/test_backend.py decken Foreign Keys/busy_timeout, Buchung, Zahlung, Kassensturz, Runde, Offline-Idempotenz und /api/transactions-PIN ab."
     - "Neue development DB starten; /api/config und /api/people prüfen."
     - "Production DB separat prüfen; keine Testdaten/Synclogs."
     - "Konsum buchen; order_lines, transactions, transaction_items prüfen."
@@ -841,6 +874,7 @@ testing_checklist:
     - "Barzahlung: alle offenen Posten quantity=0, PAID_CASH geschrieben."
     - "Offline-Getraenkebuchung mit client_operation_id zweimal senden; Menge darf nur einmal steigen."
     - "client_operations muss transaction_id der ersten erfolgreichen Buchung speichern."
+    - "/api/transactions ohne PIN muss 403 liefern; mit PIN 200."
     - "History types Mehrfachfilter inkl. alle abwählen."
   frontend_scenarios:
     - "PWA installieren auf iPad/iOS und Android."
@@ -947,8 +981,8 @@ known_open_points_current:
     status: "optional"
     note: "Admin-Vorschau ist verbessert, nutzt aber weiterhin eigene Preview-Struktur statt gemeinsamer Renderfunktion mit index.html."
 
-current_update_2026_05_14:
-  cache_name: "drink-pos-shell-v65"
+current_update_2026_05_18:
+  cache_name: "drink-pos-shell-v66"
   branch_note: "Git-Repository aktiv; master enthaelt den Sound-/Einstellungsstand, codex/tablet-sync-recovery enthaelt Auto-Reconnect und Offline-Getraenkebuchungen."
   round_flow:
     current_behavior:
@@ -983,7 +1017,20 @@ current_update_2026_05_14:
       - "Offene Betraege: Statistik -> Heute/Gesamt waehlen -> Offen nach Person pruefen."
     performance:
       - "Statistik-Zeitraeume werden in SQL nach timestamp gefiltert."
-      - "Indizes auf transaction_items, order_lines, round_events, transactions und Request-Status beschleunigen wiederholte Auswertungen."
+      - "Indizes auf transaction_items, order_lines, round_events, transactions, order_lines(person_id, quantity, event_open), change_requests(order_line_id, status) und round_requests(person_id, status) beschleunigen wiederholte Auswertungen."
+  technical_hardening:
+    database:
+      - "get_conn setzt PRAGMA foreign_keys=ON pro SQLite-Verbindung."
+      - "get_conn setzt PRAGMA busy_timeout=15000 pro Verbindung."
+      - "get_conn ist ein echter Context Manager und schliesst Verbindungen nach jedem Request."
+    security:
+      - "/api/transactions ist PIN-pflichtig."
+      - "Admin-Login hat ein einfaches Rate Limit."
+      - "DB-Pfad wird in production nicht mehr in public health/config Antworten offengelegt."
+    deployment:
+      - "requirements.txt, .env.example und README.md ergaenzt."
+    tests:
+      - "tests/test_backend.py deckt Buchung, Zahlung, Kassensturz, Runde, Offline-Idempotenz, PRAGMAs und /api/transactions-Schutz ab."
   sync:
     heartbeat_seconds: 5
     behavior:
