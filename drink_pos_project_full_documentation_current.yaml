@@ -126,7 +126,7 @@ pwa_and_app_feeling:
     file: "app/service-worker.js"
     role: "Shell-Caching statischer Dateien"
     cache_version_rule: "Nach UI-Änderungen CACHE_NAME erhöhen."
-    current_expected_cache_name: "drink-pos-shell-v70"
+    current_expected_cache_name: "drink-pos-shell-v71"
   offline_policy:
     read_shell_offline: "statische App-Shell kann aus Cache kommen"
     write_offline: "nur normale Getraenkebuchungen"
@@ -204,7 +204,8 @@ business_domain:
     description: "Benutzerdefinierte Admin-Nachrichten an ausgewaehlte aktive Mitglieder."
     display: "Je nach Einstellung zeigt die Personenkarte einen reinen Nachrichten-Badge und/oder das Personen-Popup Titel, Text und Verstanden-Button."
     acknowledgement: "Bestaetigung wird pro Person gespeichert; danach wird diese Nachricht fuer diese Person nicht mehr angezeigt."
-    admin_management: "Admin legt Nachricht mit Empfaengerauswahl an und kann aktive Nachrichten archivieren."
+    admin_management: "Admin legt Nachricht mit Empfaengerauswahl an und sieht in den Einstellungen nur aktive Nachrichten zur Verwaltung; alte/archivierte Nachrichten erscheinen dort nicht als Verlauf."
+    audit_history: "Anlegen, Archivieren und Bestaetigen werden als Verlaufseintraege in transactions gespeichert."
   items:
     description: "Getränke/Artikel plus Systemartikel '1 Runde'."
     normal_item_fields:
@@ -1072,7 +1073,7 @@ known_open_points_current:
     note: "Admin-Vorschau ist verbessert, nutzt aber weiterhin eigene Preview-Struktur statt gemeinsamer Renderfunktion mit index.html."
 
 current_update_2026_05_18:
-  cache_name: "drink-pos-shell-v70"
+  cache_name: "drink-pos-shell-v71"
   branch_note: "Git-Repository aktiv; master enthaelt den Sound-/Einstellungsstand, codex/tablet-sync-recovery enthaelt Auto-Reconnect und Offline-Getraenkebuchungen."
   round_flow:
     current_behavior:
@@ -1133,7 +1134,8 @@ current_update_2026_05_18:
       - "Admin-Nachrichten an Mitglieder erscheinen je nach Setting in Standardansicht und/oder Personen-Popup."
       - "Nachrichten in der Standardansicht sind reine Hinweise; bestaetigt wird ausschliesslich im Personen-Popup."
     admin_behavior:
-      - "Admin kann Nachrichten mit Empfaengerauswahl an aktive Mitglieder anlegen und archivieren."
+      - "Admin kann Nachrichten mit Empfaengerauswahl an aktive Mitglieder anlegen und aktive Nachrichten archivieren; die Einstellungen zeigen keinen Nachrichtenverlauf unterhalb der Erstellung."
+      - "Alte Nachrichten bleiben ueber den normalen Verlauf bzw. die Datenbank-Transaktionen nachvollziehbar."
       - "Admin kann fuer Kostenhinweise und Mitgliedernachrichten getrennt festlegen, ob sie in Standardansicht und/oder Personen-Popup sichtbar sind."
       - "Admin-Einstellungen haben einfache Ansicht/Expertenmodus und aufklappbare Darstellungsgruppen."
   sync:
@@ -1201,7 +1203,8 @@ bedienszenarien_und_bedienreihenfolgen:
       - "Nachricht erscheint nur bei ausgewaehlten aktiven Mitgliedern."
       - "Nachricht erscheint nur in den aktivierten Flaechen: Standardansicht und/oder Personen-Popup."
       - "Nach Bestaetigung wird sie fuer diese Person nicht mehr angezeigt."
-      - "Admin sieht bei der Nachricht, wie viele Empfaenger bereits bestaetigt haben."
+      - "Admin sieht bei aktiven Nachrichten, wie viele Empfaenger bereits bestaetigt haben."
+      - "Alte oder archivierte Nachrichten werden nicht direkt unter der Nachrichtserstellung gelistet, bleiben aber im Verlauf der Datenbank sichtbar."
   runde_zahlen:
     steps:
       - "Person antippen."

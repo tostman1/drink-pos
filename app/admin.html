@@ -153,7 +153,6 @@
     .message-tools { display:flex; gap:8px; flex-wrap:wrap; }
     .message-list { display:grid; gap:8px; }
     .message-card { border:1px solid var(--border); border-radius:14px; padding:10px 12px; background:#fff; display:grid; gap:7px; }
-    .message-card.archived { opacity:.62; }
     .message-card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
     .message-card-title { font-weight:900; }
     .message-recipients { color:var(--muted); font-size:12px; line-height:1.35; }
@@ -331,7 +330,7 @@
             </div>
             <div id="memberMessagePeople" class="message-people"></div>
             <div class="muted">Mitglieder können die Nachricht im Kassen-Popup mit „Verstanden“ bestätigen. Danach wird sie für diese Person nicht mehr angezeigt.</div>
-            <h3>Aktive und letzte Nachrichten</h3>
+            <h3>Aktive Nachrichten</h3>
             <div id="memberMessageList" class="message-list"></div>
           </div>
         </details>
@@ -1836,9 +1835,9 @@
     function renderMemberMessagesAdmin() {
       const box = document.getElementById('memberMessageList');
       if (!box) return;
-      const messages = overview.member_messages || [];
+      const messages = (overview.member_messages || []).filter(message => message.active !== false);
       if (!messages.length) {
-        box.innerHTML = '<div class="muted">Noch keine Nachrichten angelegt.</div>';
+        box.innerHTML = '<div class="muted">Keine aktiven Nachrichten.</div>';
         return;
       }
       box.innerHTML = messages.map(message => {
@@ -1846,13 +1845,13 @@
         const recipientPreview = recipients.slice(0, 6).map(r => `${r.acknowledged_at ? '✓ ' : ''}${r.name}`).join(', ');
         const more = recipients.length > 6 ? ` und ${recipients.length - 6} weitere` : '';
         return `
-          <div class="message-card ${message.active ? '' : 'archived'}">
+          <div class="message-card">
             <div class="message-card-head">
               <div>
                 <div class="message-card-title">${escapeHtml(message.title || 'Nachricht')}</div>
-                <div class="muted">${escapeHtml(message.created_at || '')}${message.active ? '' : ' · archiviert'}</div>
+                <div class="muted">${escapeHtml(message.created_at || '')}</div>
               </div>
-              ${message.active ? `<button class="danger" type="button" onclick="archiveMemberMessage(${Number(message.id)})">Archivieren</button>` : ''}
+              <button class="danger" type="button" onclick="archiveMemberMessage(${Number(message.id)})">Archivieren</button>
             </div>
             <div>${escapeHtml(message.message)}</div>
             <div class="message-recipients">${Number(message.acknowledged_count || 0)} von ${Number(message.recipient_count || 0)} bestätigt${recipientPreview ? ` · ${escapeHtml(recipientPreview + more)}` : ''}</div>

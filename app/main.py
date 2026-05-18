@@ -1459,8 +1459,10 @@ def get_admin_member_messages(conn: sqlite3.Connection) -> list[dict]:
             COALESCE(SUM(CASE WHEN mmr.acknowledged_at IS NOT NULL THEN 1 ELSE 0 END), 0) AS acknowledged_count
         FROM member_messages mm
         LEFT JOIN member_message_recipients mmr ON mmr.message_id = mm.id
+        WHERE mm.active = 1
+          AND mm.archived_at IS NULL
         GROUP BY mm.id
-        ORDER BY mm.archived_at IS NULL DESC, mm.created_at DESC, mm.id DESC
+        ORDER BY mm.created_at DESC, mm.id DESC
         LIMIT 50
         """
     ).fetchall()
