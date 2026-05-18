@@ -90,7 +90,8 @@ runtime_environment:
         Wenn nicht gesetzt, wird abhängig von DRINK_POS_ENV automatisch drink_pos_dev.db oder drink_pos.db verwendet.
     DRINK_POS_PIN:
       default: "1234"
-      behavior: "Wird nur beim ersten DB-Start als settings.admin_pin übernommen, wenn noch kein PIN existiert."
+      behavior: "Wird beim ersten DB-Start als settings.admin_pin übernommen; ersetzt außerdem eine bestehende Default-PIN 1234, wenn DRINK_POS_PIN explizit gesetzt ist."
+      note: "Diese YAML-Datei ist Dokumentation und wird von der App nicht als Konfiguration geladen."
   production_pin_guard: "Admin-Login und PIN-pflichtige Admin-API-Aktionen sind in production gesperrt, solange die konfigurierte PIN noch 1234 ist."
   recommended_operation:
     development: "DRINK_POS_ENV=development für Testdatenbank und Debug-Testdaten."
@@ -295,6 +296,7 @@ settings:
     admin_pin:
       type: "string"
       default_from_env: "DRINK_POS_PIN"
+      env_override_rule: "DRINK_POS_PIN ersetzt nur fehlende PINs oder die unsichere Default-PIN 1234; bewusst gesetzte andere PINs in der DB bleiben erhalten."
       security: "Plaintext, bewusst einfach für lokales vertrauenswürdiges Netzwerk"
     currency:
       type: "string"

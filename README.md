@@ -25,17 +25,20 @@ docker compose up -d
 
 Die Compose-Datei veroeffentlicht den Container auf Port `8088` und mountet `./data`.
 Der Backup-Service schreibt freitags um 03:00 Uhr CSV-Snapshots nach `./data/backups`.
+Lege fuer den produktiven Betrieb eine `.env` neben `docker-compose.yml` an oder setze die
+Variablen vor `docker compose up -d`; Compose liest `DRINK_POS_PIN` und `DRINK_POS_ENV` daraus.
 
 ## Konfiguration
 
 Siehe `.env.example` fuer die wichtigsten Variablen:
 
 - `DRINK_POS_ENV`: `development` oder `production`
-- `DRINK_POS_PIN`: Start-PIN beim ersten DB-Start
+- `DRINK_POS_PIN`: Start-PIN beim ersten DB-Start; ersetzt außerdem eine bestehende Default-PIN `1234`
 - `DRINK_POS_DB`: SQLite-Dateipfad
 - `DRINK_POS_BACKUP_DIR`: Zielordner fuer CSV-Backups
 
-In Produktion sollte die Default-PIN `1234` nicht verwendet werden.
+In Produktion sollte die Default-PIN `1234` nicht verwendet werden. Die YAML-Projektdoku ist keine
+Konfigurationsdatei; fuer den echten PIN entweder `DRINK_POS_PIN` setzen oder den PIN im Adminmenue ändern.
 
 ## Tests
 

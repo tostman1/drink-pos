@@ -17,7 +17,9 @@ from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
 APP_ENV = os.getenv("DRINK_POS_ENV", "development").strip().lower()
-ENV_PIN_CODE = os.getenv("DRINK_POS_PIN", "1234")
+RAW_ENV_PIN_CODE = os.getenv("DRINK_POS_PIN")
+ENV_PIN_CODE = (RAW_ENV_PIN_CODE or "1234").strip() or "1234"
+ENV_PIN_FROM_ENV = RAW_ENV_PIN_CODE is not None and RAW_ENV_PIN_CODE.strip() != ""
 APP_DIR = Path(__file__).resolve().parent
 
 
@@ -888,7 +890,10 @@ def backfill_missing_purchase_snapshots(conn: sqlite3.Connection):
 
 
 def ensure_settings(conn: sqlite3.Connection):
-    if get_setting(conn, "admin_pin") is None:
+    current_admin_pin = get_setting(conn, "admin_pin")
+    if current_admin_pin is None:
+        set_setting(conn, "admin_pin", ENV_PIN_CODE)
+    elif current_admin_pin == "1234" and ENV_PIN_FROM_ENV and ENV_PIN_CODE != "1234":
         set_setting(conn, "admin_pin", ENV_PIN_CODE)
     if get_setting(conn, "round_item_price_eur") is None:
         set_setting(conn, "round_item_price_eur", DEFAULT_ROUND_PRICE_EUR)

@@ -148,6 +148,26 @@ class BackendFlowTests(unittest.TestCase):
         finally:
             self.main.APP_ENV = original_env
 
+    def test_env_pin_replaces_existing_default_pin(self):
+        original_env = self.main.APP_ENV
+        original_pin = self.main.ENV_PIN_CODE
+        original_from_env = self.main.ENV_PIN_FROM_ENV
+        self.main.APP_ENV = "production"
+        self.main.ENV_PIN_CODE = "9876"
+        self.main.ENV_PIN_FROM_ENV = True
+        try:
+            with self.main.get_conn() as conn:
+                self.main.set_setting(conn, "admin_pin", "1234")
+                self.main.ensure_settings(conn)
+                self.assertEqual(self.main.configured_admin_pin(conn), "9876")
+                self.main.require_pin(conn, "9876")
+                with self.assertRaises(HTTPException):
+                    self.main.require_pin(conn, "1234")
+        finally:
+            self.main.APP_ENV = original_env
+            self.main.ENV_PIN_CODE = original_pin
+            self.main.ENV_PIN_FROM_ENV = original_from_env
+
 
 if __name__ == "__main__":
     unittest.main()
