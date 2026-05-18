@@ -126,7 +126,7 @@ pwa_and_app_feeling:
     file: "app/service-worker.js"
     role: "Shell-Caching statischer Dateien"
     cache_version_rule: "Nach UI-Änderungen CACHE_NAME erhöhen."
-    current_expected_cache_name: "drink-pos-shell-v69"
+    current_expected_cache_name: "drink-pos-shell-v70"
   offline_policy:
     read_shell_offline: "statische App-Shell kann aus Cache kommen"
     write_offline: "nur normale Getraenkebuchungen"
@@ -202,7 +202,7 @@ business_domain:
     sorting: "last_name, first_name, fallback name; Umlaute normalisiert"
   member_messages:
     description: "Benutzerdefinierte Admin-Nachrichten an ausgewaehlte aktive Mitglieder."
-    display: "Je nach Einstellung zeigt die Personenkarte einen Nachrichten-Badge mit Verstanden-Button und/oder das Personen-Popup Titel, Text und Verstanden-Button."
+    display: "Je nach Einstellung zeigt die Personenkarte einen reinen Nachrichten-Badge und/oder das Personen-Popup Titel, Text und Verstanden-Button."
     acknowledgement: "Bestaetigung wird pro Person gespeichert; danach wird diese Nachricht fuer diese Person nicht mehr angezeigt."
     admin_management: "Admin legt Nachricht mit Empfaengerauswahl an und kann aktive Nachrichten archivieren."
   items:
@@ -445,7 +445,7 @@ settings:
     member_messages_show_on_overview:
       type: "boolean"
       default: true
-      purpose: "Mitgliedernachrichten in der Standardansicht als kompakte Zeile mit Bestaetigung anzeigen"
+      purpose: "Mitgliedernachrichten in der Standardansicht als kompakte Hinweiszeile ohne Bestaetigungsaktion anzeigen"
     member_messages_show_in_popup:
       type: "boolean"
       default: true
@@ -848,7 +848,7 @@ frontend_cashier_index:
       - "Tertiaerbereich: kompakte/einklappbare Loeschanfrage"
     layout_notes:
       - "Kostenwarnung/Zahlungserinnerung und aktive Mitgliedernachrichten erscheinen unter der offenen Summe und vor den Aktionsbereichen."
-      - "Mitgliedernachrichten haben einen 'Verstanden'-Button und werden danach nur fuer diese Person ausgeblendet."
+      - "Mitgliedernachrichten haben nur im Personen-Popup einen 'Verstanden'-Button und werden danach nur fuer diese Person ausgeblendet."
       - "Buchungsfeedback liegt absolut im Hinzufuegen-Bereich, damit Getraenkebuttons bei schnellen Mehrfachbuchungen nicht verschoben werden."
       - "Die Position ist aktuell fest oben/rechts neben der Ueberschrift 'Hinzufuegen'; alte above/below Settings werden gespeichert, aber die Kassenansicht erzwingt oben."
       - "Getraenkebuttons haben feste Touchflaechen mit Plus-Zone, Produktname und Preis-Pill; Bier/Limo/Runde koennen dezent farblich unterschieden werden."
@@ -1072,7 +1072,7 @@ known_open_points_current:
     note: "Admin-Vorschau ist verbessert, nutzt aber weiterhin eigene Preview-Struktur statt gemeinsamer Renderfunktion mit index.html."
 
 current_update_2026_05_18:
-  cache_name: "drink-pos-shell-v69"
+  cache_name: "drink-pos-shell-v70"
   branch_note: "Git-Repository aktiv; master enthaelt den Sound-/Einstellungsstand, codex/tablet-sync-recovery enthaelt Auto-Reconnect und Offline-Getraenkebuchungen."
   round_flow:
     current_behavior:
@@ -1131,7 +1131,7 @@ current_update_2026_05_18:
       - "Personenkarten zeigen Warnungs-/Erinnerungs-Badge nur, wenn die Standardansicht-Anzeige aktiviert ist."
       - "Personen-Popup zeigt Kostenwarnung oder Zahlungserinnerung nur, wenn die Popup-Anzeige aktiviert ist."
       - "Admin-Nachrichten an Mitglieder erscheinen je nach Setting in Standardansicht und/oder Personen-Popup."
-      - "Nachrichten in der Standardansicht koennen direkt an der Personenkarte mit 'Verstanden' bestaetigt werden."
+      - "Nachrichten in der Standardansicht sind reine Hinweise; bestaetigt wird ausschliesslich im Personen-Popup."
     admin_behavior:
       - "Admin kann Nachrichten mit Empfaengerauswahl an aktive Mitglieder anlegen und archivieren."
       - "Admin kann fuer Kostenhinweise und Mitgliedernachrichten getrennt festlegen, ob sie in Standardansicht und/oder Personen-Popup sichtbar sind."
@@ -1196,7 +1196,7 @@ bedienszenarien_und_bedienreihenfolgen:
       - "Titel und Nachricht schreiben."
       - "Einzelne Mitglieder oder alle aktiven Mitglieder auswaehlen."
       - "'Nachricht anzeigen' druecken."
-      - "Mitglied bestaetigt die Nachricht in der aktivierten Ansicht mit 'Verstanden'."
+      - "Mitglied oeffnet das Personen-Popup und bestaetigt die Nachricht dort mit 'Verstanden'."
     expected_result:
       - "Nachricht erscheint nur bei ausgewaehlten aktiven Mitgliedern."
       - "Nachricht erscheint nur in den aktivierten Flaechen: Standardansicht und/oder Personen-Popup."
