@@ -136,6 +136,27 @@
     .appearance-controls { display:grid; gap:10px; }
     .appearance-group { display:grid; gap:10px; padding:12px; border:1px solid var(--border); border-radius:14px; background:#f9fafb; }
     .appearance-group h3 { margin:0; }
+    .settings-view-toggle { display:flex; gap:8px; flex-wrap:wrap; margin:12px 0; }
+    .settings-view-toggle button.active { background:var(--yellow); }
+    .settings-accordion { display:block; padding:0; overflow:hidden; }
+    .settings-accordion > summary { cursor:pointer; list-style:none; padding:12px; font-weight:900; color:#0f172a; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .settings-accordion > summary::-webkit-details-marker { display:none; }
+    .settings-accordion > summary::after { content:'aufklappen'; color:var(--muted); font-size:12px; font-weight:850; }
+    .settings-accordion[open] > summary::after { content:'schließen'; }
+    .settings-accordion-content { display:grid; gap:10px; padding:0 12px 12px; }
+    .simple-settings .expert-only { display:none; }
+    .message-admin { display:grid; gap:10px; max-width:900px; }
+    .message-admin textarea { width:100%; min-height:92px; resize:vertical; font:inherit; padding:10px 12px; border:1px solid var(--border); border-radius:10px; }
+    .message-people { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:7px; max-height:220px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:12px; background:#f9fafb; }
+    .message-person-option { display:flex; align-items:center; gap:7px; padding:7px 8px; border:1px solid #e5e7eb; border-radius:10px; background:#fff; font-weight:750; }
+    .message-person-option input { width:auto; }
+    .message-tools { display:flex; gap:8px; flex-wrap:wrap; }
+    .message-list { display:grid; gap:8px; }
+    .message-card { border:1px solid var(--border); border-radius:14px; padding:10px 12px; background:#fff; display:grid; gap:7px; }
+    .message-card.archived { opacity:.62; }
+    .message-card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+    .message-card-title { font-weight:900; }
+    .message-recipients { color:var(--muted); font-size:12px; line-height:1.35; }
     .setting-line { display:grid; gap:6px; }
     .setting-line label { font-weight:800; }
     .setting-line input[type="range"] { padding:0; }
@@ -152,6 +173,9 @@
     .preview-summary-text { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .preview-total { font-weight:900; font-size:15px; text-align:right; white-space:nowrap; }
     .preview-event { margin-top:8px; min-height:34px; display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:8px 14px; }
+    .preview-alerts { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+    .preview-alert { display:inline-flex; border-radius:999px; padding:4px 8px; font-size:12px; font-weight:900; border:1px solid #fde68a; background:#fffbeb; color:#92400e; }
+    .preview-alert.reminder { border-color:#fecdd3; background:#fff1f2; color:#be123c; }
     .preview-tally-item { display:inline-flex; align-items:center; gap:7px; white-space:nowrap; }
     .preview-tally-name { font-weight:900; font-size:13px; }
     .preview-tally-marks { display:inline-flex; gap:4px; align-items:center; transform:translateY(1px); }
@@ -287,8 +311,36 @@
           <button class="save" onclick="saveRoundPrice()">Rundenpreis speichern</button>
           <span class="muted">„1 Runde“ ist kein normaler Artikel. Der EK/Gewinn wird aus den tatsächlich abgezogenen Getränken berechnet.</span>
         </div>
+        <hr style="border:0; border-top:1px solid var(--border); margin:16px 0">
+        <details class="appearance-group settings-accordion" open>
+          <summary>Nachrichten an Mitglieder</summary>
+          <div class="settings-accordion-content message-admin">
+            <div class="message-tools">
+              <label><input id="memberMessagesShowOnOverview" type="checkbox" style="width:auto"> In Standardansicht anzeigen</label>
+              <label><input id="memberMessagesShowInPopup" type="checkbox" style="width:auto"> Im Personen-Popup anzeigen</label>
+              <button type="button" class="save" onclick="saveAppearanceSettings('Nachrichten-Anzeige gespeichert')">Anzeige speichern</button>
+            </div>
+            <div class="grid" style="grid-template-columns:minmax(180px,260px) 1fr; gap:8px">
+              <input id="memberMessageTitle" placeholder="Titel, z. B. Bitte bezahlen">
+              <textarea id="memberMessageText" placeholder="Nachricht, die im Personen-Popup angezeigt wird"></textarea>
+            </div>
+            <div class="message-tools">
+              <button type="button" onclick="toggleMemberMessageRecipients(true)">Alle aktiven auswählen</button>
+              <button type="button" onclick="toggleMemberMessageRecipients(false)">Auswahl leeren</button>
+              <button class="save" type="button" onclick="createMemberMessage()">Nachricht anzeigen</button>
+            </div>
+            <div id="memberMessagePeople" class="message-people"></div>
+            <div class="muted">Mitglieder können die Nachricht im Kassen-Popup mit „Verstanden“ bestätigen. Danach wird sie für diese Person nicht mehr angezeigt.</div>
+            <h3>Aktive und letzte Nachrichten</h3>
+            <div id="memberMessageList" class="message-list"></div>
+          </div>
+        </details>
         <div id="appearanceSettingsBlock">
         <h3>Standardansicht</h3>
+        <div class="settings-view-toggle">
+          <button id="settingsSimpleButton" type="button" onclick="setSettingsViewMode('simple')">Einfache Ansicht</button>
+          <button id="settingsExpertButton" type="button" onclick="setSettingsViewMode('expert')">Expertenmodus</button>
+        </div>
         <div class="appearance-grid">
           <div class="appearance-controls">
             <div class="appearance-group">
@@ -358,6 +410,25 @@
                 <label for="tallyRoughness">Strich-Krackeligkeit: Stufe <strong id="tallyRoughnessValue">4</strong></label>
                 <input id="tallyRoughness" type="range" min="1" max="10" step="1" oninput="renderAppearancePreview()">
                 <span class="default-note">Standard: Stufe 4</span>
+              </div>
+            </div>
+
+            <div class="appearance-group">
+              <h3>Kostenwarnung & Zahlungserinnerung</h3>
+              <div class="setting-line">
+                <label><input id="costWarningEnabled" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Kostenwarnung anzeigen</label>
+                <input id="costWarningThreshold" type="text" inputmode="decimal" data-decimal-input data-decimal-digits="2" placeholder="30,00" oninput="renderAppearancePreview()">
+                <span class="default-note">Standard: eingeschaltet ab € 30,00</span>
+              </div>
+              <div class="setting-line">
+                <label><input id="paymentReminderEnabled" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Zahlungserinnerung anzeigen</label>
+                <input id="paymentReminderThreshold" type="text" inputmode="decimal" data-decimal-input data-decimal-digits="2" placeholder="50,00" oninput="renderAppearancePreview()">
+                <span class="default-note">Standard: eingeschaltet ab € 50,00</span>
+              </div>
+              <div class="setting-line">
+                <label><input id="costNoticeShowOnOverview" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Kostenhinweise in Standardansicht anzeigen</label>
+                <label><input id="costNoticeShowInPopup" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Kostenhinweise im Personen-Popup anzeigen</label>
+                <span class="default-note">Standard: beide eingeschaltet</span>
               </div>
             </div>
 
@@ -475,6 +546,7 @@
                   <div id="previewTotal" class="preview-total">€ 42,00</div>
                 </div>
                 <div id="appearancePreviewMarks" class="preview-event"></div>
+                <div id="previewCostAlerts" class="preview-alerts"></div>
               </div>
               <div class="person-preview-card" style="opacity:.82">
                 <div class="preview-row">
@@ -743,6 +815,7 @@
     let statsLoaded = false;
     let lastStatsData = null;
     let statsRequestSeq = 0;
+    let settingsViewMode = localStorage.getItem('drinkPosSettingsViewMode') || 'simple';
     const SYNC_RECOVERY_FAILURE_LIMIT = 3;
     const SYNC_RECOVERY_DELAY_MS = 1500;
     const SYNC_RECOVERY_RELOAD_AFTER_MS = 45000;
@@ -780,7 +853,15 @@
       drink_celebration_condition_debt: true,
       drink_celebration_debt_threshold_eur: 50,
       drink_celebration_confetti_intensity_percent: 100,
-      drink_celebration_sound_enabled: true
+      drink_celebration_sound_enabled: true,
+      cost_warning_enabled: true,
+      cost_warning_threshold_eur: 30,
+      payment_reminder_enabled: true,
+      payment_reminder_threshold_eur: 50,
+      cost_notice_show_on_overview: true,
+      cost_notice_show_in_popup: true,
+      member_messages_show_on_overview: true,
+      member_messages_show_in_popup: true
     };
 
     function numberComma(value, minimumFractionDigits = 2, maximumFractionDigits = minimumFractionDigits) {
@@ -873,6 +954,47 @@
       root.style.setProperty('--person-card-border-color', personCardBorderColor || '#bfdbfe');
       root.style.setProperty('--person-card-border-width', `${Math.max(0, Math.min(8, Number(personCardBorderWidthPx || 2)))}px`);
       root.style.setProperty('--person-card-gap', `${Math.max(4, Math.min(32, Number(personCardGapPx || 10)))}px`);
+    }
+
+    function upgradeSettingsAccordions() {
+      document.querySelectorAll('#appearanceSettingsBlock .appearance-group:not(.settings-upgraded)').forEach(group => {
+        const heading = group.querySelector(':scope > h3');
+        if (!heading) return;
+        const title = heading.textContent.trim();
+        const details = document.createElement('details');
+        details.className = `${group.className} settings-accordion settings-upgraded`;
+        if (/Farben|Sync|Buchungsfeedback/i.test(title)) details.classList.add('expert-only');
+        details.open = settingsViewMode === 'expert' || !details.classList.contains('expert-only');
+        const summary = document.createElement('summary');
+        summary.textContent = title;
+        const content = document.createElement('div');
+        content.className = 'settings-accordion-content';
+        [...group.childNodes].forEach(node => {
+          if (node !== heading) content.appendChild(node);
+        });
+        details.appendChild(summary);
+        details.appendChild(content);
+        group.replaceWith(details);
+      });
+      applySettingsViewMode();
+    }
+
+    function setSettingsViewMode(mode) {
+      settingsViewMode = mode === 'expert' ? 'expert' : 'simple';
+      localStorage.setItem('drinkPosSettingsViewMode', settingsViewMode);
+      applySettingsViewMode();
+    }
+
+    function applySettingsViewMode() {
+      const block = document.getElementById('appearanceSettingsBlock');
+      if (!block) return;
+      block.classList.toggle('simple-settings', settingsViewMode !== 'expert');
+      document.getElementById('settingsSimpleButton')?.classList.toggle('active', settingsViewMode !== 'expert');
+      document.getElementById('settingsExpertButton')?.classList.toggle('active', settingsViewMode === 'expert');
+      document.querySelectorAll('#appearanceSettingsBlock .settings-accordion').forEach(details => {
+        if (settingsViewMode !== 'expert' && details.classList.contains('expert-only')) return;
+        if (!details.open) details.open = true;
+      });
     }
 
     function updateStoredRevision(syncData = null) {
@@ -1143,6 +1265,9 @@
         PERSON_CREATED: 'Name angelegt', PERSON_UPDATED: 'Name geändert', PERSON_DELETED: 'Name gelöscht',
         ITEM_CREATED: 'Artikel angelegt', ITEM_UPDATED: 'Artikel geändert', ITEM_DELETED: 'Artikel gelöscht',
         DRINK_CREATED: 'Artikel angelegt', DRINK_UPDATED: 'Artikel geändert', SETTINGS_UPDATED: 'Einstellungen',
+        MEMBER_MESSAGE_CREATED: 'Mitgliedernachricht angelegt',
+        MEMBER_MESSAGE_ARCHIVED: 'Mitgliedernachricht archiviert',
+        MEMBER_MESSAGE_ACK: 'Mitgliedernachricht bestätigt',
         CONNECTION_LOST: 'Verbindung verloren', CONNECTION_RESTORED: 'Verbindung aufgenommen', SYNC_COMPLETED: 'Synchronisiert'
       };
       return labels[type] || type || 'Unbekannt';
@@ -1500,7 +1625,8 @@
       const w = document.getElementById('globalWarning');
       const s = overview.settings || {};
       const notes = [];
-      if (s.pin_default_warning) notes.push('Hinweis: Die Standard-PIN 1234 ist noch aktiv.');
+      if (s.pin_default_warning && s.production) notes.push('Wichtig: Die Standard-PIN 1234 ist in Produktion gesperrt. Setze vor produktivem Zugriff eine eigene PIN.');
+      else if (s.pin_default_warning) notes.push('Hinweis: Die Standard-PIN 1234 ist noch aktiv.');
       if (s.production) notes.push('Produktionsmodus ist aktiv; Testdaten sind deaktiviert.');
       else notes.push('Entwicklungsmodus ist aktiv; Testdaten sind erlaubt.');
       w.innerHTML = notes.map(escapeHtml).join('<br>');
@@ -1624,6 +1750,7 @@
     }
 
     function renderSettings() {
+      upgradeSettingsAccordions();
       const s = overview.settings || {};
       document.getElementById('appName').value = s.app_name || 'Drink POS';
       document.title = `${s.app_name || 'Drink POS'} · Organisation`;
@@ -1653,6 +1780,14 @@
       document.getElementById('drinkCelebrationDebtThreshold').value = formatDecimalInputValue(s.drink_celebration_debt_threshold_eur ?? 50);
       document.getElementById('drinkConfettiIntensitySlider').value = Number(s.drink_celebration_confetti_intensity_percent ?? 100);
       document.getElementById('drinkCelebrationSound').checked = s.drink_celebration_sound_enabled !== false;
+      document.getElementById('costWarningEnabled').checked = s.cost_warning_enabled !== false;
+      document.getElementById('costWarningThreshold').value = formatDecimalInputValue(s.cost_warning_threshold_eur ?? 30);
+      document.getElementById('paymentReminderEnabled').checked = s.payment_reminder_enabled !== false;
+      document.getElementById('paymentReminderThreshold').value = formatDecimalInputValue(s.payment_reminder_threshold_eur ?? 50);
+      document.getElementById('costNoticeShowOnOverview').checked = s.cost_notice_show_on_overview !== false;
+      document.getElementById('costNoticeShowInPopup').checked = s.cost_notice_show_in_popup !== false;
+      document.getElementById('memberMessagesShowOnOverview').checked = s.member_messages_show_on_overview !== false;
+      document.getElementById('memberMessagesShowInPopup').checked = s.member_messages_show_in_popup !== false;
       document.getElementById('enableDeleteRequests').checked = s.enable_delete_requests !== false;
       document.getElementById('appBgColor').value = s.app_background_color || '#f3f4f6';
       document.getElementById('personBgColor').value = s.person_card_background_color || '#ffffff';
@@ -1670,14 +1805,92 @@
       personCardGapPx = Number(s.person_card_gap_px ?? 10);
       applySyncAppearance();
       applyVisualAppearance();
+      renderMemberMessagePeople();
+      renderMemberMessagesAdmin();
       renderAppearancePreview();
       const dbName = (s.database && s.database.path) ? s.database.path.split('/').pop() : 'Standard';
       const dbSource = (s.database && s.database.source === 'DRINK_POS_DB') ? 'manuell gesetzt' : 'automatisch';
       document.getElementById('settingsInfo').textContent = `Umgebung: ${s.environment || 'development'} · Datenbank: ${dbName} (${dbSource}) · Währung: EUR`;
     }
 
+    function renderMemberMessagePeople() {
+      const box = document.getElementById('memberMessagePeople');
+      if (!box) return;
+      const activePeople = (overview.people || []).filter(person => person.active && !person.archived);
+      if (!activePeople.length) {
+        box.innerHTML = '<div class="muted">Keine aktiven Mitglieder vorhanden.</div>';
+        return;
+      }
+      box.innerHTML = activePeople.map(person => `
+        <label class="message-person-option">
+          <input class="member-message-person" type="checkbox" value="${Number(person.id)}">
+          <span>${escapeHtml(person.name)}</span>
+        </label>
+      `).join('');
+    }
+
+    function toggleMemberMessageRecipients(checked) {
+      document.querySelectorAll('.member-message-person').forEach(input => { input.checked = Boolean(checked); });
+    }
+
+    function renderMemberMessagesAdmin() {
+      const box = document.getElementById('memberMessageList');
+      if (!box) return;
+      const messages = overview.member_messages || [];
+      if (!messages.length) {
+        box.innerHTML = '<div class="muted">Noch keine Nachrichten angelegt.</div>';
+        return;
+      }
+      box.innerHTML = messages.map(message => {
+        const recipients = message.recipients || [];
+        const recipientPreview = recipients.slice(0, 6).map(r => `${r.acknowledged_at ? '✓ ' : ''}${r.name}`).join(', ');
+        const more = recipients.length > 6 ? ` und ${recipients.length - 6} weitere` : '';
+        return `
+          <div class="message-card ${message.active ? '' : 'archived'}">
+            <div class="message-card-head">
+              <div>
+                <div class="message-card-title">${escapeHtml(message.title || 'Nachricht')}</div>
+                <div class="muted">${escapeHtml(message.created_at || '')}${message.active ? '' : ' · archiviert'}</div>
+              </div>
+              ${message.active ? `<button class="danger" type="button" onclick="archiveMemberMessage(${Number(message.id)})">Archivieren</button>` : ''}
+            </div>
+            <div>${escapeHtml(message.message)}</div>
+            <div class="message-recipients">${Number(message.acknowledged_count || 0)} von ${Number(message.recipient_count || 0)} bestätigt${recipientPreview ? ` · ${escapeHtml(recipientPreview + more)}` : ''}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function createMemberMessage() {
+      const title = document.getElementById('memberMessageTitle').value.trim();
+      const message = document.getElementById('memberMessageText').value.trim();
+      const person_ids = [...document.querySelectorAll('.member-message-person:checked')].map(input => Number(input.value));
+      if (!message) return alert('Bitte eine Nachricht eingeben.');
+      if (!person_ids.length) return alert('Bitte mindestens ein Mitglied auswählen.');
+      try {
+        await apiFetch('/api/admin/member-message/create', { pin: adminPin, title, message, person_ids });
+        document.getElementById('memberMessageTitle').value = '';
+        document.getElementById('memberMessageText').value = '';
+        showStatus('Nachricht angelegt');
+        await loadOverview();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function archiveMemberMessage(messageId) {
+      if (!confirm('Nachricht archivieren? Sie wird danach nicht mehr angezeigt.')) return;
+      try {
+        await apiFetch('/api/admin/member-message/archive', { pin: adminPin, message_id: Number(messageId) });
+        showStatus('Nachricht archiviert');
+        await loadOverview();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
     function preferredHistoryTypes() {
-      return ['CONSUME','PAID_CASH','ROUND_DEDUCTED','ROUND_REQUEST','ROUND_REQUEST_APPROVED','ROUND_REQUEST_REJECTED','ADMIN_ADJUSTMENT','CHANGE_REQUEST','CHANGE_APPROVED','CHANGE_REJECTED','PERSON_CREATED','PERSON_UPDATED','PERSON_DELETED','ITEM_CREATED','ITEM_UPDATED','ITEM_DELETED','SETTINGS_UPDATED','CONNECTION_LOST','CONNECTION_RESTORED','SYNC_COMPLETED','DEBUG_TEST_DATA'];
+      return ['CONSUME','PAID_CASH','ROUND_DEDUCTED','ROUND_REQUEST','ROUND_REQUEST_APPROVED','ROUND_REQUEST_REJECTED','ADMIN_ADJUSTMENT','CHANGE_REQUEST','CHANGE_APPROVED','CHANGE_REJECTED','PERSON_CREATED','PERSON_UPDATED','PERSON_DELETED','ITEM_CREATED','ITEM_UPDATED','ITEM_DELETED','SETTINGS_UPDATED','MEMBER_MESSAGE_CREATED','MEMBER_MESSAGE_ARCHIVED','MEMBER_MESSAGE_ACK','CONNECTION_LOST','CONNECTION_RESTORED','SYNC_COMPLETED','DEBUG_TEST_DATA'];
     }
 
     function currentRenderedTypeSet() {
@@ -2015,6 +2228,16 @@
       document.getElementById('previewSummaryLabel').style.display = document.getElementById('showSummaryLabelOverview').checked ? 'inline' : 'none';
       document.getElementById('previewSummaryLabel').textContent = document.getElementById('summaryLabelText').value.trim() || 'Gesamt:';
       document.getElementById('previewTotal').style.display = document.getElementById('showTotalOverview').checked ? 'block' : 'none';
+      const costPreview = document.getElementById('previewCostAlerts');
+      const reminderOn = document.getElementById('paymentReminderEnabled')?.checked;
+      const warningOn = document.getElementById('costWarningEnabled')?.checked;
+      const costOnOverview = document.getElementById('costNoticeShowOnOverview')?.checked;
+      if (costPreview) {
+        if (!costOnOverview) costPreview.innerHTML = '';
+        else if (reminderOn) costPreview.innerHTML = '<span class="preview-alert reminder">Zahlungserinnerung: € 42,00</span>';
+        else if (warningOn) costPreview.innerHTML = '<span class="preview-alert">Kostenwarnung: € 42,00</span>';
+        else costPreview.innerHTML = '';
+      }
       document.getElementById('popupPreviewTotal').classList.toggle('hidden', !document.getElementById('showPersonPopupTotal').checked);
       document.getElementById('popupPreviewDeletePanel').classList.toggle('hidden', !document.getElementById('enableDeleteRequests').checked);
       const test = [{label:'Gross', qty:12}, {label:'Klein', qty:7}, {label:'Limo', qty:3}];
@@ -2056,6 +2279,14 @@
       document.getElementById('drinkCelebrationDebtThreshold').value = formatDecimalInputValue(APPEARANCE_DEFAULTS.drink_celebration_debt_threshold_eur);
       document.getElementById('drinkConfettiIntensitySlider').value = APPEARANCE_DEFAULTS.drink_celebration_confetti_intensity_percent;
       document.getElementById('drinkCelebrationSound').checked = APPEARANCE_DEFAULTS.drink_celebration_sound_enabled;
+      document.getElementById('costWarningEnabled').checked = APPEARANCE_DEFAULTS.cost_warning_enabled;
+      document.getElementById('costWarningThreshold').value = formatDecimalInputValue(APPEARANCE_DEFAULTS.cost_warning_threshold_eur);
+      document.getElementById('paymentReminderEnabled').checked = APPEARANCE_DEFAULTS.payment_reminder_enabled;
+      document.getElementById('paymentReminderThreshold').value = formatDecimalInputValue(APPEARANCE_DEFAULTS.payment_reminder_threshold_eur);
+      document.getElementById('costNoticeShowOnOverview').checked = APPEARANCE_DEFAULTS.cost_notice_show_on_overview;
+      document.getElementById('costNoticeShowInPopup').checked = APPEARANCE_DEFAULTS.cost_notice_show_in_popup;
+      document.getElementById('memberMessagesShowOnOverview').checked = APPEARANCE_DEFAULTS.member_messages_show_on_overview;
+      document.getElementById('memberMessagesShowInPopup').checked = APPEARANCE_DEFAULTS.member_messages_show_in_popup;
       renderAppearancePreview();
     }
 
@@ -2089,13 +2320,21 @@
       const drink_celebration_debt_threshold_eur = parseDecimalInput(document.getElementById('drinkCelebrationDebtThreshold').value || '50');
       const drink_celebration_confetti_intensity_percent = Number(document.getElementById('drinkConfettiIntensitySlider').value || 100);
       const drink_celebration_sound_enabled = document.getElementById('drinkCelebrationSound').checked;
+      const cost_warning_enabled = document.getElementById('costWarningEnabled').checked;
+      const cost_warning_threshold_eur = parseDecimalInput(document.getElementById('costWarningThreshold').value || '30');
+      const payment_reminder_enabled = document.getElementById('paymentReminderEnabled').checked;
+      const payment_reminder_threshold_eur = parseDecimalInput(document.getElementById('paymentReminderThreshold').value || '50');
+      const cost_notice_show_on_overview = document.getElementById('costNoticeShowOnOverview').checked;
+      const cost_notice_show_in_popup = document.getElementById('costNoticeShowInPopup').checked;
+      const member_messages_show_on_overview = document.getElementById('memberMessagesShowOnOverview').checked;
+      const member_messages_show_in_popup = document.getElementById('memberMessagesShowInPopup').checked;
       const enable_delete_requests = document.getElementById('enableDeleteRequests').checked;
       const app_background_color = document.getElementById('appBgColor').value || '#f3f4f6';
       const person_card_background_color = document.getElementById('personBgColor').value || '#ffffff';
       const person_card_border_color = document.getElementById('personBorderColor').value || '#bfdbfe';
       const person_card_border_width_px = Number(document.getElementById('personBorderWidthSlider').value || 2);
       const person_card_gap_px = Number(document.getElementById('personGapSlider').value || 10);
-      try { await apiFetch('/api/admin/settings/update', {pin: adminPin, show_total_on_overview, show_person_popup_total, show_summary_label_on_overview, overview_summary_label_text, overview_summary_size_percent, tally_roughness, overview_name_size_px, tally_size_percent, show_sync_status, sync_status_size_percent, drink_feedback_enabled, drink_booking_sound_enabled, drink_booking_sound_preset, drink_feedback_style, drink_feedback_duration_ms, drink_feedback_animation_intensity_percent, drink_feedback_position, drink_celebration_mode, drink_celebration_condition_round, drink_celebration_condition_debt, drink_celebration_debt_threshold_eur, drink_celebration_confetti_intensity_percent, drink_celebration_sound_enabled, enable_delete_requests, app_background_color, person_card_background_color, person_card_border_color, person_card_border_width_px, person_card_gap_px}); showStatus(successText); await loadOverview(); } catch (err) { alert(err.message); }
+      try { await apiFetch('/api/admin/settings/update', {pin: adminPin, show_total_on_overview, show_person_popup_total, show_summary_label_on_overview, overview_summary_label_text, overview_summary_size_percent, tally_roughness, overview_name_size_px, tally_size_percent, show_sync_status, sync_status_size_percent, drink_feedback_enabled, drink_booking_sound_enabled, drink_booking_sound_preset, drink_feedback_style, drink_feedback_duration_ms, drink_feedback_animation_intensity_percent, drink_feedback_position, drink_celebration_mode, drink_celebration_condition_round, drink_celebration_condition_debt, drink_celebration_debt_threshold_eur, drink_celebration_confetti_intensity_percent, drink_celebration_sound_enabled, cost_warning_enabled, cost_warning_threshold_eur, payment_reminder_enabled, payment_reminder_threshold_eur, cost_notice_show_on_overview, cost_notice_show_in_popup, member_messages_show_on_overview, member_messages_show_in_popup, enable_delete_requests, app_background_color, person_card_background_color, person_card_border_color, person_card_border_width_px, person_card_gap_px}); showStatus(successText); await loadOverview(); } catch (err) { alert(err.message); }
     }
 
     async function saveOverviewSettings() { return saveAppearanceSettings(); }

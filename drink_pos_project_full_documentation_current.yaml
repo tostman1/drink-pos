@@ -91,6 +91,7 @@ runtime_environment:
     DRINK_POS_PIN:
       default: "1234"
       behavior: "Wird nur beim ersten DB-Start als settings.admin_pin übernommen, wenn noch kein PIN existiert."
+  production_pin_guard: "Admin-Login und PIN-pflichtige Admin-API-Aktionen sind in production gesperrt, solange die konfigurierte PIN noch 1234 ist."
   recommended_operation:
     development: "DRINK_POS_ENV=development für Testdatenbank und Debug-Testdaten."
     production: "DRINK_POS_ENV=production für echten Vereinsbetrieb."
@@ -124,7 +125,7 @@ pwa_and_app_feeling:
     file: "app/service-worker.js"
     role: "Shell-Caching statischer Dateien"
     cache_version_rule: "Nach UI-Änderungen CACHE_NAME erhöhen."
-    current_expected_cache_name: "drink-pos-shell-v66"
+    current_expected_cache_name: "drink-pos-shell-v69"
   offline_policy:
     read_shell_offline: "statische App-Shell kann aus Cache kommen"
     write_offline: "nur normale Getraenkebuchungen"
@@ -198,6 +199,11 @@ business_domain:
     display_name: "name als kompatibler Vollname, plus first_name/last_name"
     deletion_policy: "archivieren/deaktivieren statt hart löschen"
     sorting: "last_name, first_name, fallback name; Umlaute normalisiert"
+  member_messages:
+    description: "Benutzerdefinierte Admin-Nachrichten an ausgewaehlte aktive Mitglieder."
+    display: "Je nach Einstellung zeigt die Personenkarte einen Nachrichten-Badge mit Verstanden-Button und/oder das Personen-Popup Titel, Text und Verstanden-Button."
+    acknowledgement: "Bestaetigung wird pro Person gespeichert; danach wird diese Nachricht fuer diese Person nicht mehr angezeigt."
+    admin_management: "Admin legt Nachricht mit Empfaengerauswahl an und kann aktive Nachrichten archivieren."
   items:
     description: "Getränke/Artikel plus Systemartikel '1 Runde'."
     normal_item_fields:
@@ -410,6 +416,38 @@ settings:
       type: "boolean"
       default: true
       purpose: "Feierlichen Web-Audio-Ton zusammen mit dem Konfetti abspielen"
+    cost_warning_enabled:
+      type: "boolean"
+      default: true
+      purpose: "Kostenwarnung in Personenkarte und Personen-Popup anzeigen"
+    cost_warning_threshold_eur:
+      type: "decimal string"
+      default: "30.00"
+      purpose: "Offener Betrag, ab dem die Kostenwarnung erscheint"
+    payment_reminder_enabled:
+      type: "boolean"
+      default: true
+      purpose: "Stärkere Zahlungserinnerung in Personenkarte und Personen-Popup anzeigen"
+    payment_reminder_threshold_eur:
+      type: "decimal string"
+      default: "50.00"
+      purpose: "Offener Betrag, ab dem die Zahlungserinnerung die Kostenwarnung ersetzt"
+    cost_notice_show_on_overview:
+      type: "boolean"
+      default: true
+      purpose: "Kostenwarnung/Zahlungserinnerung in der Standardansicht anzeigen"
+    cost_notice_show_in_popup:
+      type: "boolean"
+      default: true
+      purpose: "Kostenwarnung/Zahlungserinnerung im Personen-Popup anzeigen"
+    member_messages_show_on_overview:
+      type: "boolean"
+      default: true
+      purpose: "Mitgliedernachrichten in der Standardansicht als kompakte Zeile mit Bestaetigung anzeigen"
+    member_messages_show_in_popup:
+      type: "boolean"
+      default: true
+      purpose: "Mitgliedernachrichten im Personen-Popup anzeigen"
     app_background_color:
       type: "CSS color"
       default: "#f3f4f6"
@@ -431,8 +469,13 @@ settings:
       default: 10
       purpose: "Abstand zwischen Personen"
   admin_settings_ui:
+    structure:
+      - "Einfache Ansicht und Expertenmodus"
+      - "Einstellungen sind als aufklappbare Gruppen/Akkordeons organisiert"
+      - "Alltagsfunktionen wie Kostenwarnung und Mitgliedernachrichten bleiben in der einfachen Ansicht sichtbar"
     live_previews:
       - "Strichlisten-/Personenkarten-Vorschau mit Max Mustermann und Testmengen"
+      - "Kostenwarnung/Zahlungserinnerung als Badge in der Personenkarten-Vorschau"
       - "Sync-Indikator-Vorschau"
       - "Popup-Vorschau sollte künftig echte Dialog-Komponente/Fake-Daten nutzen statt separater Fake-Struktur"
 
@@ -521,6 +564,22 @@ sqlite_schema:
         status: {type: "TEXT", constraints: "NOT NULL DEFAULT 'PENDING'"}
         requested_at: {type: "TEXT", constraints: "NOT NULL"}
         decided_at: {type: "TEXT", constraints: "nullable"}
+    member_messages:
+      purpose: "Admin-Nachrichten, die ausgewaehlten Mitgliedern im Personen-Popup angezeigt werden"
+      columns:
+        id: {type: "INTEGER", constraints: "PRIMARY KEY AUTOINCREMENT"}
+        title: {type: "TEXT", constraints: "nullable"}
+        message: {type: "TEXT", constraints: "NOT NULL"}
+        active: {type: "INTEGER", constraints: "NOT NULL DEFAULT 1"}
+        created_at: {type: "TEXT", constraints: "NOT NULL"}
+        archived_at: {type: "TEXT", constraints: "nullable"}
+    member_message_recipients:
+      purpose: "Empfaenger und individuelle Lesebestaetigung je Nachricht"
+      columns:
+        message_id: {type: "INTEGER", constraints: "NOT NULL REFERENCES member_messages(id) ON DELETE CASCADE"}
+        person_id: {type: "INTEGER", constraints: "NOT NULL REFERENCES people(id)"}
+        acknowledged_at: {type: "TEXT", constraints: "nullable"}
+      primary_key: ["message_id", "person_id"]
     transactions:
       purpose: "Haupt-Auditlog / Verlauf"
       immutability: "niemals alte Einträge überschreiben/löschen für normale Korrekturen"
@@ -554,6 +613,9 @@ sqlite_schema:
         - "CONNECTION_LOST"
         - "CONNECTION_RESTORED"
         - "SYNC_COMPLETED"
+        - "MEMBER_MESSAGE_CREATED"
+        - "MEMBER_MESSAGE_ARCHIVED"
+        - "MEMBER_MESSAGE_ACK"
     client_operations:
       purpose: "Idempotenz fuer nachtraeglich synchronisierte Offline-Getraenkebuchungen"
       columns:
@@ -604,6 +666,9 @@ sqlite_schema:
     - "idx_change_requests_line_status ON change_requests(order_line_id, status)"
     - "idx_round_requests_status ON round_requests(status)"
     - "idx_round_requests_person_status ON round_requests(person_id, status)"
+    - "idx_member_messages_active ON member_messages(active, archived_at)"
+    - "idx_member_message_recipients_person_ack ON member_message_recipients(person_id, acknowledged_at)"
+    - "idx_member_message_recipients_message ON member_message_recipients(message_id)"
 
 api:
   style: "JSON REST"
@@ -629,9 +694,12 @@ api:
     - {method: "POST", path: "/api/add-drink", body: "AddDrinkRequest", purpose: "Konsum buchen; optional idempotente Offline-Nachsynchronisierung ueber client_operation_id"}
     - {method: "POST", path: "/api/edit-request", body: "EditRequestIn", purpose: "Löschanfrage stellen"}
     - {method: "POST", path: "/api/round-request", body: "RoundRequestIn", purpose: "Runde zahlen; wird sofort als APPROVED protokolliert und gebucht"}
+    - {method: "POST", path: "/api/member-message/ack", body: "MemberMessageAckRequest", purpose: "Mitglied bestaetigt eine angezeigte Nachricht; danach fuer diese Person ausgeblendet"}
   admin_routes:
     - {method: "POST", path: "/api/admin-login", body: "PinRequest", purpose: "PIN prüfen"}
     - {method: "POST", path: "/api/admin/overview", body: "PinRequest", purpose: "Admin-Dashboard-Daten"}
+    - {method: "POST", path: "/api/admin/member-message/create", body: "AdminMemberMessageCreate", purpose: "Nachricht an ausgewaehlte aktive Mitglieder anlegen"}
+    - {method: "POST", path: "/api/admin/member-message/archive", body: "AdminMemberMessageArchive", purpose: "Mitgliedernachricht archivieren"}
     - {method: "POST", path: "/api/admin/change-request/decide", body: "AdminChangeRequestDecision", purpose: "Löschanfrage entscheiden"}
     - {method: "POST", path: "/api/admin/round-request/decide", body: "AdminRoundRequestDecision", purpose: "Legacy-/Adminentscheidung alter Rundenanfragen; neue Runden brauchen keine Genehmigung"}
     - {method: "POST", path: "/api/pay", body: "PayRequest", purpose: "Barzahlung buchen"}
@@ -671,6 +739,9 @@ pydantic_models:
   EditRequestIn: {fields: {person_id: "int", line_quantities: "dict|null", changes: "legacy|null", reason: "str|null"}}
   RoundRequestIn: {fields: {person_id: "int", quantity: "int default 1", reason: "str|null"}}
   PayRequest: {fields: {person_id: "int", pin: "str", approve_request_ids: "list[int]", reject_request_ids: "list[int]", approve_pending: "bool legacy", reject_pending: "bool legacy"}}
+  MemberMessageAckRequest: {fields: {person_id: "int", message_id: "int"}}
+  AdminMemberMessageCreate: {fields: {pin: "str", title: "str|null", message: "str", person_ids: "list[int]"}}
+  AdminMemberMessageArchive: {fields: {pin: "str", message_id: "int"}}
   AdminAdjustItemRequest: {fields: {person_id: "int", pin: "str", delta: "int", item_id: "int|null", drink: "str|null compatibility"}}
   AdminChangeRequestDecision: {fields: {pin: "str", request_id: "int", decision: "approve|reject|APPROVED|REJECTED"}}
   AdminRoundRequestDecision: {fields: {pin: "str", request_id: "int", decision: "approve|reject|APPROVED|REJECTED"}}
@@ -710,6 +781,14 @@ pydantic_models:
       drink_celebration_debt_threshold_eur: "float|str|null"
       drink_celebration_confetti_intensity_percent: "int|null"
       drink_celebration_sound_enabled: "bool|null"
+      cost_warning_enabled: "bool|null"
+      cost_warning_threshold_eur: "float|str|null"
+      payment_reminder_enabled: "bool|null"
+      payment_reminder_threshold_eur: "float|str|null"
+      cost_notice_show_on_overview: "bool|null"
+      cost_notice_show_in_popup: "bool|null"
+      member_messages_show_on_overview: "bool|null"
+      member_messages_show_in_popup: "bool|null"
       app_background_color: "str|null"
       person_card_background_color: "str|null"
       person_card_border_color: "str|null"
@@ -734,6 +813,7 @@ frontend_cashier_index:
       line_1_middle_right: "Kurzauflistung offener Posten optional mit Label"
       line_1_right: "Gesamtpreis, je nach Setting/Admin"
       line_2_center: "aktuelle Strichliste ohne Überschrift 'Strichliste'"
+      badges: "Kostenwarnung, Zahlungserinnerung und ungelesene Mitgliedernachrichten werden als kleine Badges angezeigt"
     person_card_style_settings:
       - "app_background_color"
       - "person_card_background_color"
@@ -765,6 +845,8 @@ frontend_cashier_index:
       - "Sekundaerbereich: Runde zahlen, freundlich/feierlich aber nicht dominanter als Getraenkebuchung"
       - "Tertiaerbereich: kompakte/einklappbare Loeschanfrage"
     layout_notes:
+      - "Kostenwarnung/Zahlungserinnerung und aktive Mitgliedernachrichten erscheinen unter der offenen Summe und vor den Aktionsbereichen."
+      - "Mitgliedernachrichten haben einen 'Verstanden'-Button und werden danach nur fuer diese Person ausgeblendet."
       - "Buchungsfeedback liegt absolut im Hinzufuegen-Bereich, damit Getraenkebuttons bei schnellen Mehrfachbuchungen nicht verschoben werden."
       - "Die Position ist aktuell fest oben/rechts neben der Ueberschrift 'Hinzufuegen'; alte above/below Settings werden gespeichert, aber die Kassenansicht erzwingt oben."
       - "Getraenkebuttons haben feste Touchflaechen mit Plus-Zone, Produktname und Preis-Pill; Bier/Limo/Runde koennen dezent farblich unterschieden werden."
@@ -795,10 +877,15 @@ frontend_admin_html:
   tabs:
     people: "Personen anlegen, ändern, aktivieren/deaktivieren, archivieren"
     items: "Artikel & Preise ohne Systemartikel '1 Runde'"
-    settings: "App, Rundenpreis, Anzeige, Design, Sync, PIN"
+    settings: "App, Rundenpreis, Mitgliedernachrichten, Sync, PIN"
+    appearance: "Anzeige, Design, Strichliste, Popup, Kostenwarnung/Zahlungserinnerung, Feedback/Sounds"
     statistics: "KPIs, Top-Artikel, offene Betraege, Finanzverlauf, Runden"
     history: "Transaktionsverlauf filtern"
     exports_reports: "Berichte und CSV"
+  settings_structure:
+    simple_mode: "zeigt alltagsnahe Gruppen wie Uebersicht, Strichliste, Kostenwarnung und Mitgliedernachrichten"
+    expert_mode: "zeigt zusaetzlich Farben, Sync-Anzeige und Feedback/Sounds"
+    accordions: "Darstellungsgruppen sind aufklappbar und werden im Browser dynamisch aus den bestehenden Gruppen aufgebaut"
   settings_live_preview:
     limitation: >-
       Die Vorschau ist optisch an die echte Kassenansicht angenähert, nutzt aber noch eine eigene
@@ -845,6 +932,7 @@ security:
     - "/api/admin-login hat ein einfaches In-Memory Rate Limit pro Client."
     - "/health und /api/config redigieren den DB-Pfad in production."
     - "SQLite Foreign Keys und busy_timeout werden in get_conn pro Verbindung gesetzt."
+    - "Admin-Login und direkte PIN-pflichtige Admin-API-Calls werden in production blockiert, solange die Standard-PIN 1234 aktiv ist."
   recommended_if_public:
     - "nicht Port 8088 direkt ins Internet freigeben"
     - "VPN/Tailscale oder Reverse Proxy mit HTTPS und zusätzlicher Auth"
@@ -982,7 +1070,7 @@ known_open_points_current:
     note: "Admin-Vorschau ist verbessert, nutzt aber weiterhin eigene Preview-Struktur statt gemeinsamer Renderfunktion mit index.html."
 
 current_update_2026_05_18:
-  cache_name: "drink-pos-shell-v66"
+  cache_name: "drink-pos-shell-v69"
   branch_note: "Git-Repository aktiv; master enthaelt den Sound-/Einstellungsstand, codex/tablet-sync-recovery enthaelt Auto-Reconnect und Offline-Getraenkebuchungen."
   round_flow:
     current_behavior:
@@ -1030,7 +1118,22 @@ current_update_2026_05_18:
     deployment:
       - "requirements.txt, .env.example und README.md ergaenzt."
     tests:
-      - "tests/test_backend.py deckt Buchung, Zahlung, Kassensturz, Runde, Offline-Idempotenz, PRAGMAs und /api/transactions-Schutz ab."
+      - "tests/test_backend.py deckt Buchung, Zahlung, Kassensturz, Runde, Offline-Idempotenz, Mitgliedernachrichten, Production-Standard-PIN-Block, PRAGMAs und /api/transactions-Schutz ab."
+  cost_warning_and_messages:
+    settings:
+      - "cost_warning_enabled / cost_warning_threshold_eur"
+      - "payment_reminder_enabled / payment_reminder_threshold_eur"
+      - "cost_notice_show_on_overview / cost_notice_show_in_popup"
+      - "member_messages_show_on_overview / member_messages_show_in_popup"
+    cashier_behavior:
+      - "Personenkarten zeigen Warnungs-/Erinnerungs-Badge nur, wenn die Standardansicht-Anzeige aktiviert ist."
+      - "Personen-Popup zeigt Kostenwarnung oder Zahlungserinnerung nur, wenn die Popup-Anzeige aktiviert ist."
+      - "Admin-Nachrichten an Mitglieder erscheinen je nach Setting in Standardansicht und/oder Personen-Popup."
+      - "Nachrichten in der Standardansicht koennen direkt an der Personenkarte mit 'Verstanden' bestaetigt werden."
+    admin_behavior:
+      - "Admin kann Nachrichten mit Empfaengerauswahl an aktive Mitglieder anlegen und archivieren."
+      - "Admin kann fuer Kostenhinweise und Mitgliedernachrichten getrennt festlegen, ob sie in Standardansicht und/oder Personen-Popup sichtbar sind."
+      - "Admin-Einstellungen haben einfache Ansicht/Expertenmodus und aufklappbare Darstellungsgruppen."
   sync:
     heartbeat_seconds: 5
     behavior:
@@ -1073,6 +1176,30 @@ bedienszenarien_und_bedienreihenfolgen:
       - "Personensumme und Strichliste werden lokal sofort optimistisch erhoeht."
       - "Server bekommt jede Buchung mit client_operation_id und verarbeitet doppelte Nachsendungen idempotent."
       - "Nach erfolgreicher Synchronisierung verschwindet die Offline-Anzahl aus dem Sync-Feld."
+  kostenwarnung_und_zahlungserinnerung:
+    steps:
+      - "Adminbereich oeffnen."
+      - "Darstellung -> Kostenwarnung & Zahlungserinnerung aufklappen."
+      - "Grenzwerte, Aktivierung und Sichtbarkeit fuer Standardansicht/Personen-Popup setzen."
+      - "Darstellung speichern."
+      - "Kassenansicht oeffnen und Person mit entsprechend hohem offenem Betrag ansehen."
+    expected_result:
+      - "Personenkarte zeigt Warnung oder Zahlungserinnerung nur, wenn Standardansicht aktiviert ist."
+      - "Personen-Popup zeigt die passende Meldung nur, wenn Popup-Anzeige aktiviert ist."
+      - "Buchungen bleiben weiterhin moeglich; die Meldung blockiert keine Aktion."
+  nachricht_an_mitglieder:
+    steps:
+      - "Adminbereich -> Einstellungen -> Nachrichten an Mitglieder oeffnen."
+      - "Sichtbarkeit fuer Standardansicht und/oder Personen-Popup setzen und speichern."
+      - "Titel und Nachricht schreiben."
+      - "Einzelne Mitglieder oder alle aktiven Mitglieder auswaehlen."
+      - "'Nachricht anzeigen' druecken."
+      - "Mitglied bestaetigt die Nachricht in der aktivierten Ansicht mit 'Verstanden'."
+    expected_result:
+      - "Nachricht erscheint nur bei ausgewaehlten aktiven Mitgliedern."
+      - "Nachricht erscheint nur in den aktivierten Flaechen: Standardansicht und/oder Personen-Popup."
+      - "Nach Bestaetigung wird sie fuer diese Person nicht mehr angezeigt."
+      - "Admin sieht bei der Nachricht, wie viele Empfaenger bereits bestaetigt haben."
   runde_zahlen:
     steps:
       - "Person antippen."
@@ -1163,6 +1290,8 @@ backup_and_recovery:
       - "order_lines"
       - "change_requests"
       - "round_requests"
+      - "member_messages"
+      - "member_message_recipients"
       - "transactions"
       - "client_operations"
       - "transaction_items"

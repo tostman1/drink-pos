@@ -107,6 +107,47 @@ class BackendFlowTests(unittest.TestCase):
         self.assertEqual(ctx.exception.status_code, 403)
         self.assertIsInstance(self.main.transactions(pin=PIN), list)
 
+    def test_member_message_acknowledgement_is_per_person(self):
+        people = self.main.list_people()
+        res = self.main.admin_create_member_message(
+            self.main.AdminMemberMessageCreate(
+                pin=PIN,
+                title="Bitte bezahlen",
+                message="Bitte beim naechsten Mal ausgleichen.",
+                person_ids=[people[0]["id"], people[1]["id"]],
+            )
+        )
+        message_id = res["id"]
+
+        first = next(person for person in self.main.list_people() if person["id"] == people[0]["id"])
+        second = next(person for person in self.main.list_people() if person["id"] == people[1]["id"])
+        self.assertEqual(first["member_message_count"], 1)
+        self.assertEqual(second["member_message_count"], 1)
+
+        ack = self.main.acknowledge_member_message(
+            self.main.MemberMessageAckRequest(person_id=people[0]["id"], message_id=message_id)
+        )
+        self.assertEqual(ack["status"], "ok")
+
+        first_after = next(person for person in self.main.list_people() if person["id"] == people[0]["id"])
+        second_after = next(person for person in self.main.list_people() if person["id"] == people[1]["id"])
+        self.assertEqual(first_after["member_message_count"], 0)
+        self.assertEqual(second_after["member_message_count"], 1)
+
+    def test_production_blocks_default_pin_login(self):
+        original_env = self.main.APP_ENV
+        self.main.APP_ENV = "production"
+        try:
+            with self.main.get_conn() as conn:
+                with self.assertRaises(HTTPException) as ctx:
+                    self.main.ensure_admin_login_allowed(conn)
+            self.assertEqual(ctx.exception.status_code, 403)
+            with self.assertRaises(HTTPException) as direct_ctx:
+                self.main.transactions(pin=PIN)
+            self.assertEqual(direct_ctx.exception.status_code, 403)
+        finally:
+            self.main.APP_ENV = original_env
+
 
 if __name__ == "__main__":
     unittest.main()

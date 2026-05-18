@@ -318,9 +318,26 @@ def normalize_hex_color(value: str | None, default: str) -> str:
 
 
 def require_pin(conn: sqlite3.Connection, pin: str):
-    configured = get_setting(conn, "admin_pin", ENV_PIN_CODE) or ENV_PIN_CODE
+    configured = configured_admin_pin(conn)
+    if is_production() and configured == "1234":
+        raise HTTPException(
+            status_code=403,
+            detail="Standard-PIN 1234 ist in Produktion gesperrt. Bitte DRINK_POS_PIN setzen oder die PIN in einer lokalen Entwicklungsumgebung ändern.",
+        )
     if pin != configured:
         raise HTTPException(status_code=403, detail="Falsche PIN")
+
+
+def configured_admin_pin(conn: sqlite3.Connection) -> str:
+    return get_setting(conn, "admin_pin", ENV_PIN_CODE) or ENV_PIN_CODE
+
+
+def ensure_admin_login_allowed(conn: sqlite3.Connection):
+    if is_production() and configured_admin_pin(conn) == "1234":
+        raise HTTPException(
+            status_code=403,
+            detail="Standard-PIN 1234 ist in Produktion gesperrt. Bitte DRINK_POS_PIN setzen oder die PIN in einer lokalen Entwicklungsumgebung ändern.",
+        )
 
 
 def log_transaction(
@@ -503,6 +520,32 @@ def init_db():
 
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS member_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT,
+                message TEXT NOT NULL,
+                active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                archived_at TEXT
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS member_message_recipients (
+                message_id INTEGER NOT NULL,
+                person_id INTEGER NOT NULL,
+                acknowledged_at TEXT,
+                PRIMARY KEY(message_id, person_id),
+                FOREIGN KEY(message_id) REFERENCES member_messages(id) ON DELETE CASCADE,
+                FOREIGN KEY(person_id) REFERENCES people(id)
+            )
+            """
+        )
+
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS transactions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 person_id INTEGER,
@@ -599,6 +642,9 @@ def ensure_indexes(conn: sqlite3.Connection):
         "CREATE INDEX IF NOT EXISTS idx_change_requests_line_status ON change_requests(order_line_id, status)",
         "CREATE INDEX IF NOT EXISTS idx_round_requests_status ON round_requests(status)",
         "CREATE INDEX IF NOT EXISTS idx_round_requests_person_status ON round_requests(person_id, status)",
+        "CREATE INDEX IF NOT EXISTS idx_member_messages_active ON member_messages(active, archived_at)",
+        "CREATE INDEX IF NOT EXISTS idx_member_message_recipients_person_ack ON member_message_recipients(person_id, acknowledged_at)",
+        "CREATE INDEX IF NOT EXISTS idx_member_message_recipients_message ON member_message_recipients(message_id)",
     ]
     for sql in indexes:
         conn.execute(sql)
@@ -908,6 +954,22 @@ def ensure_settings(conn: sqlite3.Connection):
         set_setting(conn, "drink_celebration_confetti_intensity_percent", "100")
     if get_setting(conn, "drink_celebration_sound_enabled") is None:
         set_setting(conn, "drink_celebration_sound_enabled", "1")
+    if get_setting(conn, "cost_warning_enabled") is None:
+        set_setting(conn, "cost_warning_enabled", "1")
+    if get_setting(conn, "cost_warning_threshold_eur") is None:
+        set_setting(conn, "cost_warning_threshold_eur", "30.00")
+    if get_setting(conn, "payment_reminder_enabled") is None:
+        set_setting(conn, "payment_reminder_enabled", "1")
+    if get_setting(conn, "payment_reminder_threshold_eur") is None:
+        set_setting(conn, "payment_reminder_threshold_eur", "50.00")
+    if get_setting(conn, "cost_notice_show_on_overview") is None:
+        set_setting(conn, "cost_notice_show_on_overview", "1")
+    if get_setting(conn, "cost_notice_show_in_popup") is None:
+        set_setting(conn, "cost_notice_show_in_popup", "1")
+    if get_setting(conn, "member_messages_show_on_overview") is None:
+        set_setting(conn, "member_messages_show_on_overview", "1")
+    if get_setting(conn, "member_messages_show_in_popup") is None:
+        set_setting(conn, "member_messages_show_in_popup", "1")
 
 
 @app.on_event("startup")
@@ -963,6 +1025,11 @@ class PayRequest(BaseModel):
     reject_pending: bool = False
 
 
+class MemberMessageAckRequest(BaseModel):
+    person_id: int
+    message_id: int
+
+
 class AdminAdjustItemRequest(BaseModel):
     person_id: int
     pin: str
@@ -1002,6 +1069,18 @@ class AdminPersonUpdate(BaseModel):
 class AdminPersonDelete(BaseModel):
     pin: str
     person_id: int
+
+
+class AdminMemberMessageCreate(BaseModel):
+    pin: str
+    title: str | None = None
+    message: str
+    person_ids: list[int]
+
+
+class AdminMemberMessageArchive(BaseModel):
+    pin: str
+    message_id: int
 
 
 class AdminItemCreate(BaseModel):
@@ -1069,6 +1148,14 @@ class SettingsUpdateRequest(BaseModel):
     drink_celebration_debt_threshold_eur: float | str | None = None
     drink_celebration_confetti_intensity_percent: int | None = None
     drink_celebration_sound_enabled: bool | None = None
+    cost_warning_enabled: bool | None = None
+    cost_warning_threshold_eur: float | str | None = None
+    payment_reminder_enabled: bool | None = None
+    payment_reminder_threshold_eur: float | str | None = None
+    cost_notice_show_on_overview: bool | None = None
+    cost_notice_show_in_popup: bool | None = None
+    member_messages_show_on_overview: bool | None = None
+    member_messages_show_in_popup: bool | None = None
 
 
 class ClientEventRequest(BaseModel):
@@ -1324,6 +1411,94 @@ def get_pending_requests_for_person(conn: sqlite3.Connection, person_id: int):
     return result
 
 
+def get_member_messages_for_person(conn: sqlite3.Connection, person_id: int) -> list[dict]:
+    rows = conn.execute(
+        """
+        SELECT
+            mm.id,
+            mm.title,
+            mm.message,
+            mm.created_at
+        FROM member_message_recipients mmr
+        JOIN member_messages mm ON mm.id = mmr.message_id
+        WHERE mmr.person_id = ?
+          AND mm.active = 1
+          AND mm.archived_at IS NULL
+          AND mmr.acknowledged_at IS NULL
+        ORDER BY mm.created_at DESC, mm.id DESC
+        """,
+        (person_id,),
+    ).fetchall()
+    return [
+        {
+            "id": row["id"],
+            "title": row["title"] or "Nachricht",
+            "message": row["message"],
+            "created_at": row["created_at"],
+        }
+        for row in rows
+    ]
+
+
+def get_admin_member_messages(conn: sqlite3.Connection) -> list[dict]:
+    rows = conn.execute(
+        """
+        SELECT
+            mm.id,
+            mm.title,
+            mm.message,
+            mm.active,
+            mm.created_at,
+            mm.archived_at,
+            COUNT(mmr.person_id) AS recipient_count,
+            COALESCE(SUM(CASE WHEN mmr.acknowledged_at IS NOT NULL THEN 1 ELSE 0 END), 0) AS acknowledged_count
+        FROM member_messages mm
+        LEFT JOIN member_message_recipients mmr ON mmr.message_id = mm.id
+        GROUP BY mm.id
+        ORDER BY mm.archived_at IS NULL DESC, mm.created_at DESC, mm.id DESC
+        LIMIT 50
+        """
+    ).fetchall()
+    messages = []
+    for row in rows:
+        recipients = conn.execute(
+            """
+            SELECT
+                p.id,
+                p.name,
+                p.first_name,
+                p.last_name,
+                mmr.acknowledged_at
+            FROM member_message_recipients mmr
+            JOIN people p ON p.id = mmr.person_id
+            WHERE mmr.message_id = ?
+            ORDER BY p.last_name COLLATE NOCASE ASC, p.first_name COLLATE NOCASE ASC, p.name COLLATE NOCASE ASC
+            """,
+            (row["id"],),
+        ).fetchall()
+        messages.append(
+            {
+                "id": row["id"],
+                "title": row["title"] or "Nachricht",
+                "message": row["message"],
+                "active": bool(row["active"]) and row["archived_at"] is None,
+                "created_at": row["created_at"],
+                "archived_at": row["archived_at"],
+                "recipient_count": int(row["recipient_count"] or 0),
+                "acknowledged_count": int(row["acknowledged_count"] or 0),
+                "recipients": [
+                    {
+                        "id": recipient["id"],
+                        "name": display_name(recipient["first_name"], recipient["last_name"]) or recipient["name"],
+                        "acknowledged_at": recipient["acknowledged_at"],
+                    }
+                    for recipient in recipients
+                ],
+            }
+        )
+    return messages
+
+
 def person_total_from_lines(lines: list[sqlite3.Row]) -> float:
     return round(sum(int(line["quantity"]) * float(line["unit_price_eur"]) for line in lines), 2)
 
@@ -1512,6 +1687,25 @@ def ui_appearance_settings(conn: sqlite3.Connection) -> dict:
     }
 
 
+def cost_notice_settings(conn: sqlite3.Connection) -> dict:
+    warning_threshold = rounded_money(
+        parse_decimal_value(get_setting(conn, "cost_warning_threshold_eur", "30.00") or "30.00", "Kostenwarnung")
+    )
+    reminder_threshold = rounded_money(
+        parse_decimal_value(get_setting(conn, "payment_reminder_threshold_eur", "50.00") or "50.00", "Zahlungserinnerung")
+    )
+    return {
+        "cost_warning_enabled": setting_bool(conn, "cost_warning_enabled", "1"),
+        "cost_warning_threshold_eur": max(0.0, min(9999.0, warning_threshold)),
+        "payment_reminder_enabled": setting_bool(conn, "payment_reminder_enabled", "1"),
+        "payment_reminder_threshold_eur": max(0.0, min(9999.0, reminder_threshold)),
+        "cost_notice_show_on_overview": setting_bool(conn, "cost_notice_show_on_overview", "1"),
+        "cost_notice_show_in_popup": setting_bool(conn, "cost_notice_show_in_popup", "1"),
+        "member_messages_show_on_overview": setting_bool(conn, "member_messages_show_on_overview", "1"),
+        "member_messages_show_in_popup": setting_bool(conn, "member_messages_show_in_popup", "1"),
+    }
+
+
 def connection_event_label(event_type: str) -> str:
     labels = {
         "CONNECTION_LOST": "Verbindung verloren",
@@ -1665,6 +1859,7 @@ def config():
             "tally_size_percent": max(60, min(180, int(get_setting(conn, "tally_size_percent", "100") or 100))),
             **sync_status_settings(conn),
             **ui_appearance_settings(conn),
+            **cost_notice_settings(conn),
             "items": items,
             "user_items": user_items,
             # Backward-compatible name for old frontend shape.
@@ -1688,6 +1883,7 @@ def list_people():
         for person in people:
             lines = get_open_lines(conn, person["id"])
             pending = get_pending_requests_for_person(conn, person["id"])
+            member_messages = get_member_messages_for_person(conn, person["id"])
             result.append(
                 {
                     "id": person["id"],
@@ -1700,9 +1896,44 @@ def list_people():
                     "lines": [serialize_open_line(line) for line in lines],
                     "total": person_total_from_lines(lines),
                     "pending_requests": pending,
+                    "member_messages": member_messages,
+                    "member_message_count": len(member_messages),
                 }
             )
         return result
+
+
+@app.post("/api/member-message/ack")
+def acknowledge_member_message(req: MemberMessageAckRequest):
+    with get_conn() as conn:
+        get_person(conn, req.person_id, allow_archived=False)
+        recipient = conn.execute(
+            """
+            SELECT mmr.message_id, mmr.acknowledged_at
+            FROM member_message_recipients mmr
+            JOIN member_messages mm ON mm.id = mmr.message_id
+            WHERE mmr.person_id = ?
+              AND mmr.message_id = ?
+              AND mm.active = 1
+              AND mm.archived_at IS NULL
+            """,
+            (req.person_id, req.message_id),
+        ).fetchone()
+        if not recipient:
+            raise HTTPException(status_code=404, detail="Nachricht nicht gefunden")
+        if recipient["acknowledged_at"]:
+            return {"status": "ok", "duplicate": True}
+        conn.execute(
+            """
+            UPDATE member_message_recipients
+            SET acknowledged_at = ?
+            WHERE person_id = ? AND message_id = ? AND acknowledged_at IS NULL
+            """,
+            (now_text(), req.person_id, req.message_id),
+        )
+        log_transaction(conn, req.person_id, "MEMBER_MESSAGE_ACK", 0, f"Nachricht bestätigt: #{req.message_id}")
+        conn.commit()
+    return {"status": "ok"}
 
 
 @app.post("/api/add-drink")
@@ -2192,6 +2423,7 @@ def admin_adjust_drink(req: AdminAdjustItemRequest):
 def admin_login(req: PinRequest, request: Request):
     check_admin_login_rate_limit(request)
     with get_conn() as conn:
+        ensure_admin_login_allowed(conn)
         require_pin(conn, req.pin)
         clear_admin_login_rate_limit(request)
         return {
@@ -2732,13 +2964,82 @@ def admin_overview(req: PinRequest):
                 "tally_size_percent": max(60, min(180, int(get_setting(conn, "tally_size_percent", "100") or 100))),
                 **sync_status_settings(conn),
                 **ui_appearance_settings(conn),
+                **cost_notice_settings(conn),
                 "production": is_production(),
                 "environment": APP_ENV,
                 "debug_enabled": not is_production(),
                 "pin_default_warning": (get_setting(conn, "admin_pin", ENV_PIN_CODE) == "1234"),
             },
             "action_types": get_action_types(conn),
+            "member_messages": get_admin_member_messages(conn),
         }
+
+
+@app.post("/api/admin/member-message/create")
+def admin_create_member_message(req: AdminMemberMessageCreate):
+    with get_conn() as conn:
+        require_pin(conn, req.pin)
+        message = req.message.strip()
+        title = (req.title or "").strip()
+        if not message:
+            raise HTTPException(status_code=400, detail="Nachricht darf nicht leer sein")
+        if len(title) > 120:
+            raise HTTPException(status_code=400, detail="Titel darf maximal 120 Zeichen haben")
+        if len(message) > 800:
+            raise HTTPException(status_code=400, detail="Nachricht darf maximal 800 Zeichen haben")
+        person_ids = sorted({int(person_id) for person_id in req.person_ids if int(person_id) > 0})
+        if not person_ids:
+            raise HTTPException(status_code=400, detail="Bitte mindestens ein Mitglied auswählen")
+        placeholders = ",".join(["?"] * len(person_ids))
+        active_people = conn.execute(
+            f"""
+            SELECT id
+            FROM people
+            WHERE id IN ({placeholders}) AND active = 1 AND archived_at IS NULL
+            """,
+            person_ids,
+        ).fetchall()
+        active_ids = sorted(int(row["id"]) for row in active_people)
+        if len(active_ids) != len(person_ids):
+            raise HTTPException(status_code=400, detail="Mindestens ein ausgewähltes Mitglied ist nicht aktiv")
+        cur = conn.execute(
+            """
+            INSERT INTO member_messages (title, message, active, created_at, archived_at)
+            VALUES (?, ?, 1, ?, NULL)
+            """,
+            (title or None, message, now_text()),
+        )
+        message_id = int(cur.lastrowid)
+        conn.executemany(
+            """
+            INSERT INTO member_message_recipients (message_id, person_id, acknowledged_at)
+            VALUES (?, ?, NULL)
+            """,
+            [(message_id, person_id) for person_id in active_ids],
+        )
+        log_transaction(conn, None, "MEMBER_MESSAGE_CREATED", 0, f"Nachricht #{message_id} an {len(active_ids)} Mitglied(er)")
+        conn.commit()
+    return {"status": "ok", "id": message_id}
+
+
+@app.post("/api/admin/member-message/archive")
+def admin_archive_member_message(req: AdminMemberMessageArchive):
+    with get_conn() as conn:
+        require_pin(conn, req.pin)
+        row = conn.execute("SELECT id, title FROM member_messages WHERE id = ?", (req.message_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Nachricht nicht gefunden")
+        conn.execute(
+            """
+            UPDATE member_messages
+            SET active = 0, archived_at = COALESCE(archived_at, ?)
+            WHERE id = ?
+            """,
+            (now_text(), req.message_id),
+        )
+        log_transaction(conn, None, "MEMBER_MESSAGE_ARCHIVED", 0, f"Nachricht archiviert: #{req.message_id} {row['title'] or ''}".strip())
+        conn.commit()
+    return {"status": "ok"}
 
 
 def names_from_create_update(first_name: str | None, last_name: str | None, name: str | None) -> tuple[str, str, str]:
@@ -3111,6 +3412,32 @@ def admin_update_settings(req: SettingsUpdateRequest):
         if req.drink_celebration_sound_enabled is not None:
             set_setting(conn, "drink_celebration_sound_enabled", "1" if req.drink_celebration_sound_enabled else "0")
             details.append("Feierlicher Ton aktiviert" if req.drink_celebration_sound_enabled else "Feierlicher Ton deaktiviert")
+        if req.cost_warning_enabled is not None:
+            set_setting(conn, "cost_warning_enabled", "1" if req.cost_warning_enabled else "0")
+            details.append("Kostenwarnung aktiviert" if req.cost_warning_enabled else "Kostenwarnung deaktiviert")
+        if req.cost_warning_threshold_eur is not None:
+            threshold = max(0.0, min(9999.0, parse_decimal_value(req.cost_warning_threshold_eur, "Kostenwarnung")))
+            set_setting(conn, "cost_warning_threshold_eur", f"{threshold:.2f}")
+            details.append(f"Kostenwarnung ab {eur_text(threshold)}")
+        if req.payment_reminder_enabled is not None:
+            set_setting(conn, "payment_reminder_enabled", "1" if req.payment_reminder_enabled else "0")
+            details.append("Zahlungserinnerung aktiviert" if req.payment_reminder_enabled else "Zahlungserinnerung deaktiviert")
+        if req.payment_reminder_threshold_eur is not None:
+            threshold = max(0.0, min(9999.0, parse_decimal_value(req.payment_reminder_threshold_eur, "Zahlungserinnerung")))
+            set_setting(conn, "payment_reminder_threshold_eur", f"{threshold:.2f}")
+            details.append(f"Zahlungserinnerung ab {eur_text(threshold)}")
+        if req.cost_notice_show_on_overview is not None:
+            set_setting(conn, "cost_notice_show_on_overview", "1" if req.cost_notice_show_on_overview else "0")
+            details.append("Kostenhinweise in Standardansicht angezeigt" if req.cost_notice_show_on_overview else "Kostenhinweise in Standardansicht ausgeblendet")
+        if req.cost_notice_show_in_popup is not None:
+            set_setting(conn, "cost_notice_show_in_popup", "1" if req.cost_notice_show_in_popup else "0")
+            details.append("Kostenhinweise im Personen-Popup angezeigt" if req.cost_notice_show_in_popup else "Kostenhinweise im Personen-Popup ausgeblendet")
+        if req.member_messages_show_on_overview is not None:
+            set_setting(conn, "member_messages_show_on_overview", "1" if req.member_messages_show_on_overview else "0")
+            details.append("Mitgliedernachrichten in Standardansicht angezeigt" if req.member_messages_show_on_overview else "Mitgliedernachrichten in Standardansicht ausgeblendet")
+        if req.member_messages_show_in_popup is not None:
+            set_setting(conn, "member_messages_show_in_popup", "1" if req.member_messages_show_in_popup else "0")
+            details.append("Mitgliedernachrichten im Personen-Popup angezeigt" if req.member_messages_show_in_popup else "Mitgliedernachrichten im Personen-Popup ausgeblendet")
         if not details:
             raise HTTPException(status_code=400, detail="Keine Einstellung geändert")
         log_transaction(conn, None, "SETTINGS_UPDATED", 0, "; ".join(details))

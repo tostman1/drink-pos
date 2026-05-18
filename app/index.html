@@ -48,6 +48,22 @@
     .tally-mark { display:block; width:2px; background:#111827; border-radius:999px; opacity:.96; transform-origin:bottom center; }
     .tally-slash { position:absolute; background:#111827; border-radius:999px; transform-origin:center; opacity:.97; }
     .pending-line { margin-top:4px; font-size:12.5px; color:var(--red); font-weight:800; line-height:1.25; }
+    .person-alerts { display:flex; flex-wrap:wrap; gap:6px; margin-top:7px; }
+    .person-alert { display:inline-flex; align-items:center; gap:5px; max-width:100%; border-radius:999px; padding:4px 8px; font-size:12px; font-weight:900; line-height:1.15; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; }
+    .person-alert.warning { background:#fffbeb; color:#92400e; border-color:#fde68a; }
+    .person-alert.reminder { background:#fff1f2; color:#be123c; border-color:#fecdd3; }
+    .person-alert.message { background:#eef2ff; color:#3730a3; border-color:#c7d2fe; }
+    .person-alert-ack { display:inline-flex; align-items:center; min-height:24px; border-radius:999px; padding:4px 8px; font-size:12px; font-weight:900; background:#e0e7ff; color:#3730a3; border:1px solid #c7d2fe; }
+    .person-alert-title { max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .notice-panel { display:none; margin:0 0 12px; }
+    .notice-panel.visible { display:grid; gap:8px; }
+    .notice-card { border-radius:16px; padding:11px 12px; border:1px solid #bfdbfe; background:#eff6ff; color:#1e3a8a; box-shadow:0 2px 10px rgba(37,99,235,.08); }
+    .notice-card.warning { background:#fffbeb; color:#78350f; border-color:#fde68a; }
+    .notice-card.reminder { background:#fff1f2; color:#9f1239; border-color:#fecdd3; }
+    .notice-card.member-message { background:#f8fafc; color:#0f172a; border-color:#cbd5e1; }
+    .notice-card strong { display:block; margin-bottom:3px; font-size:14px; }
+    .notice-card p { margin:0; color:inherit; font-size:13.5px; line-height:1.35; }
+    .notice-card button { margin-top:9px; padding:7px 10px; font-size:13px; border-radius:10px; background:#e0e7ff; color:#3730a3; }
     dialog { border:0; border-radius:24px; padding:0; max-width:720px; width:calc(100% - 28px); box-shadow:0 22px 70px rgba(0,0,0,.34); position:relative; overflow:visible; background:transparent; }
     dialog::backdrop { background:rgba(0,0,0,.45); }
     .dialog-content { padding:20px; position:relative; z-index:2; background:#fff; border-radius:24px; overflow:auto; max-height:90vh; }
@@ -188,6 +204,7 @@
     <div class="dialog-content">
       <h2 id="dialogName"></h2>
       <div class="dialog-total" id="dialogTotal"></div>
+      <div class="notice-panel" id="personNoticePanel" aria-live="polite"></div>
 
       <div class="panel" id="billPanel">
         <h3>Offene Posten</h3>
@@ -293,6 +310,14 @@
     let drinkCelebrationSoundEnabled = true;
     let drinkBookingSoundEnabled = true;
     let drinkBookingSoundPreset = 'warm';
+    let costWarningEnabled = true;
+    let costWarningThresholdEur = 30;
+    let paymentReminderEnabled = true;
+    let paymentReminderThresholdEur = 50;
+    let costNoticeShowOnOverview = true;
+    let costNoticeShowInPopup = true;
+    let memberMessagesShowOnOverview = true;
+    let memberMessagesShowInPopup = true;
     let celebrationAudioCtx = null;
     let drinkFeedbackRecentName = '';
     let drinkFeedbackRecentCount = 0;
@@ -670,6 +695,14 @@
       drinkCelebrationSoundEnabled = cfg.drink_celebration_sound_enabled !== false;
       drinkBookingSoundEnabled = cfg.drink_booking_sound_enabled !== false;
       drinkBookingSoundPreset = bookingSoundPresetKey(cfg.drink_booking_sound_preset || 'warm');
+      costWarningEnabled = cfg.cost_warning_enabled !== false;
+      costWarningThresholdEur = Math.max(0, Number(cfg.cost_warning_threshold_eur ?? 30));
+      paymentReminderEnabled = cfg.payment_reminder_enabled !== false;
+      paymentReminderThresholdEur = Math.max(0, Number(cfg.payment_reminder_threshold_eur ?? 50));
+      costNoticeShowOnOverview = cfg.cost_notice_show_on_overview !== false;
+      costNoticeShowInPopup = cfg.cost_notice_show_in_popup !== false;
+      memberMessagesShowOnOverview = cfg.member_messages_show_on_overview !== false;
+      memberMessagesShowInPopup = cfg.member_messages_show_in_popup !== false;
       syncDrinkFeedbackSlots();
       showPersonPopupTotal = cfg.show_person_popup_total !== false;
       appBackgroundColor = cfg.app_background_color || '#f3f4f6';
@@ -1044,6 +1077,44 @@
       return result.sort((a, b) => String(a.short_label || a.name).localeCompare(String(b.short_label || b.name)));
     }
 
+    function costNoticeForPerson(person) {
+      const total = Number(person?.total || 0);
+      if (paymentReminderEnabled && total >= paymentReminderThresholdEur) {
+        return {
+          level: 'reminder',
+          label: 'Zahlungserinnerung',
+          text: `Offen: ${money(total)}. Bitte bei Gelegenheit bezahlen.`,
+        };
+      }
+      if (costWarningEnabled && total >= costWarningThresholdEur) {
+        return {
+          level: 'warning',
+          label: 'Kostenwarnung',
+          text: `Offen: ${money(total)}. Grenze ${money(costWarningThresholdEur)} erreicht.`,
+        };
+      }
+      return null;
+    }
+
+    function memberMessagesForPerson(person) {
+      return Array.isArray(person?.member_messages) ? person.member_messages : [];
+    }
+
+    function renderPersonAlertBadges(person) {
+      const badges = [];
+      const notice = costNoticeForPerson(person);
+      if (costNoticeShowOnOverview && notice) badges.push(`<span class="person-alert ${notice.level}">${notice.level === 'reminder' ? 'Zahlung' : 'Warnung'}: ${money(person.total)}</span>`);
+      const messages = memberMessagesForPerson(person);
+      const messageCount = Number(person?.member_message_count ?? messages.length);
+      if (memberMessagesShowOnOverview && messageCount > 0) {
+        const firstMessage = messages[0] || {};
+        const title = firstMessage.title || 'Nachricht';
+        badges.push(`<span class="person-alert message"><span class="person-alert-title">${escapeHtml(title)}</span>${messageCount > 1 ? ` +${messageCount - 1}` : ''}</span>`);
+        if (firstMessage.id) badges.push(`<button type="button" class="person-alert-ack" onclick="event.stopPropagation(); ackMemberMessageForPerson(${Number(person.id)}, ${Number(firstMessage.id)})">Verstanden</button>`);
+      }
+      return badges.length ? `<div class="person-alerts">${badges.join('')}</div>` : '';
+    }
+
     function renderPeople() {
       const left = document.getElementById('leftColumn');
       const right = document.getElementById('rightColumn');
@@ -1057,7 +1128,8 @@
 
     function makePersonRow(p) {
       const row = document.createElement('div');
-      row.className = 'person-row' + (p.total > 0 ? ' has-open' : '');
+      const notice = costNoticeForPerson(p);
+      row.className = 'person-row' + (p.total > 0 ? ' has-open' : '') + (costNoticeShowOnOverview && notice ? ` has-${notice.level}` : '') + (memberMessagesShowOnOverview && memberMessagesForPerson(p).length ? ' has-message' : '');
       row.onclick = () => openPerson(p);
       const pendingText = pendingSummary(p.pending_requests || []);
       const summary = personSummary(p);
@@ -1066,6 +1138,8 @@
       const totalHtml = (showTotalOnOverview || adminMode) ? `<div class="total ${p.total === 0 ? 'zero' : ''}">${money(p.total)}</div>` : '';
       const eventHtml = `<div class="event-summary">${eventSummary(p)}</div>`;
       row.innerHTML = `<div class="row-main"><div class="name">${escapeHtml(p.name)}</div>${summaryHtml}${totalHtml}</div>${eventHtml}${pendingText ? `<div class="pending-line">⚠ Änderungswunsch: ${escapeHtml(pendingText)}</div>` : ''}`;
+      const alertsHtml = renderPersonAlertBadges(p);
+      if (alertsHtml) row.insertAdjacentHTML('beforeend', alertsHtml);
       return row;
     }
 
@@ -1430,6 +1504,58 @@
       return 'drink';
     }
 
+    function renderPersonNotices() {
+      const panel = document.getElementById('personNoticePanel');
+      if (!panel || !currentPerson) return;
+      const cards = [];
+      const costNotice = costNoticeForPerson(currentPerson);
+      if (costNoticeShowInPopup && costNotice) {
+        cards.push(`
+          <div class="notice-card ${costNotice.level}">
+            <strong>${escapeHtml(costNotice.label)}</strong>
+            <p>${escapeHtml(costNotice.text)}</p>
+          </div>
+        `);
+      }
+      const popupMessages = memberMessagesShowInPopup ? memberMessagesForPerson(currentPerson) : [];
+      for (const message of popupMessages) {
+        cards.push(`
+          <div class="notice-card member-message">
+            <strong>${escapeHtml(message.title || 'Nachricht')}</strong>
+            <p>${escapeHtml(message.message)}</p>
+            <button type="button" onclick="ackMemberMessage(${Number(message.id)})">Verstanden</button>
+          </div>
+        `);
+      }
+      panel.innerHTML = cards.join('');
+      panel.classList.toggle('visible', cards.length > 0);
+    }
+
+    async function ackMemberMessage(messageId) {
+      if (!currentPerson) return;
+      await ackMemberMessageForPerson(currentPerson.id, messageId);
+    }
+
+    async function ackMemberMessageForPerson(personId, messageId) {
+      try {
+        await apiPost('/api/member-message/ack', { person_id: personId, message_id: Number(messageId) });
+        const person = people.find(p => Number(p.id) === Number(personId));
+        if (person) {
+          person.member_messages = memberMessagesForPerson(person).filter(message => Number(message.id) !== Number(messageId));
+          person.member_message_count = person.member_messages.length;
+        }
+        if (currentPerson && Number(currentPerson.id) === Number(personId)) {
+          currentPerson.member_messages = memberMessagesForPerson(currentPerson).filter(message => Number(message.id) !== Number(messageId));
+          currentPerson.member_message_count = currentPerson.member_messages.length;
+          renderPersonNotices();
+        }
+        renderPeople();
+        showStatus('Nachricht bestätigt');
+      } catch (err) {
+        showStatus(err.message || 'Nachricht konnte nicht bestätigt werden');
+      }
+    }
+
     function updateDialogInfo() {
       if (!currentPerson) return;
       document.getElementById('dialogName').textContent = currentPerson.name;
@@ -1443,6 +1569,7 @@
       document.getElementById('userEditPanel').style.display = (!adminMode && enableDeleteRequests) ? 'block' : 'none';
       document.getElementById('adminEditPanel').style.display = adminMode ? 'block' : 'none';
       document.getElementById('adminOnlyHint').style.display = adminMode ? 'block' : 'none';
+      renderPersonNotices();
       renderBill();
       renderDeleteRequests();
       renderPendingRequests();
