@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
 import os
 from pathlib import Path
@@ -1030,6 +1031,12 @@ class PayRequest(BaseModel):
     reject_pending: bool = False
 
 
+class KassaPayRequest(BaseModel):
+    person_id: int
+    pin: str
+    expected_revision: str
+
+
 class MemberMessageAckRequest(BaseModel):
     person_id: int
     message_id: int
@@ -1510,6 +1517,70 @@ def person_total_from_lines(lines: list[sqlite3.Row]) -> float:
     return round(sum(int(line["quantity"]) * float(line["unit_price_eur"]) for line in lines), 2)
 
 
+def open_lines_payment_revision(lines: list[sqlite3.Row], pending_count: int = 0) -> str:
+    parts = [
+        f"{int(line['id'])}:{int(line['quantity'])}:{line['updated_at']}:{int(line['event_open'])}"
+        for line in sorted(lines, key=lambda row: int(row["id"]))
+    ]
+    raw = f"pending:{int(pending_count)}|" + "|".join(parts)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:24]
+
+
+def make_payment_detail_lines(lines: list[sqlite3.Row]) -> list[dict]:
+    grouped: dict[tuple, dict] = {}
+    for line in lines:
+        qty = int(line["quantity"] or 0)
+        if qty <= 0:
+            continue
+        price = round(float(line["unit_price_eur"] or 0), 2)
+        purchase = round(float(line["unit_purchase_price_eur"] if "unit_purchase_price_eur" in line.keys() else 0), 2)
+        key = (
+            line["item_id"],
+            line["item_name_snapshot"],
+            line["item_short_label_snapshot"],
+            price,
+            purchase,
+        )
+        if key not in grouped:
+            grouped[key] = {
+                "item_id": line["item_id"],
+                "item": line["item_name_snapshot"],
+                "short_label": line["item_short_label_snapshot"],
+                "quantity": 0,
+                "unit_price_eur": price,
+                "unit_purchase_price_eur": purchase,
+                "subtotal_eur": 0.0,
+                "line_ids": [],
+            }
+        grouped[key]["quantity"] += qty
+        grouped[key]["subtotal_eur"] = rounded_money(grouped[key]["quantity"] * price)
+        grouped[key]["line_ids"].append(int(line["id"]))
+    return sorted(
+        grouped.values(),
+        key=lambda item: (str(item["item"]).lower(), float(item["unit_price_eur"])),
+    )
+
+
+def kassa_person_payload(conn: sqlite3.Connection, person: sqlite3.Row, lines: list[sqlite3.Row] | None = None) -> dict:
+    if lines is None:
+        lines = get_open_lines(conn, person["id"])
+    pending = get_pending_requests_for_person(conn, int(person["id"]))
+    pending_count = len(pending)
+    total = person_total_from_lines(lines)
+    open_items = sum(int(line["quantity"] or 0) for line in lines)
+    return {
+        "id": int(person["id"]),
+        "name": display_name(person["first_name"], person["last_name"]) or person["name"],
+        "open_items": open_items,
+        "total": total,
+        "total_eur": total,
+        "lines": make_payment_detail_lines(lines),
+        "pending_requests_count": pending_count,
+        "can_pay": bool(lines) and pending_count == 0,
+        "revision": open_lines_payment_revision(lines, pending_count),
+    }
+
+
 def make_counts(lines: list[sqlite3.Row]) -> dict[str, int]:
     counts: dict[str, int] = {}
     for line in lines:
@@ -1819,6 +1890,11 @@ def admin_page():
     return FileResponse(APP_DIR / "admin.html", media_type="text/html; charset=utf-8")
 
 
+@app.get("/kassa")
+def kassa_page():
+    return FileResponse(APP_DIR / "kassa.html", media_type="text/html; charset=utf-8")
+
+
 
 
 @app.get("/manifest.webmanifest")
@@ -1908,6 +1984,43 @@ def list_people():
                 }
             )
         return result
+
+
+@app.get("/api/kassa/people")
+def kassa_people():
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                p.*,
+                COALESCE(SUM(ol.quantity), 0) AS open_items,
+                COALESCE(SUM(ol.quantity * ol.unit_price_eur), 0) AS open_total
+            FROM people p
+            LEFT JOIN order_lines ol ON ol.person_id = p.id AND ol.quantity > 0
+            WHERE p.active = 1 AND p.archived_at IS NULL
+            GROUP BY p.id
+            HAVING open_items > 0
+            ORDER BY p.last_name COLLATE NOCASE ASC, p.first_name COLLATE NOCASE ASC, p.name COLLATE NOCASE ASC
+            """
+        ).fetchall()
+        people = [
+            {
+                "id": int(row["id"]),
+                "name": display_name(row["first_name"], row["last_name"]) or row["name"],
+                "open_items": int(row["open_items"] or 0),
+                "total": rounded_money(float(row["open_total"] or 0)),
+                "total_eur": rounded_money(float(row["open_total"] or 0)),
+            }
+            for row in sorted(rows, key=lambda r: normalize_for_sort(display_name(r["first_name"], r["last_name"]) or r["name"]))
+        ]
+        return {"people": people, **get_sync_state(conn)}
+
+
+@app.get("/api/kassa/person/{person_id}")
+def kassa_person(person_id: int):
+    with get_conn() as conn:
+        person = get_person(conn, person_id, allow_archived=False)
+        return {**kassa_person_payload(conn, person), **get_sync_state(conn)}
 
 
 @app.post("/api/member-message/ack")
@@ -2362,6 +2475,64 @@ def pay(req: PayRequest):
         conn.commit()
 
     return {"status": "paid", "total": round(total, 2), "pending_handled": len(handled)}
+
+
+@app.post("/api/kassa/pay")
+def kassa_pay(req: KassaPayRequest):
+    with get_conn() as conn:
+        require_pin(conn, req.pin)
+        conn.execute("BEGIN IMMEDIATE")
+        person = get_person(conn, req.person_id, allow_archived=False)
+        lines = get_open_lines(conn, req.person_id)
+        pending = get_pending_requests_for_person(conn, req.person_id)
+        current_revision = open_lines_payment_revision(lines, len(pending))
+        current_payload = kassa_person_payload(conn, person, lines)
+
+        if current_revision != (req.expected_revision or "").strip():
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "message": "Der offene Stand hat sich gerade geändert. Bitte die aktualisierte Liste prüfen und erneut bezahlen.",
+                    "current": current_payload,
+                },
+            )
+        if pending:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "message": "Für diese Person gibt es offene Löschanfragen. Bitte zuerst im Adminbereich entscheiden.",
+                    "current": current_payload,
+                },
+            )
+        if not lines:
+            raise HTTPException(status_code=400, detail="Keine offenen Posten")
+
+        total = person_total_from_lines(lines)
+        grouped_details = make_payment_detail_lines(lines)
+        details = [
+            f"{int(line['quantity'])}x {line['item']} à {eur_text(line['unit_price_eur'])}"
+            for line in grouped_details
+        ]
+        person_name = display_name(person["first_name"], person["last_name"]) or person["name"]
+        tx_id = log_transaction(conn, req.person_id, "PAID_CASH", total, f"Kassa bezahlt von {person_name}: " + ", ".join(details))
+        for line in lines:
+            log_transaction_item(conn, tx_id, req.person_id, line, int(line["quantity"]), "PAID_CASH")
+        line_ids = [int(line["id"]) for line in lines]
+        placeholders = ",".join("?" for _ in line_ids)
+        conn.execute(
+            f"UPDATE order_lines SET quantity = 0, updated_at = ? WHERE id IN ({placeholders})",
+            [now_text(), *line_ids],
+        )
+        sync_state = get_sync_state(conn)
+        conn.commit()
+
+    return {
+        "status": "paid",
+        "total": round(total, 2),
+        "paid_items": sum(int(line["quantity"] or 0) for line in lines),
+        "paid_lines": len(lines),
+        **sync_state,
+    }
 
 
 @app.post("/api/admin/adjust-drink")

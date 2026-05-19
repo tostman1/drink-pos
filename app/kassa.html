@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <title>Kassa</title>
+  <style>
+    :root {
+      --bg:#f5f7fb;
+      --panel:#ffffff;
+      --ink:#111827;
+      --muted:#64748b;
+      --line:#dbe3ee;
+      --blue:#2563eb;
+      --green:#16a34a;
+      --green-dark:#0f8a3c;
+      --yellow:#fbbf24;
+      --danger:#dc2626;
+      --shadow:0 14px 34px rgba(15,23,42,.12);
+    }
+    * { box-sizing:border-box; }
+    body {
+      margin:0;
+      min-height:100vh;
+      background:var(--bg);
+      color:var(--ink);
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      -webkit-font-smoothing:antialiased;
+    }
+    button, input { font:inherit; }
+    button {
+      border:0;
+      border-radius:14px;
+      min-height:44px;
+      padding:10px 14px;
+      font-weight:850;
+      cursor:pointer;
+    }
+    button:disabled { opacity:.55; cursor:wait; }
+    .app {
+      width:min(100%,520px);
+      min-height:100vh;
+      margin:0 auto;
+      background:linear-gradient(180deg,#ffffff 0,#f5f7fb 48%);
+      display:flex;
+      flex-direction:column;
+    }
+    .topbar {
+      position:sticky;
+      top:0;
+      z-index:10;
+      padding:calc(10px + env(safe-area-inset-top)) 14px 10px;
+      background:rgba(255,255,255,.94);
+      border-bottom:1px solid var(--line);
+      backdrop-filter:blur(14px);
+    }
+    .topline { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    h1 { margin:0; font-size:24px; line-height:1; letter-spacing:0; }
+    .sub { margin-top:4px; color:var(--muted); font-size:13px; }
+    .icon-btn {
+      width:44px;
+      height:44px;
+      padding:0;
+      border:1px solid var(--line);
+      background:#fff;
+      color:var(--ink);
+      display:grid;
+      place-items:center;
+      font-size:20px;
+    }
+    .content {
+      flex:1;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      padding:12px 12px calc(18px + env(safe-area-inset-bottom));
+    }
+    .pin-card {
+      margin:auto 12px;
+      padding:22px;
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:22px;
+      box-shadow:var(--shadow);
+      display:grid;
+      gap:14px;
+    }
+    .pin-card h1 { font-size:30px; }
+    .pin-card p { margin:0; color:var(--muted); line-height:1.35; }
+    .pin-input, .search {
+      width:100%;
+      border:1px solid var(--line);
+      background:#fff;
+      color:var(--ink);
+      border-radius:16px;
+      min-height:50px;
+      padding:12px 14px;
+      outline:none;
+      font-size:17px;
+    }
+    .pin-input:focus, .search:focus { border-color:#93c5fd; box-shadow:0 0 0 4px rgba(37,99,235,.12); }
+    .primary {
+      background:linear-gradient(180deg,#22c55e,#16a34a);
+      color:#fff;
+      box-shadow:0 10px 22px rgba(22,163,74,.2);
+    }
+    .secondary {
+      background:#e8eef7;
+      color:#1f2937;
+      border:1px solid #d3deec;
+    }
+    .danger {
+      background:#fff1f2;
+      color:#991b1b;
+      border:1px solid #fecdd3;
+    }
+    .search-wrap {
+      position:sticky;
+      top:calc(64px + env(safe-area-inset-top));
+      z-index:8;
+      padding-bottom:2px;
+      background:linear-gradient(180deg,#f9fbff 0,#f5f7fb 100%);
+    }
+    .person-list { display:grid; gap:8px; }
+    .person-row {
+      width:100%;
+      display:grid;
+      grid-template-columns:1fr auto;
+      align-items:center;
+      gap:10px;
+      min-height:58px;
+      padding:10px 12px;
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:16px;
+      text-align:left;
+      box-shadow:0 4px 12px rgba(15,23,42,.04);
+    }
+    .person-name {
+      min-width:0;
+      font-size:17px;
+      font-weight:850;
+      overflow:hidden;
+      white-space:nowrap;
+      text-overflow:ellipsis;
+    }
+    .person-meta { margin-top:2px; color:var(--muted); font-size:12px; font-weight:650; }
+    .amount { font-size:18px; font-weight:950; white-space:nowrap; }
+    .empty {
+      padding:28px 18px;
+      text-align:center;
+      color:var(--muted);
+      background:#fff;
+      border:1px dashed #cbd5e1;
+      border-radius:18px;
+    }
+    .detail-head {
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:20px;
+      padding:14px;
+      box-shadow:0 8px 20px rgba(15,23,42,.06);
+    }
+    .detail-name { font-size:24px; font-weight:950; line-height:1.08; }
+    .detail-total { margin-top:8px; font-size:38px; line-height:1; font-weight:1000; color:#0f172a; }
+    .detail-note { margin-top:6px; color:var(--muted); font-size:13px; }
+    .line-list {
+      display:grid;
+      gap:7px;
+      margin-bottom:92px;
+    }
+    .line-row {
+      display:grid;
+      grid-template-columns:44px 1fr auto;
+      gap:10px;
+      align-items:center;
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:15px;
+      padding:10px;
+    }
+    .qty {
+      width:38px;
+      height:38px;
+      display:grid;
+      place-items:center;
+      border-radius:12px;
+      background:#eef6ff;
+      color:#1d4ed8;
+      font-weight:950;
+    }
+    .item { min-width:0; font-weight:850; }
+    .item small { display:block; margin-top:2px; color:var(--muted); font-weight:650; }
+    .line-total { font-weight:950; white-space:nowrap; }
+    .detail-actions {
+      position:fixed;
+      left:50%;
+      bottom:0;
+      z-index:20;
+      width:min(100%,520px);
+      transform:translateX(-50%);
+      display:grid;
+      grid-template-columns:1fr 1.35fr;
+      gap:9px;
+      padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+      background:rgba(245,247,251,.92);
+      border-top:1px solid var(--line);
+      backdrop-filter:blur(14px);
+    }
+    .pay-now { min-height:56px; font-size:19px; }
+    .warning {
+      border:1px solid #fde68a;
+      background:#fffbeb;
+      color:#92400e;
+      border-radius:14px;
+      padding:10px 12px;
+      font-size:13px;
+      line-height:1.35;
+      font-weight:750;
+    }
+    .status {
+      position:fixed;
+      left:50%;
+      bottom:calc(14px + env(safe-area-inset-bottom));
+      z-index:50;
+      max-width:min(92%,480px);
+      transform:translateX(-50%) translateY(16px);
+      opacity:0;
+      pointer-events:none;
+      background:#0f172a;
+      color:#fff;
+      border-radius:999px;
+      padding:10px 14px;
+      font-size:14px;
+      font-weight:800;
+      transition:opacity .18s ease, transform .18s ease;
+      box-shadow:0 10px 24px rgba(15,23,42,.24);
+    }
+    .status.show { opacity:1; transform:translateX(-50%) translateY(0); }
+    .hidden { display:none !important; }
+    @media (max-width:370px) {
+      .amount { font-size:16px; }
+      .detail-total { font-size:34px; }
+      .person-name { font-size:16px; }
+      .detail-actions { grid-template-columns:1fr; }
+      .line-list { margin-bottom:150px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section id="pinView" class="pin-card">
+      <div>
+        <h1>Kassa</h1>
+        <p>Schnellansicht zum Kassieren. Nach der PIN bleibt diese Seite bis zum Schließen entsperrt.</p>
+      </div>
+      <form id="pinForm">
+        <input id="pinInput" class="pin-input" type="password" inputmode="numeric" autocomplete="current-password" placeholder="Admin-PIN">
+        <button id="pinButton" class="primary" type="submit" style="width:100%; margin-top:10px">Kassa entsperren</button>
+      </form>
+    </section>
+
+    <section id="appView" class="hidden">
+      <header class="topbar">
+        <div class="topline">
+          <div>
+            <h1 id="pageTitle">Kassa</h1>
+            <div id="pageSub" class="sub">Namen und offene Beträge</div>
+          </div>
+          <button id="refreshButton" class="icon-btn" type="button" title="Aktualisieren">↻</button>
+        </div>
+      </header>
+
+      <main id="listView" class="content">
+        <div class="search-wrap">
+          <input id="searchInput" class="search" type="search" placeholder="Name suchen..." autocomplete="off">
+        </div>
+        <div id="personList" class="person-list"></div>
+      </main>
+
+      <main id="detailView" class="content hidden">
+        <section id="detailHead" class="detail-head"></section>
+        <div id="detailWarning" class="warning hidden"></div>
+        <section id="lineList" class="line-list"></section>
+        <div class="detail-actions">
+          <button id="cancelButton" class="secondary" type="button">Abbrechen</button>
+          <button id="payButton" class="primary pay-now" type="button">Bezahlt</button>
+        </div>
+      </main>
+    </section>
+  </div>
+  <div id="status" class="status"></div>
+
+  <script>
+    const state = {
+      pin: sessionStorage.getItem('drinkPosKassaPin') || '',
+      people: [],
+      selected: null,
+      listTimer: null,
+      busy: false,
+    };
+
+    const el = id => document.getElementById(id);
+    const money = value => new Intl.NumberFormat('de-AT', { style:'currency', currency:'EUR' }).format(Number(value || 0));
+    const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]));
+
+    function showStatus(message, duration = 2300) {
+      const box = el('status');
+      box.textContent = message;
+      box.classList.add('show');
+      clearTimeout(showStatus.timer);
+      showStatus.timer = setTimeout(() => box.classList.remove('show'), duration);
+    }
+
+    async function apiGet(url) {
+      const res = await fetch(url, { cache:'no-store', headers:{ 'Cache-Control':'no-cache' } });
+      return parseResponse(res);
+    }
+
+    async function apiPost(url, body) {
+      const res = await fetch(url, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body:JSON.stringify(body || {}),
+      });
+      return parseResponse(res);
+    }
+
+    async function parseResponse(res) {
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const detail = data.detail;
+        const message = typeof detail === 'string' ? detail : (detail?.message || 'Aktion fehlgeschlagen');
+        const err = new Error(message);
+        err.status = res.status;
+        err.detail = detail;
+        throw err;
+      }
+      return data;
+    }
+
+    function setUnlocked(unlocked) {
+      el('pinView').classList.toggle('hidden', unlocked);
+      el('appView').classList.toggle('hidden', !unlocked);
+      if (unlocked) {
+        loadPeople();
+        startAutoRefresh();
+      } else {
+        stopAutoRefresh();
+        el('pinInput').focus();
+      }
+    }
+
+    async function unlockWithPin(pin) {
+      el('pinButton').disabled = true;
+      try {
+        await apiPost('/api/admin-login', { pin });
+        state.pin = pin;
+        sessionStorage.setItem('drinkPosKassaPin', pin);
+        setUnlocked(true);
+        showStatus('Kassa entsperrt');
+      } catch (err) {
+        sessionStorage.removeItem('drinkPosKassaPin');
+        state.pin = '';
+        showStatus(err.message || 'PIN nicht korrekt');
+      } finally {
+        el('pinButton').disabled = false;
+      }
+    }
+
+    async function loadPeople(silent = false) {
+      if (!state.pin) return;
+      try {
+        const data = await apiGet('/api/kassa/people');
+        state.people = data.people || [];
+        renderPeople();
+        if (!silent) showStatus('Aktualisiert', 1000);
+      } catch (err) {
+        if (!silent) showStatus(err.message || 'Kann nicht aktualisieren');
+      }
+    }
+
+    function renderPeople() {
+      const term = el('searchInput').value.trim().toLowerCase();
+      const list = el('personList');
+      const people = state.people.filter(person => !term || person.name.toLowerCase().includes(term));
+      el('pageSub').textContent = `${state.people.length} offene Rechnung${state.people.length === 1 ? '' : 'en'}`;
+      if (!people.length) {
+        list.innerHTML = `<div class="empty">${state.people.length ? 'Keine Treffer.' : 'Keine offenen Beträge.'}</div>`;
+        return;
+      }
+      list.innerHTML = people.map(person => `
+        <button class="person-row" type="button" data-person-id="${Number(person.id)}">
+          <span>
+            <span class="person-name">${escapeHtml(person.name)}</span>
+            <span class="person-meta">${Number(person.open_items || 0)} offene Striche</span>
+          </span>
+          <span class="amount">${money(person.total_eur ?? person.total)}</span>
+        </button>
+      `).join('');
+      list.querySelectorAll('.person-row').forEach(button => {
+        button.addEventListener('click', () => openPerson(Number(button.dataset.personId)));
+      });
+    }
+
+    async function openPerson(personId) {
+      try {
+        const detail = await apiGet(`/api/kassa/person/${personId}`);
+        state.selected = detail;
+        renderDetail();
+      } catch (err) {
+        showStatus(err.message || 'Person konnte nicht geladen werden');
+      }
+    }
+
+    function renderDetail() {
+      const person = state.selected;
+      if (!person) return;
+      el('listView').classList.add('hidden');
+      el('detailView').classList.remove('hidden');
+      el('pageTitle').textContent = 'Bezahlen';
+      el('pageSub').textContent = person.name;
+      el('detailHead').innerHTML = `
+        <div class="detail-name">${escapeHtml(person.name)}</div>
+        <div class="detail-total">${money(person.total_eur ?? person.total)}</div>
+        <div class="detail-note">${Number(person.open_items || 0)} offene Striche werden nach „Bezahlt“ gestrichen.</div>
+      `;
+      const warning = el('detailWarning');
+      if (Number(person.pending_requests_count || 0) > 0) {
+        warning.textContent = 'Offene Löschanfragen vorhanden. Bitte zuerst im Adminbereich entscheiden.';
+        warning.classList.remove('hidden');
+      } else {
+        warning.classList.add('hidden');
+      }
+      const lines = person.lines || [];
+      el('lineList').innerHTML = lines.length ? lines.map(line => `
+        <div class="line-row">
+          <div class="qty">${Number(line.quantity || 0)}×</div>
+          <div class="item">${escapeHtml(line.item || line.name || '')}<small>${money(line.unit_price_eur)} pro Stück</small></div>
+          <div class="line-total">${money(line.subtotal_eur)}</div>
+        </div>
+      `).join('') : '<div class="empty">Keine offenen Posten.</div>';
+      el('payButton').disabled = !person.can_pay || !lines.length;
+    }
+
+    function closeDetail() {
+      state.selected = null;
+      el('detailView').classList.add('hidden');
+      el('listView').classList.remove('hidden');
+      el('pageTitle').textContent = 'Kassa';
+      loadPeople(true);
+    }
+
+    async function refreshCurrent() {
+      if (state.selected) await openPerson(state.selected.id);
+      else await loadPeople();
+    }
+
+    async function paySelected() {
+      const person = state.selected;
+      if (!person || state.busy) return;
+      state.busy = true;
+      el('payButton').disabled = true;
+      el('payButton').textContent = 'Bucht...';
+      try {
+        const data = await apiPost('/api/kassa/pay', {
+          pin: state.pin,
+          person_id: person.id,
+          expected_revision: person.revision,
+        });
+        showStatus(`Bezahlt: ${money(data.total)}`);
+        closeDetail();
+      } catch (err) {
+        if (err.status === 409 && err.detail?.current) {
+          state.selected = err.detail.current;
+          renderDetail();
+          showStatus(err.message, 3600);
+        } else if (err.status === 403) {
+          sessionStorage.removeItem('drinkPosKassaPin');
+          state.pin = '';
+          setUnlocked(false);
+          showStatus('Bitte neu entsperren');
+        } else {
+          showStatus(err.message || 'Zahlung fehlgeschlagen', 3600);
+        }
+      } finally {
+        state.busy = false;
+        el('payButton').textContent = 'Bezahlt';
+        if (state.selected) el('payButton').disabled = !state.selected.can_pay;
+      }
+    }
+
+    function startAutoRefresh() {
+      stopAutoRefresh();
+      state.listTimer = setInterval(() => {
+        if (!document.hidden && !state.selected) loadPeople(true);
+      }, 10000);
+    }
+
+    function stopAutoRefresh() {
+      if (state.listTimer) clearInterval(state.listTimer);
+      state.listTimer = null;
+    }
+
+    el('pinForm').addEventListener('submit', event => {
+      event.preventDefault();
+      const pin = el('pinInput').value.trim();
+      if (!pin) return showStatus('Bitte PIN eingeben');
+      unlockWithPin(pin);
+    });
+    el('searchInput').addEventListener('input', renderPeople);
+    el('refreshButton').addEventListener('click', refreshCurrent);
+    el('cancelButton').addEventListener('click', closeDetail);
+    el('payButton').addEventListener('click', paySelected);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && state.pin) refreshCurrent();
+    });
+
+    if (state.pin) setUnlocked(true);
+    else setUnlocked(false);
+  </script>
+</body>
+</html>

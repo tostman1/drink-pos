@@ -54,6 +54,36 @@ class BackendFlowTests(unittest.TestCase):
         self.assertEqual(pay_res["status"], "paid")
         self.assertGreater(pay_res["total"], 0)
 
+    def test_kassa_payment_rejects_stale_revision(self):
+        person, item = self.first_person_and_item()
+
+        self.main.add_drink(self.main.AddDrinkRequest(person_id=person["id"], item_id=item["id"]))
+        preview = self.main.kassa_person(person["id"])
+        self.assertTrue(preview["can_pay"])
+
+        self.main.add_drink(self.main.AddDrinkRequest(person_id=person["id"], item_id=item["id"]))
+        with self.assertRaises(HTTPException) as ctx:
+            self.main.kassa_pay(
+                self.main.KassaPayRequest(
+                    pin=PIN,
+                    person_id=person["id"],
+                    expected_revision=preview["revision"],
+                )
+            )
+        self.assertEqual(ctx.exception.status_code, 409)
+        self.assertIn("current", ctx.exception.detail)
+
+        fresh = self.main.kassa_person(person["id"])
+        pay_res = self.main.kassa_pay(
+            self.main.KassaPayRequest(
+                pin=PIN,
+                person_id=person["id"],
+                expected_revision=fresh["revision"],
+            )
+        )
+        self.assertEqual(pay_res["status"], "paid")
+        self.assertEqual(pay_res["paid_items"], 2)
+
     def test_round_and_cashup_flow(self):
         people = self.main.list_people()
         config = self.main.config()

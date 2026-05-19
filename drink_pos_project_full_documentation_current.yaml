@@ -35,6 +35,10 @@ source_layout:
     file: "app/admin.html"
     style: "Vanilla HTML/CSS/JS, keine Build-Pipeline"
     purpose: "Organisation, Einstellungen, Verlauf, Berichte, CSV"
+  frontend_mobile_kassa:
+    file: "app/kassa.html"
+    style: "Vanilla HTML/CSS/JS, keine Build-Pipeline"
+    purpose: "Versteckte Handy-Hochformat-Seite fuer schnelles Kassieren mit Konfliktschutz"
   pwa_files:
     - "app/manifest.webmanifest"
     - "app/service-worker.js"
@@ -126,7 +130,7 @@ pwa_and_app_feeling:
     file: "app/service-worker.js"
     role: "Shell-Caching statischer Dateien"
     cache_version_rule: "Nach UI-Änderungen CACHE_NAME erhöhen."
-    current_expected_cache_name: "drink-pos-shell-v71"
+    current_expected_cache_name: "drink-pos-shell-v72"
   offline_policy:
     read_shell_offline: "statische App-Shell kann aus Cache kommen"
     write_offline: "nur normale Getraenkebuchungen"
@@ -236,6 +240,7 @@ business_domain:
   open_bill:
     definition: "Summe aller order_lines mit quantity > 0, unabhängig von event_open."
     payment: "Barzahlung schreibt PAID_CASH und setzt offene order_lines der Person auf quantity=0."
+    mobile_kassa: "Versteckte Seite /kassa fuer Handy-Hochformat: Name/Betrag-Liste, Detail mit Getraenken, PIN-geschuetztes Bezahlen mit Revisionspruefung gegen parallele Buchungen."
   event_tally:
     definition: "Aktuelle Veranstaltung seit letztem Kassensturz."
     field: "order_lines.event_open"
@@ -274,6 +279,8 @@ business_domain:
   payment:
     description: "Barzahlung bedeutet echtes erhaltenes Bargeld."
     ui: "eigener GUI-Dialog, kein Browser-confirm; gruppierte Posten mit Menge, Preis, Gesamt."
+    mobile_kassa_ui: "/kassa ist nicht in der Standardansicht verlinkt; nach PIN-Entsperrung zeigt sie nur offene Personen, Betrag und im Detail die konsumierten Getraenke."
+    conflict_protection: "POST /api/kassa/pay verlangt expected_revision aus /api/kassa/person/{person_id}; wenn inzwischen andere Geraete gebucht haben, antwortet der Server mit 409 und aktuellem Stand."
 
 number_and_currency_formatting:
   visible_separator: ","
@@ -683,6 +690,7 @@ api:
   static_routes:
     - {method: "GET", path: "/", purpose: "Kassenansicht"}
     - {method: "GET", path: "/admin", purpose: "Adminseite"}
+    - {method: "GET", path: "/kassa", purpose: "versteckte mobile Kassierseite fuer Handy-Hochformat; kein Button in der Standardansicht"}
     - {method: "GET", path: "/manifest.webmanifest", purpose: "PWA manifest"}
     - {method: "GET", path: "/service-worker.js", purpose: "PWA service worker"}
     - {method: "GET", path: "/icon.svg", purpose: "Icon SVG"}
@@ -694,6 +702,8 @@ api:
     - {method: "POST", path: "/api/client-event", purpose: "Online/offline/sync Ereignisse; Logging nur DevMode"}
     - {method: "GET", path: "/api/config", returns: "Settings, app info, items/user_items"}
     - {method: "GET", path: "/api/people", returns: "aktive Personen mit offenen Posten, Summen, Strichliste, pending requests"}
+    - {method: "GET", path: "/api/kassa/people", returns: "kompakte offene Personen fuer die mobile Kassa: id, Name, offene Striche, Betrag"}
+    - {method: "GET", path: "/api/kassa/person/{person_id}", returns: "mobile Kassa-Detail mit gruppierten Getraenken, Betrag, can_pay und revision"}
     - {method: "POST", path: "/api/add-drink", body: "AddDrinkRequest", purpose: "Konsum buchen; optional idempotente Offline-Nachsynchronisierung ueber client_operation_id"}
     - {method: "POST", path: "/api/edit-request", body: "EditRequestIn", purpose: "Löschanfrage stellen"}
     - {method: "POST", path: "/api/round-request", body: "RoundRequestIn", purpose: "Runde zahlen; wird sofort als APPROVED protokolliert und gebucht"}
@@ -706,6 +716,7 @@ api:
     - {method: "POST", path: "/api/admin/change-request/decide", body: "AdminChangeRequestDecision", purpose: "Löschanfrage entscheiden"}
     - {method: "POST", path: "/api/admin/round-request/decide", body: "AdminRoundRequestDecision", purpose: "Legacy-/Adminentscheidung alter Rundenanfragen; neue Runden brauchen keine Genehmigung"}
     - {method: "POST", path: "/api/pay", body: "PayRequest", purpose: "Barzahlung buchen"}
+    - {method: "POST", path: "/api/kassa/pay", body: "KassaPayRequest", purpose: "mobile Kassa-Barzahlung mit PIN und expected_revision-Konfliktschutz"}
     - {method: "POST", path: "/api/admin/adjust-drink", body: "AdminAdjustItemRequest", purpose: "Admin +1/-1 Korrektur"}
     - {method: "POST", path: "/api/admin/add-round-item", body: "PinRequest/person", purpose: "Admin bucht Runde direkt"}
     - {method: "POST", path: "/api/admin/cashup-preview", body: "CashupRequest", purpose: "Kassensturz-Vorschau"}
@@ -951,7 +962,7 @@ testing_checklist:
     javascript_index: "node --check extracted-index-script.js oder entsprechender Extrakt aus index.html"
     javascript_admin: "node --check extracted-admin-script.js oder entsprechender Extrakt aus admin.html"
   backend_scenarios:
-    - "Automatisierte Tests in tests/test_backend.py decken Foreign Keys/busy_timeout, Buchung, Zahlung, Kassensturz, Runde, Offline-Idempotenz und /api/transactions-PIN ab."
+    - "Automatisierte Tests in tests/test_backend.py decken Foreign Keys/busy_timeout, Buchung, Zahlung, Kassa-Revisionskonflikt, Kassensturz, Runde, Offline-Idempotenz und /api/transactions-PIN ab."
     - "Neue development DB starten; /api/config und /api/people prüfen."
     - "Production DB separat prüfen; keine Testdaten/Synclogs."
     - "Konsum buchen; order_lines, transactions, transaction_items prüfen."
@@ -1073,8 +1084,24 @@ known_open_points_current:
     note: "Admin-Vorschau ist verbessert, nutzt aber weiterhin eigene Preview-Struktur statt gemeinsamer Renderfunktion mit index.html."
 
 current_update_2026_05_18:
-  cache_name: "drink-pos-shell-v71"
-  branch_note: "Git-Repository aktiv; master enthaelt den Sound-/Einstellungsstand, codex/tablet-sync-recovery enthaelt Auto-Reconnect und Offline-Getraenkebuchungen."
+  cache_name: "drink-pos-shell-v72"
+  branch_note: "Git-Repository aktiv; master enthaelt den bisherigen stabilen Stand, codex/mobile-kassa-page enthaelt die neue versteckte Handy-Kassa unter /kassa."
+  mobile_kassa:
+    route: "/kassa"
+    linked_from_standard_view: false
+    target_device: "Handy im Hochformat"
+    workflow:
+      - "Kassierer oeffnet bekannte URL /kassa."
+      - "Admin-PIN einmal eingeben; PIN bleibt nur in sessionStorage dieser Browser-Sitzung."
+      - "Name in kompakter Liste waehlen; nur Name, offene Striche und Betrag sind sichtbar."
+      - "Detailansicht zeigt konsumierte Getraenke gruppiert mit Menge, Einzelpreis und Summe."
+      - "'Bezahlt' schreibt PAID_CASH und setzt die offenen order_lines dieser Person auf quantity=0."
+      - "'Abbrechen' kehrt ohne Aenderung zur Liste zurueck."
+    conflict_protection:
+      - "/api/kassa/person/{person_id} liefert eine revision aus offenen Zeilen und offenen Loeschanfragen."
+      - "/api/kassa/pay akzeptiert nur, wenn expected_revision noch aktuell ist."
+      - "Bei paralleler Buchung antwortet der Server mit HTTP 409 und aktuellem Stand; die Seite aktualisiert die Detailansicht statt zu bezahlen."
+      - "Beim Zahlungsvorgang nutzt der Server BEGIN IMMEDIATE, damit zwischen Pruefung und Streichung keine weitere Buchung dazwischen schreibt."
   round_flow:
     current_behavior:
       - "Benutzer drueckt im Personen-Popup 'Runde zahlen' / '+ 1 Runde bestaetigen'."
@@ -1121,7 +1148,7 @@ current_update_2026_05_18:
     deployment:
       - "requirements.txt, .env.example und README.md ergaenzt."
     tests:
-      - "tests/test_backend.py deckt Buchung, Zahlung, Kassensturz, Runde, Offline-Idempotenz, Mitgliedernachrichten, Production-Standard-PIN-Block, PRAGMAs und /api/transactions-Schutz ab."
+      - "tests/test_backend.py deckt Buchung, Zahlung, mobile Kassa-Revisionskonflikte, Kassensturz, Runde, Offline-Idempotenz, Mitgliedernachrichten, Production-Standard-PIN-Block, PRAGMAs und /api/transactions-Schutz ab."
   cost_warning_and_messages:
     settings:
       - "cost_warning_enabled / cost_warning_threshold_eur"
@@ -1245,6 +1272,19 @@ bedienszenarien_und_bedienreihenfolgen:
     expected_result:
       - "PAID_CASH wird geschrieben."
       - "Alle offenen Posten der Person werden auf quantity=0 gesetzt."
+  mobile_kassa_barzahlung:
+    steps:
+      - "Bekannte URL /kassa am Handy im Hochformat oeffnen."
+      - "Kassa mit Admin-PIN entsperren."
+      - "Person in der kompakten Name/Betrag-Liste suchen und antippen."
+      - "Konsumierte Getraenke in der Detailansicht pruefen."
+      - "Bei falscher Person 'Abbrechen' antippen."
+      - "Wenn alles passt, 'Bezahlt' antippen."
+    expected_result:
+      - "PAID_CASH wird geschrieben."
+      - "Alle zum geprueften Stand offenen Posten der Person werden auf quantity=0 gesetzt."
+      - "Wenn ein anderes Geraet seit dem Oeffnen der Detailansicht noch gebucht hat, wird nicht bezahlt; die Seite zeigt den aktualisierten Stand zur erneuten Pruefung."
+      - "Die Standard-Kassenansicht bleibt unveraendert und verlinkt die mobile Kassa nicht."
   manuelle_synchronisierung:
     steps:
       - "Auf der Seite ganz nach oben scrollen."

@@ -1,5 +1,5 @@
-const CACHE_NAME = 'drink-pos-shell-v71';
-const SHELL_URLS = ['/', '/admin', '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png'];
+const CACHE_NAME = 'drink-pos-shell-v72';
+const SHELL_URLS = ['/', '/admin', '/kassa', '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(SHELL_URLS)).then(() => self.skipWaiting()));
