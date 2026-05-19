@@ -1,4 +1,4 @@
-const CACHE_NAME = 'drink-pos-shell-v72';
+const CACHE_NAME = 'drink-pos-shell-v73';
 const SHELL_URLS = ['/', '/admin', '/kassa', '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', event => {

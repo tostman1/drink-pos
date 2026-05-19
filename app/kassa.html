@@ -209,6 +209,47 @@
       backdrop-filter:blur(14px);
     }
     .pay-now { min-height:56px; font-size:19px; }
+    dialog.confirm-dialog {
+      border:0;
+      padding:0;
+      width:min(calc(100vw - 28px),460px);
+      border-radius:22px;
+      background:transparent;
+      position:fixed;
+      left:50%;
+      top:50%;
+      transform:translate(-50%,-50%);
+      margin:0;
+      box-shadow:0 22px 60px rgba(15,23,42,.28);
+    }
+    dialog.confirm-dialog::backdrop { background:rgba(15,23,42,.48); }
+    body.modal-open { overflow:hidden; }
+    .confirm-card {
+      background:#fff;
+      border-radius:22px;
+      padding:18px;
+      border:1px solid var(--line);
+      display:grid;
+      gap:12px;
+    }
+    .confirm-card h2 { margin:0; font-size:24px; line-height:1.1; }
+    .confirm-card p { margin:0; color:var(--muted); line-height:1.35; }
+    .confirm-total {
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:baseline;
+      padding:12px;
+      border-radius:16px;
+      background:#f8fafc;
+      font-weight:950;
+    }
+    .confirm-total strong { font-size:24px; }
+    .confirm-actions {
+      display:grid;
+      grid-template-columns:1fr 1.25fr;
+      gap:9px;
+    }
     .warning {
       border:1px solid #fde68a;
       background:#fffbeb;
@@ -291,6 +332,19 @@
     </section>
   </div>
   <div id="status" class="status"></div>
+  <dialog id="payConfirmDialog" class="confirm-dialog">
+    <section class="confirm-card">
+      <div>
+        <h2 id="confirmTitle">Zahlung bestätigen</h2>
+        <p id="confirmText"></p>
+      </div>
+      <div class="confirm-total"><span>Gesamt</span><strong id="confirmTotal">€ 0,00</strong></div>
+      <div class="confirm-actions">
+        <button id="confirmCancelButton" class="secondary" type="button">Abbrechen</button>
+        <button id="confirmPayButton" class="primary" type="button">Ja, bezahlt</button>
+      </div>
+    </section>
+  </dialog>
 
   <script>
     const state = {
@@ -462,6 +516,7 @@
       if (!person || state.busy) return;
       state.busy = true;
       el('payButton').disabled = true;
+      el('confirmPayButton').disabled = true;
       el('payButton').textContent = 'Bucht...';
       try {
         const data = await apiPost('/api/kassa/pay', {
@@ -470,8 +525,10 @@
           expected_revision: person.revision,
         });
         showStatus(`Bezahlt: ${money(data.total)}`);
+        if (el('payConfirmDialog').open) el('payConfirmDialog').close();
         closeDetail();
       } catch (err) {
+        if (el('payConfirmDialog').open) el('payConfirmDialog').close();
         if (err.status === 409 && err.detail?.current) {
           state.selected = err.detail.current;
           renderDetail();
@@ -486,9 +543,21 @@
         }
       } finally {
         state.busy = false;
+        el('confirmPayButton').disabled = false;
         el('payButton').textContent = 'Bezahlt';
         if (state.selected) el('payButton').disabled = !state.selected.can_pay;
       }
+    }
+
+    function requestPayConfirmation() {
+      const person = state.selected;
+      if (!person || state.busy || !person.can_pay) return;
+      el('confirmTitle').textContent = `${person.name} bezahlen?`;
+      el('confirmText').textContent = `${Number(person.open_items || 0)} offene Striche werden nach der Bestätigung gestrichen.`;
+      el('confirmTotal').textContent = money(person.total_eur ?? person.total);
+      const dialog = el('payConfirmDialog');
+      dialog.showModal();
+      document.body.classList.add('modal-open');
     }
 
     function startAutoRefresh() {
@@ -512,7 +581,10 @@
     el('searchInput').addEventListener('input', renderPeople);
     el('refreshButton').addEventListener('click', refreshCurrent);
     el('cancelButton').addEventListener('click', closeDetail);
-    el('payButton').addEventListener('click', paySelected);
+    el('payButton').addEventListener('click', requestPayConfirmation);
+    el('confirmCancelButton').addEventListener('click', () => el('payConfirmDialog').close());
+    el('confirmPayButton').addEventListener('click', paySelected);
+    el('payConfirmDialog').addEventListener('close', () => document.body.classList.remove('modal-open'));
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden && state.pin) refreshCurrent();
     });

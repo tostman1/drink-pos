@@ -17,6 +17,7 @@
     * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
     html { min-height:100%; background:var(--dark); }
     body { margin:0; min-height:100%; font-family:system-ui,-apple-system,BlinkMacSystemFont,sans-serif; background:var(--app-bg); color:var(--text); }
+    body.dialog-open { overflow:hidden; }
     header { position:sticky; top:0; background:var(--dark); color:white; padding:calc(10px + env(safe-area-inset-top, 0px)) 12px 10px; display:flex; justify-content:space-between; align-items:center; gap:8px; z-index:10; }
     header h1 { margin:0; font-size:21px; white-space:nowrap; }
     .header-buttons { display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:flex-end; }
@@ -63,9 +64,9 @@
     .notice-card strong { display:block; margin-bottom:3px; font-size:14px; }
     .notice-card p { margin:0; color:inherit; font-size:13.5px; line-height:1.35; }
     .notice-card button { margin-top:9px; padding:7px 10px; font-size:13px; border-radius:10px; background:#e0e7ff; color:#3730a3; }
-    dialog { border:0; border-radius:24px; padding:0; max-width:720px; width:calc(100% - 28px); box-shadow:0 22px 70px rgba(0,0,0,.34); position:relative; overflow:visible; background:transparent; }
+    dialog { border:0; border-radius:24px; padding:0; max-width:720px; width:calc(100% - 28px); max-height:90vh; max-height:calc(100dvh - 28px); box-shadow:0 22px 70px rgba(0,0,0,.34); position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); margin:0; overflow:visible; background:transparent; z-index:100; }
     dialog::backdrop { background:rgba(0,0,0,.45); }
-    .dialog-content { padding:20px; position:relative; z-index:2; background:#fff; border-radius:24px; overflow:auto; max-height:90vh; }
+    .dialog-content { padding:20px; position:relative; z-index:2; background:#fff; border-radius:24px; overflow:auto; max-height:90vh; max-height:calc(100dvh - 28px); }
     .dialog-content h2 { margin:0 0 5px 0; font-size:29px; line-height:1.08; letter-spacing:0; color:#0f172a; }
     .dialog-total { color:#64748b; font-size:17px; margin-bottom:14px; }
     #addPanel { position:relative; background:#fff; border-color:#bfdbfe; border-radius:18px; padding:14px; box-shadow:0 1px 0 rgba(15,23,42,.03), 0 10px 24px rgba(37,99,235,.07); }
@@ -150,7 +151,7 @@
     .muted { color:var(--muted); font-size:13px; line-height:1.35; }
     select { font:inherit; padding:8px; border-radius:10px; border:1px solid var(--border); }
     .decision-buttons { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-    @media (max-width:640px) { dialog { width:calc(100% - 18px); } .dialog-content { padding:14px; } .dialog-content h2 { font-size:25px; } .drink-feedback { left:132px; right:14px; font-size:13px; } .drink-buttons { grid-template-columns:1fr; } .drink-buttons button { min-height:64px; grid-template-columns:32px minmax(0,1fr); gap:2px 9px; } .drink-button-plus { width:32px; height:32px; } .round-celebration-panel { flex-direction:column; align-items:stretch; gap:9px; } .round-mark { width:32px; height:32px; } .round-mark::before { width:11px; height:11px; left:7px; top:8px; } .round-mark::after { width:13px; height:13px; right:6px; top:11px; } .round-pay-btn { width:100%; justify-self:stretch; min-width:0; max-width:none; } }
+    @media (max-width:640px) { dialog { width:calc(100% - 18px); max-height:calc(100dvh - 18px); } .dialog-content { padding:14px; max-height:calc(100dvh - 18px); } .dialog-content h2 { font-size:25px; } .drink-feedback { left:132px; right:14px; font-size:13px; } .drink-buttons { grid-template-columns:1fr; } .drink-buttons button { min-height:64px; grid-template-columns:32px minmax(0,1fr); gap:2px 9px; } .drink-button-plus { width:32px; height:32px; } .round-celebration-panel { flex-direction:column; align-items:stretch; gap:9px; } .round-mark { width:32px; height:32px; } .round-mark::before { width:11px; height:11px; left:7px; top:8px; } .round-mark::after { width:13px; height:13px; right:6px; top:11px; } .round-pay-btn { width:100%; justify-self:stretch; min-width:0; max-width:none; } }
     @media (prefers-reduced-motion:reduce) { .drink-buttons button, .drink-feedback { transition:none; } .drink-buttons button.is-writing::before, .drink-buttons button.drink-written, .drink-buttons button.drink-written::after, .drink-feedback.feedback-pop, .confetti-piece { animation:none; } }
     .approve-btn { background:var(--green); }
     .reject-btn { background:var(--red-bg); color:var(--red); }
@@ -1147,12 +1148,16 @@
       deleteRequestMenuOpen = false;
       deleteRequestSelections = {};
       updateDialogInfo();
-      document.getElementById('personDialog').showModal();
+      const dialog = document.getElementById('personDialog');
+      dialog.showModal();
+      document.querySelector('#personDialog .dialog-content')?.scrollTo(0, 0);
+      updateDialogScrollLock();
     }
 
     function closeDialog() {
       const dialog = document.getElementById('personDialog');
       if (dialog?.open) dialog.close();
+      updateDialogScrollLock();
       clearDrinkFeedback();
       currentPerson = null;
       deleteRequestMenuOpen = false;
@@ -1166,6 +1171,11 @@
       syncDrinkFeedbackSlots();
       const layer = document.getElementById('celebrationLayer');
       if (layer) layer.innerHTML = '';
+    }
+
+    function updateDialogScrollLock() {
+      const locked = Boolean(document.getElementById('personDialog')?.open || document.getElementById('actionDialog')?.open);
+      document.body.classList.toggle('dialog-open', locked);
     }
 
     function syncDrinkFeedbackSlots() {
@@ -1908,6 +1918,8 @@
       buttons.appendChild(cancel);
       buttons.appendChild(confirm);
       dialog.showModal();
+      document.querySelector('#actionDialog .dialog-content')?.scrollTo(0, 0);
+      updateDialogScrollLock();
     }
 
     async function payCurrentPerson() {
@@ -2089,6 +2101,8 @@
     window.addEventListener('offline', () => { markSyncFailure(); showStatus('Offline: Getränkebuchungen werden vorgemerkt.'); });
     window.addEventListener('online', () => { showStatus('Wieder online. Synchronisiere…'); resyncNow(); });
     document.getElementById('personDialog')?.addEventListener('cancel', event => { event.preventDefault(); closeDialog(); });
+    document.getElementById('personDialog')?.addEventListener('close', updateDialogScrollLock);
+    document.getElementById('actionDialog')?.addEventListener('close', updateDialogScrollLock);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) checkSyncStatus({ resyncOnChange:true }); });
   </script>
 </body>

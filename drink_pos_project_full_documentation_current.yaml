@@ -130,7 +130,7 @@ pwa_and_app_feeling:
     file: "app/service-worker.js"
     role: "Shell-Caching statischer Dateien"
     cache_version_rule: "Nach UI-Änderungen CACHE_NAME erhöhen."
-    current_expected_cache_name: "drink-pos-shell-v72"
+    current_expected_cache_name: "drink-pos-shell-v73"
   offline_policy:
     read_shell_offline: "statische App-Shell kann aus Cache kommen"
     write_offline: "nur normale Getraenkebuchungen"
@@ -1084,7 +1084,7 @@ known_open_points_current:
     note: "Admin-Vorschau ist verbessert, nutzt aber weiterhin eigene Preview-Struktur statt gemeinsamer Renderfunktion mit index.html."
 
 current_update_2026_05_18:
-  cache_name: "drink-pos-shell-v72"
+  cache_name: "drink-pos-shell-v73"
   branch_note: "Git-Repository aktiv; master enthaelt den bisherigen stabilen Stand, codex/mobile-kassa-page enthaelt die neue versteckte Handy-Kassa unter /kassa."
   mobile_kassa:
     route: "/kassa"
@@ -1095,7 +1095,7 @@ current_update_2026_05_18:
       - "Admin-PIN einmal eingeben; PIN bleibt nur in sessionStorage dieser Browser-Sitzung."
       - "Name in kompakter Liste waehlen; nur Name, offene Striche und Betrag sind sichtbar."
       - "Detailansicht zeigt konsumierte Getraenke gruppiert mit Menge, Einzelpreis und Summe."
-      - "'Bezahlt' schreibt PAID_CASH und setzt die offenen order_lines dieser Person auf quantity=0."
+      - "'Bezahlt' oeffnet eine zweite Bestaetigung; erst 'Ja, bezahlt' schreibt PAID_CASH und setzt die offenen order_lines dieser Person auf quantity=0."
       - "'Abbrechen' kehrt ohne Aenderung zur Liste zurueck."
     conflict_protection:
       - "/api/kassa/person/{person_id} liefert eine revision aus offenen Zeilen und offenen Loeschanfragen."
