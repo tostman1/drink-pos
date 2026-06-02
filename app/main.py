@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import random
 import re
+import secrets
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
@@ -21,6 +22,7 @@ APP_ENV = os.getenv("DRINK_POS_ENV", "development").strip().lower()
 RAW_ENV_PIN_CODE = os.getenv("DRINK_POS_PIN")
 ENV_PIN_CODE = (RAW_ENV_PIN_CODE or "1234").strip() or "1234"
 ENV_PIN_FROM_ENV = RAW_ENV_PIN_CODE is not None and RAW_ENV_PIN_CODE.strip() != ""
+AGENT_API_TOKEN = os.getenv("DRINK_POS_AGENT_TOKEN", "").strip()
 APP_DIR = Path(__file__).resolve().parent
 
 
@@ -1207,6 +1209,27 @@ class StatisticsRequest(BaseModel):
     include_admin_items: bool = False
 
 
+class AgentBookDrinkRequest(BaseModel):
+    person_id: int
+    item_id: int | None = None
+    drink: str | None = None
+    quantity: int = 1
+    client_operation_id: str | None = None
+    client_time: str | None = None
+    device_info: str | None = None
+    note: str | None = None
+
+
+class AgentPersonRequest(BaseModel):
+    person_id: int
+
+
+class AgentRoundRequest(BaseModel):
+    person_id: int
+    quantity: int = 1
+    reason: str | None = None
+
+
 # ---------------------------------------------------------------------------
 # Query helpers
 # ---------------------------------------------------------------------------
@@ -1800,6 +1823,43 @@ def normalize_client_operation_id(value: str | None) -> str | None:
     return clean or None
 
 
+def configured_agent_token() -> str:
+    return (os.getenv("DRINK_POS_AGENT_TOKEN") or AGENT_API_TOKEN or "").strip()
+
+
+def agent_token_from_headers(
+    authorization: str | None = None,
+    x_drink_pos_agent_token: str | None = None,
+) -> str:
+    token = x_drink_pos_agent_token.strip() if isinstance(x_drink_pos_agent_token, str) else ""
+    if token:
+        return token
+    if isinstance(authorization, str):
+        parts = authorization.strip().split(None, 1)
+        if len(parts) == 2 and parts[0].lower() == "bearer":
+            return parts[1].strip()
+    return ""
+
+
+def require_agent_access(
+    authorization: str | None = None,
+    x_drink_pos_agent_token: str | None = None,
+) -> None:
+    expected = configured_agent_token()
+    if not expected:
+        raise HTTPException(status_code=404, detail="Agent API ist deaktiviert. DRINK_POS_AGENT_TOKEN setzen.")
+    provided = agent_token_from_headers(authorization, x_drink_pos_agent_token)
+    if not provided or not secrets.compare_digest(provided, expected):
+        raise HTTPException(status_code=403, detail="Ungueltiges Agent-Token")
+
+
+def require_agent_request(request: Request) -> None:
+    require_agent_access(
+        authorization=request.headers.get("authorization"),
+        x_drink_pos_agent_token=request.headers.get("x-drink-pos-agent-token"),
+    )
+
+
 def admin_rate_key(request: Request) -> str:
     client = request.client.host if request.client else "unknown"
     forwarded = request.headers.get("x-forwarded-for", "").split(",", 1)[0].strip()
@@ -1848,6 +1908,196 @@ def sync_status():
             "server_time": now_text(),
             **get_sync_state(conn),
         }
+
+
+def agent_state_payload(conn: sqlite3.Connection) -> dict:
+    people_rows = conn.execute(
+        """
+        SELECT *
+        FROM people
+        WHERE active = 1 AND archived_at IS NULL
+        ORDER BY last_name COLLATE NOCASE ASC, first_name COLLATE NOCASE ASC, name COLLATE NOCASE ASC
+        """
+    ).fetchall()
+    people = []
+    total_open_eur = 0.0
+    total_open_items = 0
+    pending_total = 0
+    for row in sorted(people_rows, key=lambda r: normalize_for_sort(display_name(r["first_name"], r["last_name"]) or r["name"])):
+        lines = get_open_lines(conn, int(row["id"]))
+        pending = get_pending_requests_for_person(conn, int(row["id"]))
+        total = person_total_from_lines(lines)
+        open_items = sum(int(line["quantity"] or 0) for line in lines)
+        total_open_eur += total
+        total_open_items += open_items
+        pending_total += len(pending)
+        people.append(
+            {
+                "id": int(row["id"]),
+                "first_name": row["first_name"],
+                "last_name": row["last_name"],
+                "name": display_name(row["first_name"], row["last_name"]) or row["name"],
+                "open_items": open_items,
+                "open_total_eur": rounded_money(total),
+                "summary_lines": make_summary_lines(lines),
+                "event_summary_lines": make_event_summary_lines(lines),
+                "lines": [serialize_open_line(line) for line in lines],
+                "pending_requests": pending,
+            }
+        )
+    return {
+        "status": "ok",
+        "server_time": now_text(),
+        "totals": {
+            "people": len(people),
+            "open_items": total_open_items,
+            "open_total_eur": rounded_money(total_open_eur),
+            "pending_requests": pending_total,
+        },
+        "items": [item for item in get_items(conn, include_archived=False) if item["can_user_add"]],
+        "people": people,
+        **get_sync_state(conn),
+    }
+
+
+@app.get("/api/agent/capabilities")
+def agent_capabilities(request: Request):
+    require_agent_request(request)
+    return {
+        "status": "ok",
+        "interface": "REST",
+        "app": "Drink POS",
+        "auth": {
+            "type": "bearer",
+            "headers": ["Authorization: Bearer <token>", "X-Drink-Pos-Agent-Token"],
+            "enabled": bool(configured_agent_token()),
+        },
+        "openapi_url": "/openapi.json",
+        "actions": [
+            {"method": "GET", "path": "/api/agent/state", "purpose": "Strichlisten-Stand lesen"},
+            {"method": "POST", "path": "/api/agent/person", "purpose": "Offene Posten einer Person lesen"},
+            {"method": "POST", "path": "/api/agent/book-drink", "purpose": "Normales Getraenk buchen"},
+            {"method": "POST", "path": "/api/agent/round-request", "purpose": "Rundenanfrage erstellen"},
+        ],
+        "limits": {
+            "book_drink_max_quantity": 50,
+            "round_request_max_quantity": 20,
+            "admin_actions": "not_supported",
+        },
+    }
+
+
+@app.get("/api/agent/state")
+def agent_state(request: Request):
+    require_agent_request(request)
+    with get_conn() as conn:
+        return agent_state_payload(conn)
+
+
+@app.post("/api/agent/person")
+def agent_person(req: AgentPersonRequest, request: Request):
+    require_agent_request(request)
+    with get_conn() as conn:
+        person = get_person(conn, req.person_id, allow_archived=False)
+        return {
+            **kassa_person_payload(conn, person),
+            "pending_requests": get_pending_requests_for_person(conn, req.person_id),
+            **get_sync_state(conn),
+        }
+
+
+@app.post("/api/agent/book-drink")
+def agent_book_drink(req: AgentBookDrinkRequest, request: Request):
+    require_agent_request(request)
+    quantity = int(req.quantity or 0)
+    if quantity < 1 or quantity > 50:
+        raise HTTPException(status_code=400, detail="Menge muss zwischen 1 und 50 liegen")
+
+    with get_conn() as conn:
+        person = get_person(conn, req.person_id, allow_archived=False)
+        item = get_item_by_id_or_name(conn, req.item_id, req.drink)
+        if not bool(item["active"]):
+            raise HTTPException(status_code=400, detail="Artikel ist inaktiv")
+        if bool(item["admin_only"]) or is_system_item_name(item["name"]):
+            raise HTTPException(status_code=403, detail="Agenten duerfen nur normale Benutzerartikel buchen")
+
+        client_operation_id = normalize_client_operation_id(req.client_operation_id)
+        if client_operation_id:
+            existing_operation = conn.execute(
+                "SELECT transaction_id FROM client_operations WHERE client_operation_id = ?",
+                (client_operation_id,),
+            ).fetchone()
+            if existing_operation:
+                return {"status": "ok", "duplicate": True, "transaction_id": existing_operation["transaction_id"], **get_sync_state(conn)}
+            try:
+                conn.execute(
+                    """
+                    INSERT INTO client_operations (
+                        client_operation_id, endpoint, client_time, device_info, created_at
+                    ) VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        client_operation_id,
+                        "/api/agent/book-drink",
+                        (req.client_time or "")[:80] or None,
+                        (req.device_info or "")[:160] or None,
+                        now_text(),
+                    ),
+                )
+            except sqlite3.IntegrityError:
+                existing_operation = conn.execute(
+                    "SELECT transaction_id FROM client_operations WHERE client_operation_id = ?",
+                    (client_operation_id,),
+                ).fetchone()
+                return {"status": "ok", "duplicate": True, "transaction_id": existing_operation["transaction_id"] if existing_operation else None, **get_sync_state(conn)}
+
+        line_id = add_order_line(conn, person["id"], item, quantity)
+        total = rounded_money(quantity * float(item["price_eur"]))
+        detail_parts = [f"+{quantity}x {item['name']} via Agent API"]
+        if req.note:
+            safe_note = re.sub(r"[^A-Za-z0-9_.,:/() -]", "", req.note).strip()[:160]
+            if safe_note:
+                detail_parts.append(safe_note)
+        if req.client_time:
+            detail_parts.append(f"Client-Zeit: {req.client_time[:40]}")
+        if req.device_info:
+            safe_device = re.sub(r"[^A-Za-z0-9_.,:/() -]", "", req.device_info).strip()[:100]
+            if safe_device:
+                detail_parts.append(f"Geraet: {safe_device}")
+
+        tx_id = log_transaction(conn, person["id"], "CONSUME", total, " | ".join(detail_parts))
+        log_transaction_item(conn, tx_id, person["id"], {
+            "item_id": item["id"],
+            "item_name_snapshot": item["name"],
+            "item_short_label_snapshot": item["short_label"],
+            "unit_price_eur": item["price_eur"],
+            "unit_purchase_price_eur": item["purchase_price_eur"] if "purchase_price_eur" in item.keys() else 0,
+        }, quantity, "CONSUME")
+        if client_operation_id:
+            conn.execute(
+                "UPDATE client_operations SET transaction_id = ? WHERE client_operation_id = ?",
+                (tx_id, client_operation_id),
+            )
+        conn.commit()
+        return {
+            "status": "ok",
+            "transaction_id": tx_id,
+            "order_line_id": int(line_id),
+            "person_id": int(person["id"]),
+            "item_id": int(item["id"]),
+            "quantity": quantity,
+            "total_eur": total,
+            **get_sync_state(conn),
+        }
+
+
+@app.post("/api/agent/round-request")
+def agent_round_request(req: AgentRoundRequest, request: Request):
+    require_agent_request(request)
+    quantity = int(req.quantity or 0)
+    if quantity < 1 or quantity > 20:
+        raise HTTPException(status_code=400, detail="Menge muss zwischen 1 und 20 liegen")
+    return create_round_request(RoundRequestIn(person_id=req.person_id, quantity=quantity, reason=req.reason))
 
 
 @app.post("/api/client-event")

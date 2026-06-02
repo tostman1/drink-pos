@@ -1,0 +1,9 @@
+[Unit]
+Description=Update Drink POS Podman containers
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/drink_pos
+ExecStart=/opt/drink_pos/deploy/podman-update.sh

@@ -1,0 +1,9 @@
+[Unit]
+Description=Run Drink POS Podman container update daily
+
+[Timer]
+OnCalendar=*-*-* 04:10:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

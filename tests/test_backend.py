@@ -11,14 +11,24 @@ from fastapi import HTTPException
 ROOT = Path(__file__).resolve().parents[1]
 APP_DIR = ROOT / "app"
 PIN = "1234"
+AGENT_TOKEN = "agent-secret"
+
+
+class FakeRequest:
+    def __init__(self, token: str | None = None):
+        self.headers = {}
+        if token:
+            self.headers["authorization"] = f"Bearer {token}"
 
 
 class BackendFlowTests(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
+        self.original_agent_token = os.environ.pop("DRINK_POS_AGENT_TOKEN", None)
         os.environ["DRINK_POS_ENV"] = "development"
         os.environ["DRINK_POS_DB"] = str(Path(self.temp_dir.name) / "drink_pos_test.db")
         os.environ["DRINK_POS_PIN"] = PIN
+        os.environ.pop("DRINK_POS_AGENT_TOKEN", None)
 
         sys.modules.pop("main", None)
         sys.path.insert(0, str(APP_DIR))
@@ -31,6 +41,10 @@ class BackendFlowTests(unittest.TestCase):
             sys.path.remove(str(APP_DIR))
         except ValueError:
             pass
+        if self.original_agent_token is None:
+            os.environ.pop("DRINK_POS_AGENT_TOKEN", None)
+        else:
+            os.environ["DRINK_POS_AGENT_TOKEN"] = self.original_agent_token
         self.temp_dir.cleanup()
 
     def first_person_and_item(self):
@@ -136,6 +150,50 @@ class BackendFlowTests(unittest.TestCase):
             self.main.transactions()
         self.assertEqual(ctx.exception.status_code, 403)
         self.assertIsInstance(self.main.transactions(pin=PIN), list)
+
+    def test_agent_api_requires_configured_token(self):
+        with self.assertRaises(HTTPException) as disabled_ctx:
+            self.main.require_agent_request(FakeRequest(AGENT_TOKEN))
+        self.assertEqual(disabled_ctx.exception.status_code, 404)
+
+        os.environ["DRINK_POS_AGENT_TOKEN"] = AGENT_TOKEN
+        with self.assertRaises(HTTPException) as forbidden_ctx:
+            self.main.require_agent_request(FakeRequest("wrong-token"))
+        self.assertEqual(forbidden_ctx.exception.status_code, 403)
+
+        capabilities = self.main.agent_capabilities(FakeRequest(AGENT_TOKEN))
+        self.assertEqual(capabilities["interface"], "REST")
+        self.assertIn("/api/agent/book-drink", {action["path"] for action in capabilities["actions"]})
+
+    def test_agent_api_can_read_state_and_book_idempotently(self):
+        os.environ["DRINK_POS_AGENT_TOKEN"] = AGENT_TOKEN
+        person, item = self.first_person_and_item()
+        request = FakeRequest(AGENT_TOKEN)
+        payload = self.main.AgentBookDrinkRequest(
+            person_id=person["id"],
+            item_id=item["id"],
+            quantity=2,
+            client_operation_id="agent-test-1",
+            device_info="unittest-agent",
+        )
+
+        booked = self.main.agent_book_drink(payload, request)
+        duplicate = self.main.agent_book_drink(payload, request)
+        state = self.main.agent_state(request)
+        preview = self.main.agent_person(self.main.AgentPersonRequest(person_id=person["id"]), request)
+
+        self.assertEqual(booked["status"], "ok")
+        self.assertEqual(booked["quantity"], 2)
+        self.assertTrue(duplicate["duplicate"])
+        self.assertGreaterEqual(state["totals"]["open_items"], 2)
+        self.assertEqual(preview["open_items"], 2)
+
+        with self.main.get_conn() as conn:
+            quantity = conn.execute(
+                "SELECT SUM(quantity) AS quantity FROM order_lines WHERE person_id = ? AND item_id = ?",
+                (person["id"], item["id"]),
+            ).fetchone()["quantity"]
+        self.assertEqual(quantity, 2)
 
     def test_member_message_acknowledgement_is_per_person(self):
         people = self.main.list_people()
