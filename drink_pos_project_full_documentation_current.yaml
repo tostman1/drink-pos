@@ -949,7 +949,7 @@ security:
     - "Admin-Login und direkte PIN-pflichtige Admin-API-Calls werden in production blockiert, solange die Standard-PIN 1234 aktiv ist."
   recommended_if_public:
     - "nicht Port 8088 direkt ins Internet freigeben"
-    - "VPN/Tailscale oder Reverse Proxy mit HTTPS und zusätzlicher Auth"
+    - "VPN oder Reverse Proxy mit HTTPS und zusätzlicher Auth"
     - "regelmäßige SQLite-Backups"
     - "admin_pin später mit Argon2/bcrypt hashen"
     - "kurzlebige Admin-Session-Tokens statt PIN in jedem Request"
@@ -1073,9 +1073,9 @@ future_gui_ideas:
     - "Barriereärmere Kontraste und größere Mindest-Touchflächen."
 
 known_open_points_current:
-  tailscale_remote_access:
+  remote_access:
     status: "nicht implementiert; als Betriebsoption empfohlen"
-    note: "Fuer externen Zugriff ohne Port-Forwarding soll spaeter Tailscale genutzt werden."
+    note: "Fuer externen Zugriff ohne Port-Forwarding soll spaeter eine separate VPN- oder Reverse-Proxy-Loesung genutzt werden."
   card_terminal_nexi_ccv_a77:
     status: "nicht implementiert; Abhaengigkeit von Nexi/CCV API-Freischaltung"
     recommended_integration: "Cloud/API-Integration statt Browser-Direktzugriff; Karte bezahlt waere spaeter eigener Zahlungstyp."
