@@ -1085,7 +1085,7 @@ known_open_points_current:
 
 current_update_2026_05_18:
   cache_name: "drink-pos-shell-v73"
-  branch_note: "Git-Repository aktiv; master enthaelt den bisherigen stabilen Stand, codex/mobile-kassa-page enthaelt die neue versteckte Handy-Kassa unter /kassa."
+  branch_note: "Git-Repository aktiv; main enthaelt den aktuellen Stand inklusive versteckter Handy-Kassa unter /kassa, Container-Deployment und Agenten-REST-API."
   mobile_kassa:
     route: "/kassa"
     linked_from_standard_view: false
