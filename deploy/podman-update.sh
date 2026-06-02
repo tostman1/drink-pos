@@ -3,7 +3,7 @@ set -eu
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 PROJECT_DIR=${PROJECT_DIR:-$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)}
-COMPOSE_FILE=${COMPOSE_FILE:-docker-compose.yml}
+COMPOSE_FILE=${COMPOSE_FILE:-compose.yaml}
 
 cd "$PROJECT_DIR"
 
@@ -16,7 +16,7 @@ fi
 
 : "${DRINK_POS_IMAGE:?Set DRINK_POS_IMAGE=ghcr.io/<github-owner>/drink-pos:latest in .env}"
 
-podman pull "$DRINK_POS_IMAGE"
+podman pull --policy newer "$DRINK_POS_IMAGE"
 
 if podman compose version >/dev/null 2>&1; then
   podman compose -f "$COMPOSE_FILE" up -d --remove-orphans --force-recreate

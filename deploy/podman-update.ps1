@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ProjectDir = if ($env:PROJECT_DIR) { $env:PROJECT_DIR } else { Split-Path -Parent $ScriptDir }
-$ComposeFile = if ($env:COMPOSE_FILE) { $env:COMPOSE_FILE } else { "docker-compose.yml" }
+$ComposeFile = if ($env:COMPOSE_FILE) { $env:COMPOSE_FILE } else { "compose.yaml" }
 
 Set-Location $ProjectDir
 
@@ -20,7 +20,7 @@ if (-not $env:DRINK_POS_IMAGE) {
     throw "Set DRINK_POS_IMAGE=ghcr.io/<github-owner>/drink-pos:latest in .env"
 }
 
-podman pull $env:DRINK_POS_IMAGE
+podman pull --policy newer $env:DRINK_POS_IMAGE
 
 $composeOk = $false
 try {

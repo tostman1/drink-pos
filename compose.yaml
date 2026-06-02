@@ -1,6 +1,7 @@
 services:
   drink-pos:
     image: "${DRINK_POS_IMAGE:?Set DRINK_POS_IMAGE=ghcr.io/<github-owner>/drink-pos:latest}"
+    pull_policy: always
     container_name: drink-pos
     restart: unless-stopped
     labels:
@@ -19,6 +20,7 @@ services:
 
   drink-pos-backup:
     image: "${DRINK_POS_IMAGE:?Set DRINK_POS_IMAGE=ghcr.io/<github-owner>/drink-pos:latest}"
+    pull_policy: always
     container_name: drink-pos-backup
     restart: unless-stopped
     labels:

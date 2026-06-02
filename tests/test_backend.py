@@ -11,7 +11,7 @@ from fastapi import HTTPException
 ROOT = Path(__file__).resolve().parents[1]
 APP_DIR = ROOT / "app"
 PIN = "1234"
-AGENT_TOKEN = "agent-secret"
+AGENT_TOKEN = "test-agent-token"
 
 
 class FakeRequest:

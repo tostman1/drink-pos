@@ -46,7 +46,7 @@ source_layout:
     - "app/icon-192.png"
     - "app/icon-512.png"
   deployment:
-    file: "docker-compose.yml"
+    file: "compose.yaml"
     helper_files:
       - "requirements.txt"
       - ".env.example"
@@ -1299,7 +1299,7 @@ backup_and_recovery:
   implemented: true
   files:
     script: "app/backup_database.py"
-    scheduler: "docker-compose.yml"
+    scheduler: "compose.yaml"
   scheduler:
     service: "drink-pos-backup"
     hardcoded_time: "jeden Freitag um 03:00 Uhr"

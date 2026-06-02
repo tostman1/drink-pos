@@ -66,11 +66,11 @@ Dann starten:
 
 ```bash
 . ./.env
-podman pull "$DRINK_POS_IMAGE"
 podman compose up -d
 ```
 
-Die Compose-Datei veroeffentlicht die App auf Port `8088` und mountet nur `./data`.
+Die kanonische Compose-Datei ist `compose.yaml`. Sie setzt fuer beide Services
+`pull_policy: always`, veroeffentlicht die App auf Port `8088` und mountet nur `./data`.
 Damit bleiben SQLite-Datenbank und Backups beim Container-Update erhalten.
 
 ## Container direkt updaten
@@ -87,11 +87,11 @@ PowerShell:
 .\deploy\podman-update.ps1
 ```
 
-Die Skripte lesen `.env`, fuehren `podman pull $DRINK_POS_IMAGE` aus, starten die Container mit
+Die Skripte lesen `.env`, fuehren `podman pull --policy newer $DRINK_POS_IMAGE` aus, starten die Container mit
 `podman compose up -d --force-recreate` neu und raeumen alte Images auf. Fuer manuelle Updates reicht:
 
 ```bash
-podman pull ghcr.io/<github-owner>/drink-pos:latest
+podman pull --policy newer ghcr.io/<github-owner>/drink-pos:latest
 podman compose up -d --force-recreate
 ```
 
@@ -147,6 +147,8 @@ curl -X POST http://127.0.0.1:8088/api/agent/book-drink \
 ```
 
 Die vollstaendige FastAPI/OpenAPI-Beschreibung liegt unter `/openapi.json`.
+Eine Agenten-spezifische Doku mit Auth, Limits und Beispielen liegt in
+[`docs/agent-api.md`](docs/agent-api.md).
 
 ## Konfiguration
 
