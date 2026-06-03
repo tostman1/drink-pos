@@ -1,0 +1,60 @@
+services:
+  drink-pos:
+    # Synology Container Manager zieht dieses fertige Image aus GHCR.
+    # Es wird nichts lokal gebaut.
+    image: ghcr.io/tostman1/drink-pos:latest
+    # Beim Projektstart nach dem aktuellen Image schauen.
+    # Unveraenderte Image-Layer werden von Docker weiterverwendet.
+    pull_policy: always
+    container_name: drink-pos
+    restart: unless-stopped
+
+    # NAS-Port 8088 -> App-Port 8000 im Container.
+    ports:
+      - "8088:8000"
+
+    # WICHTIG: Dieser Host-Ordner enthaelt die produktive SQLite-Datenbank.
+    # Eine bestehende data/drink_pos.db wird weiterverwendet und nicht ueberschrieben.
+    volumes:
+      - ./data:/app/data
+
+    environment:
+      TZ: Europe/Zurich
+      DRINK_POS_ENV: production
+      DRINK_POS_PIN: "1423"
+      # Leer lassen: production verwendet automatisch /app/data/drink_pos.db.
+      # Nur setzen, wenn die Datenbank absichtlich anders heissen soll.
+      DRINK_POS_DB: ""
+      # Leer lassen deaktiviert die Agenten-API.
+      DRINK_POS_AGENT_TOKEN: ""
+
+  drink-pos-backup:
+    # Nutzt dasselbe Image, startet aber nur den Backup-Zeitplaner.
+    image: ghcr.io/tostman1/drink-pos:latest
+    pull_policy: always
+    container_name: drink-pos-backup
+    restart: unless-stopped
+    depends_on:
+      - drink-pos
+
+    # Backups landen in ./data/backups auf dem NAS.
+    volumes:
+      - ./data:/app/data
+
+    environment:
+      TZ: Europe/Zurich
+      DRINK_POS_ENV: production
+      DRINK_POS_PIN: "1423"
+      DRINK_POS_DB: ""
+      DRINK_POS_BACKUP_DIR: /app/data/backups
+
+    # Jeden Freitag um 03:00 ein CSV-Backup der bestehenden DB schreiben.
+    command: >
+      sh -c "echo 'Drink POS backup scheduler active: Friday 03:00';
+             while true; do
+               if [ \"$$(date +%u)\" = '5' ] && [ \"$$(date +%H%M)\" = '0300' ]; then
+                 python /app/backup_database.py;
+                 sleep 3700;
+               fi;
+               sleep 30;
+             done"

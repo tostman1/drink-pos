@@ -26,28 +26,74 @@ Repo anlegen und pushen:
 
 ```powershell
 cd <repo-path>
-gh repo create <github-owner>/drink-pos --private --source . --remote origin --push
+gh repo create tostman1/drink-pos --private --source . --remote origin --push
 ```
 
 Wenn `gh` nicht installiert ist:
 
 ```powershell
-git remote add origin git@github.com:<github-owner>/drink-pos.git
+git remote add origin git@github.com:tostman1/drink-pos.git
 git push -u origin HEAD
 ```
 
 Nach dem ersten erfolgreichen GitHub-Actions-Lauf ist das Image hier verfuegbar:
 
 ```text
-ghcr.io/<github-owner>/drink-pos:latest
+ghcr.io/tostman1/drink-pos:latest
 ```
+
+## Synology Container Manager
+
+Fuer Synology ist `compose.synology.yaml` die einfachste Vorlage. Sie zieht das fertige
+Image aus GHCR, baut nichts lokal und speichert alle produktiven Daten in `./data`.
+
+1. In der File Station einen Projektordner anlegen, z. B.:
+
+   ```text
+   /volume1/docker/drink-pos
+   /volume1/docker/drink-pos/data
+   /volume1/docker/drink-pos/data/backups
+   ```
+
+2. Wenn bereits eine Datenbank existiert: alten Container stoppen und die Dateien in den
+   neuen `data`-Ordner kopieren:
+
+   ```text
+   drink_pos.db
+   drink_pos.db-wal   falls vorhanden
+   drink_pos.db-shm   falls vorhanden
+   ```
+
+   Wichtig: `DRINK_POS_DB` in der YAML leer lassen. Dann verwendet die App automatisch
+   `/app/data/drink_pos.db`. Eine vorhandene `drink_pos.db` wird weiterverwendet.
+
+3. In Synology Container Manager:
+
+   ```text
+   Project > Create > Name: drink-pos
+   Path: /volume1/docker/drink-pos
+   Source: compose.synology.yaml einfuegen oder hochladen
+   Build/Deploy starten
+   ```
+
+4. Danach die App oeffnen:
+
+   ```text
+   http://<NAS-IP>:8088/
+   http://<NAS-IP>:8088/admin
+   ```
+
+Die App erstellt nur dann eine neue SQLite-Datei, wenn im gemounteten `data`-Ordner noch
+keine `drink_pos.db` vorhanden ist. Beim Start werden Tabellen und fehlende Spalten mit
+`CREATE TABLE IF NOT EXISTS` bzw. Migrationen ergaenzt; die bestehende DB-Datei wird nicht
+geloescht oder ersetzt. Backups werden freitags um 03:00 nach `data/backups` geschrieben.
 
 ## Podman-Instanz starten
 
 Auf jeder Instanz:
 
 ```bash
-git clone https://github.com/<github-owner>/drink-pos.git
+git clone https://github.com/tostman1/drink-pos.git
 cd drink-pos
 cp .env.example .env
 mkdir -p data
@@ -56,7 +102,7 @@ mkdir -p data
 In `.env` mindestens setzen:
 
 ```dotenv
-DRINK_POS_IMAGE=ghcr.io/<github-owner>/drink-pos:latest
+DRINK_POS_IMAGE=ghcr.io/tostman1/drink-pos:latest
 DRINK_POS_ENV=production
 DRINK_POS_PIN=change-this-pin
 DRINK_POS_AGENT_TOKEN=change-this-long-random-token
@@ -72,6 +118,8 @@ podman compose up -d
 Die kanonische Compose-Datei ist `compose.yaml`. Sie setzt fuer beide Services
 `pull_policy: always`, veroeffentlicht die App auf Port `8088` und mountet nur `./data`.
 Damit bleiben SQLite-Datenbank und Backups beim Container-Update erhalten.
+Die Update-Skripte darunter verwenden `podman pull --policy newer`, also wird nur gezogen,
+wenn im Registry wirklich ein neueres Image verfuegbar ist.
 
 ## Container direkt updaten
 
@@ -91,7 +139,7 @@ Die Skripte lesen `.env`, fuehren `podman pull --policy newer $DRINK_POS_IMAGE` 
 `podman compose up -d --force-recreate` neu und raeumen alte Images auf. Fuer manuelle Updates reicht:
 
 ```bash
-podman pull --policy newer ghcr.io/<github-owner>/drink-pos:latest
+podman pull --policy newer ghcr.io/tostman1/drink-pos:latest
 podman compose up -d --force-recreate
 ```
 
@@ -154,7 +202,7 @@ Eine Agenten-spezifische Doku mit Auth, Limits und Beispielen liegt in
 
 Siehe `.env.example` fuer die wichtigsten Variablen:
 
-- `DRINK_POS_IMAGE`: Container-Image, z. B. `ghcr.io/<github-owner>/drink-pos:latest`
+- `DRINK_POS_IMAGE`: Container-Image, z. B. `ghcr.io/tostman1/drink-pos:latest`
 - `DRINK_POS_ENV`: `development` oder `production`
 - `DRINK_POS_PIN`: Start-PIN beim ersten DB-Start; ersetzt ausserdem eine bestehende Default-PIN `1234`
 - `DRINK_POS_DB`: SQLite-Dateipfad

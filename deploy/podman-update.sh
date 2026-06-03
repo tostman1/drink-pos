@@ -14,7 +14,7 @@ if [ -f .env ]; then
   set +a
 fi
 
-: "${DRINK_POS_IMAGE:?Set DRINK_POS_IMAGE=ghcr.io/<github-owner>/drink-pos:latest in .env}"
+: "${DRINK_POS_IMAGE:=ghcr.io/tostman1/drink-pos:latest}"
 
 podman pull --policy newer "$DRINK_POS_IMAGE"
 

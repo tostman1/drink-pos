@@ -17,7 +17,7 @@ if (Test-Path $EnvFile) {
 }
 
 if (-not $env:DRINK_POS_IMAGE) {
-    throw "Set DRINK_POS_IMAGE=ghcr.io/<github-owner>/drink-pos:latest in .env"
+    $env:DRINK_POS_IMAGE = "ghcr.io/tostman1/drink-pos:latest"
 }
 
 podman pull --policy newer $env:DRINK_POS_IMAGE

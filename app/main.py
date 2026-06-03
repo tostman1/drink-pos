@@ -1535,6 +1535,70 @@ def make_payment_detail_lines(lines: list[sqlite3.Row]) -> list[dict]:
     )
 
 
+def kassa_history_timestamp_labels(timestamp: str | None) -> tuple[str, str, str]:
+    raw = str(timestamp or "")
+    try:
+        parsed = datetime.strptime(raw, "%Y-%m-%d %H:%M:%S")
+        return parsed.strftime("%d.%m"), parsed.strftime("%H:%M"), parsed.strftime("%d.%m, %H:%M")
+    except ValueError:
+        date_label = raw
+        time_label = ""
+        if len(raw) >= 16 and raw[4:5] == "-" and raw[7:8] == "-":
+            date_label = f"{raw[8:10]}.{raw[5:7]}"
+            time_label = raw[11:16]
+        return date_label, time_label, f"{date_label}, {time_label}".rstrip(", ")
+
+
+def make_kassa_person_history(conn: sqlite3.Connection, person_id: int, limit: int = 200) -> list[dict]:
+    rows = conn.execute(
+        """
+        SELECT id, transaction_id, kind, timestamp, item_name_snapshot, item_short_label_snapshot, quantity
+        FROM transaction_items
+        WHERE person_id = ?
+          AND kind IN ('CONSUME', 'ROUND_DEDUCTED')
+        ORDER BY timestamp DESC, id DESC
+        LIMIT ?
+        """,
+        (person_id, max(1, min(500, int(limit or 200)))),
+    ).fetchall()
+    history = []
+    for row in rows:
+        kind = row["kind"]
+        item_name = row["item_name_snapshot"]
+        if kind == "CONSUME" and is_system_item_name(item_name):
+            continue
+        qty = int(row["quantity"] or 0)
+        if qty == 0:
+            continue
+        date_label, time_label, timestamp_label = kassa_history_timestamp_labels(row["timestamp"])
+        if kind == "ROUND_DEDUCTED":
+            quantity = -abs(qty)
+            type_label = "Abzug Runde"
+            direction = "deduction"
+        else:
+            quantity = abs(qty)
+            type_label = "Konsum"
+            direction = "consume"
+        history.append(
+            {
+                "id": int(row["id"]),
+                "transaction_id": int(row["transaction_id"]),
+                "type": kind,
+                "type_label": type_label,
+                "direction": direction,
+                "timestamp": row["timestamp"],
+                "date_label": date_label,
+                "time_label": time_label,
+                "timestamp_label": timestamp_label,
+                "product": item_name,
+                "short_label": row["item_short_label_snapshot"],
+                "quantity": quantity,
+                "quantity_label": f"{quantity:+d}x",
+            }
+        )
+    return history
+
+
 def kassa_person_payload(conn: sqlite3.Connection, person: sqlite3.Row, lines: list[sqlite3.Row] | None = None) -> dict:
     if lines is None:
         lines = get_open_lines(conn, person["id"])
@@ -2103,6 +2167,11 @@ def manifest():
     return FileResponse(APP_DIR / "manifest.webmanifest", media_type="application/manifest+json")
 
 
+@app.get("/kassa.webmanifest")
+def kassa_manifest():
+    return FileResponse(APP_DIR / "kassa.webmanifest", media_type="application/manifest+json")
+
+
 @app.get("/service-worker.js")
 def service_worker():
     return FileResponse(APP_DIR / "service-worker.js", media_type="application/javascript")
@@ -2222,6 +2291,19 @@ def kassa_person(person_id: int):
     with get_conn() as conn:
         person = get_person(conn, person_id, allow_archived=False)
         return {**kassa_person_payload(conn, person), **get_sync_state(conn)}
+
+
+@app.get("/api/kassa/person/{person_id}/history")
+def kassa_person_history(person_id: int, limit: int = 200):
+    with get_conn() as conn:
+        person = get_person(conn, person_id, allow_archived=False)
+        name = display_name(person["first_name"], person["last_name"]) or person["name"]
+        return {
+            "id": int(person["id"]),
+            "name": name,
+            "history": make_kassa_person_history(conn, int(person["id"]), limit),
+            **get_sync_state(conn),
+        }
 
 
 @app.post("/api/member-message/ack")

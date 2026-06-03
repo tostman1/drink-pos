@@ -1,40 +1,57 @@
 services:
   drink-pos:
-    image: "${DRINK_POS_IMAGE:?Set DRINK_POS_IMAGE=ghcr.io/<github-owner>/drink-pos:latest}"
+    # Fertiges App-Image aus GitHub Container Registry.
+    # Kann in .env mit DRINK_POS_IMAGE=... ueberschrieben werden.
+    image: "${DRINK_POS_IMAGE:-ghcr.io/tostman1/drink-pos:latest}"
+    # Compose kennt kein "newer" wie `podman pull --policy newer`.
+    # `always` prueft beim Start die Registry; unveraenderte Images bleiben gecacht.
     pull_policy: always
     container_name: drink-pos
     restart: unless-stopped
-    labels:
-      io.containers.autoupdate: registry
+
+    # Host-Port 8088 zeigt auf Uvicorn im Container.
     ports:
       - "8088:8000"
+
+    # Nur persistente Daten mounten; der App-Code liegt bereits im Image.
     volumes:
       - ./data:/app/data
+
     environment:
-      TZ: "${TZ:-Europe/Vienna}"
-      DRINK_POS_PIN: "${DRINK_POS_PIN:-1234}"
+      TZ: "${TZ:-Europe/Zurich}"
+      DRINK_POS_PIN: "${DRINK_POS_PIN:-1423}"
       DRINK_POS_ENV: "${DRINK_POS_ENV:-production}"
-      DRINK_POS_DB: "${DRINK_POS_DB:-/app/data/drink_pos.db}"
-      DRINK_POS_BACKUP_DIR: "${DRINK_POS_BACKUP_DIR:-/app/data/backups}"
+      # Leer lassen entspricht der alten Logik:
+      # production  => /app/data/drink_pos.db
+      # development => /app/data/drink_pos_dev.db
+      # Bei Bedarf in .env manuell setzen, z.B. DRINK_POS_DB=/app/data/custom.db.
+      DRINK_POS_DB: "${DRINK_POS_DB:-}"
+      # Leer lassen deaktiviert die Agenten-API.
       DRINK_POS_AGENT_TOKEN: "${DRINK_POS_AGENT_TOKEN:-}"
 
   drink-pos-backup:
-    image: "${DRINK_POS_IMAGE:?Set DRINK_POS_IMAGE=ghcr.io/<github-owner>/drink-pos:latest}"
+    # Gleiches Image, aber anderer Startbefehl fuer den Backup-Scheduler.
+    image: "${DRINK_POS_IMAGE:-ghcr.io/tostman1/drink-pos:latest}"
+    # Siehe Kommentar beim App-Service.
     pull_policy: always
     container_name: drink-pos-backup
     restart: unless-stopped
-    labels:
-      io.containers.autoupdate: registry
     depends_on:
       - drink-pos
+
+    # Backups landen unter ./data/backups und bleiben hostseitig erhalten.
     volumes:
       - ./data:/app/data
+
     environment:
-      TZ: "${TZ:-Europe/Vienna}"
-      DRINK_POS_PIN: "${DRINK_POS_PIN:-1234}"
+      TZ: "${TZ:-Europe/Zurich}"
+      DRINK_POS_PIN: "${DRINK_POS_PIN:-1423}"
       DRINK_POS_ENV: "${DRINK_POS_ENV:-production}"
-      DRINK_POS_DB: "${DRINK_POS_DB:-/app/data/drink_pos.db}"
+      DRINK_POS_DB: "${DRINK_POS_DB:-}"
       DRINK_POS_BACKUP_DIR: "${DRINK_POS_BACKUP_DIR:-/app/data/backups}"
+
+    # Jeden Freitag um 03:00 ein Backup schreiben; danach etwas laenger schlafen,
+    # damit derselbe Minuten-Slot nicht mehrfach ausloest.
     command: >
       sh -c "echo 'Drink POS backup scheduler active: Friday 03:00';
              while true; do

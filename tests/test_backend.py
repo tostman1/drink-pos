@@ -114,6 +114,32 @@ class BackendFlowTests(unittest.TestCase):
         cashup = self.main.admin_cashup(self.main.CashupRequest(pin=PIN))
         self.assertEqual(cashup["status"], "ok")
 
+    def test_kassa_person_history_shows_consumption_and_round_deductions_without_prices(self):
+        people = self.main.list_people()
+        config = self.main.config()
+        item = next(item for item in config["user_items"] if item["name"] != "1 Runde")
+
+        self.main.add_drink(self.main.AddDrinkRequest(person_id=people[0]["id"], item_id=item["id"]))
+        self.main.create_round_request(self.main.RoundRequestIn(person_id=people[1]["id"], quantity=1))
+        self.main.admin_cashup(self.main.CashupRequest(pin=PIN))
+
+        history = self.main.kassa_person_history(people[0]["id"])
+        entries = history["history"]
+        consume = next(entry for entry in entries if entry["type"] == "CONSUME")
+        deduction = next(entry for entry in entries if entry["type"] == "ROUND_DEDUCTED")
+
+        self.assertEqual(consume["type_label"], "Konsum")
+        self.assertEqual(consume["quantity"], 1)
+        self.assertEqual(consume["quantity_label"], "+1x")
+        self.assertEqual(deduction["type_label"], "Abzug Runde")
+        self.assertEqual(deduction["quantity"], -1)
+        self.assertEqual(deduction["quantity_label"], "-1x")
+        self.assertEqual(deduction["product"], item["name"])
+        for entry in entries:
+            self.assertRegex(entry["timestamp_label"], r"\d{2}\.\d{2}, \d{2}:\d{2}")
+            self.assertNotIn("unit_price_eur", entry)
+            self.assertNotIn("total_eur", entry)
+
     def test_offline_client_operation_is_idempotent(self):
         person, item = self.first_person_and_item()
         operation_id = "offline-test-1"

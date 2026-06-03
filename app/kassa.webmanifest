@@ -1,0 +1,18 @@
+{
+  "id": "/kassa",
+  "name": "Drink POS Kassa",
+  "short_name": "Kassa",
+  "start_url": "/kassa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "orientation": "any",
+  "background_color": "#f5f7fb",
+  "theme_color": "#0f172a",
+  "description": "Touchfreundliche Kassa-Ansicht fuer offene Zahlungen im Drink POS.",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

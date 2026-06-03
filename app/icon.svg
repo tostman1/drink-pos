@@ -1,7 +1,40 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#111827"/>
-  <path d="M170 96h172l-20 300c-3 39-34 68-73 68h-18c-39 0-70-29-73-68L138 96h32z" fill="#fbbf24"/>
-  <path d="M170 152h140l-10 150H180l-10-150z" fill="#ffffff" opacity="0.9"/>
-  <path d="M190 228h100" stroke="#111827" stroke-width="24" stroke-linecap="round"/>
-  <path d="M240 178v100" stroke="#111827" stroke-width="24" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Drink POS">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="75%">
+      <stop offset="0" stop-color="#18243e"/>
+      <stop offset="0.62" stop-color="#0d1930"/>
+      <stop offset="1" stop-color="#040812"/>
+    </radialGradient>
+    <linearGradient id="cup" x1="256" y1="144" x2="256" y2="463" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffd43b"/>
+      <stop offset="0.55" stop-color="#ffc21a"/>
+      <stop offset="1" stop-color="#f7a900"/>
+    </linearGradient>
+    <radialGradient id="cream" cx="47%" cy="35%" r="78%">
+      <stop offset="0" stop-color="#fff9e8"/>
+      <stop offset="0.72" stop-color="#fff2ca"/>
+      <stop offset="1" stop-color="#f9e4a8"/>
+    </radialGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="8" stdDeviation="14" flood-color="#000000" flood-opacity="0.26"/>
+    </filter>
+    <clipPath id="foamClip">
+      <rect x="126" y="36" width="266" height="111"/>
+    </clipPath>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <g filter="url(#softShadow)">
+    <path d="M132 144h248l-29 260c-5 40-39 59-78 59h-35c-39 0-73-19-78-59L132 144z" fill="url(#cup)"/>
+    <g clip-path="url(#foamClip)" fill="url(#cream)">
+      <circle cx="256" cy="127" r="84"/>
+      <circle cx="200" cy="131" r="54"/>
+      <circle cx="160" cy="130" r="34"/>
+      <circle cx="320" cy="131" r="53"/>
+      <circle cx="358" cy="130" r="34"/>
+      <rect x="128" y="116" width="258" height="31"/>
+    </g>
+    <rect x="160" y="178" width="192" height="214" rx="55" fill="url(#cream)"/>
+    <rect x="194" y="265" width="124" height="47" rx="23.5" fill="#081328"/>
+    <rect x="232" y="218" width="47" height="142" rx="23.5" fill="#081328"/>
+  </g>
 </svg>

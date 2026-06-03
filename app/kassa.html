@@ -3,7 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Kassa">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="format-detection" content="telephone=no">
   <meta name="theme-color" content="#0f172a">
+  <link rel="manifest" href="/kassa.webmanifest">
+  <link rel="apple-touch-icon" href="/icon-192.png">
   <title>Kassa</title>
   <style>
     :root {
@@ -231,7 +238,7 @@
       width:min(100%,520px);
       transform:translateX(-50%);
       display:grid;
-      grid-template-columns:1fr 1.35fr;
+      grid-template-columns:.9fr .9fr 1.35fr;
       gap:9px;
       padding:10px 12px calc(10px + env(safe-area-inset-bottom));
       background:rgba(245,247,251,.92);
@@ -280,6 +287,84 @@
       grid-template-columns:1fr 1.25fr;
       gap:9px;
     }
+    dialog.history-dialog { width:min(calc(100vw - 28px),520px); }
+    .history-card { max-height:calc(100dvh - 28px); }
+    .history-head {
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+    }
+    .history-close-icon {
+      flex:0 0 auto;
+      width:42px;
+      height:42px;
+      min-height:42px;
+      padding:0;
+      border-radius:8px;
+      background:#f1f5f9;
+      color:#0f172a;
+      border:1px solid var(--line);
+      font-size:24px;
+      line-height:1;
+    }
+    .history-list {
+      display:grid;
+      gap:8px;
+      max-height:min(58vh,520px);
+      overflow:auto;
+      padding-right:2px;
+    }
+    .history-row {
+      display:grid;
+      grid-template-columns:54px 1fr;
+      gap:10px;
+      align-items:center;
+      padding:10px;
+      border:1px solid var(--line);
+      border-radius:8px;
+      background:#f8fafc;
+    }
+    .history-row.consume { border-color:#bbf7d0; background:#f7fef9; }
+    .history-row.deduction { border-color:#fecdd3; background:#fff1f2; }
+    .history-qty {
+      width:46px;
+      min-height:38px;
+      display:grid;
+      place-items:center;
+      border-radius:8px;
+      background:#dcfce7;
+      color:#166534;
+      font-weight:950;
+    }
+    .history-row.deduction .history-qty { background:#fee2e2; color:#991b1b; }
+    .history-body { min-width:0; }
+    .history-type {
+      color:var(--muted);
+      font-size:11px;
+      font-weight:950;
+      letter-spacing:0;
+      text-transform:uppercase;
+    }
+    .history-row.deduction .history-type { color:#991b1b; }
+    .history-product {
+      margin-top:2px;
+      font-size:16px;
+      font-weight:900;
+      line-height:1.15;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    .history-date {
+      margin-top:3px;
+      color:var(--muted);
+      font-size:13px;
+      font-weight:700;
+    }
+    .history-footer {
+      grid-template-columns:1fr;
+    }
     .warning {
       border:1px solid #fde68a;
       background:#fffbeb;
@@ -315,7 +400,7 @@
       .detail-total { font-size:34px; }
       .person-name { font-size:16px; }
       .detail-actions { grid-template-columns:1fr; }
-      .line-list { margin-bottom:150px; }
+      .line-list { margin-bottom:210px; }
     }
   </style>
 </head>
@@ -357,6 +442,7 @@
         <section id="lineList" class="line-list"></section>
         <div class="detail-actions">
           <button id="cancelButton" class="secondary" type="button">Abbrechen</button>
+          <button id="historyButton" class="secondary" type="button">Verlauf</button>
           <button id="payButton" class="primary pay-now" type="button">Zahlung buchen</button>
         </div>
       </main>
@@ -376,6 +462,21 @@
       </div>
     </section>
   </dialog>
+  <dialog id="historyDialog" class="confirm-dialog history-dialog">
+    <section class="confirm-card history-card">
+      <div class="history-head">
+        <div>
+          <h2 id="historyTitle">Verlauf</h2>
+          <p id="historySub"></p>
+        </div>
+        <button id="historyCloseIcon" class="history-close-icon" type="button" title="Schließen">&times;</button>
+      </div>
+      <div id="historyList" class="history-list"></div>
+      <div class="confirm-actions history-footer">
+        <button id="historyCloseButton" class="secondary" type="button">Schließen</button>
+      </div>
+    </section>
+  </dialog>
 
   <script>
     const state = {
@@ -384,11 +485,16 @@
       selected: null,
       listTimer: null,
       busy: false,
+      historyBusy: false,
     };
 
     const el = id => document.getElementById(id);
     const money = value => new Intl.NumberFormat('de-AT', { style:'currency', currency:'EUR' }).format(Number(value || 0));
     const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]));
+
+    function syncModalOpen() {
+      document.body.classList.toggle('modal-open', el('payConfirmDialog').open || el('historyDialog').open);
+    }
 
     function showStatus(message, duration = 2300) {
       const box = el('status');
@@ -539,15 +645,76 @@
           <div class="line-total">${money(line.subtotal_eur)}</div>
         </div>
       `).join('') : '<div class="empty">Keine offenen Posten.</div>';
+      el('historyButton').disabled = false;
       el('payButton').disabled = !person.can_pay || !lines.length;
     }
 
     function closeDetail() {
+      closeHistoryDialog();
       state.selected = null;
       el('detailView').classList.add('hidden');
       el('listView').classList.remove('hidden');
       el('pageTitle').textContent = 'Kassa';
       loadPeople(true);
+    }
+
+    function renderHistoryRows(history) {
+      const consumed = history
+        .filter(entry => entry.direction !== 'deduction')
+        .reduce((sum, entry) => sum + Math.abs(Number(entry.quantity || 0)), 0);
+      const deducted = history
+        .filter(entry => entry.direction === 'deduction')
+        .reduce((sum, entry) => sum + Math.abs(Number(entry.quantity || 0)), 0);
+      el('historySub').textContent = history.length ? `Konsum +${consumed}x, Abzug -${deducted}x` : '';
+      if (!history.length) {
+        el('historyList').innerHTML = '<div class="empty">Noch kein Verlauf vorhanden.</div>';
+        return;
+      }
+      el('historyList').innerHTML = history.map(entry => {
+        const direction = entry.direction === 'deduction' ? 'deduction' : 'consume';
+        const typeLabel = entry.type_label || entry.type || '';
+        const timestampLabel = entry.timestamp_label || '';
+        const quantityLabel = entry.quantity_label || `${Number(entry.quantity || 0) > 0 ? '+' : ''}${Number(entry.quantity || 0)}x`;
+        return `
+          <div class="history-row ${direction}">
+            <div class="history-qty">${escapeHtml(quantityLabel)}</div>
+            <div class="history-body">
+              <div class="history-type">${escapeHtml(typeLabel)} &middot; ${escapeHtml(timestampLabel)}</div>
+              <div class="history-product">${escapeHtml(entry.product || entry.short_label || '')}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function openHistory() {
+      const person = state.selected;
+      if (!person || state.historyBusy) return;
+      state.historyBusy = true;
+      el('historyButton').disabled = true;
+      el('historyTitle').textContent = `Verlauf ${person.name}`;
+      el('historySub').textContent = 'Wird geladen...';
+      el('historyList').innerHTML = '<div class="empty">Wird geladen...</div>';
+      const dialog = el('historyDialog');
+      if (!dialog.open) dialog.showModal();
+      syncModalOpen();
+      try {
+        const data = await apiGet(`/api/kassa/person/${person.id}/history`);
+        if (!state.selected || Number(state.selected.id) !== Number(person.id)) return;
+        renderHistoryRows(data.history || []);
+      } catch (err) {
+        el('historySub').textContent = '';
+        el('historyList').innerHTML = `<div class="empty">${escapeHtml(err.message || 'Verlauf konnte nicht geladen werden')}</div>`;
+        showStatus(err.message || 'Verlauf konnte nicht geladen werden');
+      } finally {
+        state.historyBusy = false;
+        if (state.selected) el('historyButton').disabled = false;
+      }
+    }
+
+    function closeHistoryDialog() {
+      const dialog = el('historyDialog');
+      if (dialog.open) dialog.close();
     }
 
     async function refreshCurrent() {
@@ -601,7 +768,7 @@
       el('confirmTotal').textContent = money(person.total_eur ?? person.total);
       const dialog = el('payConfirmDialog');
       dialog.showModal();
-      document.body.classList.add('modal-open');
+      syncModalOpen();
     }
 
     function startAutoRefresh() {
@@ -625,16 +792,27 @@
     el('searchInput').addEventListener('input', renderPeople);
     el('refreshButton').addEventListener('click', refreshCurrent);
     el('cancelButton').addEventListener('click', closeDetail);
+    el('historyButton').addEventListener('click', openHistory);
     el('payButton').addEventListener('click', requestPayConfirmation);
     el('confirmCancelButton').addEventListener('click', () => el('payConfirmDialog').close());
     el('confirmPayButton').addEventListener('click', paySelected);
-    el('payConfirmDialog').addEventListener('close', () => document.body.classList.remove('modal-open'));
+    el('historyCloseIcon').addEventListener('click', closeHistoryDialog);
+    el('historyCloseButton').addEventListener('click', closeHistoryDialog);
+    el('payConfirmDialog').addEventListener('close', syncModalOpen);
+    el('historyDialog').addEventListener('close', syncModalOpen);
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden && state.pin) refreshCurrent();
     });
 
     if (state.pin) setUnlocked(true);
     else setUnlocked(false);
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', async () => {
+        const registration = await navigator.serviceWorker.register('/service-worker.js').catch(() => null);
+        await registration?.update?.().catch(() => {});
+      });
+    }
   </script>
 </body>
 </html>
