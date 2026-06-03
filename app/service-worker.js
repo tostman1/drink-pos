@@ -1,5 +1,5 @@
-const CACHE_NAME = 'drink-pos-shell-v79';
-const SHELL_URLS = ['/', '/admin', '/kassa', '/manifest.webmanifest', '/kassa.webmanifest', '/icon.png', '/icon.svg', '/icon-192.png', '/icon-512.png', '/kassa-icon.png', '/kassa-icon.svg', '/kassa-icon-192.png', '/kassa-icon-512.png'];
+const CACHE_NAME = 'drink-pos-shell-v80';
+const SHELL_URLS = ['/', '/liste/', '/admin', '/kassa', '/kassa/', '/manifest.webmanifest', '/kassa.webmanifest', '/icon.png', '/icon.svg', '/icon-192.png', '/icon-512.png', '/kassa-icon.png', '/kassa-icon.svg', '/kassa-icon-192.png', '/kassa-icon-512.png'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(SHELL_URLS)).then(() => self.skipWaiting()));
@@ -17,7 +17,12 @@ self.addEventListener('fetch', event => {
       const copy = response.clone();
       caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
       return response;
-    }).catch(() => caches.match(event.request).then(cached => cached || caches.match('/'))));
+    }).catch(() => caches.match(event.request).then(cached => {
+      if (cached) return cached;
+      if (url.pathname.startsWith('/kassa')) return caches.match('/kassa/');
+      if (url.pathname.startsWith('/liste')) return caches.match('/liste/');
+      return caches.match('/');
+    })));
     return;
   }
   event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request)));

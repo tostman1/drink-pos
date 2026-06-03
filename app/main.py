@@ -2150,12 +2150,19 @@ def home():
     return FileResponse(APP_DIR / "index.html", media_type="text/html; charset=utf-8")
 
 
+@app.get("/liste")
+@app.get("/liste/")
+def list_page():
+    return FileResponse(APP_DIR / "index.html", media_type="text/html; charset=utf-8")
+
+
 @app.get("/admin")
 def admin_page():
     return FileResponse(APP_DIR / "admin.html", media_type="text/html; charset=utf-8")
 
 
 @app.get("/kassa")
+@app.get("/kassa/")
 def kassa_page():
     return FileResponse(APP_DIR / "kassa.html", media_type="text/html; charset=utf-8")
 

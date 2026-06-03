@@ -1,9 +1,9 @@
 {
-  "id": "/",
+  "id": "/liste/",
   "name": "Drink POS",
   "short_name": "Drink POS",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "/liste/",
+  "scope": "/liste/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui", "browser"],
   "orientation": "any",
