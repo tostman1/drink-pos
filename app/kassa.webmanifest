@@ -11,8 +11,9 @@
   "theme_color": "#0f172a",
   "description": "Touchfreundliche Kassa-Ansicht fuer offene Zahlungen im Drink POS.",
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
-    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    { "src": "/kassa-icon.png", "sizes": "1254x1254", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/kassa-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/kassa-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/kassa-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
   ]
 }

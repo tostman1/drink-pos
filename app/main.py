@@ -2177,6 +2177,11 @@ def service_worker():
     return FileResponse(APP_DIR / "service-worker.js", media_type="application/javascript")
 
 
+@app.get("/icon.png")
+def icon_png():
+    return FileResponse(APP_DIR / "icon.png", media_type="image/png")
+
+
 @app.get("/icon.svg")
 def icon_svg():
     return FileResponse(APP_DIR / "icon.svg", media_type="image/svg+xml")
@@ -2189,6 +2194,26 @@ def icon_192_png():
 @app.get("/icon-512.png")
 def icon_512_png():
     return FileResponse(APP_DIR / "icon-512.png", media_type="image/png")
+
+
+@app.get("/kassa-icon.svg")
+def kassa_icon_svg():
+    return FileResponse(APP_DIR / "kassa-icon.svg", media_type="image/svg+xml")
+
+
+@app.get("/kassa-icon.png")
+def kassa_icon_png():
+    return FileResponse(APP_DIR / "kassa-icon.png", media_type="image/png")
+
+
+@app.get("/kassa-icon-192.png")
+def kassa_icon_192_png():
+    return FileResponse(APP_DIR / "kassa-icon-192.png", media_type="image/png")
+
+
+@app.get("/kassa-icon-512.png")
+def kassa_icon_512_png():
+    return FileResponse(APP_DIR / "kassa-icon-512.png", media_type="image/png")
 
 
 @app.get("/api/config")
