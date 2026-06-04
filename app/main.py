@@ -1581,25 +1581,6 @@ def make_kassa_person_history(conn: sqlite3.Connection, person_id: int, limit: i
         params,
     ).fetchall()
     history = []
-    if last_payment:
-        date_label, time_label, timestamp_label = kassa_history_timestamp_labels(last_payment["timestamp"])
-        history.append(
-            {
-                "id": int(last_payment["id"]),
-                "transaction_id": int(last_payment["id"]),
-                "type": "PAID_CASH",
-                "type_label": "Zahlung",
-                "direction": "payment",
-                "timestamp": last_payment["timestamp"],
-                "date_label": date_label,
-                "time_label": time_label,
-                "timestamp_label": timestamp_label,
-                "product": "Rechnung bezahlt",
-                "short_label": "Bezahlt",
-                "quantity": 0,
-                "quantity_label": "OK",
-            }
-        )
     for row in rows:
         kind = row["kind"]
         item_name = row["item_name_snapshot"]
@@ -1632,6 +1613,25 @@ def make_kassa_person_history(conn: sqlite3.Connection, person_id: int, limit: i
                 "short_label": row["item_short_label_snapshot"],
                 "quantity": quantity,
                 "quantity_label": f"{quantity:+d}x",
+            }
+        )
+    if last_payment:
+        date_label, time_label, timestamp_label = kassa_history_timestamp_labels(last_payment["timestamp"])
+        history.append(
+            {
+                "id": int(last_payment["id"]),
+                "transaction_id": int(last_payment["id"]),
+                "type": "PAID_CASH",
+                "type_label": "Zahlung",
+                "direction": "payment",
+                "timestamp": last_payment["timestamp"],
+                "date_label": date_label,
+                "time_label": time_label,
+                "timestamp_label": timestamp_label,
+                "product": "Rechnung bezahlt",
+                "short_label": "Bezahlt",
+                "quantity": 0,
+                "quantity_label": "OK",
             }
         )
     return history
