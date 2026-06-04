@@ -140,6 +140,25 @@ class BackendFlowTests(unittest.TestCase):
             self.assertNotIn("unit_price_eur", entry)
             self.assertNotIn("total_eur", entry)
 
+    def test_kassa_person_history_starts_with_last_payment_and_hides_older_activity(self):
+        person, item = self.first_person_and_item()
+
+        self.main.add_drink(self.main.AddDrinkRequest(person_id=person["id"], item_id=item["id"]))
+        self.main.pay(self.main.PayRequest(pin=PIN, person_id=person["id"]))
+        self.main.add_drink(self.main.AddDrinkRequest(person_id=person["id"], item_id=item["id"]))
+
+        history = self.main.kassa_person_history(person["id"])
+        entries = history["history"]
+        consume_entries = [entry for entry in entries if entry["type"] == "CONSUME"]
+
+        self.assertEqual(entries[0]["type"], "PAID_CASH")
+        self.assertEqual(entries[0]["type_label"], "Zahlung")
+        self.assertEqual(entries[0]["direction"], "payment")
+        self.assertEqual(entries[0]["product"], "Rechnung bezahlt")
+        self.assertEqual(entries[0]["quantity_label"], "OK")
+        self.assertEqual(len(consume_entries), 1)
+        self.assertEqual(consume_entries[0]["quantity"], 1)
+
     def test_offline_client_operation_is_idempotent(self):
         person, item = self.first_person_and_item()
         operation_id = "offline-test-1"
