@@ -159,6 +159,45 @@ class BackendFlowTests(unittest.TestCase):
         self.assertEqual(len(consume_entries), 1)
         self.assertEqual(consume_entries[0]["quantity"], 1)
 
+    def test_kassa_person_history_hides_approved_corrections(self):
+        person, item = self.first_person_and_item()
+
+        self.main.add_drink(self.main.AddDrinkRequest(person_id=person["id"], item_id=item["id"]))
+        self.main.add_drink(self.main.AddDrinkRequest(person_id=person["id"], item_id=item["id"]))
+        preview = self.main.kassa_person(person["id"])
+        line_id = preview["lines"][0]["line_ids"][0]
+
+        self.main.create_edit_request(
+            self.main.EditRequestIn(
+                person_id=person["id"],
+                line_quantities={str(line_id): 1},
+                reason="Falsch geklickt",
+            )
+        )
+        with self.main.get_conn() as conn:
+            pending = self.main.get_pending_requests_for_person(conn, person["id"])
+            request_id = pending[0]["id"]
+        self.main.admin_decide_change_request(
+            self.main.AdminChangeRequestDecision(pin=PIN, request_id=request_id, decision="APPROVED")
+        )
+
+        history = self.main.kassa_person_history(person["id"])
+        consume_entries = [entry for entry in history["history"] if entry["type"] == "CONSUME"]
+        self.assertEqual(sum(entry["quantity"] for entry in consume_entries), 1)
+
+    def test_kassa_person_history_shows_paid_round_as_orange_row_kind(self):
+        person, _ = self.first_person_and_item()
+
+        self.main.create_round_request(self.main.RoundRequestIn(person_id=person["id"], quantity=1))
+
+        history = self.main.kassa_person_history(person["id"])
+        round_entry = next(entry for entry in history["history"] if entry["type"] == "ROUND_REQUEST_APPROVED")
+        self.assertEqual(round_entry["type_label"], "Runde bezahlt")
+        self.assertEqual(round_entry["direction"], "round_payment")
+        self.assertEqual(round_entry["quantity"], 1)
+        self.assertEqual(round_entry["quantity_label"], "+1x")
+        self.assertEqual(round_entry["product"], "1 Runde")
+
     def test_offline_client_operation_is_idempotent(self):
         person, item = self.first_person_and_item()
         operation_id = "offline-test-1"

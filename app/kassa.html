@@ -327,6 +327,7 @@
     }
     .history-row.consume { border-color:#bbf7d0; background:#f7fef9; }
     .history-row.payment { border-color:#bfdbfe; background:#eff6ff; }
+    .history-row.round-payment { border-color:#fed7aa; background:#fff7ed; }
     .history-row.deduction { border-color:#fecdd3; background:#fff1f2; }
     .history-qty {
       width:46px;
@@ -339,6 +340,7 @@
       font-weight:950;
     }
     .history-row.payment .history-qty { background:#dbeafe; color:#1d4ed8; }
+    .history-row.round-payment .history-qty { background:#ffedd5; color:#c2410c; }
     .history-row.deduction .history-qty { background:#fee2e2; color:#991b1b; }
     .history-body { min-width:0; }
     .history-type {
@@ -350,6 +352,7 @@
     }
     .history-row.deduction .history-type { color:#991b1b; }
     .history-row.payment .history-type { color:#1d4ed8; }
+    .history-row.round-payment .history-type { color:#c2410c; }
     .history-product {
       margin-top:2px;
       font-size:16px;
@@ -668,16 +671,22 @@
       const deducted = history
         .filter(entry => entry.direction === 'deduction')
         .reduce((sum, entry) => sum + Math.abs(Number(entry.quantity || 0)), 0);
+      const roundsPaid = history
+        .filter(entry => entry.direction === 'round_payment')
+        .reduce((sum, entry) => sum + Math.abs(Number(entry.quantity || 0)), 0);
       const hasPaymentMarker = history.some(entry => entry.direction === 'payment');
+      const roundSummary = roundsPaid ? `, Runden +${roundsPaid}x` : '';
       el('historySub').textContent = history.length
-        ? `${hasPaymentMarker ? 'Seit letzter Zahlung: ' : ''}Konsum +${consumed}x, Abzug -${deducted}x`
+        ? `${hasPaymentMarker ? 'Seit letzter Zahlung: ' : ''}Konsum +${consumed}x${roundSummary}, Abzug -${deducted}x`
         : '';
       if (!history.length) {
         el('historyList').innerHTML = '<div class="empty">Noch kein Verlauf vorhanden.</div>';
         return;
       }
       el('historyList').innerHTML = history.map(entry => {
-        const direction = entry.direction === 'deduction' ? 'deduction' : (entry.direction === 'payment' ? 'payment' : 'consume');
+        const direction = entry.direction === 'deduction'
+          ? 'deduction'
+          : (entry.direction === 'payment' ? 'payment' : (entry.direction === 'round_payment' ? 'round-payment' : 'consume'));
         const typeLabel = entry.type_label || entry.type || '';
         const timestampLabel = entry.timestamp_label || '';
         const quantityLabel = entry.quantity_label || `${Number(entry.quantity || 0) > 0 ? '+' : ''}${Number(entry.quantity || 0)}x`;

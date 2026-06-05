@@ -1606,6 +1606,31 @@ def kassa_history_timestamp_labels(timestamp: str | None) -> tuple[str, str, str
 
 
 def make_kassa_person_history(conn: sqlite3.Connection, person_id: int, limit: int = 200) -> list[dict]:
+    def history_key(row: sqlite3.Row | dict) -> tuple[object, str, str]:
+        return (
+            row_get(row, "item_id"),
+            str(row_get(row, "item_name_snapshot", "") or ""),
+            str(row_get(row, "item_short_label_snapshot", "") or ""),
+        )
+
+    def history_entry(row: sqlite3.Row, quantity: int, type_label: str, direction: str) -> dict:
+        date_label, time_label, timestamp_label = kassa_history_timestamp_labels(row["timestamp"])
+        return {
+            "id": int(row["id"]),
+            "transaction_id": int(row["transaction_id"]),
+            "type": row["kind"],
+            "type_label": type_label,
+            "direction": direction,
+            "timestamp": row["timestamp"],
+            "date_label": date_label,
+            "time_label": time_label,
+            "timestamp_label": timestamp_label,
+            "product": row["item_name_snapshot"],
+            "short_label": row["item_short_label_snapshot"],
+            "quantity": quantity,
+            "quantity_label": f"{quantity:+d}x",
+        }
+
     last_payment = conn.execute(
         """
         SELECT id, timestamp
@@ -1626,16 +1651,51 @@ def make_kassa_person_history(conn: sqlite3.Connection, person_id: int, limit: i
 
     rows = conn.execute(
         f"""
-        SELECT id, transaction_id, kind, timestamp, item_name_snapshot, item_short_label_snapshot, quantity
+        SELECT id, transaction_id, person_id, item_id, kind, timestamp, item_name_snapshot, item_short_label_snapshot, quantity
         FROM transaction_items
         WHERE person_id = ?
-          AND kind IN ('CONSUME', 'ROUND_DEDUCTED')
+          AND kind IN ('CONSUME', 'ROUND_DEDUCTED', 'ROUND_REQUEST_APPROVED')
           {item_where}
         ORDER BY timestamp DESC, id DESC
         LIMIT ?
         """,
         params,
     ).fetchall()
+
+    correction_where = ""
+    correction_params: list[object] = [person_id]
+    if last_payment:
+        correction_where = "AND cr.decided_at > ?"
+        correction_params.append(last_payment["timestamp"])
+    correction_rows = conn.execute(
+        f"""
+        SELECT
+            cr.id,
+            cr.decided_at,
+            cr.quantity_to_remove,
+            ol.item_id,
+            ol.item_name_snapshot,
+            ol.item_short_label_snapshot
+        FROM change_requests cr
+        JOIN order_lines ol ON ol.id = cr.order_line_id
+        WHERE cr.person_id = ?
+          AND cr.status = 'APPROVED'
+          AND cr.decided_at IS NOT NULL
+          {correction_where}
+        ORDER BY cr.decided_at DESC, cr.id DESC
+        """,
+        correction_params,
+    ).fetchall()
+    corrections = [
+        {
+            "key": history_key(row),
+            "decided_at": row["decided_at"],
+            "remaining": int(row["quantity_to_remove"] or 0),
+        }
+        for row in correction_rows
+        if int(row["quantity_to_remove"] or 0) > 0
+    ]
+
     history = []
     for row in rows:
         kind = row["kind"]
@@ -1645,32 +1705,34 @@ def make_kassa_person_history(conn: sqlite3.Connection, person_id: int, limit: i
         qty = int(row["quantity"] or 0)
         if qty == 0:
             continue
-        date_label, time_label, timestamp_label = kassa_history_timestamp_labels(row["timestamp"])
         if kind == "ROUND_DEDUCTED":
             quantity = -abs(qty)
             type_label = "Abzug Runde"
             direction = "deduction"
+        elif kind == "ROUND_REQUEST_APPROVED":
+            quantity = abs(qty)
+            type_label = "Runde bezahlt"
+            direction = "round_payment"
         else:
             quantity = abs(qty)
+            row_key = history_key(row)
+            for correction in corrections:
+                if correction["remaining"] <= 0:
+                    continue
+                if correction["key"] != row_key:
+                    continue
+                if correction["decided_at"] and str(row["timestamp"]) > str(correction["decided_at"]):
+                    continue
+                take = min(quantity, int(correction["remaining"]))
+                quantity -= take
+                correction["remaining"] -= take
+                if quantity <= 0:
+                    break
+            if quantity <= 0:
+                continue
             type_label = "Konsum"
             direction = "consume"
-        history.append(
-            {
-                "id": int(row["id"]),
-                "transaction_id": int(row["transaction_id"]),
-                "type": kind,
-                "type_label": type_label,
-                "direction": direction,
-                "timestamp": row["timestamp"],
-                "date_label": date_label,
-                "time_label": time_label,
-                "timestamp_label": timestamp_label,
-                "product": item_name,
-                "short_label": row["item_short_label_snapshot"],
-                "quantity": quantity,
-                "quantity_label": f"{quantity:+d}x",
-            }
-        )
+        history.append(history_entry(row, quantity, type_label, direction))
     if last_payment:
         date_label, time_label, timestamp_label = kassa_history_timestamp_labels(last_payment["timestamp"])
         history.append(
