@@ -49,12 +49,14 @@
     .tally-mark { display:block; width:2px; background:#111827; border-radius:999px; opacity:.96; transform-origin:bottom center; }
     .tally-slash { position:absolute; background:#111827; border-radius:999px; transform-origin:center; opacity:.97; }
     .pending-line { margin-top:4px; font-size:12.5px; color:var(--red); font-weight:800; line-height:1.25; }
-    .person-alerts { display:flex; flex-wrap:wrap; gap:6px; margin-top:7px; }
-    .person-alert { display:inline-flex; align-items:center; gap:5px; max-width:100%; border-radius:999px; padding:4px 8px; font-size:12px; font-weight:900; line-height:1.15; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; }
+    .person-alerts { display:grid; gap:6px; margin-top:7px; min-width:0; }
+    .person-alert { display:flex; align-items:flex-start; gap:5px; width:fit-content; max-width:100%; border-radius:12px; padding:5px 8px; font-size:12px; font-weight:900; line-height:1.2; background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; }
     .person-alert.warning { background:#fffbeb; color:#92400e; border-color:#fde68a; }
     .person-alert.reminder { background:#fff1f2; color:#be123c; border-color:#fecdd3; }
     .person-alert.message { background:#eef2ff; color:#3730a3; border-color:#c7d2fe; }
-    .person-alert-title { max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .person-alert.warning, .person-alert.reminder, .person-alert.message { width:100%; }
+    .person-alert-title { min-width:0; max-width:100%; overflow-wrap:anywhere; white-space:normal; }
+    .person-alert.message .person-alert-title { flex:1 1 auto; }
     .notice-panel { display:none; margin:0 0 12px; }
     .notice-panel.visible { display:grid; gap:8px; }
     .notice-card { border-radius:16px; padding:11px 12px; border:1px solid #bfdbfe; background:#eff6ff; color:#1e3a8a; box-shadow:0 2px 10px rgba(37,99,235,.08); }
