@@ -311,14 +311,14 @@
     let drinkBookingSoundEnabled = true;
     let drinkBookingSoundPreset = 'warm';
     let roundItemPriceEur = 10;
-    let costWarningEnabled = true;
     let costWarningThresholdEur = 30;
-    let costWarningTemplate = 'Offen: {betrag}. Grenze {limit} erreicht.';
-    let paymentReminderEnabled = true;
+    let costWarningTemplate = 'Offen: {betrag}. Unteres Limit {unteres_limit} erreicht.';
+    let costWarningShowOnOverview = true;
+    let costWarningShowInPopup = true;
     let paymentReminderThresholdEur = 50;
-    let paymentReminderTemplate = 'Offen: {betrag}. Bitte bei Gelegenheit bezahlen.';
-    let costNoticeShowOnOverview = true;
-    let costNoticeShowInPopup = true;
+    let paymentReminderTemplate = 'Offen: {betrag}. Oberes Limit {oberes_limit} erreicht. Bitte bei Gelegenheit bezahlen.';
+    let paymentReminderShowOnOverview = true;
+    let paymentReminderShowInPopup = true;
     let memberMessagesShowOnOverview = true;
     let memberMessagesShowInPopup = true;
     let celebrationAudioCtx = null;
@@ -350,7 +350,7 @@
       return String(text ?? '').replace(/(€\s*-?\d+)\.(\d{1,2})(?=\D|$)/g, '$1,$2');
     }
     function applyNoticeTemplate(template, values) {
-      return String(template || '').replace(/\{(betrag|limit|person|rundenpreis)\}/g, (_, key) => values[key] ?? '');
+      return String(template || '').replace(/\{(betrag|unteres_limit|oberes_limit|limit|person|rundenpreis)\}/g, (_, key) => values[key] ?? '');
     }
     function escapeHtml(value) { return String(value ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;'); }
     function showStatus(text) { const el = document.getElementById('status'); el.textContent = text; el.style.display = 'block'; clearTimeout(window.statusTimer); window.statusTimer = setTimeout(() => { el.style.display = 'none'; }, 2400); }
@@ -702,14 +702,14 @@
       drinkBookingSoundEnabled = cfg.drink_booking_sound_enabled !== false;
       drinkBookingSoundPreset = bookingSoundPresetKey(cfg.drink_booking_sound_preset || 'warm');
       roundItemPriceEur = Math.max(0, Number(cfg.round_item_price_eur ?? 10));
-      costWarningEnabled = cfg.cost_warning_enabled !== false;
       costWarningThresholdEur = Math.max(0, Number(cfg.cost_warning_threshold_eur ?? 30));
-      costWarningTemplate = cfg.cost_warning_template || 'Offen: {betrag}. Grenze {limit} erreicht.';
-      paymentReminderEnabled = cfg.payment_reminder_enabled !== false;
+      costWarningTemplate = cfg.cost_warning_template || 'Offen: {betrag}. Unteres Limit {unteres_limit} erreicht.';
+      costWarningShowOnOverview = (cfg.cost_warning_show_on_overview ?? cfg.cost_notice_show_on_overview) !== false;
+      costWarningShowInPopup = (cfg.cost_warning_show_in_popup ?? cfg.cost_notice_show_in_popup) !== false;
       paymentReminderThresholdEur = Math.max(0, Number(cfg.payment_reminder_threshold_eur ?? 50));
-      paymentReminderTemplate = cfg.payment_reminder_template || 'Offen: {betrag}. Bitte bei Gelegenheit bezahlen.';
-      costNoticeShowOnOverview = cfg.cost_notice_show_on_overview !== false;
-      costNoticeShowInPopup = cfg.cost_notice_show_in_popup !== false;
+      paymentReminderTemplate = cfg.payment_reminder_template || 'Offen: {betrag}. Oberes Limit {oberes_limit} erreicht. Bitte bei Gelegenheit bezahlen.';
+      paymentReminderShowOnOverview = (cfg.payment_reminder_show_on_overview ?? cfg.cost_notice_show_on_overview) !== false;
+      paymentReminderShowInPopup = (cfg.payment_reminder_show_in_popup ?? cfg.cost_notice_show_in_popup) !== false;
       memberMessagesShowOnOverview = cfg.member_messages_show_on_overview !== false;
       memberMessagesShowInPopup = cfg.member_messages_show_in_popup !== false;
       syncDrinkFeedbackSlots();
@@ -1086,25 +1086,38 @@
       return result.sort((a, b) => String(a.short_label || a.name).localeCompare(String(b.short_label || b.name)));
     }
 
-    function costNoticeForPerson(person) {
+    function noticeValuesForPerson(person) {
       const total = Number(person?.total || 0);
       const personName = person?.name || [person?.last_name, person?.first_name].filter(Boolean).join(' ') || '';
-      const noticeValues = {
+      return {
         betrag: money(total),
+        unteres_limit: money(costWarningThresholdEur),
+        oberes_limit: money(paymentReminderThresholdEur),
         limit: money(costWarningThresholdEur),
         person: personName,
         rundenpreis: money(roundItemPriceEur)
       };
-      if (paymentReminderEnabled && total >= paymentReminderThresholdEur) {
-        noticeValues.limit = money(paymentReminderThresholdEur);
+    }
+
+    function paymentReminderNoticeForPerson(person) {
+      const total = Number(person?.total || 0);
+      if (total >= paymentReminderThresholdEur) {
+        const noticeValues = noticeValuesForPerson(person);
+        noticeValues.limit = noticeValues.oberes_limit;
         return {
           level: 'reminder',
           label: 'Zahlungserinnerung',
           text: applyNoticeTemplate(paymentReminderTemplate, noticeValues),
         };
       }
-      if (costWarningEnabled && total >= costWarningThresholdEur) {
-        noticeValues.limit = money(costWarningThresholdEur);
+      return null;
+    }
+
+    function costWarningNoticeForPerson(person) {
+      const total = Number(person?.total || 0);
+      if (total >= costWarningThresholdEur) {
+        const noticeValues = noticeValuesForPerson(person);
+        noticeValues.limit = noticeValues.unteres_limit;
         return {
           level: 'warning',
           label: 'Kostenwarnung',
@@ -1114,14 +1127,24 @@
       return null;
     }
 
+    function costNoticeForPerson(person, surface = { costWarning: true, paymentReminder: true }) {
+      const reminder = surface.paymentReminder ? paymentReminderNoticeForPerson(person) : null;
+      if (reminder) return reminder;
+      const warning = surface.costWarning ? costWarningNoticeForPerson(person) : null;
+      return warning;
+    }
+
     function memberMessagesForPerson(person) {
       return Array.isArray(person?.member_messages) ? person.member_messages : [];
     }
 
     function renderPersonAlertBadges(person) {
       const badges = [];
-      const notice = costNoticeForPerson(person);
-      if (costNoticeShowOnOverview && notice) badges.push(`<span class="person-alert ${notice.level}"><span class="person-alert-title">${escapeHtml(notice.text)}</span></span>`);
+      const notice = costNoticeForPerson(person, {
+        costWarning: costWarningShowOnOverview,
+        paymentReminder: paymentReminderShowOnOverview
+      });
+      if (notice) badges.push(`<span class="person-alert ${notice.level}"><span class="person-alert-title">${escapeHtml(notice.text)}</span></span>`);
       const messages = memberMessagesForPerson(person);
       const messageCount = Number(person?.member_message_count ?? messages.length);
       if (memberMessagesShowOnOverview && messageCount > 0) {
@@ -1145,8 +1168,11 @@
 
     function makePersonRow(p) {
       const row = document.createElement('div');
-      const notice = costNoticeForPerson(p);
-      row.className = 'person-row' + (p.total > 0 ? ' has-open' : '') + (costNoticeShowOnOverview && notice ? ` has-${notice.level}` : '') + (memberMessagesShowOnOverview && memberMessagesForPerson(p).length ? ' has-message' : '');
+      const notice = costNoticeForPerson(p, {
+        costWarning: costWarningShowOnOverview,
+        paymentReminder: paymentReminderShowOnOverview
+      });
+      row.className = 'person-row' + (p.total > 0 ? ' has-open' : '') + (notice ? ` has-${notice.level}` : '') + (memberMessagesShowOnOverview && memberMessagesForPerson(p).length ? ' has-message' : '');
       row.onclick = () => openPerson(p);
       const pendingText = pendingSummary(p.pending_requests || []);
       const summary = personSummary(p);
@@ -1534,8 +1560,11 @@
       const panel = document.getElementById('personNoticePanel');
       if (!panel || !currentPerson) return;
       const cards = [];
-      const costNotice = costNoticeForPerson(currentPerson);
-      if (costNoticeShowInPopup && costNotice) {
+      const costNotice = costNoticeForPerson(currentPerson, {
+        costWarning: costWarningShowInPopup,
+        paymentReminder: paymentReminderShowInPopup
+      });
+      if (costNotice) {
         cards.push(`
           <div class="notice-card ${costNotice.level}">
             <strong>${escapeHtml(costNotice.label)}</strong>

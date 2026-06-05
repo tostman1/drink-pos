@@ -51,8 +51,8 @@ DEFAULT_ITEMS = [
 ROUND_ITEM_NAME = "1 Runde"
 ROUND_ITEM_SHORT = "Runde"
 DEFAULT_ROUND_PRICE_EUR = "10.00"
-DEFAULT_COST_WARNING_TEMPLATE = "Offen: {betrag}. Grenze {limit} erreicht."
-DEFAULT_PAYMENT_REMINDER_TEMPLATE = "Offen: {betrag}. Bitte bei Gelegenheit bezahlen."
+DEFAULT_COST_WARNING_TEMPLATE = "Offen: {betrag}. Unteres Limit {unteres_limit} erreicht."
+DEFAULT_PAYMENT_REMINDER_TEMPLATE = "Offen: {betrag}. Oberes Limit {oberes_limit} erreicht. Bitte bei Gelegenheit bezahlen."
 SYSTEM_ITEM_NAMES = {ROUND_ITEM_NAME}
 
 
@@ -934,6 +934,14 @@ def ensure_settings(conn: sqlite3.Connection):
         set_setting(conn, "payment_reminder_threshold_eur", "50.00")
     if get_setting(conn, "payment_reminder_template") is None:
         set_setting(conn, "payment_reminder_template", DEFAULT_PAYMENT_REMINDER_TEMPLATE)
+    if get_setting(conn, "cost_warning_show_on_overview") is None:
+        set_setting(conn, "cost_warning_show_on_overview", get_setting(conn, "cost_notice_show_on_overview", "1") or "1")
+    if get_setting(conn, "cost_warning_show_in_popup") is None:
+        set_setting(conn, "cost_warning_show_in_popup", get_setting(conn, "cost_notice_show_in_popup", "1") or "1")
+    if get_setting(conn, "payment_reminder_show_on_overview") is None:
+        set_setting(conn, "payment_reminder_show_on_overview", get_setting(conn, "cost_notice_show_on_overview", "1") or "1")
+    if get_setting(conn, "payment_reminder_show_in_popup") is None:
+        set_setting(conn, "payment_reminder_show_in_popup", get_setting(conn, "cost_notice_show_in_popup", "1") or "1")
     if get_setting(conn, "cost_notice_show_on_overview") is None:
         set_setting(conn, "cost_notice_show_on_overview", "1")
     if get_setting(conn, "cost_notice_show_in_popup") is None:
@@ -1129,9 +1137,13 @@ class SettingsUpdateRequest(BaseModel):
     cost_warning_enabled: bool | None = None
     cost_warning_threshold_eur: float | str | None = None
     cost_warning_template: str | None = None
+    cost_warning_show_on_overview: bool | None = None
+    cost_warning_show_in_popup: bool | None = None
     payment_reminder_enabled: bool | None = None
     payment_reminder_threshold_eur: float | str | None = None
     payment_reminder_template: str | None = None
+    payment_reminder_show_on_overview: bool | None = None
+    payment_reminder_show_in_popup: bool | None = None
     cost_notice_show_on_overview: bool | None = None
     cost_notice_show_in_popup: bool | None = None
     member_messages_show_on_overview: bool | None = None
@@ -1905,6 +1917,10 @@ def cost_notice_settings(conn: sqlite3.Connection) -> dict:
             get_setting(conn, "payment_reminder_template", DEFAULT_PAYMENT_REMINDER_TEMPLATE),
             DEFAULT_PAYMENT_REMINDER_TEMPLATE,
         ),
+        "cost_warning_show_on_overview": setting_bool(conn, "cost_warning_show_on_overview", "1"),
+        "cost_warning_show_in_popup": setting_bool(conn, "cost_warning_show_in_popup", "1"),
+        "payment_reminder_show_on_overview": setting_bool(conn, "payment_reminder_show_on_overview", "1"),
+        "payment_reminder_show_in_popup": setting_bool(conn, "payment_reminder_show_in_popup", "1"),
         "cost_notice_show_on_overview": setting_bool(conn, "cost_notice_show_on_overview", "1"),
         "cost_notice_show_in_popup": setting_bool(conn, "cost_notice_show_in_popup", "1"),
         "member_messages_show_on_overview": setting_bool(conn, "member_messages_show_on_overview", "1"),
@@ -4010,6 +4026,12 @@ def admin_update_settings(req: SettingsUpdateRequest):
             template = clean_notice_template(req.cost_warning_template, DEFAULT_COST_WARNING_TEMPLATE)
             set_setting(conn, "cost_warning_template", template)
             details.append("Text der Kostenwarnung gespeichert")
+        if req.cost_warning_show_on_overview is not None:
+            set_setting(conn, "cost_warning_show_on_overview", "1" if req.cost_warning_show_on_overview else "0")
+            details.append("Kostenwarnung in Standardansicht angezeigt" if req.cost_warning_show_on_overview else "Kostenwarnung in Standardansicht ausgeblendet")
+        if req.cost_warning_show_in_popup is not None:
+            set_setting(conn, "cost_warning_show_in_popup", "1" if req.cost_warning_show_in_popup else "0")
+            details.append("Kostenwarnung im Personen-Popup angezeigt" if req.cost_warning_show_in_popup else "Kostenwarnung im Personen-Popup ausgeblendet")
         if req.payment_reminder_enabled is not None:
             set_setting(conn, "payment_reminder_enabled", "1" if req.payment_reminder_enabled else "0")
             details.append("Zahlungserinnerung aktiviert" if req.payment_reminder_enabled else "Zahlungserinnerung deaktiviert")
@@ -4021,6 +4043,12 @@ def admin_update_settings(req: SettingsUpdateRequest):
             template = clean_notice_template(req.payment_reminder_template, DEFAULT_PAYMENT_REMINDER_TEMPLATE)
             set_setting(conn, "payment_reminder_template", template)
             details.append("Text der Zahlungserinnerung gespeichert")
+        if req.payment_reminder_show_on_overview is not None:
+            set_setting(conn, "payment_reminder_show_on_overview", "1" if req.payment_reminder_show_on_overview else "0")
+            details.append("Zahlungserinnerung in Standardansicht angezeigt" if req.payment_reminder_show_on_overview else "Zahlungserinnerung in Standardansicht ausgeblendet")
+        if req.payment_reminder_show_in_popup is not None:
+            set_setting(conn, "payment_reminder_show_in_popup", "1" if req.payment_reminder_show_in_popup else "0")
+            details.append("Zahlungserinnerung im Personen-Popup angezeigt" if req.payment_reminder_show_in_popup else "Zahlungserinnerung im Personen-Popup ausgeblendet")
         if req.cost_notice_show_on_overview is not None:
             set_setting(conn, "cost_notice_show_on_overview", "1" if req.cost_notice_show_on_overview else "0")
             details.append("Kostenhinweise in Standardansicht angezeigt" if req.cost_notice_show_on_overview else "Kostenhinweise in Standardansicht ausgeblendet")

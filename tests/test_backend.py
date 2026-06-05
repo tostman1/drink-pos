@@ -196,6 +196,35 @@ class BackendFlowTests(unittest.TestCase):
         self.assertEqual(ctx.exception.status_code, 403)
         self.assertIsInstance(self.main.transactions(pin=PIN), list)
 
+    def test_cost_notice_config_separates_surfaces_and_placeholders(self):
+        cfg = self.main.config()
+        self.assertIn("{unteres_limit}", cfg["cost_warning_template"])
+        self.assertIn("{oberes_limit}", cfg["payment_reminder_template"])
+        self.assertTrue(cfg["cost_warning_show_on_overview"])
+        self.assertTrue(cfg["cost_warning_show_in_popup"])
+        self.assertTrue(cfg["payment_reminder_show_on_overview"])
+        self.assertTrue(cfg["payment_reminder_show_in_popup"])
+
+        self.main.admin_update_settings(
+            self.main.SettingsUpdateRequest(
+                pin=PIN,
+                cost_warning_template="Warnung {betrag} {unteres_limit}",
+                cost_warning_show_on_overview=False,
+                cost_warning_show_in_popup=True,
+                payment_reminder_template="Reminder {betrag} {oberes_limit}",
+                payment_reminder_show_on_overview=True,
+                payment_reminder_show_in_popup=False,
+            )
+        )
+
+        updated = self.main.config()
+        self.assertEqual(updated["cost_warning_template"], "Warnung {betrag} {unteres_limit}")
+        self.assertEqual(updated["payment_reminder_template"], "Reminder {betrag} {oberes_limit}")
+        self.assertFalse(updated["cost_warning_show_on_overview"])
+        self.assertTrue(updated["cost_warning_show_in_popup"])
+        self.assertTrue(updated["payment_reminder_show_on_overview"])
+        self.assertFalse(updated["payment_reminder_show_in_popup"])
+
     def test_agent_api_requires_configured_token(self):
         with self.assertRaises(HTTPException) as disabled_ctx:
             self.main.require_agent_request(FakeRequest(AGENT_TOKEN))

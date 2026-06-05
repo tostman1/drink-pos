@@ -187,6 +187,12 @@
     .popup-preview-content { padding:16px; }
     .popup-preview-content h2 { margin:0 0 6px; font-size:24px; line-height:1.1; }
     .popup-preview-total { color:var(--muted); font-size:16px; margin-bottom:12px; }
+    .popup-preview-notices { display:grid; gap:8px; margin:10px 0 12px; }
+    .popup-preview-notice { border:1px solid #fde68a; background:#fffbeb; color:#78350f; border-radius:12px; padding:9px 10px; font-size:13px; line-height:1.35; }
+    .popup-preview-notice.reminder { border-color:#fecdd3; background:#fff1f2; color:#9f1239; }
+    .popup-preview-notice.message { border-color:#cbd5e1; background:#f8fafc; color:#0f172a; }
+    .popup-preview-notice strong { display:block; margin-bottom:3px; font-size:13px; }
+    .popup-preview-notice button { margin-top:7px; padding:6px 9px; border-radius:9px; font-size:12px; background:#e0e7ff; color:#3730a3; }
     .popup-preview-panel { background:#f9fafb; border:1px solid var(--border); border-radius:14px; padding:12px; margin:12px 0; }
     .popup-preview-panel h3 { margin:0 0 10px; font-size:16px; }
     .popup-preview-buttons { display:grid; gap:8px; grid-template-columns:repeat(2,minmax(0,1fr)); margin:12px 0; }
@@ -390,29 +396,36 @@
 
             <div class="appearance-group">
               <h3>Kostenwarnung & Zahlungserinnerung</h3>
+              <h4>Kostenwarnung</h4>
               <div class="setting-line">
-                <label><input id="costWarningEnabled" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Kostenwarnung anzeigen</label>
+                <label for="costWarningThreshold">Unteres Limit</label>
                 <input id="costWarningThreshold" type="text" inputmode="decimal" data-decimal-input data-decimal-digits="2" placeholder="30,00" oninput="renderAppearancePreview()">
-                <span class="default-note">Standard: eingeschaltet ab € 30,00</span>
+                <span class="default-note">Standard: € 30,00</span>
               </div>
               <div class="setting-line">
                 <label for="costWarningTemplate">Text der Kostenwarnung</label>
-                <textarea id="costWarningTemplate" rows="2" oninput="renderAppearancePreview()" placeholder="Offen: {betrag}. Grenze {limit} erreicht."></textarea>
-                <span class="default-note">Platzhalter: {betrag}, {limit}, {person}, {rundenpreis}</span>
+                <textarea id="costWarningTemplate" rows="2" oninput="renderAppearancePreview()" placeholder="Offen: {betrag}. Unteres Limit {unteres_limit} erreicht."></textarea>
+                <span class="default-note">Platzhalter: {betrag}, {unteres_limit}, {oberes_limit}, {person}, {rundenpreis}</span>
               </div>
               <div class="setting-line">
-                <label><input id="paymentReminderEnabled" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Zahlungserinnerung anzeigen</label>
+                <label><input id="costWarningShowOnOverview" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Kostenwarnung in Standardansicht anzeigen</label>
+                <label><input id="costWarningShowInPopup" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Kostenwarnung im Personen-Popup anzeigen</label>
+                <span class="default-note">Standard: beide eingeschaltet</span>
+              </div>
+              <h4>Zahlungserinnerung</h4>
+              <div class="setting-line">
+                <label for="paymentReminderThreshold">Oberes Limit</label>
                 <input id="paymentReminderThreshold" type="text" inputmode="decimal" data-decimal-input data-decimal-digits="2" placeholder="50,00" oninput="renderAppearancePreview()">
-                <span class="default-note">Standard: eingeschaltet ab € 50,00</span>
+                <span class="default-note">Standard: € 50,00</span>
               </div>
               <div class="setting-line">
                 <label for="paymentReminderTemplate">Text der Zahlungserinnerung</label>
-                <textarea id="paymentReminderTemplate" rows="2" oninput="renderAppearancePreview()" placeholder="Offen: {betrag}. Bitte bei Gelegenheit bezahlen."></textarea>
-                <span class="default-note">Platzhalter: {betrag}, {limit}, {person}, {rundenpreis}</span>
+                <textarea id="paymentReminderTemplate" rows="2" oninput="renderAppearancePreview()" placeholder="Offen: {betrag}. Oberes Limit {oberes_limit} erreicht. Bitte bei Gelegenheit bezahlen."></textarea>
+                <span class="default-note">Platzhalter: {betrag}, {unteres_limit}, {oberes_limit}, {person}, {rundenpreis}</span>
               </div>
               <div class="setting-line">
-                <label><input id="costNoticeShowOnOverview" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Kostenhinweise in Standardansicht anzeigen</label>
-                <label><input id="costNoticeShowInPopup" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Kostenhinweise im Personen-Popup anzeigen</label>
+                <label><input id="paymentReminderShowOnOverview" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Zahlungserinnerungen in Standardansicht anzeigen</label>
+                <label><input id="paymentReminderShowInPopup" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Zahlungserinnerungen im Personen-Popup anzeigen</label>
                 <span class="default-note">Standard: beide eingeschaltet</span>
               </div>
             </div>
@@ -547,6 +560,7 @@
                 <div class="popup-preview-content">
                   <h2>Max Mustermann</h2>
                   <div id="popupPreviewTotal" class="popup-preview-total">Offen: € 42,00</div>
+                  <div id="popupPreviewNotices" class="popup-preview-notices"></div>
 
                   <div class="popup-preview-panel">
                     <h3>Hinzufügen</h3>
@@ -862,14 +876,14 @@
       drink_celebration_debt_threshold_eur: 50,
       drink_celebration_confetti_intensity_percent: 100,
       drink_celebration_sound_enabled: true,
-      cost_warning_enabled: true,
       cost_warning_threshold_eur: 30,
-      cost_warning_template: 'Offen: {betrag}. Grenze {limit} erreicht.',
-      payment_reminder_enabled: true,
+      cost_warning_template: 'Offen: {betrag}. Unteres Limit {unteres_limit} erreicht.',
+      cost_warning_show_on_overview: true,
+      cost_warning_show_in_popup: true,
       payment_reminder_threshold_eur: 50,
-      payment_reminder_template: 'Offen: {betrag}. Bitte bei Gelegenheit bezahlen.',
-      cost_notice_show_on_overview: true,
-      cost_notice_show_in_popup: true,
+      payment_reminder_template: 'Offen: {betrag}. Oberes Limit {oberes_limit} erreicht. Bitte bei Gelegenheit bezahlen.',
+      payment_reminder_show_on_overview: true,
+      payment_reminder_show_in_popup: true,
       member_messages_show_on_overview: true,
       member_messages_show_in_popup: true
     };
@@ -901,7 +915,7 @@
       return Number.isFinite(n) ? decimalText(n, digits) : '';
     }
     function applyNoticeTemplate(template, values) {
-      return String(template || '').replace(/\{(betrag|limit|person|rundenpreis)\}/g, (_, key) => values[key] ?? '');
+      return String(template || '').replace(/\{(betrag|unteres_limit|oberes_limit|limit|person|rundenpreis)\}/g, (_, key) => values[key] ?? '');
     }
     function normalizeDecimalInputField(input, { fixed = false } = {}) {
       const before = input.value;
@@ -977,7 +991,7 @@
         const details = document.createElement('details');
         details.className = `${group.className} settings-accordion settings-upgraded`;
         if (/Farben|Sync|Buchungsfeedback/i.test(title)) details.classList.add('expert-only');
-        details.open = settingsViewMode === 'expert' || !details.classList.contains('expert-only');
+        details.open = false;
         const summary = document.createElement('summary');
         summary.textContent = title;
         const content = document.createElement('div');
@@ -1004,10 +1018,6 @@
       block.classList.toggle('simple-settings', settingsViewMode !== 'expert');
       document.getElementById('settingsSimpleButton')?.classList.toggle('active', settingsViewMode !== 'expert');
       document.getElementById('settingsExpertButton')?.classList.toggle('active', settingsViewMode === 'expert');
-      document.querySelectorAll('#appearanceSettingsBlock .settings-accordion').forEach(details => {
-        if (settingsViewMode !== 'expert' && details.classList.contains('expert-only')) return;
-        if (!details.open) details.open = true;
-      });
     }
 
     function updateStoredRevision(syncData = null) {
@@ -1795,14 +1805,14 @@
       document.getElementById('drinkCelebrationDebtThreshold').value = formatDecimalInputValue(s.drink_celebration_debt_threshold_eur ?? 50);
       document.getElementById('drinkConfettiIntensitySlider').value = Number(s.drink_celebration_confetti_intensity_percent ?? 100);
       document.getElementById('drinkCelebrationSound').checked = s.drink_celebration_sound_enabled !== false;
-      document.getElementById('costWarningEnabled').checked = s.cost_warning_enabled !== false;
       document.getElementById('costWarningThreshold').value = formatDecimalInputValue(s.cost_warning_threshold_eur ?? 30);
       document.getElementById('costWarningTemplate').value = s.cost_warning_template || APPEARANCE_DEFAULTS.cost_warning_template;
-      document.getElementById('paymentReminderEnabled').checked = s.payment_reminder_enabled !== false;
+      document.getElementById('costWarningShowOnOverview').checked = s.cost_warning_show_on_overview !== false;
+      document.getElementById('costWarningShowInPopup').checked = s.cost_warning_show_in_popup !== false;
       document.getElementById('paymentReminderThreshold').value = formatDecimalInputValue(s.payment_reminder_threshold_eur ?? 50);
       document.getElementById('paymentReminderTemplate').value = s.payment_reminder_template || APPEARANCE_DEFAULTS.payment_reminder_template;
-      document.getElementById('costNoticeShowOnOverview').checked = s.cost_notice_show_on_overview !== false;
-      document.getElementById('costNoticeShowInPopup').checked = s.cost_notice_show_in_popup !== false;
+      document.getElementById('paymentReminderShowOnOverview').checked = s.payment_reminder_show_on_overview !== false;
+      document.getElementById('paymentReminderShowInPopup').checked = s.payment_reminder_show_in_popup !== false;
       document.getElementById('memberMessagesShowOnOverview').checked = s.member_messages_show_on_overview !== false;
       document.getElementById('memberMessagesShowInPopup').checked = s.member_messages_show_in_popup !== false;
       document.getElementById('enableDeleteRequests').checked = s.enable_delete_requests !== false;
@@ -2252,32 +2262,58 @@
       document.getElementById('previewSummaryLabel').textContent = document.getElementById('summaryLabelText').value.trim() || 'Gesamt:';
       document.getElementById('previewTotal').style.display = document.getElementById('showTotalOverview').checked ? 'block' : 'none';
       const costPreview = document.getElementById('previewCostAlerts');
-      const reminderOn = document.getElementById('paymentReminderEnabled')?.checked;
-      const warningOn = document.getElementById('costWarningEnabled')?.checked;
-      const costOnOverview = document.getElementById('costNoticeShowOnOverview')?.checked;
-      const previewAmount = 42;
+      const popupPreviewNotices = document.getElementById('popupPreviewNotices');
+      const warningOnOverview = document.getElementById('costWarningShowOnOverview')?.checked;
+      const warningInPopup = document.getElementById('costWarningShowInPopup')?.checked;
+      const reminderOnOverview = document.getElementById('paymentReminderShowOnOverview')?.checked;
+      const reminderInPopup = document.getElementById('paymentReminderShowInPopup')?.checked;
+      const messageInPopup = document.getElementById('memberMessagesShowInPopup')?.checked;
       const roundPrice = parseDecimalInput(document.getElementById('roundPrice')?.value || '10');
       const reminderLimit = parseDecimalInput(document.getElementById('paymentReminderThreshold')?.value || '50');
       const warningLimit = parseDecimalInput(document.getElementById('costWarningThreshold')?.value || '30');
+      const lowerLimit = Number.isFinite(warningLimit) ? warningLimit : 30;
+      const upperLimit = Number.isFinite(reminderLimit) ? reminderLimit : 50;
+      const previewAmount = Math.max(42, upperLimit + 2);
+      document.getElementById('previewTotal').textContent = money(previewAmount);
+      document.getElementById('popupPreviewTotal').textContent = `Offen: ${money(previewAmount)}`;
       const noticeValues = {
         betrag: money(previewAmount),
-        limit: money(Number.isFinite(reminderLimit) ? reminderLimit : 50),
+        unteres_limit: money(lowerLimit),
+        oberes_limit: money(upperLimit),
         person: 'Max Mustermann',
         rundenpreis: money(Number.isFinite(roundPrice) ? roundPrice : 10)
       };
+      function previewNotice(surface) {
+        if (previewAmount >= upperLimit && surface.reminder) {
+          return {
+            level: 'reminder',
+            label: 'Zahlungserinnerung',
+            text: applyNoticeTemplate(document.getElementById('paymentReminderTemplate')?.value || APPEARANCE_DEFAULTS.payment_reminder_template, {...noticeValues, limit: money(upperLimit)})
+          };
+        }
+        if (previewAmount >= lowerLimit && surface.warning) {
+          return {
+            level: 'warning',
+            label: 'Kostenwarnung',
+            text: applyNoticeTemplate(document.getElementById('costWarningTemplate')?.value || APPEARANCE_DEFAULTS.cost_warning_template, {...noticeValues, limit: money(lowerLimit)})
+          };
+        }
+        return null;
+      }
       if (costPreview) {
-        if (!costOnOverview) costPreview.innerHTML = '';
-        else if (reminderOn) {
-          noticeValues.limit = money(Number.isFinite(reminderLimit) ? reminderLimit : 50);
-          const text = applyNoticeTemplate(document.getElementById('paymentReminderTemplate')?.value || APPEARANCE_DEFAULTS.payment_reminder_template, noticeValues);
-          costPreview.innerHTML = `<span class="preview-alert reminder">${escapeHtml(text)}</span>`;
+        const overviewNotice = previewNotice({ reminder: reminderOnOverview, warning: warningOnOverview });
+        costPreview.innerHTML = overviewNotice ? `<span class="preview-alert ${overviewNotice.level}">${escapeHtml(overviewNotice.text)}</span>` : '';
+      }
+      if (popupPreviewNotices) {
+        const popupNotice = previewNotice({ reminder: reminderInPopup, warning: warningInPopup });
+        const cards = [];
+        if (popupNotice) {
+          cards.push(`<div class="popup-preview-notice ${popupNotice.level}"><strong>${escapeHtml(popupNotice.label)}</strong>${escapeHtml(popupNotice.text)}</div>`);
         }
-        else if (warningOn) {
-          noticeValues.limit = money(Number.isFinite(warningLimit) ? warningLimit : 30);
-          const text = applyNoticeTemplate(document.getElementById('costWarningTemplate')?.value || APPEARANCE_DEFAULTS.cost_warning_template, noticeValues);
-          costPreview.innerHTML = `<span class="preview-alert">${escapeHtml(text)}</span>`;
+        if (messageInPopup) {
+          cards.push('<div class="popup-preview-notice message"><strong>Nachricht</strong>Bitte beim nächsten Mal ausgleichen.<br><button type="button">Verstanden</button></div>');
         }
-        else costPreview.innerHTML = '';
+        popupPreviewNotices.innerHTML = cards.join('');
       }
       document.getElementById('popupPreviewTotal').classList.toggle('hidden', !document.getElementById('showPersonPopupTotal').checked);
       document.getElementById('popupPreviewDeletePanel').classList.toggle('hidden', !document.getElementById('enableDeleteRequests').checked);
@@ -2320,14 +2356,14 @@
       document.getElementById('drinkCelebrationDebtThreshold').value = formatDecimalInputValue(APPEARANCE_DEFAULTS.drink_celebration_debt_threshold_eur);
       document.getElementById('drinkConfettiIntensitySlider').value = APPEARANCE_DEFAULTS.drink_celebration_confetti_intensity_percent;
       document.getElementById('drinkCelebrationSound').checked = APPEARANCE_DEFAULTS.drink_celebration_sound_enabled;
-      document.getElementById('costWarningEnabled').checked = APPEARANCE_DEFAULTS.cost_warning_enabled;
       document.getElementById('costWarningThreshold').value = formatDecimalInputValue(APPEARANCE_DEFAULTS.cost_warning_threshold_eur);
       document.getElementById('costWarningTemplate').value = APPEARANCE_DEFAULTS.cost_warning_template;
-      document.getElementById('paymentReminderEnabled').checked = APPEARANCE_DEFAULTS.payment_reminder_enabled;
+      document.getElementById('costWarningShowOnOverview').checked = APPEARANCE_DEFAULTS.cost_warning_show_on_overview;
+      document.getElementById('costWarningShowInPopup').checked = APPEARANCE_DEFAULTS.cost_warning_show_in_popup;
       document.getElementById('paymentReminderThreshold').value = formatDecimalInputValue(APPEARANCE_DEFAULTS.payment_reminder_threshold_eur);
       document.getElementById('paymentReminderTemplate').value = APPEARANCE_DEFAULTS.payment_reminder_template;
-      document.getElementById('costNoticeShowOnOverview').checked = APPEARANCE_DEFAULTS.cost_notice_show_on_overview;
-      document.getElementById('costNoticeShowInPopup').checked = APPEARANCE_DEFAULTS.cost_notice_show_in_popup;
+      document.getElementById('paymentReminderShowOnOverview').checked = APPEARANCE_DEFAULTS.payment_reminder_show_on_overview;
+      document.getElementById('paymentReminderShowInPopup').checked = APPEARANCE_DEFAULTS.payment_reminder_show_in_popup;
       document.getElementById('memberMessagesShowOnOverview').checked = APPEARANCE_DEFAULTS.member_messages_show_on_overview;
       document.getElementById('memberMessagesShowInPopup').checked = APPEARANCE_DEFAULTS.member_messages_show_in_popup;
       renderAppearancePreview();
@@ -2363,14 +2399,14 @@
       const drink_celebration_debt_threshold_eur = parseDecimalInput(document.getElementById('drinkCelebrationDebtThreshold').value || '50');
       const drink_celebration_confetti_intensity_percent = Number(document.getElementById('drinkConfettiIntensitySlider').value || 100);
       const drink_celebration_sound_enabled = document.getElementById('drinkCelebrationSound').checked;
-      const cost_warning_enabled = document.getElementById('costWarningEnabled').checked;
       const cost_warning_threshold_eur = parseDecimalInput(document.getElementById('costWarningThreshold').value || '30');
       const cost_warning_template = document.getElementById('costWarningTemplate').value.trim() || APPEARANCE_DEFAULTS.cost_warning_template;
-      const payment_reminder_enabled = document.getElementById('paymentReminderEnabled').checked;
       const payment_reminder_threshold_eur = parseDecimalInput(document.getElementById('paymentReminderThreshold').value || '50');
       const payment_reminder_template = document.getElementById('paymentReminderTemplate').value.trim() || APPEARANCE_DEFAULTS.payment_reminder_template;
-      const cost_notice_show_on_overview = document.getElementById('costNoticeShowOnOverview').checked;
-      const cost_notice_show_in_popup = document.getElementById('costNoticeShowInPopup').checked;
+      const cost_warning_show_on_overview = document.getElementById('costWarningShowOnOverview').checked;
+      const cost_warning_show_in_popup = document.getElementById('costWarningShowInPopup').checked;
+      const payment_reminder_show_on_overview = document.getElementById('paymentReminderShowOnOverview').checked;
+      const payment_reminder_show_in_popup = document.getElementById('paymentReminderShowInPopup').checked;
       const member_messages_show_on_overview = document.getElementById('memberMessagesShowOnOverview').checked;
       const member_messages_show_in_popup = document.getElementById('memberMessagesShowInPopup').checked;
       const enable_delete_requests = document.getElementById('enableDeleteRequests').checked;
@@ -2379,7 +2415,7 @@
       const person_card_border_color = document.getElementById('personBorderColor').value || '#bfdbfe';
       const person_card_border_width_px = Number(document.getElementById('personBorderWidthSlider').value || 2);
       const person_card_gap_px = Number(document.getElementById('personGapSlider').value || 10);
-      try { await apiFetch('/api/admin/settings/update', {pin: adminPin, show_total_on_overview, show_person_popup_total, show_summary_label_on_overview, overview_summary_label_text, overview_summary_size_percent, tally_roughness, overview_name_size_px, tally_size_percent, show_sync_status, sync_status_size_percent, drink_feedback_enabled, drink_booking_sound_enabled, drink_booking_sound_preset, drink_feedback_style, drink_feedback_duration_ms, drink_feedback_animation_intensity_percent, drink_feedback_position, drink_celebration_mode, drink_celebration_condition_round, drink_celebration_condition_debt, drink_celebration_debt_threshold_eur, drink_celebration_confetti_intensity_percent, drink_celebration_sound_enabled, cost_warning_enabled, cost_warning_threshold_eur, cost_warning_template, payment_reminder_enabled, payment_reminder_threshold_eur, payment_reminder_template, cost_notice_show_on_overview, cost_notice_show_in_popup, member_messages_show_on_overview, member_messages_show_in_popup, enable_delete_requests, app_background_color, person_card_background_color, person_card_border_color, person_card_border_width_px, person_card_gap_px}); showStatus(successText); await loadOverview(); } catch (err) { alert(err.message); }
+      try { await apiFetch('/api/admin/settings/update', {pin: adminPin, show_total_on_overview, show_person_popup_total, show_summary_label_on_overview, overview_summary_label_text, overview_summary_size_percent, tally_roughness, overview_name_size_px, tally_size_percent, show_sync_status, sync_status_size_percent, drink_feedback_enabled, drink_booking_sound_enabled, drink_booking_sound_preset, drink_feedback_style, drink_feedback_duration_ms, drink_feedback_animation_intensity_percent, drink_feedback_position, drink_celebration_mode, drink_celebration_condition_round, drink_celebration_condition_debt, drink_celebration_debt_threshold_eur, drink_celebration_confetti_intensity_percent, drink_celebration_sound_enabled, cost_warning_threshold_eur, cost_warning_template, cost_warning_show_on_overview, cost_warning_show_in_popup, payment_reminder_threshold_eur, payment_reminder_template, payment_reminder_show_on_overview, payment_reminder_show_in_popup, member_messages_show_on_overview, member_messages_show_in_popup, enable_delete_requests, app_background_color, person_card_background_color, person_card_border_color, person_card_border_width_px, person_card_gap_px}); showStatus(successText); await loadOverview(); } catch (err) { alert(err.message); }
     }
 
     async function saveOverviewSettings() { return saveAppearanceSettings(); }
