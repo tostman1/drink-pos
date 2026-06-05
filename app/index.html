@@ -310,10 +310,13 @@
     let drinkCelebrationSoundEnabled = true;
     let drinkBookingSoundEnabled = true;
     let drinkBookingSoundPreset = 'warm';
+    let roundItemPriceEur = 10;
     let costWarningEnabled = true;
     let costWarningThresholdEur = 30;
+    let costWarningTemplate = 'Offen: {betrag}. Grenze {limit} erreicht.';
     let paymentReminderEnabled = true;
     let paymentReminderThresholdEur = 50;
+    let paymentReminderTemplate = 'Offen: {betrag}. Bitte bei Gelegenheit bezahlen.';
     let costNoticeShowOnOverview = true;
     let costNoticeShowInPopup = true;
     let memberMessagesShowOnOverview = true;
@@ -345,6 +348,9 @@
     function decimalText(value, digits = 2) { return numberComma(value, digits, digits); }
     function normalizeDecimalText(text) {
       return String(text ?? '').replace(/(€\s*-?\d+)\.(\d{1,2})(?=\D|$)/g, '$1,$2');
+    }
+    function applyNoticeTemplate(template, values) {
+      return String(template || '').replace(/\{(betrag|limit|person|rundenpreis)\}/g, (_, key) => values[key] ?? '');
     }
     function escapeHtml(value) { return String(value ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#039;'); }
     function showStatus(text) { const el = document.getElementById('status'); el.textContent = text; el.style.display = 'block'; clearTimeout(window.statusTimer); window.statusTimer = setTimeout(() => { el.style.display = 'none'; }, 2400); }
@@ -695,10 +701,13 @@
       drinkCelebrationSoundEnabled = cfg.drink_celebration_sound_enabled !== false;
       drinkBookingSoundEnabled = cfg.drink_booking_sound_enabled !== false;
       drinkBookingSoundPreset = bookingSoundPresetKey(cfg.drink_booking_sound_preset || 'warm');
+      roundItemPriceEur = Math.max(0, Number(cfg.round_item_price_eur ?? 10));
       costWarningEnabled = cfg.cost_warning_enabled !== false;
       costWarningThresholdEur = Math.max(0, Number(cfg.cost_warning_threshold_eur ?? 30));
+      costWarningTemplate = cfg.cost_warning_template || 'Offen: {betrag}. Grenze {limit} erreicht.';
       paymentReminderEnabled = cfg.payment_reminder_enabled !== false;
       paymentReminderThresholdEur = Math.max(0, Number(cfg.payment_reminder_threshold_eur ?? 50));
+      paymentReminderTemplate = cfg.payment_reminder_template || 'Offen: {betrag}. Bitte bei Gelegenheit bezahlen.';
       costNoticeShowOnOverview = cfg.cost_notice_show_on_overview !== false;
       costNoticeShowInPopup = cfg.cost_notice_show_in_popup !== false;
       memberMessagesShowOnOverview = cfg.member_messages_show_on_overview !== false;
@@ -1079,18 +1088,27 @@
 
     function costNoticeForPerson(person) {
       const total = Number(person?.total || 0);
+      const personName = person?.name || [person?.last_name, person?.first_name].filter(Boolean).join(' ') || '';
+      const noticeValues = {
+        betrag: money(total),
+        limit: money(costWarningThresholdEur),
+        person: personName,
+        rundenpreis: money(roundItemPriceEur)
+      };
       if (paymentReminderEnabled && total >= paymentReminderThresholdEur) {
+        noticeValues.limit = money(paymentReminderThresholdEur);
         return {
           level: 'reminder',
           label: 'Zahlungserinnerung',
-          text: `Offen: ${money(total)}. Bitte bei Gelegenheit bezahlen.`,
+          text: applyNoticeTemplate(paymentReminderTemplate, noticeValues),
         };
       }
       if (costWarningEnabled && total >= costWarningThresholdEur) {
+        noticeValues.limit = money(costWarningThresholdEur);
         return {
           level: 'warning',
           label: 'Kostenwarnung',
-          text: `Offen: ${money(total)}. Grenze ${money(costWarningThresholdEur)} erreicht.`,
+          text: applyNoticeTemplate(costWarningTemplate, noticeValues),
         };
       }
       return null;
@@ -1103,7 +1121,7 @@
     function renderPersonAlertBadges(person) {
       const badges = [];
       const notice = costNoticeForPerson(person);
-      if (costNoticeShowOnOverview && notice) badges.push(`<span class="person-alert ${notice.level}">${notice.level === 'reminder' ? 'Zahlung' : 'Warnung'}: ${money(person.total)}</span>`);
+      if (costNoticeShowOnOverview && notice) badges.push(`<span class="person-alert ${notice.level}"><span class="person-alert-title">${escapeHtml(notice.text)}</span></span>`);
       const messages = memberMessagesForPerson(person);
       const messageCount = Number(person?.member_message_count ?? messages.length);
       if (memberMessagesShowOnOverview && messageCount > 0) {

@@ -49,6 +49,7 @@ services:
       DRINK_POS_BACKUP_DIR: /app/data/backups
 
     # Jeden Freitag um 03:00 ein CSV-Backup der bestehenden DB schreiben.
+    # /app bleibt Teil des Images; auf Synology darf nur ./data gemountet werden.
     command: >
       sh -c "echo 'Drink POS backup scheduler active: Friday 03:00';
              while true; do

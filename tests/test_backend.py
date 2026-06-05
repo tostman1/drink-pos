@@ -261,11 +261,23 @@ class BackendFlowTests(unittest.TestCase):
             self.main.MemberMessageAckRequest(person_id=people[0]["id"], message_id=message_id)
         )
         self.assertEqual(ack["status"], "ok")
+        self.assertFalse(ack["archived"])
 
         first_after = next(person for person in self.main.list_people() if person["id"] == people[0]["id"])
         second_after = next(person for person in self.main.list_people() if person["id"] == people[1]["id"])
         self.assertEqual(first_after["member_message_count"], 0)
         self.assertEqual(second_after["member_message_count"], 1)
+
+        final_ack = self.main.acknowledge_member_message(
+            self.main.MemberMessageAckRequest(person_id=people[1]["id"], message_id=message_id)
+        )
+        self.assertEqual(final_ack["status"], "ok")
+        self.assertTrue(final_ack["archived"])
+
+        final_second = next(person for person in self.main.list_people() if person["id"] == people[1]["id"])
+        overview = self.main.admin_overview(self.main.PinRequest(pin=PIN))
+        self.assertEqual(final_second["member_message_count"], 0)
+        self.assertNotIn(message_id, {message["id"] for message in overview["member_messages"]})
 
     def test_production_blocks_default_pin_login(self):
         original_env = self.main.APP_ENV

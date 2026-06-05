@@ -88,6 +88,19 @@ keine `drink_pos.db` vorhanden ist. Beim Start werden Tabellen und fehlende Spal
 `CREATE TABLE IF NOT EXISTS` bzw. Migrationen ergaenzt; die bestehende DB-Datei wird nicht
 geloescht oder ersetzt. Backups werden freitags um 03:00 nach `data/backups` geschrieben.
 
+Synology darf keinen Host-Ordner auf `/app` mounten. `/app` gehoert komplett dem Container-Image:
+dort liegen `main.py`, `backup_database.py` und die Webdateien. Ein leerer Host-Ordner wie
+`/volume1/docker/drink-pos/app` wuerde diesen Image-Inhalt verdecken und fuehrt zu Fehlern wie
+`/app/backup_database.py not found`. In der Compose-Datei ist deshalb nur dieses Volume korrekt:
+
+```yaml
+volumes:
+  - ./data:/app/data
+```
+
+`DRINK_POS_BACKUP_DIR: /app/data/backups` liegt damit auf dem NAS unter
+`/volume1/docker/drink-pos/data/backups`, also direkt neben der Datenbank.
+
 ## Podman-Instanz starten
 
 Auf jeder Instanz:

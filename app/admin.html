@@ -240,7 +240,7 @@
       <h2>Admin-PIN</h2>
       <input id="pinInput" type="password" placeholder="PIN eingeben" onkeydown="if(event.key==='Enter') login()">
       <button class="save" onclick="login()">Einloggen</button>
-      <div class="muted">Diese Seite ist für Namen, Artikel/Preise, Einstellungen, Exporte und den ausführlichen Verlauf.</div>
+      <div class="muted">Diese Seite ist für Namen, Artikel/Preise, Einstellungen, Nachrichten, Verlauf und Export.</div>
     </section>
 
     <section id="adminContent" style="display:none">
@@ -252,10 +252,10 @@
         <button id="tabPeople" class="active" onclick="showTab('people')">Namen</button>
         <button id="tabItems" onclick="showTab('items')">Artikel & Preise</button>
         <button id="tabSettings" onclick="showTab('settings')">Einstellungen</button>
+        <button id="tabMessages" onclick="showTab('messages')">Nachrichten</button>
         <button id="tabAppearance" onclick="showTab('appearance')">Darstellung</button>
         <button id="tabStats" onclick="showTab('stats')">Statistik</button>
-        <button id="tabHistory" onclick="showTab('history')">Verlauf</button>
-        <button id="tabExports" onclick="showTab('exports')">Exporte</button>
+        <button id="tabHistory" onclick="showTab('history')">Verlauf & Export</button>
       </div>
 
       <section id="peopleSection" class="card section active">
@@ -286,7 +286,14 @@
           <label><input id="newItemAdminOnly" type="checkbox" style="width:auto"> Admin</label>
           <button class="save" onclick="createItem()">Anlegen</button>
         </div>
-        <div class="muted">Admin-Artikel sind auf Rechnungen sichtbar, können aber von normalen Benutzern nicht hinzugefügt oder gelöscht werden. „1 Runde“ wird separat unter Einstellungen verwaltet.</div>
+        <div class="muted">Admin-Artikel sind auf Rechnungen sichtbar, können aber von normalen Benutzern nicht hinzugefügt oder gelöscht werden.</div>
+        <hr style="border:0; border-top:1px solid var(--border); margin:16px 0">
+        <h3>Rundenpreis</h3>
+        <div class="grid settings-grid">
+          <input id="roundPrice" type="text" inputmode="decimal" data-decimal-input data-decimal-digits="2" placeholder="Preis €">
+          <button class="save" onclick="saveRoundPrice()">Rundenpreis speichern</button>
+          <span class="muted">„1 Runde“ ist kein normaler Artikel. Der EK/Gewinn wird aus den tatsächlich abgezogenen Getränken berechnet.</span>
+        </div>
         <div class="list-tools item-tools">
           <label><input id="itemOnlyAdmin" type="checkbox" onchange="renderItems()"> Nur Admin-Artikel</label>
           <label><input id="itemShowArchived" type="checkbox" onchange="renderItems()"> Archivierte anzeigen</label>
@@ -303,37 +310,6 @@
           <button class="save" onclick="saveAppName()">App-Name speichern</button>
           <span class="muted">Dieser Name erscheint in der Kassenansicht und als Seitentitel.</span>
         </div>
-        <hr style="border:0; border-top:1px solid var(--border); margin:16px 0">
-        <h3>Rundenpreis</h3>
-        <div class="grid settings-grid">
-          <input id="roundPrice" type="text" inputmode="decimal" data-decimal-input data-decimal-digits="2" placeholder="Preis €">
-          <button class="save" onclick="saveRoundPrice()">Rundenpreis speichern</button>
-          <span class="muted">„1 Runde“ ist kein normaler Artikel. Der EK/Gewinn wird aus den tatsächlich abgezogenen Getränken berechnet.</span>
-        </div>
-        <hr style="border:0; border-top:1px solid var(--border); margin:16px 0">
-        <details class="appearance-group settings-accordion" open>
-          <summary>Nachrichten an Mitglieder</summary>
-          <div class="settings-accordion-content message-admin">
-            <div class="message-tools">
-              <label><input id="memberMessagesShowOnOverview" type="checkbox" style="width:auto"> In Standardansicht anzeigen</label>
-              <label><input id="memberMessagesShowInPopup" type="checkbox" style="width:auto"> Im Personen-Popup anzeigen</label>
-              <button type="button" class="save" onclick="saveAppearanceSettings('Nachrichten-Anzeige gespeichert')">Anzeige speichern</button>
-            </div>
-            <div class="grid" style="grid-template-columns:minmax(180px,260px) 1fr; gap:8px">
-              <input id="memberMessageTitle" placeholder="Titel, z. B. Bitte bezahlen">
-              <textarea id="memberMessageText" placeholder="Nachricht, die im Personen-Popup angezeigt wird"></textarea>
-            </div>
-            <div class="message-tools">
-              <button type="button" onclick="toggleMemberMessageRecipients(true)">Alle aktiven auswählen</button>
-              <button type="button" onclick="toggleMemberMessageRecipients(false)">Auswahl leeren</button>
-              <button class="save" type="button" onclick="createMemberMessage()">Nachricht anzeigen</button>
-            </div>
-            <div id="memberMessagePeople" class="message-people"></div>
-            <div class="muted">Mitglieder können die Nachricht im Kassen-Popup mit „Verstanden“ bestätigen. Danach wird sie für diese Person nicht mehr angezeigt.</div>
-            <h3>Aktive Nachrichten</h3>
-            <div id="memberMessageList" class="message-list"></div>
-          </div>
-        </details>
         <div id="appearanceSettingsBlock">
         <h3>Standardansicht</h3>
         <div class="settings-view-toggle">
@@ -420,9 +396,19 @@
                 <span class="default-note">Standard: eingeschaltet ab € 30,00</span>
               </div>
               <div class="setting-line">
+                <label for="costWarningTemplate">Text der Kostenwarnung</label>
+                <textarea id="costWarningTemplate" rows="2" oninput="renderAppearancePreview()" placeholder="Offen: {betrag}. Grenze {limit} erreicht."></textarea>
+                <span class="default-note">Platzhalter: {betrag}, {limit}, {person}, {rundenpreis}</span>
+              </div>
+              <div class="setting-line">
                 <label><input id="paymentReminderEnabled" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Zahlungserinnerung anzeigen</label>
                 <input id="paymentReminderThreshold" type="text" inputmode="decimal" data-decimal-input data-decimal-digits="2" placeholder="50,00" oninput="renderAppearancePreview()">
                 <span class="default-note">Standard: eingeschaltet ab € 50,00</span>
+              </div>
+              <div class="setting-line">
+                <label for="paymentReminderTemplate">Text der Zahlungserinnerung</label>
+                <textarea id="paymentReminderTemplate" rows="2" oninput="renderAppearancePreview()" placeholder="Offen: {betrag}. Bitte bei Gelegenheit bezahlen."></textarea>
+                <span class="default-note">Platzhalter: {betrag}, {limit}, {person}, {rundenpreis}</span>
               </div>
               <div class="setting-line">
                 <label><input id="costNoticeShowOnOverview" type="checkbox" style="width:auto" onchange="renderAppearancePreview()"> Kostenhinweise in Standardansicht anzeigen</label>
@@ -608,6 +594,31 @@
         <div class="muted" id="settingsInfo" style="margin-top:12px"></div>
       </section>
 
+      <section id="messagesSection" class="card section">
+        <h2>Nachrichten</h2>
+        <div class="muted" style="margin-bottom:12px">Nachrichten an ausgewählte Mitglieder. Sobald alle Empfänger „Verstanden“ gedrückt haben, verschwindet die Nachricht automatisch aus den aktiven Nachrichten.</div>
+        <div class="message-admin">
+          <div class="message-tools">
+            <label><input id="memberMessagesShowOnOverview" type="checkbox" style="width:auto"> In Standardansicht anzeigen</label>
+            <label><input id="memberMessagesShowInPopup" type="checkbox" style="width:auto"> Im Personen-Popup anzeigen</label>
+            <button type="button" class="save" onclick="saveAppearanceSettings('Nachrichten-Anzeige gespeichert')">Anzeige speichern</button>
+          </div>
+          <div class="grid" style="grid-template-columns:minmax(180px,260px) 1fr; gap:8px">
+            <input id="memberMessageTitle" placeholder="Titel, z. B. Bitte bezahlen">
+            <textarea id="memberMessageText" placeholder="Nachricht, die im Personen-Popup angezeigt wird"></textarea>
+          </div>
+          <div class="message-tools">
+            <button type="button" onclick="toggleMemberMessageRecipients(true)">Alle aktiven auswählen</button>
+            <button type="button" onclick="toggleMemberMessageRecipients(false)">Auswahl leeren</button>
+            <button class="save" type="button" onclick="createMemberMessage()">Nachricht anzeigen</button>
+          </div>
+          <div id="memberMessagePeople" class="message-people"></div>
+          <div class="muted">Mitglieder bestätigen die Nachricht im Kassen-Popup mit „Verstanden“. Danach wird sie für diese Person nicht mehr angezeigt.</div>
+          <h3>Aktive Nachrichten</h3>
+          <div id="memberMessageList" class="message-list"></div>
+        </div>
+      </section>
+
       <section id="appearanceSection" class="card section">
         <h2>Darstellung</h2>
         <div class="muted" style="margin-bottom:12px">GUI-Einstellungen für Kassenansicht, Personen-Popup, Strichliste, Farben und Sync-Anzeige.</div>
@@ -655,7 +666,7 @@
             <div class="stats-panel-header">
               <div>
                 <h3>Offen nach Person</h3>
-                <div class="muted">Die höchsten offenen Beträge</div>
+                <div class="muted">Aktueller Gesamtstand aller offenen Posten</div>
               </div>
             </div>
             <div id="statsOpenPeople" class="stats-bar-list"></div>
@@ -738,9 +749,7 @@
             <tbody id="historyBody"></tbody>
           </table>
         </div>
-      </section>
-
-      <section id="exportsSection" class="card section">
+        <hr style="border:0; border-top:1px solid var(--border); margin:18px 0">
         <h2>Berichte & CSV-Exporte</h2>
         <div class="report-grid">
           <label>Bericht
@@ -855,8 +864,10 @@
       drink_celebration_sound_enabled: true,
       cost_warning_enabled: true,
       cost_warning_threshold_eur: 30,
+      cost_warning_template: 'Offen: {betrag}. Grenze {limit} erreicht.',
       payment_reminder_enabled: true,
       payment_reminder_threshold_eur: 50,
+      payment_reminder_template: 'Offen: {betrag}. Bitte bei Gelegenheit bezahlen.',
       cost_notice_show_on_overview: true,
       cost_notice_show_in_popup: true,
       member_messages_show_on_overview: true,
@@ -888,6 +899,9 @@
     function formatDecimalInputValue(value, digits = 2) {
       const n = parseDecimalInput(value);
       return Number.isFinite(n) ? decimalText(n, digits) : '';
+    }
+    function applyNoticeTemplate(template, values) {
+      return String(template || '').replace(/\{(betrag|limit|person|rundenpreis)\}/g, (_, key) => values[key] ?? '');
     }
     function normalizeDecimalInputField(input, { fixed = false } = {}) {
       const before = input.value;
@@ -1256,6 +1270,7 @@
     function typeLabel(type) {
       const labels = {
         CONSUME: 'Konsum', CONSUMPTION: 'Konsum', PAID_CASH: 'Bar bezahlt', PAID: 'Bezahlt',
+        CASHUP: 'Kassensturz',
         ROUND_DEDUCTED: 'Runde abgezogen', ROUND_REQUEST: 'Runde angefragt',
         ROUND_REQUEST_APPROVED: 'Runde bestätigt', ROUND_REQUEST_REJECTED: 'Rundenanfrage abgelehnt',
         ADMIN_ADJUSTMENT: 'Admin-Korrektur', CHANGE_REQUEST: 'Löschanfrage',
@@ -1295,7 +1310,7 @@
     }
 
     function showTab(name) {
-      for (const t of ['people','items','settings','appearance','stats','history','exports']) {
+      for (const t of ['people','items','settings','messages','appearance','stats','history']) {
         document.getElementById(`${t}Section`).classList.toggle('active', t === name);
         document.getElementById(`tab${t[0].toUpperCase()+t.slice(1)}`).classList.toggle('active', t === name);
       }
@@ -1387,15 +1402,15 @@
       renderStatsMetrics(data);
       renderStatsBars('statsTopItems', data.top_items || [], {
         value: row => Number(row.quantity || 0),
-        valueText: row => `${Number(row.quantity || 0)} · ${money(row.vk_value_eur || 0)}`,
+        valueText: row => `${money(row.vk_value_eur || 0)} · ${Number(row.quantity || 0)} Striche`,
         label: row => row.item || 'Unbekannt',
         note: row => `EK ${money(row.cost_eur || 0)} · Differenz ${money(row.profit_eur || 0)}`
       });
       renderStatsBars('statsOpenPeople', data.open_people || [], {
         value: row => Number(row.open_total_eur || 0),
-        valueText: row => money(row.open_total_eur || 0),
+        valueText: row => `${money(row.open_total_eur || 0)} · ${Number(row.open_items || 0)} Striche`,
         label: row => row.person || 'Unbekannt',
-        note: row => `${Number(row.open_items || 0)} offene Striche${row.archived ? ' · archiviert' : ''}`
+        note: row => `Alle offenen Posten${row.archived ? ' · archiviert' : ''}`
       });
       renderFinanceTimeline(data.finance_by_date || []);
       renderStatsRounds(data.rounds || {});
@@ -1426,7 +1441,7 @@
           </div>
         </div>
         <div class="stats-summary-card">
-          <div class="stats-summary-title">Offen</div>
+          <div class="stats-summary-title">Aktuell offen</div>
           <div class="stats-summary-value">${money(open.total_eur || 0)}</div>
           <div class="metric-note">${Number(open.items || 0)} offene Striche insgesamt</div>
           <div class="stats-summary-grid">
@@ -1454,7 +1469,7 @@
       const insights = [];
       if (topItem) {
         const share = Number(k.quantity || 0) > 0 ? Number(topItem.quantity || 0) / Number(k.quantity || 0) * 100 : 0;
-        insights.push(['Top-Artikel', `${topItem.item || 'Unbekannt'} macht ${percent(share)} der Striche aus.`, `${Number(topItem.quantity || 0)} Striche · ${money(topItem.vk_value_eur || 0)}`]);
+        insights.push(['Top-Artikel', `${topItem.item || 'Unbekannt'} macht ${percent(share)} der Striche aus.`, `${money(topItem.vk_value_eur || 0)} · ${Number(topItem.quantity || 0)} Striche`]);
       }
       if (topOpen) {
         insights.push(['Größter offener Betrag', `${topOpen.person || 'Unbekannt'} hat aktuell am meisten offen.`, `${money(topOpen.open_total_eur || 0)} · ${Number(topOpen.open_items || 0)} Striche`]);
@@ -1477,7 +1492,7 @@
       const event = data.event || {};
       const rounds = data.rounds || {};
       const cards = [
-        ['Offen gesamt', money(open.total_eur || 0), `${Number(open.items || 0)} offene Striche`],
+        ['Aktuell offen', money(open.total_eur || 0), `${Number(open.items || 0)} offene Striche insgesamt`],
         ['Aktuelle Strichliste', money(event.total_eur || 0), `${Number(event.items || 0)} offene Striche seit Kassensturz`],
         ['Verbrauch', `${Number(k.quantity || 0)}`, `${money(k.vk_value_eur || 0)} VK-Wert`],
         ['Bar bezahlt', money(k.revenue_eur || 0), 'nach Zahlungsdatum'],
@@ -1626,8 +1641,7 @@
       const notes = [];
       if (s.pin_default_warning && s.production) notes.push('Wichtig: Die Standard-PIN 1234 ist in Produktion gesperrt. Setze vor produktivem Zugriff eine eigene PIN.');
       else if (s.pin_default_warning) notes.push('Hinweis: Die Standard-PIN 1234 ist noch aktiv.');
-      if (s.production) notes.push('Produktionsmodus ist aktiv; Testdaten sind deaktiviert.');
-      else notes.push('Entwicklungsmodus ist aktiv; Testdaten sind erlaubt.');
+      if (!s.production) notes.push('Entwicklungsmodus ist aktiv; Testdaten sind erlaubt.');
       w.innerHTML = notes.map(escapeHtml).join('<br>');
       w.style.display = notes.length ? 'block' : 'none';
     }
@@ -1647,9 +1661,15 @@
       const archivedItems = items.filter(i => i.archived).length;
       const s = overview.settings || {};
       const envLabel = s.production ? 'Produktion' : 'Entwicklung';
+      const modeCard = s.production ? '' : `
+        <div class="metric-card">
+          <div class="metric-label">Modus</div>
+          <div class="metric-value">${escapeHtml(envLabel)}</div>
+          <div class="metric-note">${s.pin_default_warning ? 'Standard-PIN aktiv' : 'PIN geändert'}</div>
+        </div>`;
       box.innerHTML = `
         <div class="metric-card">
-          <div class="metric-label">Offene Summe</div>
+          <div class="metric-label">Aktuell offen</div>
           <div class="metric-value">${money(openTotal)}</div>
           <div class="metric-note">${openPeople.length} Namen mit offenen Posten</div>
         </div>
@@ -1668,11 +1688,7 @@
           <div class="metric-value">${activeItems}</div>
           <div class="metric-note">${adminItems} Admin · ${archivedItems} archiviert</div>
         </div>
-        <div class="metric-card">
-          <div class="metric-label">Modus</div>
-          <div class="metric-value">${escapeHtml(envLabel)}</div>
-          <div class="metric-note">${s.pin_default_warning ? 'Standard-PIN aktiv' : 'PIN geändert'}</div>
-        </div>`;
+        ${modeCard}`;
     }
 
     function renderPeople() {
@@ -1781,8 +1797,10 @@
       document.getElementById('drinkCelebrationSound').checked = s.drink_celebration_sound_enabled !== false;
       document.getElementById('costWarningEnabled').checked = s.cost_warning_enabled !== false;
       document.getElementById('costWarningThreshold').value = formatDecimalInputValue(s.cost_warning_threshold_eur ?? 30);
+      document.getElementById('costWarningTemplate').value = s.cost_warning_template || APPEARANCE_DEFAULTS.cost_warning_template;
       document.getElementById('paymentReminderEnabled').checked = s.payment_reminder_enabled !== false;
       document.getElementById('paymentReminderThreshold').value = formatDecimalInputValue(s.payment_reminder_threshold_eur ?? 50);
+      document.getElementById('paymentReminderTemplate').value = s.payment_reminder_template || APPEARANCE_DEFAULTS.payment_reminder_template;
       document.getElementById('costNoticeShowOnOverview').checked = s.cost_notice_show_on_overview !== false;
       document.getElementById('costNoticeShowInPopup').checked = s.cost_notice_show_in_popup !== false;
       document.getElementById('memberMessagesShowOnOverview').checked = s.member_messages_show_on_overview !== false;
@@ -1889,7 +1907,7 @@
     }
 
     function preferredHistoryTypes() {
-      return ['CONSUME','PAID_CASH','ROUND_DEDUCTED','ROUND_REQUEST','ROUND_REQUEST_APPROVED','ROUND_REQUEST_REJECTED','ADMIN_ADJUSTMENT','CHANGE_REQUEST','CHANGE_APPROVED','CHANGE_REJECTED','PERSON_CREATED','PERSON_UPDATED','PERSON_DELETED','ITEM_CREATED','ITEM_UPDATED','ITEM_DELETED','SETTINGS_UPDATED','MEMBER_MESSAGE_CREATED','MEMBER_MESSAGE_ARCHIVED','MEMBER_MESSAGE_ACK','CONNECTION_LOST','CONNECTION_RESTORED','SYNC_COMPLETED','DEBUG_TEST_DATA'];
+      return ['CONSUME','PAID_CASH','PAID','CASHUP','ROUND_DEDUCTED','ROUND_REQUEST','ROUND_REQUEST_APPROVED','ROUND_REQUEST_REJECTED','ADMIN_ADJUSTMENT','CHANGE_REQUEST','CHANGE_APPROVED','CHANGE_REJECTED','PERSON_CREATED','PERSON_UPDATED','PERSON_DELETED','ITEM_CREATED','ITEM_UPDATED','ITEM_DELETED','SETTINGS_UPDATED','MEMBER_MESSAGE_CREATED','MEMBER_MESSAGE_ARCHIVED','MEMBER_MESSAGE_ACK','CONNECTION_LOST','CONNECTION_RESTORED','SYNC_COMPLETED','DEBUG_TEST_DATA'];
     }
 
     function currentRenderedTypeSet() {
@@ -1932,7 +1950,13 @@
     function renderTypeFilter(types) {
       const box = document.getElementById('filterTypesBox');
       if (!box) return;
-      const all = [...new Set([...preferredHistoryTypes(), ...(types || [])].filter(Boolean))];
+      const preferred = preferredHistoryTypes();
+      const all = [...new Set((types || []).filter(Boolean))].sort((a, b) => {
+        const ai = preferred.indexOf(a);
+        const bi = preferred.indexOf(b);
+        if (ai !== -1 || bi !== -1) return (ai === -1 ? 9999 : ai) - (bi === -1 ? 9999 : bi);
+        return typeLabel(a).localeCompare(typeLabel(b), 'de');
+      });
       renderedHistoryTypes = all;
       const selected = historyTypeSelection === null ? new Set(all) : new Set([...historyTypeSelection].filter(t => all.includes(t)));
       box.innerHTML = all.map(t => `
@@ -2231,10 +2255,28 @@
       const reminderOn = document.getElementById('paymentReminderEnabled')?.checked;
       const warningOn = document.getElementById('costWarningEnabled')?.checked;
       const costOnOverview = document.getElementById('costNoticeShowOnOverview')?.checked;
+      const previewAmount = 42;
+      const roundPrice = parseDecimalInput(document.getElementById('roundPrice')?.value || '10');
+      const reminderLimit = parseDecimalInput(document.getElementById('paymentReminderThreshold')?.value || '50');
+      const warningLimit = parseDecimalInput(document.getElementById('costWarningThreshold')?.value || '30');
+      const noticeValues = {
+        betrag: money(previewAmount),
+        limit: money(Number.isFinite(reminderLimit) ? reminderLimit : 50),
+        person: 'Max Mustermann',
+        rundenpreis: money(Number.isFinite(roundPrice) ? roundPrice : 10)
+      };
       if (costPreview) {
         if (!costOnOverview) costPreview.innerHTML = '';
-        else if (reminderOn) costPreview.innerHTML = '<span class="preview-alert reminder">Zahlungserinnerung: € 42,00</span>';
-        else if (warningOn) costPreview.innerHTML = '<span class="preview-alert">Kostenwarnung: € 42,00</span>';
+        else if (reminderOn) {
+          noticeValues.limit = money(Number.isFinite(reminderLimit) ? reminderLimit : 50);
+          const text = applyNoticeTemplate(document.getElementById('paymentReminderTemplate')?.value || APPEARANCE_DEFAULTS.payment_reminder_template, noticeValues);
+          costPreview.innerHTML = `<span class="preview-alert reminder">${escapeHtml(text)}</span>`;
+        }
+        else if (warningOn) {
+          noticeValues.limit = money(Number.isFinite(warningLimit) ? warningLimit : 30);
+          const text = applyNoticeTemplate(document.getElementById('costWarningTemplate')?.value || APPEARANCE_DEFAULTS.cost_warning_template, noticeValues);
+          costPreview.innerHTML = `<span class="preview-alert">${escapeHtml(text)}</span>`;
+        }
         else costPreview.innerHTML = '';
       }
       document.getElementById('popupPreviewTotal').classList.toggle('hidden', !document.getElementById('showPersonPopupTotal').checked);
@@ -2280,8 +2322,10 @@
       document.getElementById('drinkCelebrationSound').checked = APPEARANCE_DEFAULTS.drink_celebration_sound_enabled;
       document.getElementById('costWarningEnabled').checked = APPEARANCE_DEFAULTS.cost_warning_enabled;
       document.getElementById('costWarningThreshold').value = formatDecimalInputValue(APPEARANCE_DEFAULTS.cost_warning_threshold_eur);
+      document.getElementById('costWarningTemplate').value = APPEARANCE_DEFAULTS.cost_warning_template;
       document.getElementById('paymentReminderEnabled').checked = APPEARANCE_DEFAULTS.payment_reminder_enabled;
       document.getElementById('paymentReminderThreshold').value = formatDecimalInputValue(APPEARANCE_DEFAULTS.payment_reminder_threshold_eur);
+      document.getElementById('paymentReminderTemplate').value = APPEARANCE_DEFAULTS.payment_reminder_template;
       document.getElementById('costNoticeShowOnOverview').checked = APPEARANCE_DEFAULTS.cost_notice_show_on_overview;
       document.getElementById('costNoticeShowInPopup').checked = APPEARANCE_DEFAULTS.cost_notice_show_in_popup;
       document.getElementById('memberMessagesShowOnOverview').checked = APPEARANCE_DEFAULTS.member_messages_show_on_overview;
@@ -2321,8 +2365,10 @@
       const drink_celebration_sound_enabled = document.getElementById('drinkCelebrationSound').checked;
       const cost_warning_enabled = document.getElementById('costWarningEnabled').checked;
       const cost_warning_threshold_eur = parseDecimalInput(document.getElementById('costWarningThreshold').value || '30');
+      const cost_warning_template = document.getElementById('costWarningTemplate').value.trim() || APPEARANCE_DEFAULTS.cost_warning_template;
       const payment_reminder_enabled = document.getElementById('paymentReminderEnabled').checked;
       const payment_reminder_threshold_eur = parseDecimalInput(document.getElementById('paymentReminderThreshold').value || '50');
+      const payment_reminder_template = document.getElementById('paymentReminderTemplate').value.trim() || APPEARANCE_DEFAULTS.payment_reminder_template;
       const cost_notice_show_on_overview = document.getElementById('costNoticeShowOnOverview').checked;
       const cost_notice_show_in_popup = document.getElementById('costNoticeShowInPopup').checked;
       const member_messages_show_on_overview = document.getElementById('memberMessagesShowOnOverview').checked;
@@ -2333,7 +2379,7 @@
       const person_card_border_color = document.getElementById('personBorderColor').value || '#bfdbfe';
       const person_card_border_width_px = Number(document.getElementById('personBorderWidthSlider').value || 2);
       const person_card_gap_px = Number(document.getElementById('personGapSlider').value || 10);
-      try { await apiFetch('/api/admin/settings/update', {pin: adminPin, show_total_on_overview, show_person_popup_total, show_summary_label_on_overview, overview_summary_label_text, overview_summary_size_percent, tally_roughness, overview_name_size_px, tally_size_percent, show_sync_status, sync_status_size_percent, drink_feedback_enabled, drink_booking_sound_enabled, drink_booking_sound_preset, drink_feedback_style, drink_feedback_duration_ms, drink_feedback_animation_intensity_percent, drink_feedback_position, drink_celebration_mode, drink_celebration_condition_round, drink_celebration_condition_debt, drink_celebration_debt_threshold_eur, drink_celebration_confetti_intensity_percent, drink_celebration_sound_enabled, cost_warning_enabled, cost_warning_threshold_eur, payment_reminder_enabled, payment_reminder_threshold_eur, cost_notice_show_on_overview, cost_notice_show_in_popup, member_messages_show_on_overview, member_messages_show_in_popup, enable_delete_requests, app_background_color, person_card_background_color, person_card_border_color, person_card_border_width_px, person_card_gap_px}); showStatus(successText); await loadOverview(); } catch (err) { alert(err.message); }
+      try { await apiFetch('/api/admin/settings/update', {pin: adminPin, show_total_on_overview, show_person_popup_total, show_summary_label_on_overview, overview_summary_label_text, overview_summary_size_percent, tally_roughness, overview_name_size_px, tally_size_percent, show_sync_status, sync_status_size_percent, drink_feedback_enabled, drink_booking_sound_enabled, drink_booking_sound_preset, drink_feedback_style, drink_feedback_duration_ms, drink_feedback_animation_intensity_percent, drink_feedback_position, drink_celebration_mode, drink_celebration_condition_round, drink_celebration_condition_debt, drink_celebration_debt_threshold_eur, drink_celebration_confetti_intensity_percent, drink_celebration_sound_enabled, cost_warning_enabled, cost_warning_threshold_eur, cost_warning_template, payment_reminder_enabled, payment_reminder_threshold_eur, payment_reminder_template, cost_notice_show_on_overview, cost_notice_show_in_popup, member_messages_show_on_overview, member_messages_show_in_popup, enable_delete_requests, app_background_color, person_card_background_color, person_card_border_color, person_card_border_width_px, person_card_gap_px}); showStatus(successText); await loadOverview(); } catch (err) { alert(err.message); }
     }
 
     async function saveOverviewSettings() { return saveAppearanceSettings(); }

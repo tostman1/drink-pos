@@ -51,6 +51,8 @@ DEFAULT_ITEMS = [
 ROUND_ITEM_NAME = "1 Runde"
 ROUND_ITEM_SHORT = "Runde"
 DEFAULT_ROUND_PRICE_EUR = "10.00"
+DEFAULT_COST_WARNING_TEMPLATE = "Offen: {betrag}. Grenze {limit} erreicht."
+DEFAULT_PAYMENT_REMINDER_TEMPLATE = "Offen: {betrag}. Bitte bei Gelegenheit bezahlen."
 SYSTEM_ITEM_NAMES = {ROUND_ITEM_NAME}
 
 
@@ -158,6 +160,13 @@ def normalize_for_sort(text: str) -> str:
         .replace("ü", "ue")
         .replace("ß", "ss")
     )
+
+
+def clean_notice_template(value: str | None, default: str) -> str:
+    text = " ".join(str(value or "").strip().split())
+    if not text:
+        return default
+    return text[:300]
 
 
 def split_name(full_name: str) -> tuple[str, str]:
@@ -917,10 +926,14 @@ def ensure_settings(conn: sqlite3.Connection):
         set_setting(conn, "cost_warning_enabled", "1")
     if get_setting(conn, "cost_warning_threshold_eur") is None:
         set_setting(conn, "cost_warning_threshold_eur", "30.00")
+    if get_setting(conn, "cost_warning_template") is None:
+        set_setting(conn, "cost_warning_template", DEFAULT_COST_WARNING_TEMPLATE)
     if get_setting(conn, "payment_reminder_enabled") is None:
         set_setting(conn, "payment_reminder_enabled", "1")
     if get_setting(conn, "payment_reminder_threshold_eur") is None:
         set_setting(conn, "payment_reminder_threshold_eur", "50.00")
+    if get_setting(conn, "payment_reminder_template") is None:
+        set_setting(conn, "payment_reminder_template", DEFAULT_PAYMENT_REMINDER_TEMPLATE)
     if get_setting(conn, "cost_notice_show_on_overview") is None:
         set_setting(conn, "cost_notice_show_on_overview", "1")
     if get_setting(conn, "cost_notice_show_in_popup") is None:
@@ -1115,8 +1128,10 @@ class SettingsUpdateRequest(BaseModel):
     drink_celebration_sound_enabled: bool | None = None
     cost_warning_enabled: bool | None = None
     cost_warning_threshold_eur: float | str | None = None
+    cost_warning_template: str | None = None
     payment_reminder_enabled: bool | None = None
     payment_reminder_threshold_eur: float | str | None = None
+    payment_reminder_template: str | None = None
     cost_notice_show_on_overview: bool | None = None
     cost_notice_show_in_popup: bool | None = None
     member_messages_show_on_overview: bool | None = None
@@ -1487,6 +1502,35 @@ def get_admin_member_messages(conn: sqlite3.Connection) -> list[dict]:
     return messages
 
 
+def archive_member_message_if_completed(conn: sqlite3.Connection, message_id: int) -> bool:
+    remaining = conn.execute(
+        """
+        SELECT COUNT(*) AS c
+        FROM member_message_recipients
+        WHERE message_id = ? AND acknowledged_at IS NULL
+        """,
+        (message_id,),
+    ).fetchone()["c"]
+    if int(remaining or 0) > 0:
+        return False
+    row = conn.execute(
+        "SELECT id, title, archived_at FROM member_messages WHERE id = ? AND active = 1",
+        (message_id,),
+    ).fetchone()
+    if not row or row["archived_at"] is not None:
+        return False
+    conn.execute(
+        """
+        UPDATE member_messages
+        SET active = 0, archived_at = ?
+        WHERE id = ?
+        """,
+        (now_text(), message_id),
+    )
+    log_transaction(conn, None, "MEMBER_MESSAGE_ARCHIVED", 0, f"Nachricht automatisch archiviert: #{message_id} {row['title'] or ''}".strip())
+    return True
+
+
 def person_total_from_lines(lines: list[sqlite3.Row]) -> float:
     return round(sum(int(line["quantity"]) * float(line["unit_price_eur"]) for line in lines), 2)
 
@@ -1851,8 +1895,16 @@ def cost_notice_settings(conn: sqlite3.Connection) -> dict:
     return {
         "cost_warning_enabled": setting_bool(conn, "cost_warning_enabled", "1"),
         "cost_warning_threshold_eur": max(0.0, min(9999.0, warning_threshold)),
+        "cost_warning_template": clean_notice_template(
+            get_setting(conn, "cost_warning_template", DEFAULT_COST_WARNING_TEMPLATE),
+            DEFAULT_COST_WARNING_TEMPLATE,
+        ),
         "payment_reminder_enabled": setting_bool(conn, "payment_reminder_enabled", "1"),
         "payment_reminder_threshold_eur": max(0.0, min(9999.0, reminder_threshold)),
+        "payment_reminder_template": clean_notice_template(
+            get_setting(conn, "payment_reminder_template", DEFAULT_PAYMENT_REMINDER_TEMPLATE),
+            DEFAULT_PAYMENT_REMINDER_TEMPLATE,
+        ),
         "cost_notice_show_on_overview": setting_bool(conn, "cost_notice_show_on_overview", "1"),
         "cost_notice_show_in_popup": setting_bool(conn, "cost_notice_show_in_popup", "1"),
         "member_messages_show_on_overview": setting_bool(conn, "member_messages_show_on_overview", "1"),
@@ -2395,7 +2447,10 @@ def acknowledge_member_message(req: MemberMessageAckRequest):
         if not recipient:
             raise HTTPException(status_code=404, detail="Nachricht nicht gefunden")
         if recipient["acknowledged_at"]:
-            return {"status": "ok", "duplicate": True}
+            archived = archive_member_message_if_completed(conn, req.message_id)
+            if archived:
+                conn.commit()
+            return {"status": "ok", "duplicate": True, "archived": archived}
         conn.execute(
             """
             UPDATE member_message_recipients
@@ -2405,8 +2460,9 @@ def acknowledge_member_message(req: MemberMessageAckRequest):
             (now_text(), req.person_id, req.message_id),
         )
         log_transaction(conn, req.person_id, "MEMBER_MESSAGE_ACK", 0, f"Nachricht bestätigt: #{req.message_id}")
+        archived = archive_member_message_if_completed(conn, req.message_id)
         conn.commit()
-    return {"status": "ok"}
+    return {"status": "ok", "archived": archived}
 
 
 @app.post("/api/add-drink")
@@ -3664,7 +3720,7 @@ def admin_create_drink(req: AdminItemCreate):
         if not name:
             raise HTTPException(status_code=400, detail="Artikelname fehlt")
         if is_system_item_name(name):
-            raise HTTPException(status_code=400, detail="„1 Runde“ wird unter Einstellungen verwaltet und ist kein normaler Artikel")
+            raise HTTPException(status_code=400, detail="„1 Runde“ wird unter Artikel & Preise verwaltet und ist kein normaler Artikel")
         price = parse_decimal_value(req.price, "Preis")
         purchase_price = parse_decimal_value(req.purchase_price_eur if req.purchase_price_eur is not None else req.purchase_price, "Einkaufspreis")
         if price < 0:
@@ -3713,7 +3769,7 @@ def admin_update_drink(req: AdminItemUpdate):
         if purchase_price < 0:
             raise HTTPException(status_code=400, detail="Einkaufspreis darf nicht negativ sein")
         if is_system_item_name(item["name"]) or is_system_item_name(name):
-            raise HTTPException(status_code=400, detail="„1 Runde“ wird unter Einstellungen verwaltet und kann hier nicht bearbeitet werden")
+            raise HTTPException(status_code=400, detail="„1 Runde“ wird unter Artikel & Preise verwaltet und kann hier nicht bearbeitet werden")
         try:
             conn.execute(
                 """
@@ -3772,7 +3828,7 @@ def admin_delete_drink(req: AdminItemDelete):
         require_pin(conn, req.pin)
         item = get_item_by_id_or_name(conn, req.item_id, None)
         if is_system_item_name(item["name"]):
-            raise HTTPException(status_code=400, detail="„1 Runde“ wird unter Einstellungen verwaltet und kann nicht gelöscht werden")
+            raise HTTPException(status_code=400, detail="„1 Runde“ wird unter Artikel & Preise verwaltet und kann nicht gelöscht werden")
         open_qty = conn.execute(
             "SELECT COALESCE(SUM(quantity), 0) AS q FROM order_lines WHERE item_id = ? AND quantity > 0",
             (item["id"],),
@@ -3950,6 +4006,10 @@ def admin_update_settings(req: SettingsUpdateRequest):
             threshold = max(0.0, min(9999.0, parse_decimal_value(req.cost_warning_threshold_eur, "Kostenwarnung")))
             set_setting(conn, "cost_warning_threshold_eur", f"{threshold:.2f}")
             details.append(f"Kostenwarnung ab {eur_text(threshold)}")
+        if req.cost_warning_template is not None:
+            template = clean_notice_template(req.cost_warning_template, DEFAULT_COST_WARNING_TEMPLATE)
+            set_setting(conn, "cost_warning_template", template)
+            details.append("Text der Kostenwarnung gespeichert")
         if req.payment_reminder_enabled is not None:
             set_setting(conn, "payment_reminder_enabled", "1" if req.payment_reminder_enabled else "0")
             details.append("Zahlungserinnerung aktiviert" if req.payment_reminder_enabled else "Zahlungserinnerung deaktiviert")
@@ -3957,6 +4017,10 @@ def admin_update_settings(req: SettingsUpdateRequest):
             threshold = max(0.0, min(9999.0, parse_decimal_value(req.payment_reminder_threshold_eur, "Zahlungserinnerung")))
             set_setting(conn, "payment_reminder_threshold_eur", f"{threshold:.2f}")
             details.append(f"Zahlungserinnerung ab {eur_text(threshold)}")
+        if req.payment_reminder_template is not None:
+            template = clean_notice_template(req.payment_reminder_template, DEFAULT_PAYMENT_REMINDER_TEMPLATE)
+            set_setting(conn, "payment_reminder_template", template)
+            details.append("Text der Zahlungserinnerung gespeichert")
         if req.cost_notice_show_on_overview is not None:
             set_setting(conn, "cost_notice_show_on_overview", "1" if req.cost_notice_show_on_overview else "0")
             details.append("Kostenhinweise in Standardansicht angezeigt" if req.cost_notice_show_on_overview else "Kostenhinweise in Standardansicht ausgeblendet")
@@ -4485,8 +4549,6 @@ def admin_statistics(req: StatisticsRequest):
             """
         ).fetchall()
         for row in open_rows:
-            if not statistics_item_visible(row, include_admin_items):
-                continue
             qty = int(row["quantity"] or 0)
             total = qty * float(row["unit_price_eur"] or 0)
             cost = qty * float(row["unit_purchase_price_eur"] or 0)
