@@ -333,7 +333,7 @@ class BackendFlowTests(unittest.TestCase):
         list_html = Path(list_page.path).read_text(encoding="utf-8")
         self.assertIn("cardPayPanel", list_html)
         self.assertIn("cardRoundingOptions", list_html)
-        self.assertIn("Kartenzahlung +3 % (min. 0,20 €)", list_html)
+        self.assertIn("Kartenzahlungsgebühr +3 % (min. 0,20 €)", list_html)
         self.assertIn("Mit Karte zahlen", list_html)
         self.assertIn("/api/self-pay/pay", list_html)
         self.assertIn("client_payment_id", list_html)
