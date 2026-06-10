@@ -153,9 +153,11 @@
     .card-pay-status { margin-top:8px; color:#166534; font-size:13px; font-weight:750; line-height:1.35; }
     .card-pay-status.warning { color:#92400e; }
     .card-rounding-options { margin:12px 0; display:grid; gap:8px; }
-    .card-rounding-title { color:#334155; font-size:13px; font-weight:900; }
+    .card-rounding-options.required { padding:12px; border:2px solid #f59e0b; border-radius:8px; background:#fffbeb; box-shadow:0 8px 18px rgba(245,158,11,.12); }
+    .card-rounding-title { color:#92400e; font-size:15px; font-weight:950; }
+    .card-rounding-note { color:#92400e; font-size:13px; font-weight:750; line-height:1.35; }
     .card-rounding-buttons { display:grid; gap:7px; }
-    .card-rounding-option { width:100%; display:flex; justify-content:space-between; align-items:center; gap:10px; min-height:44px; background:#fff; color:#0f172a; border:1px solid #cbd5e1; border-radius:8px; box-shadow:0 2px 8px rgba(15,23,42,.05); }
+    .card-rounding-option { width:100%; display:flex; justify-content:space-between; align-items:center; gap:10px; min-height:44px; background:#fff; color:#0f172a; border:1px solid #f59e0b; border-radius:8px; box-shadow:0 2px 8px rgba(15,23,42,.05); }
     .card-rounding-option:hover { border-color:#93c5fd; background:#f8fbff; }
     .card-rounding-option.selected { background:#dcfce7; border-color:#86efac; color:#14532d; }
     .payment-visual-status { display:grid; grid-template-columns:46px 1fr; gap:10px; align-items:center; margin:12px 0; padding:12px; border:1px solid #bfdbfe; border-radius:16px; background:#eff6ff; color:#1e3a8a; }
@@ -2135,7 +2137,7 @@
     function cardPaymentLinesWithExtras(lines, breakdown) {
       const paymentLines = [...(lines || [])];
       paymentLines.push({
-        item: 'Kartenzahlung +3 % (min. 0,20 €)',
+        item: 'Kartenzahlungsgebühr +3 % (min. 0,20 €)',
         quantity: 1,
         price: breakdown.cardFee,
         subtotal: breakdown.cardFee,
@@ -2159,6 +2161,7 @@
       const baseBreakdown = cardPaymentBreakdown(baseTotal, 'none');
       const linesBox = document.getElementById('cardPaymentLines');
       const roundingBox = document.getElementById('cardRoundingOptions');
+      const totalRow = document.getElementById('cardPaymentTotalRow');
       const totalBox = document.getElementById('cardPaymentTotal');
       const feeInfo = document.getElementById('cardPaymentFeeInfo');
       if (linesBox) linesBox.innerHTML = lineTableHtml(cardPaymentLinesWithExtras(cardPaymentPreviewDetail.lines || currentPerson?.lines || [], breakdown));
@@ -2166,20 +2169,27 @@
         if (cardPaymentSelectedRoundingMode) {
           roundingBox.innerHTML = '';
           roundingBox.classList.add('hidden');
+          roundingBox.classList.remove('required');
         } else {
           const optionButtons = roundingOptionsForBreakdown(baseBreakdown)
             .map(option => `<button class="card-rounding-option" type="button" onclick="selectCardPaymentRounding('${option.mode}')">${escapeHtml(option.label)}</button>`)
             .join('');
           roundingBox.classList.remove('hidden');
-          roundingBox.innerHTML = `<div class="card-rounding-title">Rundung auswählen</div><div class="card-rounding-buttons">${optionButtons}</div>`;
+          roundingBox.classList.add('required');
+          roundingBox.innerHTML = `
+            <div class="card-rounding-title">Rundung auswählen (erforderlich)</div>
+            <div class="card-rounding-note">Bitte eine Option wählen, auch wenn nicht aufgerundet werden soll.</div>
+            <div class="card-rounding-buttons">${optionButtons}</div>
+          `;
         }
       }
+      if (totalRow) totalRow.classList.toggle('hidden', !cardPaymentSelectedRoundingMode);
       if (totalBox) totalBox.textContent = money(breakdown.amount);
       if (feeInfo) {
         const roundingText = breakdown.roundingAdjustmentCents > 0
           ? ` Aufrunden: ${money(breakdown.roundingAdjustment)}.`
           : '';
-        feeInfo.textContent = `Kartenzahlungsgebühr: ${money(breakdown.cardFee)}.${roundingText}`;
+        feeInfo.textContent = `Kartenzahlungsgebühr: ${money(breakdown.cardFee)}.${roundingText}`; 
       }
       const confirm = document.getElementById('actionConfirmButton');
       if (confirm && !selfPaymentBusy) confirm.disabled = !cardPaymentSelectedRoundingMode;
@@ -2195,12 +2205,12 @@
       const box = document.getElementById('cardPaymentVisualStatus');
       if (!box) return;
       const visual = {
-        idle: { icon: '💳', title: 'Karte vorhalten', text: 'Nach dem Start den Betrag am SumUp Solo prüfen und Karte oder Smartphone vorhalten.' },
-        waiting: { icon: '⌛', title: 'Auf SumUp warten', text: 'Der Zahlungsvorgang läuft. Bitte Browser offen lassen.' },
+        idle: { icon: '💳', title: 'Karte bereithalten', text: 'Nach dem Start den Betrag am Kartenterminal prüfen und Karte oder Smartphone vorhalten.' },
+        waiting: { icon: '⌛', title: 'Auf SumUp warten', text: 'Bitte den Anweisungen auf dem Kartenterminal folgen.' },
         paid: { icon: '✓', title: 'Zahlung erfolgreich', text: 'Zahlung erfolgreich, Danke!' },
         failed: { icon: '✕', title: 'Zahlung abgelehnt', text: 'Die offenen Posten bleiben unbezahlt.' },
-        timeout: { icon: '⌛', title: 'Timeout', text: 'Der Status ist nicht eindeutig. Die offenen Posten bleiben unbezahlt.' },
-        unknown: { icon: '?', title: 'Status unklar', text: 'Die offenen Posten bleiben offen unbezahlt.' },
+        timeout: { icon: '⌛', title: 'Timeout', text: 'Es wurde zu lange gewartet. Die offenen Posten bleiben unbezahlt.' },
+        unknown: { icon: '?', title: 'Status unklar', text: 'Ein Fehler ist aufgetreten. Die offenen Posten bleiben unbezahlt.' },
       }[state] || {};
       box.className = `payment-visual-status ${state}`;
       box.innerHTML = `
@@ -2213,7 +2223,7 @@
       if (state === 'waiting') {
         if (confirm) {
           confirm.disabled = true;
-          confirm.textContent = 'Auf SumUp warten';
+          confirm.textContent = 'Verbindungsaufbau';
         }
         if (cancel) cancel.disabled = true;
         if (rounding) rounding.classList.add('hidden');
@@ -2353,7 +2363,7 @@
       });
       selfPaymentBusy = true;
       renderCardPaymentPanel();
-      setCardPaymentVisualStatus('waiting', 'Auf SumUp warten');
+      setCardPaymentVisualStatus('waiting', 'Verbindungsaufbau');
       showStatus('SumUp-Zahlung startet...');
       let keepBusy = false;
       try {
@@ -2409,12 +2419,13 @@
         cardPaymentSelectedRoundingMode = null;
         const body = `
           <div class="muted">Kartenzahlung für <strong>${escapeHtml(currentPerson.name)}</strong>.</div>
+		  <div class="muted"></div>
           <div id="cardPaymentLines"></div>
           <div class="card-rounding-options" id="cardRoundingOptions"></div>
-          <div class="muted" id="cardPaymentFeeInfo"></div>
-          <div class="action-total"><span>Endbetrag</span><span id="cardPaymentTotal">${money(detail.total_eur ?? detail.total ?? currentPerson.total)}</span></div>
+          <!--<div class="muted" id="cardPaymentFeeInfo"></div>-->
+          <div class="action-total hidden" id="cardPaymentTotalRow"><span>Endbetrag</span><span id="cardPaymentTotal">${money(detail.total_eur ?? detail.total ?? currentPerson.total)}</span></div>
           <div class="payment-visual-status idle" id="cardPaymentVisualStatus" aria-live="polite"></div>
-          <div class="muted">Bitte den Browser offen lassen.</div>
+          
         `;
         openActionDialog('Kartenzahlung', body, 'Mit Karte zahlen', 'pay-btn', async () => {
           if (!cardPaymentSelectedRoundingMode) {

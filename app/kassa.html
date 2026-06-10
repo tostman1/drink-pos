@@ -307,10 +307,23 @@
       display:grid;
       gap:8px;
     }
+    .card-rounding-options.required {
+      padding:12px;
+      border:2px solid #f59e0b;
+      border-radius:8px;
+      background:#fffbeb;
+      box-shadow:0 8px 18px rgba(245,158,11,.12);
+    }
     .card-rounding-title {
-      color:#334155;
+      color:#92400e;
+      font-size:15px;
+      font-weight:950;
+    }
+    .card-rounding-note {
+      color:#92400e;
       font-size:13px;
-      font-weight:900;
+      font-weight:750;
+      line-height:1.35;
     }
     .card-rounding-buttons {
       display:grid;
@@ -322,7 +335,7 @@
       display:flex;
       justify-content:space-between;
       align-items:center;
-      border:1px solid var(--line);
+      border:1px solid #f59e0b;
       border-radius:8px;
       background:#fff;
       color:var(--ink);
@@ -569,7 +582,7 @@
         <div class="confirm-row" id="confirmRoundingRow"><span>Aufrunden</span><strong id="confirmRoundingAmount">€ 0,00</strong></div>
       </div>
       <div class="card-rounding-options" id="kassaCardRoundingOptions"></div>
-      <div class="confirm-total"><span>SumUp-Endbetrag</span><strong id="confirmCardTotal">€ 0,00</strong></div>
+      <div class="confirm-total hidden" id="confirmCardTotalRow"><span>SumUp-Endbetrag</span><strong id="confirmCardTotal">€ 0,00</strong></div>
       <div class="confirm-hint" id="confirmPaymentHint"></div>
       <div class="payment-visual-status idle" id="kassaCardPaymentStatus" aria-live="polite"></div>
       <div class="confirm-actions three">
@@ -977,18 +990,25 @@
       el('confirmCardFee').textContent = money(breakdown.cardFee);
       el('confirmRoundingAmount').textContent = money(breakdown.roundingAdjustment);
       el('confirmRoundingRow').classList.toggle('hidden', breakdown.roundingAdjustmentCents <= 0);
+      el('confirmCardTotalRow').classList.toggle('hidden', !state.cardRoundingMode);
       el('confirmCardTotal').textContent = money(breakdown.amount);
       const roundingBox = el('kassaCardRoundingOptions');
       if (roundingBox) {
         if (state.cardRoundingMode) {
           roundingBox.innerHTML = '';
           roundingBox.classList.add('hidden');
+          roundingBox.classList.remove('required');
         } else {
           const buttons = roundingOptionsForBreakdown(baseBreakdown)
             .map(option => `<button class="card-rounding-option" type="button" onclick="selectKassaCardRounding('${option.mode}')">${escapeHtml(option.label)}</button>`)
             .join('');
           roundingBox.classList.remove('hidden');
-          roundingBox.innerHTML = `<div class="card-rounding-title">Rundung auswählen</div><div class="card-rounding-buttons">${buttons}</div>`;
+          roundingBox.classList.add('required');
+          roundingBox.innerHTML = `
+            <div class="card-rounding-title">Rundung auswählen (erforderlich)</div>
+            <div class="card-rounding-note">Bitte eine Option wählen, auch wenn nicht aufgerundet werden soll.</div>
+            <div class="card-rounding-buttons">${buttons}</div>
+          `;
         }
       }
       el('confirmPaymentHint').textContent =
