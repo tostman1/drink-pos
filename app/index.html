@@ -2223,7 +2223,7 @@
       if (state === 'waiting') {
         if (confirm) {
           confirm.disabled = true;
-          confirm.textContent = 'Verbindungsaufbau';
+          confirm.textContent = 'Verbindungsaufbau (kann bis zu 30 Sekunden dauern)';
         }
         if (cancel) cancel.disabled = true;
         if (rounding) rounding.classList.add('hidden');
@@ -2363,7 +2363,7 @@
       });
       selfPaymentBusy = true;
       renderCardPaymentPanel();
-      setCardPaymentVisualStatus('waiting', 'Verbindungsaufbau');
+      setCardPaymentVisualStatus('waiting', 'Verbindungsaufbau (kann bis zu 30 Sekunden dauern)');
       showStatus('SumUp-Zahlung startet...');
       let keepBusy = false;
       try {

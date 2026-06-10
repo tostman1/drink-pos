@@ -2338,14 +2338,14 @@ def self_payment_status_payload(conn: sqlite3.Connection, session, duplicate: bo
     status = str(session["status"] or "").strip().upper()
     message_by_status = {
         "CREATED": "SumUp-Zahlung wird vorbereitet.",
-        "SENT_TO_READER": "SumUp Solo zeigt den Betrag an. Bitte keine zweite Zahlung starten.",
-        "PENDING": "SumUp-Zahlung läuft. Bitte keine zweite Zahlung starten.",
+        "SENT_TO_READER": "Zahlung eingeleitet, bitte Bezahlterminal beachten.",
+        "PENDING": "Zahlung läuft. Bitte warten.",
         "PAID": "Zahlung abgeschlossen.",
-        "FAILED": session["error"] or "SumUp-Zahlung fehlgeschlagen.",
-        "CANCELLED": session["error"] or "SumUp-Zahlung abgebrochen.",
-        "TIMEOUT": session["error"] or "SumUp-Zahlung ist abgelaufen. Offene Posten bleiben bestehen.",
-        "UNKNOWN": session["error"] or "SumUp-Status ist unklar. Bitte Zahlung prüfen; offene Posten bleiben bestehen.",
-        "EXPIRED": session["error"] or "SumUp-Zahlung ist abgelaufen.",
+        "FAILED": session["error"] or "Zahlung fehlgeschlagen.",
+        "CANCELLED": session["error"] or "Zahlung abgebrochen.",
+        "TIMEOUT": session["error"] or "Bezahlsession ist abgelaufen. Offene Posten bleiben bestehen.",
+        "UNKNOWN": session["error"] or "Status ist unklar. Bitte Zahlung prüfen; offene Posten bleiben bestehen.",
+        "EXPIRED": session["error"] or "Bezahlsession ist abgelaufen.",
     }
     public_status = {
         "CREATED": "created",
