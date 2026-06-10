@@ -1,4 +1,4 @@
-services:
+﻿services:
   drink-pos:
     # Synology Container Manager zieht dieses fertige Image aus GHCR.
     # Es wird nichts lokal gebaut.
@@ -27,6 +27,17 @@ services:
       DRINK_POS_DB: ""
       # Leer lassen deaktiviert die Agenten-API.
       DRINK_POS_AGENT_TOKEN: ""
+      # SumUp Solo Self-Checkout. API-Key nur serverseitig setzen.
+      # Das iPad oeffnet http://<NAS-IP>:8088/; /self-pay bleibt Testseite.
+      PAYMENT_PROVIDER: "SumUp"
+      SUMUP_API_BASE: "https://api.sumup.com"
+      SUMUP_API_KEY: "${SUMUP_API_KEY:-}"
+      SUMUP_MERCHANT_CODE: "${SUMUP_MERCHANT_CODE:-}"
+      SUMUP_READER_ID: "${SUMUP_READER_ID:-}"
+      SUMUP_AFFILIATE_KEY: "${SUMUP_AFFILIATE_KEY:-}"
+      SUMUP_AFFILIATE_APP_ID: "${SUMUP_AFFILIATE_APP_ID:-}"
+      SUMUP_CURRENCY: "EUR"
+      SUMUP_TIMEOUT_SECONDS: "120"
 
   drink-pos-backup:
     # Nutzt dasselbe Image, startet aber nur den Backup-Zeitplaner.
@@ -59,3 +70,4 @@ services:
                fi;
                sleep 30;
              done"
+

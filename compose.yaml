@@ -28,6 +28,16 @@ services:
       DRINK_POS_DB: "${DRINK_POS_DB:-}"
       # Leer lassen deaktiviert die Agenten-API.
       DRINK_POS_AGENT_TOKEN: "${DRINK_POS_AGENT_TOKEN:-}"
+      # SumUp Solo Self-Checkout. API-Key nur serverseitig setzen.
+      PAYMENT_PROVIDER: "${PAYMENT_PROVIDER:-}"
+      SUMUP_API_BASE: "${SUMUP_API_BASE:-https://api.sumup.com}"
+      SUMUP_API_KEY: "${SUMUP_API_KEY:-}"
+      SUMUP_MERCHANT_CODE: "${SUMUP_MERCHANT_CODE:-}"
+      SUMUP_READER_ID: "${SUMUP_READER_ID:-}"
+      SUMUP_AFFILIATE_KEY: "${SUMUP_AFFILIATE_KEY:-}"
+      SUMUP_AFFILIATE_APP_ID: "${SUMUP_AFFILIATE_APP_ID:-}"
+      SUMUP_CURRENCY: "${SUMUP_CURRENCY:-EUR}"
+      SUMUP_TIMEOUT_SECONDS: "${SUMUP_TIMEOUT_SECONDS:-120}"
 
   drink-pos-backup:
     # Gleiches Image, aber anderer Startbefehl fuer den Backup-Scheduler.

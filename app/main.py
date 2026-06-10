@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import hashlib
 import io
+import json
 import os
 from pathlib import Path
 import random
@@ -10,13 +11,23 @@ import re
 import secrets
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections.abc import Iterator
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
+
+from services.sumup import (
+    SumUpConfig,
+    SumUpError,
+    create_reader_checkout as sumup_create_reader_checkout,
+    list_readers as sumup_list_readers,
+    pair_reader as sumup_pair_reader,
+    poll_checkout_status as sumup_poll_checkout_status,
+    reader_status as sumup_reader_status,
+)
 
 APP_ENV = os.getenv("DRINK_POS_ENV", "development").strip().lower()
 RAW_ENV_PIN_CODE = os.getenv("DRINK_POS_PIN")
@@ -54,6 +65,8 @@ DEFAULT_ROUND_PRICE_EUR = "10.00"
 DEFAULT_COST_WARNING_TEMPLATE = "Offen: {betrag}. Unteres Limit {unteres_limit} erreicht."
 DEFAULT_PAYMENT_REMINDER_TEMPLATE = "Offen: {betrag}. Oberes Limit {oberes_limit} erreicht. Bitte bei Gelegenheit bezahlen."
 SYSTEM_ITEM_NAMES = {ROUND_ITEM_NAME}
+PAID_TRANSACTION_TYPES = ("PAID_CASH", "PAID_SUMUP")
+PAID_TRANSACTION_KINDS = ("PAID_CASH", "PAID_SUMUP")
 
 
 def is_system_item_name(name: str | None) -> bool:
@@ -539,6 +552,39 @@ def init_db():
 
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS self_payment_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                person_id INTEGER NOT NULL,
+                client_payment_id TEXT,
+                status TEXT NOT NULL,
+                amount_eur REAL NOT NULL,
+                amount_cents INTEGER NOT NULL,
+                currency TEXT NOT NULL DEFAULT 'EUR',
+                provider TEXT NOT NULL DEFAULT 'sumup',
+                provider_checkout_id TEXT,
+                revision TEXT NOT NULL,
+                terminal_result TEXT,
+                terminal_reference TEXT,
+                raw_response TEXT,
+                error TEXT,
+                transaction_id INTEGER,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                completed_at TEXT,
+                FOREIGN KEY(person_id) REFERENCES people(id),
+                FOREIGN KEY(transaction_id) REFERENCES transactions(id)
+            )
+            """
+        )
+        add_column_if_missing(conn, "self_payment_sessions", "client_payment_id TEXT")
+        add_column_if_missing(conn, "self_payment_sessions", "currency TEXT NOT NULL DEFAULT 'EUR'")
+        add_column_if_missing(conn, "self_payment_sessions", "provider TEXT NOT NULL DEFAULT 'sumup'")
+        add_column_if_missing(conn, "self_payment_sessions", "provider_checkout_id TEXT")
+        add_column_if_missing(conn, "self_payment_sessions", "raw_response TEXT")
+        add_column_if_missing(conn, "self_payment_sessions", "completed_at TEXT")
+
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS transaction_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 transaction_id INTEGER NOT NULL,
@@ -610,6 +656,10 @@ def ensure_indexes(conn: sqlite3.Connection):
         "CREATE INDEX IF NOT EXISTS idx_member_messages_active ON member_messages(active, archived_at)",
         "CREATE INDEX IF NOT EXISTS idx_member_message_recipients_person_ack ON member_message_recipients(person_id, acknowledged_at)",
         "CREATE INDEX IF NOT EXISTS idx_member_message_recipients_message ON member_message_recipients(message_id)",
+        "CREATE INDEX IF NOT EXISTS idx_self_payment_sessions_person_status ON self_payment_sessions(person_id, status, updated_at)",
+        "CREATE INDEX IF NOT EXISTS idx_self_payment_sessions_status_updated ON self_payment_sessions(status, updated_at)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_self_payment_sessions_client_payment_id ON self_payment_sessions(client_payment_id)",
+        "CREATE INDEX IF NOT EXISTS idx_self_payment_sessions_provider_checkout ON self_payment_sessions(provider, provider_checkout_id)",
     ]
     for sql in indexes:
         conn.execute(sql)
@@ -950,6 +1000,8 @@ def ensure_settings(conn: sqlite3.Connection):
         set_setting(conn, "member_messages_show_on_overview", "1")
     if get_setting(conn, "member_messages_show_in_popup") is None:
         set_setting(conn, "member_messages_show_in_popup", "1")
+    if get_setting(conn, "self_payment_enabled") is None:
+        set_setting(conn, "self_payment_enabled", "0")
 
 
 @app.on_event("startup")
@@ -1009,6 +1061,18 @@ class KassaPayRequest(BaseModel):
     person_id: int
     pin: str
     expected_revision: str
+
+
+class SelfPayRequest(BaseModel):
+    person_id: int
+    expected_revision: str
+    client_payment_id: str | None = None
+
+
+class SumUpPairReaderRequest(BaseModel):
+    pin: str
+    pairing_code: str
+    name: str | None = "Drink POS"
 
 
 class MemberMessageAckRequest(BaseModel):
@@ -1633,10 +1697,10 @@ def make_kassa_person_history(conn: sqlite3.Connection, person_id: int, limit: i
 
     last_payment = conn.execute(
         """
-        SELECT id, timestamp
+        SELECT id, type, timestamp
         FROM transactions
         WHERE person_id = ?
-          AND type = 'PAID_CASH'
+          AND type IN ('PAID_CASH', 'PAID_SUMUP')
         ORDER BY id DESC
         LIMIT 1
         """,
@@ -1739,8 +1803,8 @@ def make_kassa_person_history(conn: sqlite3.Connection, person_id: int, limit: i
             {
                 "id": int(last_payment["id"]),
                 "transaction_id": int(last_payment["id"]),
-                "type": "PAID_CASH",
-                "type_label": "Zahlung",
+                "type": last_payment["type"],
+                "type_label": "SumUp-Zahlung" if last_payment["type"] == "PAID_SUMUP" else "Zahlung",
                 "direction": "payment",
                 "timestamp": last_payment["timestamp"],
                 "date_label": date_label,
@@ -1831,6 +1895,7 @@ def make_event_summary_lines(lines: list[sqlite3.Row]) -> list[dict]:
 def add_order_line(conn: sqlite3.Connection, person_id: int, item: sqlite3.Row, quantity: int = 1):
     if quantity <= 0:
         raise HTTPException(status_code=400, detail="Menge muss positiv sein")
+    ensure_no_active_self_payment(conn, int(person_id))
     consumed_date = today_text()
     price = round(float(item["price_eur"]), 2)
     purchase = round(float(item["purchase_price_eur"] if "purchase_price_eur" in item.keys() else 0), 2)
@@ -1898,6 +1963,7 @@ def remove_from_order_line(conn: sqlite3.Connection, line_id: int, quantity: int
     row = conn.execute("SELECT * FROM order_lines WHERE id = ?", (line_id,)).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Offener Posten nicht gefunden")
+    ensure_no_active_self_payment(conn, int(row["person_id"]))
     if quantity <= 0:
         raise HTTPException(status_code=400, detail="Menge muss positiv sein")
     current_qty = int(row["quantity"])
@@ -1988,6 +2054,285 @@ def cost_notice_settings(conn: sqlite3.Connection) -> dict:
         "member_messages_show_on_overview": setting_bool(conn, "member_messages_show_on_overview", "1"),
         "member_messages_show_in_popup": setting_bool(conn, "member_messages_show_in_popup", "1"),
     }
+
+
+def parse_timeout_value(value: str | int | None) -> int:
+    try:
+        timeout = int(str(value or "").strip())
+    except ValueError:
+        timeout = 120
+    return max(30, min(600, timeout))
+
+
+def sumup_payment_settings(conn: sqlite3.Connection | None = None) -> dict:
+    provider = (os.getenv("PAYMENT_PROVIDER") or "").strip().lower()
+    api_base = (os.getenv("SUMUP_API_BASE") or "https://api.sumup.com").strip().rstrip("/")
+    api_key = (os.getenv("SUMUP_API_KEY") or "").strip()
+    merchant_code = (os.getenv("SUMUP_MERCHANT_CODE") or "").strip()
+    reader_id = (os.getenv("SUMUP_READER_ID") or "").strip()
+    affiliate_key = (os.getenv("SUMUP_AFFILIATE_KEY") or "").strip()
+    affiliate_app_id = (os.getenv("SUMUP_AFFILIATE_APP_ID") or "").strip()
+    currency = (os.getenv("SUMUP_CURRENCY") or "EUR").strip().upper()
+    timeout = parse_timeout_value(os.getenv("SUMUP_TIMEOUT_SECONDS") or "120")
+    missing = []
+    if provider != "sumup":
+        missing.append("PAYMENT_PROVIDER=sumup")
+    if not api_key:
+        missing.append("SUMUP_API_KEY")
+    if not merchant_code:
+        missing.append("SUMUP_MERCHANT_CODE")
+    if not reader_id:
+        missing.append("SUMUP_READER_ID")
+    if not currency:
+        missing.append("SUMUP_CURRENCY")
+    configured = provider == "sumup" and not missing
+    return {
+        "payment_provider": provider,
+        "self_payment_enabled": provider == "sumup",
+        "sumup_api_base": api_base,
+        "sumup_api_key_configured": bool(api_key),
+        "sumup_merchant_code": merchant_code,
+        "sumup_reader_id": reader_id,
+        "sumup_affiliate_key_configured": bool(affiliate_key),
+        "sumup_affiliate_app_id": affiliate_app_id,
+        "sumup_currency": currency,
+        "sumup_timeout_seconds": timeout,
+        "sumup_configured": configured,
+        "sumup_missing": missing,
+    }
+
+
+def public_self_payment_settings(settings: dict) -> dict:
+    configured = bool(settings.get("sumup_configured"))
+    enabled = bool(settings.get("self_payment_enabled"))
+    return {
+        "self_payment_enabled": enabled,
+        "payment_provider": settings.get("payment_provider") or "",
+        "sumup_configured": configured,
+        "sumup_missing": list(settings.get("sumup_missing") or []),
+        "sumup_reader_id": settings.get("sumup_reader_id") or "",
+        "sumup_affiliate_key_configured": bool(settings.get("sumup_affiliate_key_configured")),
+        "sumup_affiliate_app_id": settings.get("sumup_affiliate_app_id") or "",
+        "sumup_currency": settings.get("sumup_currency") or "EUR",
+        "self_payment_available": enabled and configured,
+        "sumup_timeout_seconds": int(settings.get("sumup_timeout_seconds") or 120),
+    }
+
+
+def sumup_config_from_settings(settings: dict, require_reader: bool = True) -> SumUpConfig:
+    missing = []
+    if str(settings.get("payment_provider") or "").strip().lower() != "sumup":
+        missing.append("PAYMENT_PROVIDER=sumup")
+    if not os.getenv("SUMUP_API_KEY"):
+        missing.append("SUMUP_API_KEY")
+    if not settings.get("sumup_merchant_code"):
+        missing.append("SUMUP_MERCHANT_CODE")
+    if require_reader and not settings.get("sumup_reader_id"):
+        missing.append("SUMUP_READER_ID")
+    if not settings.get("sumup_currency"):
+        missing.append("SUMUP_CURRENCY")
+    if missing:
+        missing_text = ", ".join(missing)
+        action = "Reader koppeln" if not require_reader else "Self-Checkout starten"
+        raise HTTPException(status_code=503, detail=f"SumUp ist fuer {action} nicht vollstaendig konfiguriert: {missing_text}")
+    if require_reader and not settings.get("sumup_configured"):
+        missing = ", ".join(settings.get("sumup_missing") or [])
+        raise HTTPException(status_code=503, detail=f"SumUp ist nicht vollstaendig konfiguriert: {missing}")
+    return SumUpConfig(
+        api_base=str(settings["sumup_api_base"]),
+        api_key=str(os.getenv("SUMUP_API_KEY") or ""),
+        merchant_code=str(settings["sumup_merchant_code"]),
+        reader_id=str(settings["sumup_reader_id"]),
+        currency=str(settings["sumup_currency"] or "EUR"),
+        timeout_seconds=int(settings["sumup_timeout_seconds"]),
+        affiliate_key=str(os.getenv("SUMUP_AFFILIATE_KEY") or ""),
+        affiliate_app_id=str(settings.get("sumup_affiliate_app_id") or ""),
+    )
+
+
+def self_payment_lock_window_seconds(conn: sqlite3.Connection) -> int:
+    timeout = int(sumup_payment_settings(conn).get("sumup_timeout_seconds") or 120)
+    return max(300, min(900, timeout + 90))
+
+
+def expire_stale_self_payment_sessions(conn: sqlite3.Connection):
+    cutoff = (datetime.now() - timedelta(seconds=self_payment_lock_window_seconds(conn))).strftime("%Y-%m-%d %H:%M:%S")
+    conn.execute(
+        """
+        UPDATE self_payment_sessions
+        SET status = 'EXPIRED',
+            error = COALESCE(error, 'Zeitlimit ueberschritten'),
+            updated_at = ?
+        WHERE status IN ('CREATED', 'SENT_TO_READER', 'PENDING') AND updated_at < ?
+        """,
+        (now_text(), cutoff),
+    )
+
+
+def active_self_payment_session(conn: sqlite3.Connection, person_id: int | None = None):
+    expire_stale_self_payment_sessions(conn)
+    if person_id is None:
+        return conn.execute(
+            """
+            SELECT *
+            FROM self_payment_sessions
+            WHERE status IN ('CREATED', 'SENT_TO_READER', 'PENDING')
+            ORDER BY updated_at DESC, id DESC
+            LIMIT 1
+            """
+        ).fetchone()
+    return conn.execute(
+        """
+        SELECT *
+        FROM self_payment_sessions
+        WHERE person_id = ? AND status IN ('CREATED', 'SENT_TO_READER', 'PENDING')
+        ORDER BY updated_at DESC, id DESC
+        LIMIT 1
+        """,
+        (person_id,),
+    ).fetchone()
+
+
+def ensure_no_active_self_payment(conn: sqlite3.Connection, person_id: int, allow_session_id: int | None = None):
+    row = active_self_payment_session(conn, person_id)
+    if row and (allow_session_id is None or int(row["id"]) != int(allow_session_id)):
+        raise HTTPException(status_code=409, detail="Fuer diese Person laeuft gerade eine SumUp-Zahlung")
+
+
+def ensure_no_active_self_payments(conn: sqlite3.Connection):
+    row = active_self_payment_session(conn)
+    if row:
+        raise HTTPException(status_code=409, detail="Es laeuft gerade eine SumUp-Zahlung. Bitte warten.")
+
+
+def payment_result_reference(result: dict | None) -> str | None:
+    if not result:
+        return None
+    parts = [
+        str(result.get("transaction_code") or "").strip(),
+        str(result.get("transaction_id") or "").strip(),
+        str(result.get("provider_checkout_id") or "").strip(),
+        str(result.get("auth_code") or "").strip(),
+    ]
+    clean = [part for part in parts if part]
+    return " / ".join(clean)[:120] if clean else None
+
+
+def mark_self_payment_session(
+    conn: sqlite3.Connection,
+    session_id: int,
+    status: str,
+    result: dict | None = None,
+    error: str | None = None,
+    transaction_id: int | None = None,
+    provider_checkout_id: str | None = None,
+):
+    completed_at = now_text() if status.upper() in {"PAID", "FAILED", "CANCELLED", "TIMEOUT", "UNKNOWN", "EXPIRED"} else None
+    conn.execute(
+        """
+        UPDATE self_payment_sessions
+        SET status = ?,
+            terminal_result = ?,
+            terminal_reference = ?,
+            raw_response = ?,
+            provider_checkout_id = COALESCE(?, provider_checkout_id),
+            error = ?,
+            transaction_id = COALESCE(?, transaction_id),
+            updated_at = ?,
+            completed_at = COALESCE(?, completed_at)
+        WHERE id = ?
+        """,
+        (
+            status,
+            json.dumps(result or {}, ensure_ascii=True) if result is not None else None,
+            payment_result_reference(result),
+            json.dumps(result or {}, ensure_ascii=True) if result is not None else None,
+            provider_checkout_id or (result or {}).get("provider_checkout_id"),
+            (error or "")[:500] if error else None,
+            transaction_id,
+            now_text(),
+            completed_at,
+            session_id,
+        ),
+    )
+
+
+def self_payment_session_by_client_id(conn: sqlite3.Connection, client_payment_id: str | None):
+    if not client_payment_id:
+        return None
+    expire_stale_self_payment_sessions(conn)
+    return conn.execute(
+        """
+        SELECT *
+        FROM self_payment_sessions
+        WHERE client_payment_id = ?
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (client_payment_id,),
+    ).fetchone()
+
+
+def self_payment_status_payload(conn: sqlite3.Connection, session, duplicate: bool = False) -> dict:
+    status = str(session["status"] or "").strip().upper()
+    message_by_status = {
+        "CREATED": "SumUp-Zahlung wird vorbereitet.",
+        "SENT_TO_READER": "SumUp Solo zeigt den Betrag an. Bitte keine zweite Zahlung starten.",
+        "PENDING": "SumUp-Zahlung laeuft. Bitte keine zweite Zahlung starten.",
+        "PAID": "Zahlung abgeschlossen.",
+        "FAILED": session["error"] or "SumUp-Zahlung fehlgeschlagen.",
+        "CANCELLED": session["error"] or "SumUp-Zahlung abgebrochen.",
+        "TIMEOUT": session["error"] or "SumUp-Zahlung ist abgelaufen. Offene Posten bleiben bestehen.",
+        "UNKNOWN": session["error"] or "SumUp-Status ist unklar. Bitte Zahlung pruefen; offene Posten bleiben bestehen.",
+        "EXPIRED": session["error"] or "SumUp-Zahlung ist abgelaufen.",
+    }
+    public_status = {
+        "CREATED": "created",
+        "SENT_TO_READER": "sent_to_reader",
+        "PENDING": "pending",
+        "PAID": "paid",
+        "FAILED": "failed",
+        "CANCELLED": "cancelled",
+        "TIMEOUT": "timeout",
+        "UNKNOWN": "unknown",
+        "EXPIRED": "expired",
+    }.get(status, status.lower() or "unknown")
+    payload = {
+        "status": public_status,
+        "session_status": status,
+        "session_id": int(session["id"]),
+        "person_id": int(session["person_id"]),
+        "client_payment_id": session["client_payment_id"],
+        "payment_method": "SUMUP",
+        "total": rounded_money(float(session["amount_eur"] or 0)),
+        "currency": session["currency"] if "currency" in session.keys() else "EUR",
+        "transaction_id": session["transaction_id"],
+        "provider_checkout_id": session["provider_checkout_id"] if "provider_checkout_id" in session.keys() else None,
+        "terminal_reference": session["terminal_reference"],
+        "message": message_by_status.get(status, session["error"] or "Zahlungsstatus aktualisiert."),
+        "duplicate": bool(duplicate),
+        **get_sync_state(conn),
+    }
+    return payload
+
+
+def terminal_receipt_text(person_name: str, session_id: int) -> str:
+    raw = f"Drink POS {person_name} #{session_id}"
+    clean = re.sub(r"[^A-Za-z0-9 .,_:/()-]", " ", raw)
+    return " ".join(clean.split())[:128]
+
+
+def create_sumup_checkout(
+    cfg: SumUpConfig,
+    amount_cents: int,
+    receipt_text: str = "",
+    foreign_transaction_id: str | None = None,
+) -> dict:
+    return sumup_create_reader_checkout(cfg, amount_cents, receipt_text, foreign_transaction_id)
+
+
+def poll_sumup_payment(cfg: SumUpConfig, provider_checkout_id: str) -> dict:
+    return sumup_poll_checkout_status(cfg, provider_checkout_id, cfg.timeout_seconds)
 
 
 def connection_event_label(event_type: str) -> str:
@@ -2335,6 +2680,14 @@ def kassa_page():
     return FileResponse(APP_DIR / "kassa.html", media_type="text/html; charset=utf-8")
 
 
+@app.get("/self-pay")
+@app.get("/self-pay/")
+@app.get("/bezahlen")
+@app.get("/bezahlen/")
+def self_pay_page():
+    return FileResponse(APP_DIR / "self-pay.html", media_type="text/html; charset=utf-8")
+
+
 
 
 @app.get("/manifest.webmanifest")
@@ -2345,6 +2698,11 @@ def manifest():
 @app.get("/kassa.webmanifest")
 def kassa_manifest():
     return FileResponse(APP_DIR / "kassa.webmanifest", media_type="application/manifest+json")
+
+
+@app.get("/self-pay.webmanifest")
+def self_pay_manifest():
+    return FileResponse(APP_DIR / "self-pay.webmanifest", media_type="application/manifest+json")
 
 
 @app.get("/service-worker.js")
@@ -2413,6 +2771,7 @@ def config():
             **sync_status_settings(conn),
             **ui_appearance_settings(conn),
             **cost_notice_settings(conn),
+            **public_self_payment_settings(sumup_payment_settings(conn)),
             "items": items,
             "user_items": user_items,
             # Backward-compatible name for old frontend shape.
@@ -2504,6 +2863,266 @@ def kassa_person_history(person_id: int, limit: int = 200):
             "history": make_kassa_person_history(conn, int(person["id"]), limit),
             **get_sync_state(conn),
         }
+
+
+def require_self_payment_available(conn: sqlite3.Connection) -> dict:
+    settings = sumup_payment_settings(conn)
+    if not settings["self_payment_enabled"]:
+        raise HTTPException(status_code=403, detail="Self-Checkout ist deaktiviert. PAYMENT_PROVIDER=sumup setzen.")
+    if not settings["sumup_configured"]:
+        missing = ", ".join(settings.get("sumup_missing") or [])
+        raise HTTPException(status_code=503, detail=f"SumUp ist nicht vollstaendig konfiguriert: {missing}")
+    return settings
+
+
+@app.get("/api/self-pay/config")
+def self_pay_config():
+    with get_conn() as conn:
+        settings = sumup_payment_settings(conn)
+        return {**public_self_payment_settings(settings), **get_sync_state(conn)}
+
+
+@app.post("/api/admin/sumup/status")
+def admin_sumup_status(req: PinRequest):
+    with get_conn() as conn:
+        require_pin(conn, req.pin)
+        cfg = sumup_config_from_settings(sumup_payment_settings(conn))
+    try:
+        status = sumup_reader_status(cfg)
+    except SumUpError as exc:
+        raise HTTPException(status_code=502, detail=exc.message)
+    return {"status": "ok", "reader": status}
+
+
+@app.post("/api/admin/sumup/readers")
+def admin_sumup_readers(req: PinRequest):
+    with get_conn() as conn:
+        require_pin(conn, req.pin)
+        cfg = sumup_config_from_settings(sumup_payment_settings(conn), require_reader=False)
+    try:
+        readers = sumup_list_readers(cfg)
+    except SumUpError as exc:
+        raise HTTPException(status_code=502, detail=exc.message)
+    return {"status": "ok", "readers": readers}
+
+
+@app.post("/api/admin/sumup/pair-reader")
+def admin_sumup_pair_reader(req: SumUpPairReaderRequest):
+    with get_conn() as conn:
+        require_pin(conn, req.pin)
+        cfg = sumup_config_from_settings(sumup_payment_settings(conn), require_reader=False)
+    try:
+        reader = sumup_pair_reader(cfg, req.pairing_code, req.name or "Drink POS")
+    except SumUpError as exc:
+        raise HTTPException(status_code=502, detail=exc.message)
+    return {"status": "ok", "reader": reader}
+
+
+@app.get("/api/self-pay/people")
+def self_pay_people():
+    with get_conn() as conn:
+        require_self_payment_available(conn)
+        return kassa_people()
+
+
+@app.get("/api/self-pay/person/{person_id}")
+def self_pay_person(person_id: int):
+    with get_conn() as conn:
+        require_self_payment_available(conn)
+        person = get_person(conn, person_id, allow_archived=False)
+        payload = kassa_person_payload(conn, person)
+        payload["can_self_pay"] = bool(payload["can_pay"])
+        return {**payload, **get_sync_state(conn)}
+
+
+@app.get("/api/self-pay/payment/{client_payment_id}")
+def self_pay_payment_status(client_payment_id: str):
+    normalized_id = normalize_client_operation_id(client_payment_id)
+    if not normalized_id:
+        raise HTTPException(status_code=400, detail="Zahlungs-ID fehlt")
+    with get_conn() as conn:
+        session = self_payment_session_by_client_id(conn, normalized_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Zahlungsvorgang nicht gefunden")
+        payload = self_payment_status_payload(conn, session)
+        conn.commit()
+        return payload
+
+
+@app.post("/api/self-pay/pay")
+def self_pay(req: SelfPayRequest):
+    client_payment_id = normalize_client_operation_id(req.client_payment_id)
+    if not client_payment_id:
+        raise HTTPException(status_code=400, detail="Zahlungs-ID fehlt. Bitte Seite aktualisieren.")
+
+    with get_conn() as conn:
+        settings = require_self_payment_available(conn)
+        cfg = sumup_config_from_settings(settings)
+        conn.execute("BEGIN IMMEDIATE")
+        person = get_person(conn, req.person_id, allow_archived=False)
+
+        existing_session = self_payment_session_by_client_id(conn, client_payment_id)
+        if existing_session:
+            if int(existing_session["person_id"]) != int(person["id"]):
+                raise HTTPException(status_code=409, detail="Diese Zahlungs-ID wurde bereits fuer eine andere Person verwendet")
+            payload = self_payment_status_payload(conn, existing_session, duplicate=True)
+            conn.commit()
+            return payload
+
+        ensure_no_active_self_payment(conn, int(person["id"]))
+        lines = get_open_lines(conn, req.person_id)
+        pending = get_pending_requests_for_person(conn, req.person_id)
+        current_revision = open_lines_payment_revision(lines, len(pending))
+        current_payload = kassa_person_payload(conn, person, lines)
+
+        if current_revision != (req.expected_revision or "").strip():
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "message": "Der offene Stand hat sich gerade geaendert. Bitte die aktualisierte Liste pruefen und erneut bezahlen.",
+                    "current": current_payload,
+                },
+            )
+        if pending:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "message": "Fuer diese Person gibt es offene Loeschanfragen. Bitte zuerst im Adminbereich entscheiden.",
+                    "current": current_payload,
+                },
+            )
+        if not lines:
+            raise HTTPException(status_code=400, detail="Keine offenen Posten")
+
+        total = person_total_from_lines(lines)
+        amount_cents = int(round(total * 100))
+        cur = conn.execute(
+            """
+            INSERT INTO self_payment_sessions (
+                person_id, client_payment_id, status, amount_eur, amount_cents, currency, provider, revision, created_at, updated_at
+            ) VALUES (?, ?, 'CREATED', ?, ?, ?, 'sumup', ?, ?, ?)
+            """,
+            (req.person_id, client_payment_id, total, amount_cents, settings["sumup_currency"], current_revision, now_text(), now_text()),
+        )
+        session_id = int(cur.lastrowid)
+        person_name = display_name(person["first_name"], person["last_name"]) or person["name"]
+        receipt_text = terminal_receipt_text(person_name, session_id)
+        conn.commit()
+
+    try:
+        checkout = create_sumup_checkout(cfg, amount_cents, receipt_text, client_payment_id)
+        provider_checkout_id = str(checkout.get("provider_checkout_id") or "").strip()
+        with get_conn() as conn:
+            mark_self_payment_session(
+                conn,
+                session_id,
+                "SENT_TO_READER",
+                result=checkout,
+                provider_checkout_id=provider_checkout_id,
+            )
+            conn.commit()
+        result = poll_sumup_payment(cfg, provider_checkout_id)
+    except SumUpError as exc:
+        session_status = "UNKNOWN" if exc.category == "unknown" else "FAILED"
+        with get_conn() as conn:
+            mark_self_payment_session(conn, session_id, session_status, result=exc.raw_response, error=exc.message)
+            log_transaction(conn, req.person_id, "SUMUP_PAYMENT_ERROR", 0, f"SumUp-Zahlung Fehler Session #{session_id}: {exc.message[:180]}")
+            session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
+            payload = self_payment_status_payload(conn, session) if session else {"message": str(exc)}
+            conn.commit()
+        raise HTTPException(status_code=502, detail=payload)
+    except Exception as exc:
+        with get_conn() as conn:
+            mark_self_payment_session(conn, session_id, "UNKNOWN", error=str(exc))
+            log_transaction(conn, req.person_id, "SUMUP_PAYMENT_ERROR", 0, f"SumUp-Zahlung unklar Session #{session_id}: {str(exc)[:180]}")
+            session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
+            payload = self_payment_status_payload(conn, session) if session else {"message": str(exc)}
+            conn.commit()
+        raise HTTPException(status_code=502, detail=payload)
+
+    provider_status = str(result.get("status") or "unknown").lower()
+    if provider_status != "paid":
+        with get_conn() as conn:
+            session_status = {
+                "failed": "FAILED",
+                "cancelled": "CANCELLED",
+                "timeout": "TIMEOUT",
+                "unknown": "UNKNOWN",
+            }.get(provider_status, "UNKNOWN")
+            message = result.get("message") or self_payment_status_payload(conn, conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone())["message"]
+            mark_self_payment_session(
+                conn,
+                session_id,
+                session_status,
+                result=result,
+                error=str(message),
+                provider_checkout_id=result.get("provider_checkout_id"),
+            )
+            log_transaction(conn, req.person_id, f"SUMUP_PAYMENT_{session_status}", 0, f"SumUp-Zahlung {session_status.lower()} Session #{session_id}")
+            session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
+            payload = self_payment_status_payload(conn, session) if session else {"status": provider_status}
+            conn.commit()
+        return payload
+
+    result_amount = result.get("amount_cents")
+    result_currency = str(result.get("currency") or settings["sumup_currency"]).upper()
+    if (result_amount is not None and int(result_amount) != amount_cents) or result_currency != str(settings["sumup_currency"]).upper():
+        with get_conn() as conn:
+            mark_self_payment_session(conn, session_id, "UNKNOWN", result=result, error="SumUp-Betrag oder Waehrung passt nicht zur Rechnung", provider_checkout_id=result.get("provider_checkout_id"))
+            log_transaction(conn, req.person_id, "SUMUP_PAYMENT_MISMATCH", total, f"SumUp erfolgreich, aber Betrag/Waehrung abweichend. Session #{session_id}")
+            session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
+            payload = self_payment_status_payload(conn, session) if session else {"status": "unknown"}
+            conn.commit()
+        return payload
+
+    with get_conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
+        if not session or session["status"] not in {"CREATED", "SENT_TO_READER", "PENDING"}:
+            raise HTTPException(status_code=409, detail="Zahlungssession ist nicht mehr aktiv")
+        person = get_person(conn, req.person_id, allow_archived=False)
+        lines = get_open_lines(conn, req.person_id)
+        pending = get_pending_requests_for_person(conn, req.person_id)
+        current_revision = open_lines_payment_revision(lines, len(pending))
+        current_payload = kassa_person_payload(conn, person, lines)
+        if current_revision != session["revision"] or pending:
+            mark_self_payment_session(conn, session_id, "UNKNOWN", result=result, error="Rechnung hat sich nach SumUp-Freigabe geaendert", provider_checkout_id=result.get("provider_checkout_id"))
+            log_transaction(conn, req.person_id, "SUMUP_PAYMENT_STALE", float(session["amount_eur"]), f"SumUp erfolgreich, aber Rechnung geaendert. Session #{session_id}")
+            stale_session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
+            payload = self_payment_status_payload(conn, stale_session) if stale_session else {"status": "unknown"}
+            payload["current"] = current_payload
+            conn.commit()
+            raise HTTPException(
+                status_code=409,
+                detail=payload,
+            )
+
+        grouped_details = make_payment_detail_lines(lines)
+        details = [
+            f"{int(line['quantity'])}x {line['item']} zu {eur_text(line['unit_price_eur'])}"
+            for line in grouped_details
+        ]
+        person_name = display_name(person["first_name"], person["last_name"]) or person["name"]
+        reference = payment_result_reference(result)
+        reference_text = f"; Ref {reference}" if reference else ""
+        tx_id = log_transaction(conn, req.person_id, "PAID_SUMUP", float(session["amount_eur"]), f"SumUp bezahlt von {person_name}{reference_text}: " + ", ".join(details))
+        for line in lines:
+            log_transaction_item(conn, tx_id, req.person_id, line, int(line["quantity"]), "PAID_SUMUP")
+        line_ids = [int(line["id"]) for line in lines]
+        placeholders = ",".join("?" for _ in line_ids)
+        conn.execute(
+            f"UPDATE order_lines SET quantity = 0, updated_at = ? WHERE id IN ({placeholders})",
+            [now_text(), *line_ids],
+        )
+        mark_self_payment_session(conn, session_id, "PAID", result=result, transaction_id=tx_id, provider_checkout_id=result.get("provider_checkout_id"))
+        paid_session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
+        payload = self_payment_status_payload(conn, paid_session)
+        payload["paid_items"] = sum(int(line["quantity"] or 0) for line in lines)
+        payload["paid_lines"] = len(lines)
+        sync_state = get_sync_state(conn)
+        conn.commit()
+
+    return {**payload, **sync_state}
 
 
 @app.post("/api/member-message/ack")
@@ -2623,6 +3242,7 @@ def create_edit_request(req: EditRequestIn):
         if not setting_bool(conn, "enable_delete_requests", "1"):
             raise HTTPException(status_code=403, detail="Löschanfragen sind aktuell deaktiviert")
         person = get_person(conn, req.person_id, allow_archived=False)
+        ensure_no_active_self_payment(conn, int(person["id"]))
         requested: list[tuple[int, int]] = []
 
         if req.line_quantities:
@@ -2936,6 +3556,7 @@ def pay(req: PayRequest):
     with get_conn() as conn:
         require_pin(conn, req.pin)
         person = get_person(conn, req.person_id, allow_archived=True)
+        ensure_no_active_self_payment(conn, int(person["id"]))
         handled = resolve_pending_for_payment(conn, req)
         round_pending = conn.execute("SELECT COUNT(*) AS c FROM round_requests WHERE person_id = ? AND status = 'PENDING'", (req.person_id,)).fetchone()["c"]
         if round_pending:
@@ -2970,6 +3591,7 @@ def kassa_pay(req: KassaPayRequest):
         require_pin(conn, req.pin)
         conn.execute("BEGIN IMMEDIATE")
         person = get_person(conn, req.person_id, allow_archived=False)
+        ensure_no_active_self_payment(conn, int(person["id"]))
         lines = get_open_lines(conn, req.person_id)
         pending = get_pending_requests_for_person(conn, req.person_id)
         current_revision = open_lines_payment_revision(lines, len(pending))
@@ -3408,6 +4030,7 @@ def admin_cashup(req: CashupRequest):
     """
     with get_conn() as conn:
         require_pin(conn, req.pin)
+        ensure_no_active_self_payments(conn)
         data = calculate_cashup_preview(conn)
         auto_rounds = data.get("auto_rounds", {})
         if data["gross_lines"]:
@@ -3503,6 +4126,7 @@ def deduct_round_preview(req: PinRequest):
 def deduct_round(req: PinRequest):
     with get_conn() as conn:
         require_pin(conn, req.pin)
+        ensure_no_active_self_payments(conn)
         removed, total = calculate_round_preview(conn)
         round_price = float(get_setting(conn, "round_item_price_eur", DEFAULT_ROUND_PRICE_EUR) or DEFAULT_ROUND_PRICE_EUR)
         deducted_vk = round(float(total), 2)
@@ -3630,6 +4254,7 @@ def admin_overview(req: PinRequest):
                 **sync_status_settings(conn),
                 **ui_appearance_settings(conn),
                 **cost_notice_settings(conn),
+                **sumup_payment_settings(conn),
                 "production": is_production(),
                 "environment": APP_ENV,
                 "debug_enabled": not is_production(),
@@ -4336,9 +4961,9 @@ def build_report_rows(conn: sqlite3.Connection, req: ReportRequest) -> tuple[lis
         if report_type == "consumption":
             kinds = ("CONSUME",)
         elif report_type == "revenue":
-            kinds = ("PAID_CASH",)
+            kinds = PAID_TRANSACTION_KINDS
         elif report_type == "profit":
-            kinds = ("PAID_CASH", "ROUND_DEDUCTED")
+            kinds = (*PAID_TRANSACTION_KINDS, "ROUND_DEDUCTED")
         else:
             raise HTTPException(status_code=400, detail="Unbekannter Berichtstyp")
 
@@ -4594,7 +5219,7 @@ def admin_statistics(req: StatisticsRequest):
             SELECT ti.*, COALESCE(i.admin_only, 0) AS current_admin_only
             FROM transaction_items ti
             LEFT JOIN items i ON i.id = ti.item_id
-            WHERE ti.kind IN ('PAID_CASH', 'ROUND_DEDUCTED')
+            WHERE ti.kind IN ('PAID_CASH', 'PAID_SUMUP', 'ROUND_DEDUCTED')
             {ti_where}
             ORDER BY ti.timestamp ASC, ti.id ASC
             """,

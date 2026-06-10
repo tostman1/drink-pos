@@ -1,5 +1,5 @@
-const CACHE_NAME = 'drink-pos-shell-v83';
-const SHELL_URLS = ['/', '/liste/', '/admin', '/kassa', '/kassa/', '/manifest.webmanifest', '/kassa.webmanifest', '/icon.png', '/icon.svg', '/icon-192.png', '/icon-512.png', '/kassa-icon.png', '/kassa-icon.svg', '/kassa-icon-192.png', '/kassa-icon-512.png'];
+const CACHE_NAME = 'drink-pos-shell-v88';
+const SHELL_URLS = ['/', '/liste/', '/admin', '/kassa', '/kassa/', '/self-pay', '/self-pay/', '/bezahlen', '/bezahlen/', '/manifest.webmanifest', '/kassa.webmanifest', '/self-pay.webmanifest', '/icon.png', '/icon.svg', '/icon-192.png', '/icon-512.png', '/kassa-icon.png', '/kassa-icon.svg', '/kassa-icon-192.png', '/kassa-icon-512.png'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(SHELL_URLS)).then(() => self.skipWaiting()));
@@ -20,6 +20,7 @@ self.addEventListener('fetch', event => {
     }).catch(() => caches.match(event.request).then(cached => {
       if (cached) return cached;
       if (url.pathname.startsWith('/kassa')) return caches.match('/kassa/');
+      if (url.pathname.startsWith('/self-pay') || url.pathname.startsWith('/bezahlen')) return caches.match('/self-pay/');
       if (url.pathname.startsWith('/liste')) return caches.match('/liste/');
       return caches.match('/');
     })));

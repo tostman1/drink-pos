@@ -1,6 +1,8 @@
 __pycache__/
 *.py[cod]
 
+.env
+
 data/*.db
 data/*.db-shm
 data/*.db-wal
@@ -8,3 +10,6 @@ data/backups/
 
 *.log
 *.rar
+
+LOKAL-CONTAINER-SUMUP.md
+LOCAL-SUMUP-SPYDER-TEST.py

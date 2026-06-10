@@ -25,6 +25,20 @@ class BackendFlowTests(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.original_agent_token = os.environ.pop("DRINK_POS_AGENT_TOKEN", None)
+        self.original_payment_env = {
+            key: os.environ.pop(key, None)
+            for key in [
+                "PAYMENT_PROVIDER",
+                "SUMUP_API_BASE",
+                "SUMUP_API_KEY",
+                "SUMUP_MERCHANT_CODE",
+                "SUMUP_READER_ID",
+                "SUMUP_AFFILIATE_KEY",
+                "SUMUP_AFFILIATE_APP_ID",
+                "SUMUP_CURRENCY",
+                "SUMUP_TIMEOUT_SECONDS",
+            ]
+        }
         os.environ["DRINK_POS_ENV"] = "development"
         os.environ["DRINK_POS_DB"] = str(Path(self.temp_dir.name) / "drink_pos_test.db")
         os.environ["DRINK_POS_PIN"] = PIN
@@ -45,6 +59,11 @@ class BackendFlowTests(unittest.TestCase):
             os.environ.pop("DRINK_POS_AGENT_TOKEN", None)
         else:
             os.environ["DRINK_POS_AGENT_TOKEN"] = self.original_agent_token
+        for key, value in self.original_payment_env.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
         self.temp_dir.cleanup()
 
     def first_person_and_item(self):
@@ -97,6 +116,270 @@ class BackendFlowTests(unittest.TestCase):
         )
         self.assertEqual(pay_res["status"], "paid")
         self.assertEqual(pay_res["paid_items"], 2)
+
+    def configure_sumup(self):
+        os.environ["PAYMENT_PROVIDER"] = "sumup"
+        os.environ["SUMUP_API_BASE"] = "https://api.sumup.test"
+        os.environ["SUMUP_API_KEY"] = "test-api-key"
+        os.environ["SUMUP_MERCHANT_CODE"] = "test-merchant"
+        os.environ["SUMUP_READER_ID"] = "test-reader"
+        os.environ["SUMUP_AFFILIATE_KEY"] = "test-affiliate-key"
+        os.environ["SUMUP_AFFILIATE_APP_ID"] = "drink-pos-test"
+        os.environ["SUMUP_CURRENCY"] = "EUR"
+        os.environ["SUMUP_TIMEOUT_SECONDS"] = "30"
+
+    def paid_sumup_result(self, amount_cents, provider_checkout_id="sumup-checkout-1"):
+        return {
+            "status": "paid",
+            "provider_checkout_id": provider_checkout_id,
+            "transaction_id": "sumup-tx-1",
+            "transaction_code": "SUMUPCODE1",
+            "auth_code": "AUTH01",
+            "amount_cents": amount_cents,
+            "currency": "EUR",
+            "raw_response": {"status": "SUCCESSFUL"},
+        }
+
+    def test_sumup_service_handles_wrapped_reader_status_and_checkout_response(self):
+        sumup = importlib.import_module("services.sumup")
+        original_request = sumup._request
+        calls = []
+
+        def fake_request(cfg, method, path, body=None, timeout=15):
+            calls.append((method, path, body))
+            if path.endswith("/status"):
+                return {"data": {"status": "ONLINE", "state": "IDLE"}}
+            if path.endswith("/checkout"):
+                return {"data": {"client_transaction_id": "client-tx-123"}}
+            self.fail(f"Unexpected SumUp path: {path}")
+
+        sumup._request = fake_request
+        try:
+            cfg = sumup.SumUpConfig(
+                api_base="https://api.sumup.test",
+                api_key="test-api-key",
+                merchant_code="merchant",
+                reader_id="reader",
+                affiliate_key="affiliate-key",
+                affiliate_app_id="drink-pos-test",
+            )
+            checkout = sumup.create_reader_checkout(cfg, 250, "Drink POS Test", "selfpay-test")
+        finally:
+            sumup._request = original_request
+
+        self.assertEqual(checkout["provider_checkout_id"], "client-tx-123")
+        checkout_body = calls[-1][2]
+        self.assertEqual(checkout_body["total_amount"]["value"], 250)
+        self.assertEqual(checkout_body["affiliate"]["foreign_transaction_id"], "selfpay-test")
+
+    def test_self_payment_with_sumup_closes_open_lines(self):
+        self.configure_sumup()
+        person, item = self.first_person_and_item()
+        self.main.add_drink(self.main.AddDrinkRequest(person_id=person["id"], item_id=item["id"]))
+        preview = self.main.self_pay_person(person["id"])
+        calls = []
+        original_create = self.main.create_sumup_checkout
+        original_poll = self.main.poll_sumup_payment
+
+        def fake_create(cfg, amount_cents, receipt_text="", foreign_transaction_id=None):
+            calls.append((cfg, amount_cents, receipt_text, foreign_transaction_id))
+            return {"provider_checkout_id": "sumup-checkout-paid-1", "status": "sent_to_reader"}
+
+        def fake_poll(cfg, provider_checkout_id):
+            return self.paid_sumup_result(calls[0][1], provider_checkout_id)
+
+        self.main.create_sumup_checkout = fake_create
+        self.main.poll_sumup_payment = fake_poll
+        payment_id = "selfpay-test-paid-1"
+        try:
+            paid = self.main.self_pay(
+                self.main.SelfPayRequest(
+                    person_id=person["id"],
+                    expected_revision=preview["revision"],
+                    client_payment_id=payment_id,
+                )
+            )
+            duplicate = self.main.self_pay(
+                self.main.SelfPayRequest(
+                    person_id=person["id"],
+                    expected_revision=preview["revision"],
+                    client_payment_id=payment_id,
+                )
+            )
+        finally:
+            self.main.create_sumup_checkout = original_create
+            self.main.poll_sumup_payment = original_poll
+
+        self.assertEqual(paid["status"], "paid")
+        self.assertEqual(paid["payment_method"], "SUMUP")
+        self.assertEqual(duplicate["status"], "paid")
+        self.assertTrue(duplicate["duplicate"])
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][1], int(round(preview["total_eur"] * 100)))
+        self.assertIn("Drink POS", calls[0][2])
+        self.assertEqual(calls[0][3], payment_id)
+        self.assertEqual(paid["provider_checkout_id"], "sumup-checkout-paid-1")
+        self.assertFalse(self.main.kassa_person(person["id"])["lines"])
+
+        payment_status = self.main.self_pay_payment_status(payment_id)
+        self.assertEqual(payment_status["status"], "paid")
+        self.assertEqual(payment_status["transaction_id"], paid["transaction_id"])
+
+        history = self.main.kassa_person_history(person["id"])
+        self.assertEqual(history["history"][-1]["type"], "PAID_SUMUP")
+        self.assertEqual(history["history"][-1]["type_label"], "SumUp-Zahlung")
+
+    def test_self_payment_locks_person_while_sumup_is_running(self):
+        self.configure_sumup()
+        person, item = self.first_person_and_item()
+        self.main.add_drink(self.main.AddDrinkRequest(person_id=person["id"], item_id=item["id"]))
+        preview = self.main.self_pay_person(person["id"])
+        original_create = self.main.create_sumup_checkout
+        original_poll = self.main.poll_sumup_payment
+        blocked_status = []
+        pending_duplicates = []
+        create_calls = []
+        payment_id = "selfpay-test-pending-1"
+
+        def fake_create(cfg, amount_cents, receipt_text="", foreign_transaction_id=None):
+            create_calls.append((amount_cents, receipt_text))
+            duplicate = self.main.self_pay(
+                self.main.SelfPayRequest(
+                    person_id=person["id"],
+                    expected_revision=preview["revision"],
+                    client_payment_id=payment_id,
+                )
+            )
+            pending_duplicates.append((duplicate["status"], duplicate["duplicate"]))
+            with self.assertRaises(HTTPException) as ctx:
+                self.main.add_drink(self.main.AddDrinkRequest(person_id=person["id"], item_id=item["id"]))
+            blocked_status.append(ctx.exception.status_code)
+            return {"provider_checkout_id": "sumup-checkout-lock-1", "status": "sent_to_reader"}
+
+        def fake_poll(cfg, provider_checkout_id):
+            return self.paid_sumup_result(int(round(preview["total_eur"] * 100)), provider_checkout_id)
+
+        self.main.create_sumup_checkout = fake_create
+        self.main.poll_sumup_payment = fake_poll
+        try:
+            paid = self.main.self_pay(
+                self.main.SelfPayRequest(
+                    person_id=person["id"],
+                    expected_revision=preview["revision"],
+                    client_payment_id=payment_id,
+                )
+            )
+        finally:
+            self.main.create_sumup_checkout = original_create
+            self.main.poll_sumup_payment = original_poll
+
+        self.assertEqual(paid["status"], "paid")
+        self.assertEqual(blocked_status, [409])
+        self.assertEqual(pending_duplicates, [("created", True)])
+        self.assertEqual(len(create_calls), 1)
+
+    def test_self_payment_routes_expose_page_and_open_balance(self):
+        page = self.main.self_pay_page()
+        page_path = Path(page.path)
+        self.assertEqual(page_path.name, "self-pay.html")
+        self.assertIn("Selbstzahlung", page_path.read_text(encoding="utf-8"))
+        self.assertIn("/self-pay.webmanifest", page_path.read_text(encoding="utf-8"))
+        list_page = self.main.home()
+        list_html = Path(list_page.path).read_text(encoding="utf-8")
+        self.assertIn("cardPayPanel", list_html)
+        self.assertIn("/api/self-pay/pay", list_html)
+        self.assertIn("client_payment_id", list_html)
+        manifest = self.main.self_pay_manifest()
+        self.assertEqual(Path(manifest.path).name, "self-pay.webmanifest")
+        disabled = self.main.self_pay_config()
+        self.assertFalse(disabled["self_payment_available"])
+
+        self.configure_sumup()
+        person, item = self.first_person_and_item()
+        add = self.main.add_drink(self.main.AddDrinkRequest(person_id=person["id"], item_id=item["id"]))
+        self.assertEqual(add["status"], "ok")
+
+        config = self.main.self_pay_config()
+        self.assertTrue(config["self_payment_available"])
+        people = self.main.self_pay_people()
+        self.assertGreaterEqual(len(people["people"]), 1)
+        detail = self.main.self_pay_person(person["id"])
+        self.assertTrue(detail["can_self_pay"])
+        self.assertTrue(detail["lines"])
+
+    def test_self_payment_reports_missing_sumup_configuration(self):
+        os.environ["PAYMENT_PROVIDER"] = "sumup"
+        config = self.main.self_pay_config()
+        self.assertFalse(config["self_payment_available"])
+        self.assertIn("SUMUP_API_KEY", config["sumup_missing"])
+        with self.assertRaises(HTTPException) as ctx:
+            self.main.self_pay_people()
+        self.assertEqual(ctx.exception.status_code, 503)
+        self.assertIn("SumUp", ctx.exception.detail)
+
+    def test_sumup_api_error_keeps_open_lines(self):
+        self.configure_sumup()
+        person, item = self.first_person_and_item()
+        self.main.add_drink(self.main.AddDrinkRequest(person_id=person["id"], item_id=item["id"]))
+        preview = self.main.self_pay_person(person["id"])
+        original_create = self.main.create_sumup_checkout
+        original_poll = self.main.poll_sumup_payment
+
+        def fake_create(cfg, amount_cents, receipt_text="", foreign_transaction_id=None):
+            raise self.main.SumUpError("reader_busy", "SumUp Solo ist beschaeftigt")
+
+        self.main.create_sumup_checkout = fake_create
+        self.main.poll_sumup_payment = lambda *args, **kwargs: self.fail("Polling must not start after API error")
+        try:
+            with self.assertRaises(HTTPException) as ctx:
+                self.main.self_pay(
+                    self.main.SelfPayRequest(
+                        person_id=person["id"],
+                        expected_revision=preview["revision"],
+                        client_payment_id="selfpay-api-error-1",
+                    )
+                )
+        finally:
+            self.main.create_sumup_checkout = original_create
+            self.main.poll_sumup_payment = original_poll
+
+        self.assertEqual(ctx.exception.status_code, 502)
+        self.assertEqual(ctx.exception.detail["status"], "failed")
+        self.assertTrue(self.main.kassa_person(person["id"])["lines"])
+
+    def test_sumup_timeout_or_unknown_keeps_open_lines(self):
+        self.configure_sumup()
+        person, item = self.first_person_and_item()
+        self.main.add_drink(self.main.AddDrinkRequest(person_id=person["id"], item_id=item["id"]))
+        preview = self.main.self_pay_person(person["id"])
+        original_create = self.main.create_sumup_checkout
+        original_poll = self.main.poll_sumup_payment
+
+        try:
+            for status in ("timeout", "unknown"):
+                with self.subTest(status=status):
+                    self.main.create_sumup_checkout = lambda cfg, amount_cents, receipt_text="", foreign_transaction_id=None, status=status: {
+                        "provider_checkout_id": f"sumup-checkout-{status}",
+                        "status": "sent_to_reader",
+                    }
+                    self.main.poll_sumup_payment = lambda cfg, provider_checkout_id, status=status: {
+                        "status": status,
+                        "provider_checkout_id": provider_checkout_id,
+                        "message": f"SumUp {status}",
+                        "raw_response": {},
+                    }
+                    result = self.main.self_pay(
+                        self.main.SelfPayRequest(
+                            person_id=person["id"],
+                            expected_revision=preview["revision"],
+                            client_payment_id=f"selfpay-{status}-1",
+                        )
+                    )
+                    self.assertEqual(result["status"], status)
+                    self.assertTrue(self.main.kassa_person(person["id"])["lines"])
+        finally:
+            self.main.create_sumup_checkout = original_create
+            self.main.poll_sumup_payment = original_poll
 
     def test_round_and_cashup_flow(self):
         people = self.main.list_people()

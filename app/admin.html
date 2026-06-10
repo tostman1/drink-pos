@@ -316,6 +316,13 @@
           <button class="save" onclick="saveAppName()">App-Name speichern</button>
           <span class="muted">Dieser Name erscheint in der Kassenansicht und als Seitentitel.</span>
         </div>
+        <hr style="border:0; border-top:1px solid var(--border); margin:16px 0">
+        <h3>SumUp Solo Self-Checkout</h3>
+        <div class="grid settings-grid">
+          <button class="blue" onclick="testSumupStatus()">Reader testen</button>
+          <span class="muted">Konfiguration erfolgt serverseitig per ENV. Self-Checkout: <a href="/self-pay" style="color:#2563eb; background:transparent; padding:0">/self-pay</a></span>
+        </div>
+        <div class="muted" id="sumupSettingsInfo" style="margin-top:8px"></div>
         <div id="appearanceSettingsBlock">
         <h3>Standardansicht</h3>
         <div class="settings-view-toggle">
@@ -1279,7 +1286,7 @@
 
     function typeLabel(type) {
       const labels = {
-        CONSUME: 'Konsum', CONSUMPTION: 'Konsum', PAID_CASH: 'Bar bezahlt', PAID: 'Bezahlt',
+        CONSUME: 'Konsum', CONSUMPTION: 'Konsum', PAID_CASH: 'Bar bezahlt', PAID_SUMUP: 'SumUp bezahlt', PAID: 'Bezahlt',
         CASHUP: 'Kassensturz',
         ROUND_DEDUCTED: 'Runde abgezogen', ROUND_REQUEST: 'Runde angefragt',
         ROUND_REQUEST_APPROVED: 'Runde bestätigt', ROUND_REQUEST_REJECTED: 'Rundenanfrage abgelehnt',
@@ -1292,6 +1299,10 @@
         MEMBER_MESSAGE_CREATED: 'Mitgliedernachricht angelegt',
         MEMBER_MESSAGE_ARCHIVED: 'Mitgliedernachricht archiviert',
         MEMBER_MESSAGE_ACK: 'Mitgliedernachricht bestätigt',
+        SUMUP_PAYMENT_FAILED: 'SumUp fehlgeschlagen', SUMUP_PAYMENT_CANCELLED: 'SumUp abgebrochen',
+        SUMUP_PAYMENT_TIMEOUT: 'SumUp Timeout', SUMUP_PAYMENT_UNKNOWN: 'SumUp unklar',
+        SUMUP_PAYMENT_ERROR: 'SumUp Fehler', SUMUP_PAYMENT_MISMATCH: 'SumUp Betrag abweichend',
+        SUMUP_PAYMENT_STALE: 'SumUp Rechnung geaendert',
         CONNECTION_LOST: 'Verbindung verloren', CONNECTION_RESTORED: 'Verbindung aufgenommen', SYNC_COMPLETED: 'Synchronisiert'
       };
       return labels[type] || type || 'Unbekannt';
@@ -1446,7 +1457,7 @@
           <div class="stats-summary-value">${money(k.profit_eur || 0)}</div>
           <div class="metric-note">Gewinn aus bezahlten Posten und Rundenabzug</div>
           <div class="stats-summary-grid">
-            <div class="stats-summary-chip"><strong>${money(k.revenue_eur || 0)}</strong><span>Bar bezahlt</span></div>
+            <div class="stats-summary-chip"><strong>${money(k.revenue_eur || 0)}</strong><span>Bezahlt</span></div>
             <div class="stats-summary-chip"><strong>${money(k.cost_eur || 0)}</strong><span>EK/Kosten</span></div>
           </div>
         </div>
@@ -1505,7 +1516,7 @@
         ['Aktuell offen', money(open.total_eur || 0), `${Number(open.items || 0)} offene Striche insgesamt`],
         ['Aktuelle Strichliste', money(event.total_eur || 0), `${Number(event.items || 0)} offene Striche seit Kassensturz`],
         ['Verbrauch', `${Number(k.quantity || 0)}`, `${money(k.vk_value_eur || 0)} VK-Wert`],
-        ['Bar bezahlt', money(k.revenue_eur || 0), 'nach Zahlungsdatum'],
+        ['Bezahlt', money(k.revenue_eur || 0), 'Bar und SumUp nach Zahlungsdatum'],
         ['EK/Kosten', money(k.cost_eur || 0), 'bezahlte Kosten und Rundenabzug'],
         ['Gewinn', money(k.profit_eur || 0), 'bezahlter Zeitraum'],
         ['Runden', money(rounds.profit_vs_purchase_eur || 0), `${Number(rounds.count || 0)} Runden nach EK`]
@@ -1782,6 +1793,15 @@
       environment = s.environment || 'development';
       debugEnabled = s.debug_enabled !== false;
       document.getElementById('roundPrice').value = formatDecimalInputValue(s.round_item_price_eur || 10);
+      const sumupInfo = document.getElementById('sumupSettingsInfo');
+      if (sumupInfo) {
+        if (s.sumup_configured) {
+          sumupInfo.textContent = `SumUp bereit. Reader ${s.sumup_reader_id || 'gesetzt'} · ${s.sumup_currency || 'EUR'} · Timeout ${Number(s.sumup_timeout_seconds || 120)}s.`;
+        } else {
+          const missing = (s.sumup_missing || []).join(', ') || 'PAYMENT_PROVIDER=sumup';
+          sumupInfo.textContent = `SumUp noch nicht konfiguriert. Fehlend: ${missing}.`;
+        }
+      }
       document.getElementById('showTotalOverview').checked = s.show_total_on_overview !== false;
       document.getElementById('showPersonPopupTotal').checked = s.show_person_popup_total !== false;
       document.getElementById('showSummaryLabelOverview').checked = s.show_summary_label_on_overview !== false;
@@ -1917,7 +1937,7 @@
     }
 
     function preferredHistoryTypes() {
-      return ['CONSUME','PAID_CASH','PAID','CASHUP','ROUND_DEDUCTED','ROUND_REQUEST','ROUND_REQUEST_APPROVED','ROUND_REQUEST_REJECTED','ADMIN_ADJUSTMENT','CHANGE_REQUEST','CHANGE_APPROVED','CHANGE_REJECTED','PERSON_CREATED','PERSON_UPDATED','PERSON_DELETED','ITEM_CREATED','ITEM_UPDATED','ITEM_DELETED','SETTINGS_UPDATED','MEMBER_MESSAGE_CREATED','MEMBER_MESSAGE_ARCHIVED','MEMBER_MESSAGE_ACK','CONNECTION_LOST','CONNECTION_RESTORED','SYNC_COMPLETED','DEBUG_TEST_DATA'];
+      return ['CONSUME','PAID_CASH','PAID_SUMUP','PAID','SUMUP_PAYMENT_FAILED','SUMUP_PAYMENT_CANCELLED','SUMUP_PAYMENT_TIMEOUT','SUMUP_PAYMENT_UNKNOWN','SUMUP_PAYMENT_ERROR','SUMUP_PAYMENT_MISMATCH','SUMUP_PAYMENT_STALE','CASHUP','ROUND_DEDUCTED','ROUND_REQUEST','ROUND_REQUEST_APPROVED','ROUND_REQUEST_REJECTED','ADMIN_ADJUSTMENT','CHANGE_REQUEST','CHANGE_APPROVED','CHANGE_REJECTED','PERSON_CREATED','PERSON_UPDATED','PERSON_DELETED','ITEM_CREATED','ITEM_UPDATED','ITEM_DELETED','SETTINGS_UPDATED','MEMBER_MESSAGE_CREATED','MEMBER_MESSAGE_ARCHIVED','MEMBER_MESSAGE_ACK','CONNECTION_LOST','CONNECTION_RESTORED','SYNC_COMPLETED','DEBUG_TEST_DATA'];
     }
 
     function currentRenderedTypeSet() {
@@ -2024,6 +2044,21 @@
       const app_name = document.getElementById('appName').value.trim();
       if (!app_name) return alert('App-Name eingeben.');
       try { await apiFetch('/api/admin/settings/update', {pin: adminPin, app_name}); showStatus('App-Name gespeichert'); await loadOverview(); } catch (err) { alert(err.message); }
+    }
+
+    async function testSumupStatus() {
+      const info = document.getElementById('sumupSettingsInfo');
+      if (info) info.textContent = 'SumUp Reader wird abgefragt...';
+      try {
+        const data = await apiFetch('/api/admin/sumup/status', { pin: adminPin });
+        const reader = data.reader || {};
+        const state = reader.state ? ` · Status ${reader.state}` : '';
+        if (info) info.textContent = `SumUp Reader erreichbar: ${reader.status || 'Antwort erhalten'}${state}.`;
+        showStatus('SumUp Reader erreichbar');
+      } catch (err) {
+        if (info) info.textContent = err.message || 'SumUp Reader nicht erreichbar.';
+        alert(err.message);
+      }
     }
 
     function previewNoise(seed) {

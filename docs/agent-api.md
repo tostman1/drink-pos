@@ -3,6 +3,8 @@
 Drink POS stellt fuer KI-Agenten ein kleines REST-Interface bereit. Es ist bewusst schmal gehalten:
 Agenten duerfen den Strichlisten-Stand lesen, normale Getraenke buchen und Rundenanfragen anlegen.
 Admin-Aktionen bleiben im Admin-UI beziehungsweise bei PIN-geschuetzten Admin-Endpunkten.
+Die SumUp-Selbstzahlung fuer Mitglieder ist in der normalen Listenansicht integriert; `/self-pay`
+bleibt nur als Test-/Fallbackseite erhalten. Der Zahlungsflow gehoert nicht zur Agenten-API.
 
 Die API eignet sich direkt fuer Agenten und kann bei Bedarf von einem MCP-Server als Tool-Backend
 gewrappt werden.
@@ -52,6 +54,9 @@ Die FastAPI/OpenAPI-Beschreibung ist unter `/openapi.json` verfuegbar.
 - Agenten duerfen keine inaktiven, Admin-only- oder Systemartikel buchen.
 - Zahlungsabschluss, Kassensturz, PIN-Aenderung, Artikelverwaltung und Entscheidungen ueber
   Loeschanfragen sind nicht Teil der Agenten-API.
+- Wenn fuer eine Person gerade eine SumUp-Selbstzahlung mit Status `CREATED`, `SENT_TO_READER`
+  oder `PENDING` laeuft, blockiert der Server neue Agentenbuchungen fuer diese Person mit HTTP `409`. Dadurch kann die Terminalzahlung
+  nicht durch parallele Buchungen veraltet oder doppelt verarbeitet werden.
 
 ## Beispiele
 
@@ -127,6 +132,6 @@ ID erneut gesendet wird, antwortet die API mit `duplicate: true` und der vorhand
 | `400` | Ungueltige Menge oder Artikel nicht gefunden |
 | `403` | Falscher Token oder nicht erlaubter Artikel |
 | `404` | Agenten-API deaktiviert oder Person nicht gefunden |
-| `409` | Reserviert fuer Konflikte in anderen App-Flows |
+| `409` | Konflikt, z. B. laufende SumUp-Selbstzahlung fuer diese Person |
 
 Antworten enthalten ueblicherweise ein `detail`-Feld mit einer menschenlesbaren Meldung.

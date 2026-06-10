@@ -1,0 +1,851 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Selbstzahlung">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="theme-color" content="#0f172a">
+  <link rel="manifest" href="/self-pay.webmanifest">
+  <link rel="apple-touch-icon" href="/kassa-icon.png">
+  <title>Selbstzahlung</title>
+  <style>
+    :root {
+      --bg:#f4f7fb;
+      --panel:#ffffff;
+      --ink:#111827;
+      --muted:#64748b;
+      --line:#dbe3ee;
+      --blue:#2563eb;
+      --blue-soft:#eaf2ff;
+      --green:#16a34a;
+      --green-dark:#15803d;
+      --yellow:#fbbf24;
+      --danger:#dc2626;
+      --shadow:0 14px 34px rgba(15,23,42,.12);
+    }
+    * { box-sizing:border-box; }
+    body {
+      margin:0;
+      min-height:100vh;
+      background:var(--bg);
+      color:var(--ink);
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      -webkit-font-smoothing:antialiased;
+    }
+    body.modal-open { overflow:hidden; }
+    button, input { font:inherit; }
+    button {
+      border:0;
+      border-radius:8px;
+      min-height:44px;
+      padding:10px 14px;
+      font-weight:850;
+      cursor:pointer;
+    }
+    button:disabled { opacity:.55; cursor:wait; }
+    .app {
+      width:min(100%,560px);
+      min-height:100vh;
+      margin:0 auto;
+      background:linear-gradient(180deg,#ffffff 0,#f4f7fb 52%);
+      display:flex;
+      flex-direction:column;
+    }
+    .topbar {
+      position:sticky;
+      top:0;
+      z-index:10;
+      padding:calc(10px + env(safe-area-inset-top)) 14px 10px;
+      background:rgba(255,255,255,.94);
+      border-bottom:1px solid var(--line);
+      backdrop-filter:blur(14px);
+    }
+    .topline { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    h1 { margin:0; font-size:24px; line-height:1; letter-spacing:0; }
+    .sub { margin-top:4px; color:var(--muted); font-size:13px; }
+    .icon-btn {
+      width:44px;
+      height:44px;
+      padding:0;
+      border:1px solid var(--line);
+      background:#fff;
+      color:var(--ink);
+      display:grid;
+      place-items:center;
+      font-size:20px;
+    }
+    .content {
+      flex:1;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      padding:12px 12px calc(18px + env(safe-area-inset-bottom));
+    }
+    .search-wrap {
+      position:sticky;
+      top:calc(64px + env(safe-area-inset-top));
+      z-index:8;
+      padding-bottom:2px;
+      background:linear-gradient(180deg,#f9fbff 0,#f4f7fb 100%);
+    }
+    .search {
+      width:100%;
+      min-height:50px;
+      padding:12px 14px;
+      border:1px solid var(--line);
+      border-radius:8px;
+      outline:none;
+      background:#fff;
+      color:var(--ink);
+      font-size:17px;
+    }
+    .search:focus { border-color:#93c5fd; box-shadow:0 0 0 4px rgba(37,99,235,.12); }
+    .list-summary {
+      display:grid;
+      grid-template-columns:repeat(3,minmax(0,1fr));
+      gap:7px;
+      margin-top:8px;
+    }
+    .summary-tile {
+      min-width:0;
+      padding:8px 9px;
+      border:1px solid var(--line);
+      border-radius:8px;
+      background:#fff;
+      box-shadow:0 3px 10px rgba(15,23,42,.04);
+    }
+    .summary-label {
+      color:var(--muted);
+      font-size:10px;
+      font-weight:850;
+      letter-spacing:0;
+      text-transform:uppercase;
+    }
+    .summary-value {
+      margin-top:2px;
+      overflow:hidden;
+      white-space:nowrap;
+      text-overflow:ellipsis;
+      font-size:16px;
+      line-height:1.12;
+      font-weight:950;
+    }
+    .person-list { display:grid; gap:8px; }
+    .person-row {
+      width:100%;
+      display:grid;
+      grid-template-columns:1fr auto;
+      align-items:center;
+      gap:10px;
+      min-height:62px;
+      padding:11px 12px;
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:8px;
+      text-align:left;
+      box-shadow:0 4px 12px rgba(15,23,42,.04);
+    }
+    .person-name {
+      min-width:0;
+      font-size:17px;
+      font-weight:850;
+      overflow:hidden;
+      white-space:nowrap;
+      text-overflow:ellipsis;
+    }
+    .person-meta { margin-top:2px; color:var(--muted); font-size:12px; font-weight:650; }
+    .amount { font-size:18px; font-weight:950; white-space:nowrap; }
+    .empty, .setup-card {
+      padding:26px 18px;
+      text-align:center;
+      color:var(--muted);
+      background:#fff;
+      border:1px dashed #cbd5e1;
+      border-radius:8px;
+    }
+    .setup-card {
+      margin:auto 12px;
+      border-style:solid;
+      box-shadow:var(--shadow);
+      display:grid;
+      gap:12px;
+      text-align:left;
+    }
+    .setup-card h1 { color:var(--ink); font-size:28px; }
+    .setup-card p { margin:0; line-height:1.38; }
+    .setup-actions { display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+    .detail-head {
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:8px;
+      padding:14px;
+      box-shadow:0 8px 20px rgba(15,23,42,.06);
+    }
+    .detail-name { font-size:24px; font-weight:950; line-height:1.08; }
+    .detail-total { margin-top:8px; font-size:42px; line-height:1; font-weight:1000; color:#0f172a; }
+    .detail-note { margin-top:6px; color:var(--muted); font-size:13px; }
+    .line-list {
+      display:grid;
+      gap:7px;
+      margin-bottom:96px;
+    }
+    .line-row {
+      display:grid;
+      grid-template-columns:44px 1fr auto;
+      gap:10px;
+      align-items:center;
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:8px;
+      padding:10px;
+    }
+    .qty {
+      width:38px;
+      height:38px;
+      display:grid;
+      place-items:center;
+      border-radius:8px;
+      background:#eef6ff;
+      color:#1d4ed8;
+      font-weight:950;
+    }
+    .item { min-width:0; font-weight:850; }
+    .item small { display:block; margin-top:2px; color:var(--muted); font-weight:650; }
+    .line-total { font-weight:950; white-space:nowrap; }
+    .warning {
+      border:1px solid #fde68a;
+      background:#fffbeb;
+      color:#92400e;
+      border-radius:8px;
+      padding:10px 12px;
+      font-size:13px;
+      line-height:1.35;
+      font-weight:750;
+    }
+    .detail-actions {
+      position:fixed;
+      left:50%;
+      bottom:0;
+      z-index:20;
+      width:min(100%,560px);
+      transform:translateX(-50%);
+      display:grid;
+      grid-template-columns:.9fr 1.35fr;
+      gap:9px;
+      padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+      background:rgba(244,247,251,.92);
+      border-top:1px solid var(--line);
+      backdrop-filter:blur(14px);
+    }
+    .primary {
+      background:linear-gradient(180deg,#22c55e,#16a34a);
+      color:#fff;
+      box-shadow:0 10px 22px rgba(22,163,74,.2);
+    }
+    .primary.terminal {
+      min-height:56px;
+      font-size:19px;
+    }
+    .secondary {
+      background:#e8eef7;
+      color:#1f2937;
+      border:1px solid #d3deec;
+    }
+    .blue {
+      background:var(--blue-soft);
+      color:#1d4ed8;
+      border:1px solid #bfdbfe;
+    }
+    dialog.confirm-dialog {
+      border:0;
+      padding:0;
+      width:min(calc(100vw - 28px),480px);
+      border-radius:8px;
+      background:transparent;
+      position:fixed;
+      left:50%;
+      top:50%;
+      transform:translate(-50%,-50%);
+      margin:0;
+      box-shadow:0 22px 60px rgba(15,23,42,.28);
+    }
+    dialog.confirm-dialog::backdrop { background:rgba(15,23,42,.48); }
+    .confirm-card {
+      background:#fff;
+      border-radius:8px;
+      padding:18px;
+      border:1px solid var(--line);
+      display:grid;
+      gap:12px;
+    }
+    .confirm-card h2 { margin:0; font-size:24px; line-height:1.1; }
+    .confirm-card p { margin:0; color:var(--muted); line-height:1.35; }
+    .confirm-total {
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      align-items:baseline;
+      padding:12px;
+      border-radius:8px;
+      background:#f8fafc;
+      font-weight:950;
+    }
+    .confirm-total strong { font-size:24px; }
+    .confirm-actions {
+      display:grid;
+      grid-template-columns:1fr 1.25fr;
+      gap:9px;
+    }
+    .terminal-card {
+      padding:18px;
+      border-radius:8px;
+      border:1px solid #bfdbfe;
+      background:#eff6ff;
+      color:#1e3a8a;
+      display:grid;
+      gap:10px;
+    }
+    .terminal-spinner {
+      width:36px;
+      height:36px;
+      border-radius:999px;
+      border:4px solid #bfdbfe;
+      border-top-color:#2563eb;
+      animation:spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .status {
+      position:fixed;
+      left:50%;
+      bottom:calc(14px + env(safe-area-inset-bottom));
+      z-index:50;
+      max-width:min(92%,500px);
+      transform:translateX(-50%) translateY(16px);
+      opacity:0;
+      pointer-events:none;
+      background:#0f172a;
+      color:#fff;
+      border-radius:999px;
+      padding:10px 14px;
+      font-size:14px;
+      font-weight:800;
+      transition:opacity .18s ease, transform .18s ease;
+      box-shadow:0 10px 24px rgba(15,23,42,.24);
+    }
+    .status.show { opacity:1; transform:translateX(-50%) translateY(0); }
+    .hidden { display:none !important; }
+    @media (max-width:370px) {
+      .amount { font-size:16px; }
+      .detail-total { font-size:36px; }
+      .person-name { font-size:16px; }
+      .detail-actions, .confirm-actions, .setup-actions { grid-template-columns:1fr; }
+      .line-list { margin-bottom:168px; }
+    }
+    @media (prefers-reduced-motion:reduce) {
+      .terminal-spinner { animation:none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="topline">
+        <div>
+          <h1 id="pageTitle">Selbstzahlung</h1>
+          <div id="pageSub" class="sub">Offene Rechnungen</div>
+        </div>
+          <button id="refreshButton" class="icon-btn" type="button" title="Aktualisieren">&#x21bb;</button>
+      </div>
+    </header>
+
+    <section id="setupView" class="setup-card hidden">
+      <div>
+        <h1>Nicht bereit</h1>
+        <p id="setupText">Selbstzahlung ist aktuell nicht aktiv.</p>
+      </div>
+      <div class="setup-actions">
+        <button id="setupRefreshButton" class="blue" type="button">Pruefen</button>
+        <button class="secondary" type="button" onclick="location.href='/admin'">Admin</button>
+      </div>
+    </section>
+
+    <main id="listView" class="content hidden">
+      <div class="search-wrap">
+        <input id="searchInput" class="search" type="search" placeholder="Eigenen Namen suchen..." autocomplete="off">
+        <div id="listSummary" class="list-summary" aria-live="polite"></div>
+      </div>
+      <div id="personList" class="person-list"></div>
+    </main>
+
+    <main id="detailView" class="content hidden">
+      <section id="detailHead" class="detail-head"></section>
+      <div id="detailWarning" class="warning hidden"></div>
+      <section id="lineList" class="line-list"></section>
+      <div class="detail-actions">
+        <button id="cancelButton" class="secondary" type="button">Zurueck</button>
+        <button id="payButton" class="primary terminal" type="button">Mit SumUp zahlen</button>
+      </div>
+    </main>
+  </div>
+
+  <dialog id="payConfirmDialog" class="confirm-dialog">
+    <section class="confirm-card">
+      <div>
+        <h2 id="confirmTitle">Zahlung starten?</h2>
+        <p id="confirmText"></p>
+      </div>
+      <div class="confirm-total"><span>Gesamt</span><strong id="confirmTotal">&euro; 0,00</strong></div>
+      <div id="terminalWait" class="terminal-card hidden">
+        <div class="terminal-spinner" aria-hidden="true"></div>
+        <strong>SumUp Solo wartet</strong>
+        <p>Karte oder Smartphone am SumUp Solo verwenden. Diese Seite offen lassen, bis die Zahlung bestaetigt ist.</p>
+      </div>
+      <div class="confirm-actions">
+        <button id="confirmCancelButton" class="secondary" type="button">Abbrechen</button>
+        <button id="confirmPayButton" class="primary" type="button">Jetzt zahlen</button>
+      </div>
+    </section>
+  </dialog>
+
+  <div id="status" class="status"></div>
+
+  <script>
+    const state = {
+      config: null,
+      people: [],
+      selected: null,
+      busy: false,
+      listTimer: null,
+      paymentTimer: null,
+      activePayment: null,
+    };
+
+    const ACTIVE_PAYMENT_KEY = 'drinkPosSelfPayActivePayment';
+    const el = id => document.getElementById(id);
+    const money = value => new Intl.NumberFormat('de-AT', { style:'currency', currency:'EUR' }).format(Number(value || 0));
+    const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]));
+
+    function syncModalOpen() {
+      document.body.classList.toggle('modal-open', el('payConfirmDialog').open);
+    }
+
+    function showStatus(message, duration = 2600) {
+      const box = el('status');
+      box.textContent = message;
+      box.classList.add('show');
+      clearTimeout(showStatus.timer);
+      showStatus.timer = setTimeout(() => box.classList.remove('show'), duration);
+    }
+
+    function createClientPaymentId(person) {
+      const browserCrypto = globalThis.crypto;
+      const random = browserCrypto?.getRandomValues
+        ? Array.from(browserCrypto.getRandomValues(new Uint32Array(2)), n => n.toString(36)).join('')
+        : Math.random().toString(36).slice(2);
+      return `selfpay-${Date.now().toString(36)}-${Number(person.id)}-${random}`.slice(0, 80);
+    }
+
+    function readStoredPayment() {
+      try {
+        const raw = localStorage.getItem(ACTIVE_PAYMENT_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch {
+        return null;
+      }
+    }
+
+    function storeActivePayment(payment) {
+      state.activePayment = payment;
+      localStorage.setItem(ACTIVE_PAYMENT_KEY, JSON.stringify(payment));
+    }
+
+    function clearActivePayment(clientPaymentId = null) {
+      const stored = readStoredPayment();
+      if (!clientPaymentId || !stored || stored.client_payment_id === clientPaymentId) {
+        localStorage.removeItem(ACTIVE_PAYMENT_KEY);
+      }
+      if (!clientPaymentId || state.activePayment?.client_payment_id === clientPaymentId) {
+        state.activePayment = null;
+      }
+    }
+
+    async function apiGet(url) {
+      const res = await fetch(url, { cache:'no-store', headers:{ 'Cache-Control':'no-cache' } });
+      return parseResponse(res);
+    }
+
+    async function apiPost(url, body) {
+      const res = await fetch(url, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body:JSON.stringify(body || {}),
+      });
+      return parseResponse(res);
+    }
+
+    async function parseResponse(res) {
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const detail = data.detail;
+        const message = typeof detail === 'string' ? detail : (detail?.message || 'Aktion fehlgeschlagen');
+        const err = new Error(message);
+        err.status = res.status;
+        err.detail = detail;
+        throw err;
+      }
+      return data;
+    }
+
+    async function fetchPaymentStatus(clientPaymentId) {
+      return apiGet(`/api/self-pay/payment/${encodeURIComponent(clientPaymentId)}`);
+    }
+
+    function paymentIsRunning(status) {
+      return ['created', 'sent_to_reader', 'pending'].includes(String(status || '').toLowerCase());
+    }
+
+    function stopPaymentPolling() {
+      if (state.paymentTimer) clearTimeout(state.paymentTimer);
+      state.paymentTimer = null;
+    }
+
+    async function applyPaymentStatus(data, clientPaymentId, options = {}) {
+      const status = String(data.status || '').toLowerCase();
+      if (paymentIsRunning(status)) {
+        setTerminalBusy(true);
+        if (!options.quiet) showStatus(data.message || 'SumUp-Zahlung laeuft...', 3200);
+        return false;
+      }
+
+      stopPaymentPolling();
+      setTerminalBusy(false);
+
+      if (status === 'paid') {
+        clearActivePayment(clientPaymentId);
+        if (el('payConfirmDialog').open) el('payConfirmDialog').close();
+        showStatus(`Bezahlt: ${money(data.total)}`, 3600);
+        state.selected = null;
+        await loadPeople(true);
+        setMode('list');
+        return true;
+      }
+
+      if (status === 'failed' || status === 'cancelled') {
+        clearActivePayment(clientPaymentId);
+        showStatus(data.message || 'SumUp-Zahlung wurde nicht abgeschlossen', 4200);
+        return true;
+      }
+
+      if (status === 'timeout' || status === 'unknown' || status === 'expired') {
+        clearActivePayment(clientPaymentId);
+        showStatus(data.message || 'SumUp-Status unklar. Offene Posten wurden nicht verbucht.', 5600);
+        return true;
+      }
+
+      return false;
+    }
+
+    function pollPaymentStatus(clientPaymentId, attempt = 0) {
+      stopPaymentPolling();
+      setTerminalBusy(true);
+      const tick = async () => {
+        try {
+          const data = await fetchPaymentStatus(clientPaymentId);
+          const done = await applyPaymentStatus(data, clientPaymentId, { quiet: attempt > 0 });
+          if (!done) {
+            state.paymentTimer = setTimeout(() => pollPaymentStatus(clientPaymentId, attempt + 1), 2200);
+          }
+        } catch (err) {
+          if (err.status === 404) {
+            clearActivePayment(clientPaymentId);
+            setTerminalBusy(false);
+            showStatus('Zahlungsvorgang nicht gefunden', 4200);
+            return;
+          }
+          showStatus('Verbindung unterbrochen. Zahlung wird weiter geprueft...', 4200);
+          state.paymentTimer = setTimeout(() => pollPaymentStatus(clientPaymentId, attempt + 1), 3600);
+        }
+      };
+      tick();
+    }
+
+    async function resumeStoredPayment() {
+      const saved = readStoredPayment();
+      if (!saved?.client_payment_id) return;
+      state.activePayment = saved;
+      showStatus('Vorherige Zahlung wird geprueft...', 3200);
+      try {
+        const data = await fetchPaymentStatus(saved.client_payment_id);
+        const done = await applyPaymentStatus(data, saved.client_payment_id);
+        if (!done) pollPaymentStatus(saved.client_payment_id);
+      } catch (err) {
+        if (err.status === 404) {
+          clearActivePayment(saved.client_payment_id);
+          showStatus('Alter Zahlungsvorgang nicht mehr vorhanden', 3600);
+          return;
+        }
+        pollPaymentStatus(saved.client_payment_id);
+      }
+    }
+
+    function setMode(mode) {
+      el('setupView').classList.toggle('hidden', mode !== 'setup');
+      el('listView').classList.toggle('hidden', mode !== 'list');
+      el('detailView').classList.toggle('hidden', mode !== 'detail');
+      if (mode === 'list') {
+        el('pageTitle').textContent = 'Selbstzahlung';
+        el('pageSub').textContent = `${state.people.length} offene Rechnung${state.people.length === 1 ? '' : 'en'}`;
+      }
+    }
+
+    async function loadConfig() {
+      const cfg = await apiGet('/api/self-pay/config');
+      state.config = cfg;
+      const available = Boolean(cfg.self_payment_available);
+      if (!available) {
+        const reason = !cfg.self_payment_enabled
+          ? 'Self-Checkout ist deaktiviert. PAYMENT_PROVIDER=sumup setzen.'
+          : 'SumUp ist noch nicht vollstaendig konfiguriert.';
+        el('setupText').textContent = reason;
+        setMode('setup');
+        stopAutoRefresh();
+        return false;
+      }
+      return true;
+    }
+
+    async function loadPeople(silent = false) {
+      try {
+        const ok = await loadConfig();
+        if (!ok) return;
+        const data = await apiGet('/api/self-pay/people');
+        state.people = data.people || [];
+        renderPeople();
+        if (!state.selected) setMode('list');
+        if (!silent) showStatus('Aktualisiert', 1000);
+        startAutoRefresh();
+      } catch (err) {
+        el('setupText').textContent = err.message || 'Selbstzahlung ist aktuell nicht erreichbar.';
+        setMode('setup');
+        if (!silent) showStatus(err.message || 'Kann nicht aktualisieren', 3600);
+      }
+    }
+
+    function renderListSummary(people) {
+      const totalItems = people.reduce((sum, person) => sum + Number(person.open_items || 0), 0);
+      const totalEur = people.reduce((sum, person) => sum + Number(person.total_eur ?? person.total ?? 0), 0);
+      el('listSummary').innerHTML = `
+        <div class="summary-tile"><div class="summary-label">Personen</div><div class="summary-value">${people.length}</div></div>
+        <div class="summary-tile"><div class="summary-label">Striche</div><div class="summary-value">${totalItems}</div></div>
+        <div class="summary-tile"><div class="summary-label">Summe</div><div class="summary-value">${money(totalEur)}</div></div>
+      `;
+    }
+
+    function renderPeople() {
+      const term = el('searchInput').value.trim().toLowerCase();
+      const list = el('personList');
+      const people = state.people.filter(person => !term || person.name.toLowerCase().includes(term));
+      renderListSummary(people);
+      el('pageSub').textContent = term
+        ? `${people.length} von ${state.people.length} offenen Rechnungen`
+        : `${state.people.length} offene Rechnung${state.people.length === 1 ? '' : 'en'}`;
+      if (!people.length) {
+        list.innerHTML = `<div class="empty">${state.people.length ? 'Keine Treffer.' : 'Keine offenen Betraege.'}</div>`;
+        return;
+      }
+      list.innerHTML = people.map(person => `
+        <button class="person-row" type="button" data-person-id="${Number(person.id)}">
+          <span>
+            <span class="person-name">${escapeHtml(person.name)}</span>
+            <span class="person-meta">${Number(person.open_items || 0)} offene Striche</span>
+          </span>
+          <span class="amount">${money(person.total_eur ?? person.total)}</span>
+        </button>
+      `).join('');
+      list.querySelectorAll('.person-row').forEach(button => {
+        button.addEventListener('click', () => openPerson(Number(button.dataset.personId)));
+      });
+    }
+
+    async function openPerson(personId) {
+      if (state.busy) return;
+      try {
+        const detail = await apiGet(`/api/self-pay/person/${personId}`);
+        state.selected = detail;
+        renderDetail();
+      } catch (err) {
+        showStatus(err.message || 'Person konnte nicht geladen werden', 3600);
+      }
+    }
+
+    function renderDetail() {
+      const person = state.selected;
+      if (!person) return;
+      setMode('detail');
+      el('pageTitle').textContent = 'Rechnung';
+      el('pageSub').textContent = person.name;
+      el('detailHead').innerHTML = `
+        <div class="detail-name">${escapeHtml(person.name)}</div>
+        <div class="detail-total">${money(person.total_eur ?? person.total)}</div>
+        <div class="detail-note">${Number(person.open_items || 0)} offene Striche</div>
+      `;
+      const warning = el('detailWarning');
+      if (Number(person.pending_requests_count || 0) > 0) {
+        warning.textContent = 'Offene Loeschanfragen vorhanden. Bitte zuerst im Adminbereich entscheiden lassen.';
+        warning.classList.remove('hidden');
+      } else {
+        warning.classList.add('hidden');
+      }
+      const lines = person.lines || [];
+      el('lineList').innerHTML = lines.length ? lines.map(line => `
+        <div class="line-row">
+          <div class="qty">${Number(line.quantity || 0)}&times;</div>
+          <div class="item">${escapeHtml(line.item || line.name || '')}<small>${money(line.unit_price_eur)} pro Stueck</small></div>
+          <div class="line-total">${money(line.subtotal_eur)}</div>
+        </div>
+      `).join('') : '<div class="empty">Keine offenen Posten.</div>';
+      el('payButton').disabled = state.busy || !person.can_self_pay || !lines.length;
+      el('payButton').textContent = 'Mit SumUp zahlen';
+    }
+
+    function closeDetail() {
+      if (state.busy) return;
+      state.selected = null;
+      setMode('list');
+      loadPeople(true);
+    }
+
+    function setTerminalBusy(busy) {
+      state.busy = busy;
+      el('payButton').disabled = busy || !state.selected?.can_self_pay;
+      el('confirmPayButton').disabled = busy;
+      el('confirmCancelButton').disabled = busy;
+      el('terminalWait').classList.toggle('hidden', !busy);
+      const waitText = el('terminalWait').querySelector('p');
+      if (waitText) {
+        waitText.textContent = 'Karte oder Smartphone am SumUp Solo verwenden. Diese Seite offen lassen, bis die Zahlung bestaetigt ist.';
+      }
+      el('payButton').textContent = busy ? 'SumUp Solo wartet...' : 'Mit SumUp zahlen';
+      el('confirmPayButton').textContent = busy ? 'Warten...' : 'Mit SumUp zahlen';
+    }
+
+    async function paySelected() {
+      const person = state.selected;
+      if (!person || state.busy) return;
+      const activeForPerson = state.activePayment?.person_id === Number(person.id) ? state.activePayment : null;
+      const clientPaymentId = activeForPerson?.client_payment_id || createClientPaymentId(person);
+      storeActivePayment({
+        client_payment_id: clientPaymentId,
+        person_id: Number(person.id),
+        expected_revision: person.revision,
+        created_at: new Date().toISOString(),
+      });
+      setTerminalBusy(true);
+      let keepBusy = false;
+      try {
+        const data = await apiPost('/api/self-pay/pay', {
+          person_id: person.id,
+          expected_revision: person.revision,
+          client_payment_id: clientPaymentId,
+        });
+        if (paymentIsRunning(data.status)) {
+          keepBusy = true;
+          pollPaymentStatus(clientPaymentId);
+          return;
+        }
+        await applyPaymentStatus(data, clientPaymentId);
+      } catch (err) {
+        const detail = err.detail && typeof err.detail === 'object' ? err.detail : null;
+        if (detail?.status) {
+          const done = await applyPaymentStatus(detail, clientPaymentId);
+          keepBusy = !done && paymentIsRunning(detail.status);
+          if (keepBusy) pollPaymentStatus(clientPaymentId);
+        } else if (err.status === 409 && err.detail?.current) {
+          state.selected = err.detail.current;
+          renderDetail();
+          showStatus(err.message, 4800);
+          clearActivePayment(clientPaymentId);
+        } else if (err.status === 409 && paymentIsRunning(err.detail?.status)) {
+          keepBusy = true;
+          pollPaymentStatus(clientPaymentId);
+        } else if (!err.status) {
+          keepBusy = true;
+          showStatus('Verbindung unterbrochen. Zahlung wird geprueft...', 5200);
+          pollPaymentStatus(clientPaymentId);
+        } else {
+          clearActivePayment(clientPaymentId);
+          showStatus(err.message || 'Zahlung fehlgeschlagen', 5200);
+        }
+      } finally {
+        if (!keepBusy) setTerminalBusy(false);
+        syncModalOpen();
+      }
+    }
+
+    function requestPayConfirmation() {
+      const person = state.selected;
+      if (!person || state.busy || !person.can_self_pay) return;
+      el('confirmTitle').textContent = `${person.name} bezahlen?`;
+      el('confirmText').textContent = `${Number(person.open_items || 0)} offene Striche. Danach Karte oder Smartphone am SumUp Solo verwenden.`;
+      el('confirmTotal').textContent = money(person.total_eur ?? person.total);
+      el('terminalWait').classList.add('hidden');
+      const dialog = el('payConfirmDialog');
+      dialog.showModal();
+      syncModalOpen();
+    }
+
+    async function refreshCurrent() {
+      if (state.busy) return;
+      if (state.selected) await openPerson(state.selected.id);
+      else await loadPeople();
+    }
+
+    function startAutoRefresh() {
+      stopAutoRefresh();
+      state.listTimer = setInterval(() => {
+        if (!document.hidden && !state.selected && !state.busy) loadPeople(true);
+      }, 10000);
+    }
+
+    function stopAutoRefresh() {
+      if (state.listTimer) clearInterval(state.listTimer);
+      state.listTimer = null;
+    }
+
+    el('searchInput').addEventListener('input', renderPeople);
+    el('refreshButton').addEventListener('click', refreshCurrent);
+    el('setupRefreshButton').addEventListener('click', () => loadPeople());
+    el('cancelButton').addEventListener('click', closeDetail);
+    el('payButton').addEventListener('click', requestPayConfirmation);
+    el('confirmCancelButton').addEventListener('click', () => el('payConfirmDialog').close());
+    el('confirmPayButton').addEventListener('click', paySelected);
+    el('payConfirmDialog').addEventListener('close', syncModalOpen);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) return;
+      if (state.activePayment?.client_payment_id) {
+        pollPaymentStatus(state.activePayment.client_payment_id);
+      } else if (!state.busy) {
+        refreshCurrent();
+      }
+    });
+
+    async function boot() {
+      await loadPeople();
+      await resumeStoredPayment();
+    }
+
+    boot();
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', async () => {
+        const registration = await navigator.serviceWorker.register('/service-worker.js').catch(() => null);
+        await registration?.update?.().catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>

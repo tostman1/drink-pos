@@ -9,7 +9,7 @@
   "orientation": "any",
   "background_color": "#f3f4f6",
   "theme_color": "#111827",
-  "description": "Touchfreundliche digitale Strichliste für Getränke und Barzahlung.",
+  "description": "Touchfreundliche digitale Strichliste fuer Getraenke und Zahlungen.",
   "icons": [
     { "src": "/icon.png", "sizes": "1254x1254", "type": "image/png", "purpose": "any maskable" },
     { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },

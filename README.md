@@ -12,9 +12,13 @@ $env:DRINK_POS_DB = "<repo-path>\data\drink_pos_dev.db"
 py -m uvicorn main:app --host 127.0.0.1 --port 8088
 ```
 
-Kasse: http://127.0.0.1:8088/
+Standardliste: http://127.0.0.1:8088/
 
 Admin: http://127.0.0.1:8088/admin
+
+Interne Kassa: http://127.0.0.1:8088/kassa
+
+Mitglieder-Selbstzahlung: http://127.0.0.1:8088/self-pay
 
 ## GitHub + GHCR
 
@@ -81,7 +85,13 @@ Image aus GHCR, baut nichts lokal und speichert alle produktiven Daten in `./dat
    ```text
    http://<NAS-IP>:8088/
    http://<NAS-IP>:8088/admin
+   http://<NAS-IP>:8088/self-pay
    ```
+
+   Mitglieder/Kassierer verwenden fuer die SumUp-Selbstzahlung die normale Listenansicht und
+   starten die Kartenzahlung im Personenfenster. `/self-pay` bleibt als Test-/Fallbackseite
+   erhalten. Die interne Kassaansicht `/kassa` bleibt fuer Kassierer und braucht weiterhin die
+   Admin-PIN zum Zahlungsabschluss.
 
 Die App erstellt nur dann eine neue SQLite-Datei, wenn im gemounteten `data`-Ordner noch
 keine `drink_pos.db` vorhanden ist. Beim Start werden Tabellen und fehlende Spalten mit
@@ -100,6 +110,59 @@ volumes:
 
 `DRINK_POS_BACKUP_DIR: /app/data/backups` liegt damit auf dem NAS unter
 `/volume1/docker/drink-pos/data/backups`, also direkt neben der Datenbank.
+
+## SumUp Solo Self-Checkout
+
+Der vorgesehene Bedienweg liegt in der normalen Listenansicht:
+
+```text
+http://<NAS-IP>:8088/
+```
+
+Name antippen, Rechnung pruefen und unten im Personenfenster `Mit SumUp zahlen`
+waehlen. Die separate Selbstzahl-Seite bleibt als Test-/Fallbackseite erhalten:
+
+```text
+http://<NAS-IP>:8088/self-pay
+```
+
+Das iPad ruft nur den Drink-POS-Server auf der DiskStation auf. Mitglieder brauchen keinen
+direkten Zugriff auf `/kassa`. Die Zahlung wird aus der App gestartet und am SumUp Solo mit
+Karte oder Smartphone bezahlt. Das SumUp Solo muss online sein.
+
+Benoetigt werden SumUp Solo, API Key, Merchant Code und Reader ID. Optional koennen Affiliate
+Key und App ID gesetzt werden, falls SumUp sie fuer den Cloud-API-Checkout verlangt. Diese Werte
+werden nur serverseitig per ENV gesetzt:
+
+```dotenv
+PAYMENT_PROVIDER=sumup
+SUMUP_API_BASE=https://api.sumup.com
+SUMUP_API_KEY=<serverseitig-setzen>
+SUMUP_MERCHANT_CODE=<merchant-code>
+SUMUP_READER_ID=<reader-id>
+SUMUP_AFFILIATE_KEY=<optional-affiliate-key>
+SUMUP_AFFILIATE_APP_ID=<optional-app-id>
+SUMUP_CURRENCY=EUR
+SUMUP_TIMEOUT_SECONDS=120
+```
+
+Die `SUMUP_READER_ID` ist nicht die Seriennummer. Sie entsteht beim Koppeln des SumUp Solo:
+Am Solo einen frischen Pairing-Code anzeigen, dann PIN-geschuetzt `POST /api/admin/sumup/pair-reader`
+aufrufen. Die Antwort liefert eine Reader-ID der Form `rdr_...`; diese wird als
+`SUMUP_READER_ID` in `.env` gesetzt. `POST /api/admin/sumup/readers` listet bereits gekoppelte
+Reader, `POST /api/admin/sumup/status` prueft den Reader-Status.
+
+Eine Self-Pay-Zahlung sperrt die gewaehlte Person waehrend der Terminalfreigabe gegen
+parallele Buchungen. Das iPad erzeugt fuer jeden Zahlungsversuch eine eindeutige
+`client_payment_id`; der Server legt dazu genau eine `self_payment_sessions`-Zeile an. Wenn
+derselbe Request wegen Verbindungsabbruch oder Doppeltippen erneut gesendet wird, startet der
+Server keine zweite SumUp-Zahlung, sondern liefert den gespeicherten Status zurueck.
+
+Die Listenansicht und die separate Testseite speichern eine laufende Zahlung lokal im Browser und fragen nach Reload oder
+Netzunterbruch `/api/self-pay/payment/{client_payment_id}` ab. Solange der Status `created`,
+`sent_to_reader` oder `pending` ist, bleibt die Zahlung gesperrt. Nur bei eindeutig
+erfolgreichem SumUp-Status wird lokal `PAID_SUMUP` gebucht. Bei Timeout, Fehler, Abbruch oder
+unklarem Status bleiben die Posten offen und muessen geprueft werden.
 
 ## Podman-Instanz starten
 
@@ -221,6 +284,14 @@ Siehe `.env.example` fuer die wichtigsten Variablen:
 - `DRINK_POS_DB`: SQLite-Dateipfad
 - `DRINK_POS_BACKUP_DIR`: Zielordner fuer CSV-Backups
 - `DRINK_POS_AGENT_TOKEN`: Bearer-Token fuer Agenten-REST-Zugriff
+- `PAYMENT_PROVIDER`: `sumup` aktiviert SumUp Solo Self-Checkout
+- `SUMUP_API_BASE`: SumUp API-Basis, Standard `https://api.sumup.com`
+- `SUMUP_API_KEY`: SumUp API Key, nur serverseitig setzen
+- `SUMUP_MERCHANT_CODE`: SumUp Merchant Code
+- `SUMUP_READER_ID`: SumUp Solo Reader ID
+- `SUMUP_AFFILIATE_KEY`, `SUMUP_AFFILIATE_APP_ID`: optionale Affiliate-Werte fuer Cloud-API-Tracking
+- `SUMUP_CURRENCY`: Waehrung, Standard `EUR`
+- `SUMUP_TIMEOUT_SECONDS`: Wartezeit fuer SumUp-Zahlungen, Standard `120`
 
 In Produktion sollte die Default-PIN `1234` nicht verwendet werden.
 
@@ -239,3 +310,7 @@ Die App ist fuer ein vertrauenswuerdiges lokales Netzwerk gedacht. Fuer Zugriff 
 oder Reverse Proxy sollten mindestens PINs geaendert, Backups aktiviert und
 externe Zugriffe zusaetzlich abgesichert werden. Der Agenten-Token sollte lang, zufaellig und
 nicht identisch mit der Admin-PIN sein.
+
+Mitglieder-Selbstzahlung ist fuer ein iPad im lokalen Vereinsnetz gedacht. Die Mitgliederseite
+ist bewusst getrennt von `/kassa`; Zahlungsabschluss per SumUp erfolgt serverseitig und wird
+ueber `client_payment_id` idempotent abgesichert.

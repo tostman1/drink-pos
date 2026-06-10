@@ -146,6 +146,12 @@
     .line-actions { display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap; }
     .danger { background:var(--red-bg); color:var(--red); }
     .pay-btn { background:var(--green); font-weight:850; }
+    .card-pay-panel { background:linear-gradient(180deg,#f0fdf4,#ffffff); border-color:#bbf7d0; }
+    .card-pay-panel h3 { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:7px; }
+    .card-pay-btn { width:100%; margin-top:10px; min-height:50px; background:linear-gradient(180deg,#86efac,#4ade80); color:#052e16; font-weight:950; border:1px solid #22c55e; }
+    .card-pay-btn:disabled { background:#e5e7eb; border-color:#d1d5db; color:#64748b; }
+    .card-pay-status { margin-top:8px; color:#166534; font-size:13px; font-weight:750; line-height:1.35; }
+    .card-pay-status.warning { color:#92400e; }
     .edit-btn { background:var(--yellow); font-weight:850; }
     .ok-btn { background:var(--border); }
     .bottom-row { display:flex; gap:9px; margin-top:14px; }
@@ -249,6 +255,13 @@
         <div id="adminAdjustBox"></div>
       </div>
 
+      <div class="panel card-pay-panel" id="cardPayPanel" style="display:none">
+        <h3>Kartenzahlung</h3>
+        <div class="muted" id="cardPayHint"></div>
+        <button id="cardPayButton" class="card-pay-btn" type="button" onclick="requestCardPayment()">Kartenzahlung starten</button>
+        <div class="card-pay-status" id="cardPayStatus"></div>
+      </div>
+
       <div class="bottom-row" id="payRow" style="display:none">
         <button id="payButton" class="pay-btn" style="display:none" onclick="payCurrentPerson()">💰 Bar bezahlt</button>
       </div>
@@ -323,6 +336,12 @@
     let paymentReminderShowInPopup = true;
     let memberMessagesShowOnOverview = true;
     let memberMessagesShowInPopup = true;
+    let selfPaymentEnabled = false;
+    let selfPaymentAvailable = false;
+    let sumupConfigured = false;
+    let selfPaymentBusy = false;
+    let selfPaymentTimer = null;
+    let activeSelfPayment = null;
     let celebrationAudioCtx = null;
     let drinkFeedbackRecentName = '';
     let drinkFeedbackRecentCount = 0;
@@ -335,6 +354,7 @@
     const OFFLINE_DRINK_QUEUE_KEY = 'drinkPosOfflineDrinkQueue';
     const OFFLINE_CONFIG_CACHE_KEY = 'drinkPosCachedConfig';
     const OFFLINE_PEOPLE_CACHE_KEY = 'drinkPosCachedPeople';
+    const ACTIVE_SELF_PAYMENT_KEY = 'drinkPosSelfPayActivePayment';
     let syncFailureCount = 0;
     let syncOfflineSince = 0;
     let syncRecoveryTimer = null;
@@ -388,6 +408,38 @@
     function makeClientOperationId() {
       if (window.crypto?.randomUUID) return window.crypto.randomUUID();
       return `${Date.now()}-${Math.random().toString(16).slice(2)}-${Math.random().toString(16).slice(2)}`;
+    }
+
+    function makeSelfPaymentId(person) {
+      const browserCrypto = globalThis.crypto;
+      const random = browserCrypto?.getRandomValues
+        ? Array.from(browserCrypto.getRandomValues(new Uint32Array(2)), n => n.toString(36)).join('')
+        : Math.random().toString(36).slice(2);
+      return `selfpay-${Date.now().toString(36)}-${Number(person.id)}-${random}`.slice(0, 80);
+    }
+
+    function readActiveSelfPayment() {
+      try {
+        const raw = localStorage.getItem(ACTIVE_SELF_PAYMENT_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch {
+        return null;
+      }
+    }
+
+    function storeActiveSelfPayment(payment) {
+      activeSelfPayment = payment;
+      localStorage.setItem(ACTIVE_SELF_PAYMENT_KEY, JSON.stringify(payment));
+    }
+
+    function clearActiveSelfPayment(clientPaymentId = null) {
+      const stored = readActiveSelfPayment();
+      if (!clientPaymentId || !stored || stored.client_payment_id === clientPaymentId) {
+        localStorage.removeItem(ACTIVE_SELF_PAYMENT_KEY);
+      }
+      if (!clientPaymentId || activeSelfPayment?.client_payment_id === clientPaymentId) {
+        activeSelfPayment = null;
+      }
     }
 
     function formatSyncTime(value) {
@@ -624,7 +676,16 @@
         err.offline = true;
         throw err;
       }
-      if (!res.ok) { markSyncSuccess(); throw new Error('Serverfehler'); }
+      if (!res.ok) {
+        markSyncSuccess();
+        const payload = await res.json().catch(() => ({}));
+        const detail = payload.detail;
+        const message = typeof detail === 'string' ? detail : (detail?.message || payload.message || 'Serverfehler');
+        const err = new Error(message);
+        err.status = res.status;
+        err.detail = detail;
+        throw err;
+      }
       const data = await res.json();
       markSyncSuccess();
       return data;
@@ -639,7 +700,16 @@
         err.offline = true;
         throw err;
       }
-      if (!res.ok) { markSyncSuccess(); const err = await res.json().catch(()=>({})); throw new Error(err.detail || 'Unbekannter Fehler'); }
+      if (!res.ok) {
+        markSyncSuccess();
+        const payload = await res.json().catch(()=>({}));
+        const detail = payload.detail;
+        const message = typeof detail === 'string' ? detail : (detail?.message || payload.message || 'Unbekannter Fehler');
+        const err = new Error(message);
+        err.status = res.status;
+        err.detail = detail;
+        throw err;
+      }
       const data = await res.json();
       markSyncSuccess();
       return data;
@@ -714,6 +784,9 @@
       paymentReminderShowInPopup = (cfg.payment_reminder_show_in_popup ?? cfg.cost_notice_show_in_popup) !== false;
       memberMessagesShowOnOverview = cfg.member_messages_show_on_overview !== false;
       memberMessagesShowInPopup = cfg.member_messages_show_in_popup !== false;
+      selfPaymentEnabled = cfg.self_payment_enabled === true;
+      sumupConfigured = cfg.sumup_configured === true;
+      selfPaymentAvailable = cfg.self_payment_available === true;
       syncDrinkFeedbackSlots();
       showPersonPopupTotal = cfg.show_person_popup_total !== false;
       appBackgroundColor = cfg.app_background_color || '#f3f4f6';
@@ -1588,6 +1661,38 @@
       panel.classList.toggle('visible', cards.length > 0);
     }
 
+    function renderCardPaymentPanel() {
+      const panel = document.getElementById('cardPayPanel');
+      const button = document.getElementById('cardPayButton');
+      const hint = document.getElementById('cardPayHint');
+      const status = document.getElementById('cardPayStatus');
+      if (!panel || !button || !hint || !status) return;
+      const total = Number(currentPerson?.total || 0);
+      const pendingCount = (currentPerson?.pending_requests || []).length;
+      const showPanel = !adminMode && selfPaymentEnabled && total > 0;
+      panel.style.display = showPanel ? 'block' : 'none';
+      if (!showPanel) return;
+
+      let message = 'Zahlung am SumUp Solo starten. Bitte Rechnung vorher pruefen.';
+      let warning = false;
+      if (!sumupConfigured) {
+        message = 'SumUp ist noch nicht vollstaendig konfiguriert. API Key, Merchant Code und Reader ID pruefen.';
+        warning = true;
+      } else if (!selfPaymentAvailable) {
+        message = 'Kartenzahlung ist aktuell nicht verfuegbar.';
+        warning = true;
+      } else if (pendingCount > 0) {
+        message = 'Offene Loeschanfragen vorhanden. Bitte zuerst im Adminbereich entscheiden lassen.';
+        warning = true;
+      }
+
+      hint.textContent = message;
+      status.textContent = selfPaymentBusy ? 'Terminalvorgang laeuft. Bitte keine zweite Zahlung starten.' : '';
+      status.classList.toggle('warning', warning);
+      button.disabled = selfPaymentBusy || !selfPaymentAvailable || pendingCount > 0;
+      button.textContent = selfPaymentBusy ? 'SumUp Solo wartet...' : 'Mit SumUp zahlen';
+    }
+
     async function ackMemberMessage(messageId) {
       if (!currentPerson) return;
       await ackMemberMessageForPerson(currentPerson.id, messageId);
@@ -1632,6 +1737,7 @@
       renderPendingRequests();
       renderAdminAdjustments();
       renderDrinkButtons();
+      renderCardPaymentPanel();
     }
 
     function renderBill() {
@@ -1971,6 +2077,170 @@
       updateDialogScrollLock();
     }
 
+    async function fetchSelfPaymentStatus(clientPaymentId) {
+      return apiGet(`/api/self-pay/payment/${encodeURIComponent(clientPaymentId)}`);
+    }
+
+    function stopSelfPaymentPolling() {
+      if (selfPaymentTimer) clearTimeout(selfPaymentTimer);
+      selfPaymentTimer = null;
+    }
+
+    async function applySelfPaymentStatus(data, clientPaymentId, options = {}) {
+      const status = String(data.status || '').toLowerCase();
+      if (status === 'created' || status === 'sent_to_reader' || status === 'pending') {
+        selfPaymentBusy = true;
+        renderCardPaymentPanel();
+        if (!options.quiet) showStatus(data.message || 'SumUp-Zahlung laeuft...');
+        return false;
+      }
+
+      stopSelfPaymentPolling();
+      selfPaymentBusy = false;
+      renderCardPaymentPanel();
+
+      if (status === 'paid') {
+        clearActiveSelfPayment(clientPaymentId);
+        showStatus(`Kartenzahlung bezahlt: ${money(data.total)}`);
+        closeDialog();
+        await loadPeople(true);
+        return true;
+      }
+
+      if (status === 'failed' || status === 'cancelled') {
+        clearActiveSelfPayment(clientPaymentId);
+        showStatus(data.message || 'SumUp-Zahlung nicht abgeschlossen');
+        await loadPeople(true);
+        return true;
+      }
+
+      if (status === 'timeout' || status === 'unknown' || status === 'expired') {
+        clearActiveSelfPayment(clientPaymentId);
+        showStatus(data.message || 'SumUp-Status unklar. Offene Posten bleiben bestehen.');
+        await loadPeople(true);
+        return true;
+      }
+
+      return false;
+    }
+
+    function pollSelfPaymentStatus(clientPaymentId, attempt = 0) {
+      stopSelfPaymentPolling();
+      selfPaymentBusy = true;
+      renderCardPaymentPanel();
+      const tick = async () => {
+        try {
+          const data = await fetchSelfPaymentStatus(clientPaymentId);
+          const done = await applySelfPaymentStatus(data, clientPaymentId, { quiet: attempt > 0 });
+          if (!done) {
+            selfPaymentTimer = setTimeout(() => pollSelfPaymentStatus(clientPaymentId, attempt + 1), 2200);
+          }
+        } catch (err) {
+          if (err.status === 404) {
+            clearActiveSelfPayment(clientPaymentId);
+            selfPaymentBusy = false;
+            renderCardPaymentPanel();
+            showStatus('Zahlungsvorgang nicht gefunden');
+            return;
+          }
+          showStatus('Verbindung unterbrochen. Zahlung wird weiter geprueft...');
+          selfPaymentTimer = setTimeout(() => pollSelfPaymentStatus(clientPaymentId, attempt + 1), 3600);
+        }
+      };
+      tick();
+    }
+
+    async function startCardPayment(detail) {
+      const activeForPerson = activeSelfPayment?.person_id === Number(detail.id) ? activeSelfPayment : null;
+      const clientPaymentId = activeForPerson?.client_payment_id || makeSelfPaymentId(detail);
+      storeActiveSelfPayment({
+        client_payment_id: clientPaymentId,
+        person_id: Number(detail.id),
+        expected_revision: detail.revision,
+        created_at: new Date().toISOString(),
+      });
+      selfPaymentBusy = true;
+      renderCardPaymentPanel();
+      showStatus('SumUp-Zahlung startet...');
+      let keepBusy = false;
+      try {
+        const data = await apiPost('/api/self-pay/pay', {
+          person_id: detail.id,
+          expected_revision: detail.revision,
+          client_payment_id: clientPaymentId,
+        });
+        const done = await applySelfPaymentStatus(data, clientPaymentId);
+        if (!done) {
+          keepBusy = true;
+          pollSelfPaymentStatus(clientPaymentId);
+        }
+      } catch (err) {
+        const detailPayload = err.detail && typeof err.detail === 'object' ? err.detail : null;
+        if (detailPayload?.status) {
+          const done = await applySelfPaymentStatus(detailPayload, clientPaymentId);
+          keepBusy = !done && detailPayload.status === 'pending';
+          if (keepBusy) pollSelfPaymentStatus(clientPaymentId);
+        } else if (err.status === 409 && detailPayload?.current) {
+          currentPerson = {...currentPerson, ...detailPayload.current, total: Number(detailPayload.current.total_eur ?? detailPayload.current.total ?? currentPerson.total)};
+          updateDialogInfo();
+          clearActiveSelfPayment(clientPaymentId);
+          showStatus(err.message || 'Rechnung hat sich geaendert');
+        } else if (!err.status) {
+          keepBusy = true;
+          showStatus('Verbindung unterbrochen. Zahlung wird geprueft...');
+          pollSelfPaymentStatus(clientPaymentId);
+        } else {
+          clearActiveSelfPayment(clientPaymentId);
+          showStatus(err.message || 'Kartenzahlung fehlgeschlagen');
+        }
+      } finally {
+        if (!keepBusy) selfPaymentBusy = false;
+        renderCardPaymentPanel();
+      }
+    }
+
+    async function requestCardPayment() {
+      if (!currentPerson) return;
+      if (!selfPaymentAvailable) { showStatus('Kartenzahlung ist noch nicht vollstaendig konfiguriert.'); return; }
+      if (Number(currentPerson.total || 0) <= 0) { showStatus(`${currentPerson.name} hat keine offenen Posten.`); return; }
+      if ((currentPerson.pending_requests || []).length > 0) { showStatus('Bitte zuerst alle offenen Anfragen entscheiden lassen.'); return; }
+      try {
+        const detail = await apiGet(`/api/self-pay/person/${currentPerson.id}`);
+        currentPerson = {...currentPerson, ...detail, total: Number(detail.total_eur ?? detail.total ?? currentPerson.total)};
+        updateDialogInfo();
+      const body = `
+          <div class="muted">Kartenzahlung fuer <strong>${escapeHtml(currentPerson.name)}</strong>. Danach Karte oder Smartphone am SumUp Solo verwenden.</div>
+          ${lineTableHtml(detail.lines || currentPerson.lines || [])}
+          <div class="action-total"><span>Gesamtbetrag</span><span>${money(detail.total_eur ?? detail.total ?? currentPerson.total)}</span></div>
+          <div class="muted">Bitte den Browser offen lassen. Bei Verbindungsabbruch wird derselbe Zahlungsvorgang weiter geprueft.</div>
+        `;
+        openActionDialog('Kartenzahlung', body, 'Mit SumUp zahlen', 'pay-btn', async () => {
+          await startCardPayment(detail);
+        });
+      } catch (err) {
+        showStatus(err.message || 'Kartenzahlung konnte nicht vorbereitet werden');
+      }
+    }
+
+    async function resumeActiveSelfPayment() {
+      const saved = readActiveSelfPayment();
+      if (!saved?.client_payment_id) return;
+      activeSelfPayment = saved;
+      showStatus('Vorherige Kartenzahlung wird geprueft...');
+      try {
+        const data = await fetchSelfPaymentStatus(saved.client_payment_id);
+        const done = await applySelfPaymentStatus(data, saved.client_payment_id);
+        if (!done) pollSelfPaymentStatus(saved.client_payment_id);
+      } catch (err) {
+        if (err.status === 404) {
+          clearActiveSelfPayment(saved.client_payment_id);
+          showStatus('Alter Zahlungsvorgang nicht mehr vorhanden');
+          return;
+        }
+        pollSelfPaymentStatus(saved.client_payment_id);
+      }
+    }
+
     async function payCurrentPerson() {
       if (!currentPerson || !adminMode || !adminPin) return;
       if (currentPerson.total <= 0) { showStatus(`${currentPerson.name} hat keine offenen Posten.`); return; }
@@ -2126,6 +2396,7 @@
         await loadPeople(true);
         await checkSyncStatus({ resyncOnChange:false });
         queueOfflineDrinkFlush();
+        await resumeActiveSelfPayment();
       } catch {
         markSyncFailure();
         if (restoreCachedState()) showStatus('Offline-Modus: Getränkebuchungen werden vorgemerkt');
@@ -2152,7 +2423,11 @@
     document.getElementById('personDialog')?.addEventListener('cancel', event => { event.preventDefault(); closeDialog(); });
     document.getElementById('personDialog')?.addEventListener('close', updateDialogScrollLock);
     document.getElementById('actionDialog')?.addEventListener('close', updateDialogScrollLock);
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) checkSyncStatus({ resyncOnChange:true }); });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) return;
+      checkSyncStatus({ resyncOnChange:true });
+      if (activeSelfPayment?.client_payment_id) pollSelfPaymentStatus(activeSelfPayment.client_payment_id);
+    });
   </script>
 </body>
 </html>

@@ -21,6 +21,7 @@ project:
     - "Aktuelle Strichliste und offene Gesamtrechnung sind getrennte Konzepte."
     - "Kassensturz beendet nur die aktuelle Strichliste/event_open, nicht offene Schulden."
     - "Offline-Schreiblogik ist bewusst auf normale Getränkebuchungen begrenzt; Runden, Korrekturen, Zahlungen und Adminaktionen bleiben online-only."
+    - "Mitglieder-Selbstzahlung ueber SumUp Solo ist in der normalen Listenansicht integriert; /self-pay bleibt Test-/Fallbackseite und Mitglieder brauchen keinen Zugriff auf /kassa."
 
 source_layout:
   backend:
@@ -39,8 +40,14 @@ source_layout:
     file: "app/kassa.html"
     style: "Vanilla HTML/CSS/JS, keine Build-Pipeline"
     purpose: "Versteckte Handy-Hochformat-Seite fuer schnelles Kassieren mit Konfliktschutz"
+  frontend_self_pay:
+    file: "app/self-pay.html"
+    style: "Vanilla HTML/CSS/JS, keine Build-Pipeline"
+    purpose: "Mitglieder-Selbstzahlung ueber SumUp Solo ohne Zugriff auf /kassa"
   pwa_files:
     - "app/manifest.webmanifest"
+    - "app/kassa.webmanifest"
+    - "app/self-pay.webmanifest"
     - "app/service-worker.js"
     - "app/icon.svg"
     - "app/icon-192.png"
@@ -96,6 +103,36 @@ runtime_environment:
       default: "1234"
       behavior: "Wird beim ersten DB-Start als settings.admin_pin übernommen; ersetzt außerdem eine bestehende Default-PIN 1234, wenn DRINK_POS_PIN explizit gesetzt ist."
       note: "Diese YAML-Datei ist Dokumentation und wird von der App nicht als Konfiguration geladen."
+    DRINK_POS_AGENT_TOKEN:
+      default: "leer"
+      behavior: "Aktiviert die schmale Agenten-REST-API, wenn gesetzt."
+    PAYMENT_PROVIDER:
+      default: "leer"
+      behavior: "Mit Wert sumup wird SumUp Solo Self-Checkout aktiviert."
+    SUMUP_API_BASE:
+      default: "https://api.sumup.com"
+      behavior: "Basis-URL der SumUp Cloud API."
+    SUMUP_API_KEY:
+      default: "leer"
+      behavior: "Serverseitiger SumUp API Key; niemals im Frontend verwenden."
+    SUMUP_MERCHANT_CODE:
+      default: "leer"
+      behavior: "SumUp Merchant Code."
+    SUMUP_READER_ID:
+      default: "leer"
+      behavior: "SumUp Solo Reader ID."
+    SUMUP_AFFILIATE_KEY:
+      default: "leer"
+      behavior: "Optionaler Affiliate Key fuer SumUp Cloud API Checkout-Metadaten."
+    SUMUP_AFFILIATE_APP_ID:
+      default: "leer"
+      behavior: "Optionale App ID fuer SumUp Affiliate-Metadaten."
+    SUMUP_CURRENCY:
+      default: "EUR"
+      behavior: "Waehrung fuer SumUp-Zahlungen."
+    SUMUP_TIMEOUT_SECONDS:
+      default: "120"
+      behavior: "Wartezeit fuer SumUp-Zahlungen; Session-Sperre bleibt mindestens 300 Sekunden bestehen."
   production_pin_guard: "Admin-Login und PIN-pflichtige Admin-API-Aktionen sind in production gesperrt, solange die konfigurierte PIN noch 1234 ist."
   recommended_operation:
     development: "DRINK_POS_ENV=development für Testdatenbank und Debug-Testdaten."
@@ -130,11 +167,11 @@ pwa_and_app_feeling:
     file: "app/service-worker.js"
     role: "Shell-Caching statischer Dateien"
     cache_version_rule: "Nach UI-Änderungen CACHE_NAME erhöhen."
-    current_expected_cache_name: "drink-pos-shell-v73"
+    current_expected_cache_name: "drink-pos-shell-v88"
   offline_policy:
     read_shell_offline: "statische App-Shell kann aus Cache kommen"
     write_offline: "nur normale Getraenkebuchungen"
-    reason: "Normale Getraenkebuchungen sind additiv und koennen lokal vorgemerkt werden; Kassensturz, Zahlung, Runden und Admin-Aktionen bleiben online-only."
+    reason: "Normale Getraenkebuchungen sind additiv und koennen lokal vorgemerkt werden; Kassensturz, Zahlung, Runden, Admin-Aktionen und SumUp-Zahlungsstarts bleiben online-only. Self-Pay nutzt bei Abbruch eine serverseitige Statusabfrage statt Offline-Buchung."
 
 sync_and_connectivity:
   concept: >-
@@ -239,8 +276,9 @@ business_domain:
       - "transaction_items Detailzeile wird geschrieben"
   open_bill:
     definition: "Summe aller order_lines mit quantity > 0, unabhängig von event_open."
-    payment: "Barzahlung schreibt PAID_CASH und setzt offene order_lines der Person auf quantity=0."
+    payment: "Barzahlung schreibt PAID_CASH; SumUp-Selbstzahlung schreibt PAID_SUMUP. Beide setzen offene order_lines der Person auf quantity=0."
     mobile_kassa: "Versteckte Seite /kassa fuer Handy-Hochformat: Name/Betrag-Liste, Detail mit Getraenken, PIN-geschuetztes Bezahlen mit Revisionspruefung gegen parallele Buchungen."
+    member_self_pay: "SumUp-Zahlung ist im Personenfenster der Listenansicht integriert; /self-pay bleibt Test-/Fallbackseite. iPad spricht nur mit dem Server; der Server startet die Zahlung per SumUp Cloud API."
   event_tally:
     definition: "Aktuelle Veranstaltung seit letztem Kassensturz."
     field: "order_lines.event_open"
@@ -277,10 +315,13 @@ business_domain:
     preview: "zeigt Brutto-Strichliste, bestaetigte Runden, automatische Abzuege, Netto-Strichliste, EK/VK-Ergebnis"
     execute: "zieht bestaetigte Runden ab, schreibt ROUND_DEDUCTED/round_events, setzt event_open=0, schreibt CASHUP"
   payment:
-    description: "Barzahlung bedeutet echtes erhaltenes Bargeld."
+    description: "Zahlungsabschluss fuer offene Rechnungen: Barzahlung intern als PAID_CASH, Mitglieder-Selbstzahlung per SumUp als PAID_SUMUP."
     ui: "eigener GUI-Dialog, kein Browser-confirm; gruppierte Posten mit Menge, Preis, Gesamt."
     mobile_kassa_ui: "/kassa ist nicht in der Standardansicht verlinkt; nach PIN-Entsperrung zeigt sie nur offene Personen, Betrag und im Detail die konsumierten Getraenke."
     conflict_protection: "POST /api/kassa/pay verlangt expected_revision aus /api/kassa/person/{person_id}; wenn inzwischen andere Geraete gebucht haben, antwortet der Server mit 409 und aktuellem Stand."
+    self_pay_ui: "Primaerer Bedienweg ist die normale Listenansicht: Name antippen, unten im Personenfenster Kartenzahlung starten. /self-pay bleibt als separate Test-/Fallbackseite."
+    self_pay_double_booking_protection: "POST /api/self-pay/pay verlangt client_payment_id und expected_revision; client_payment_id ist in self_payment_sessions eindeutig, Wiederholungen liefern den bestehenden Status statt einen zweiten SumUp-Start."
+    self_pay_connection_recovery: "GET /api/self-pay/payment/{client_payment_id} liefert created/sent_to_reader/pending/paid/failed/cancelled/timeout/unknown/expired, damit das iPad nach Verbindungsabbruch denselben Vorgang wiederaufnimmt."
 
 number_and_currency_formatting:
   visible_separator: ","
@@ -458,6 +499,51 @@ settings:
       type: "boolean"
       default: true
       purpose: "Mitgliedernachrichten im Personen-Popup anzeigen"
+    payment_provider:
+      type: "string"
+      default: ""
+      env_override: "PAYMENT_PROVIDER"
+      purpose: "Mit Wert sumup wird Mitglieder-Selbstzahlung in Listenansicht und /self-pay-Testseite aktiviert"
+    sumup_api_base:
+      type: "string"
+      default: "https://api.sumup.com"
+      env_override: "SUMUP_API_BASE"
+      purpose: "Basis-URL der SumUp Cloud API"
+    sumup_api_key:
+      type: "string"
+      default: ""
+      env_override: "SUMUP_API_KEY"
+      purpose: "Serverseitiger SumUp API Key"
+    sumup_merchant_code:
+      type: "string"
+      default: ""
+      env_override: "SUMUP_MERCHANT_CODE"
+      purpose: "SumUp Merchant Code"
+    sumup_reader_id:
+      type: "string"
+      default: ""
+      env_override: "SUMUP_READER_ID"
+      purpose: "SumUp Solo Reader ID"
+    sumup_affiliate_key:
+      type: "string"
+      default: ""
+      env_override: "SUMUP_AFFILIATE_KEY"
+      purpose: "Optionaler SumUp Affiliate Key"
+    sumup_affiliate_app_id:
+      type: "string"
+      default: ""
+      env_override: "SUMUP_AFFILIATE_APP_ID"
+      purpose: "Optionale SumUp Affiliate App ID"
+    sumup_currency:
+      type: "string"
+      default: "EUR"
+      env_override: "SUMUP_CURRENCY"
+      purpose: "Waehrung fuer SumUp-Zahlungen"
+    sumup_timeout_seconds:
+      type: "integer/string"
+      default: "120"
+      env_override: "SUMUP_TIMEOUT_SECONDS"
+      purpose: "Terminal-Wartezeit fuer SumUp-Zahlungen"
     app_background_color:
       type: "CSS color"
       default: "#f3f4f6"
@@ -483,6 +569,7 @@ settings:
       - "Einfache Ansicht und Expertenmodus"
       - "Einstellungen sind als aufklappbare Gruppen/Akkordeons organisiert"
       - "Alltagsfunktionen wie Kostenwarnung und Mitgliedernachrichten bleiben in der einfachen Ansicht sichtbar"
+      - "SumUp Solo Self-Checkout zeigt ENV-Konfigurationsstatus und Reader-Test."
     live_previews:
       - "Strichlisten-/Personenkarten-Vorschau mit Max Mustermann und Testmengen"
       - "Kostenwarnung/Zahlungserinnerung als Badge in der Personenkarten-Vorschau"
@@ -609,6 +696,14 @@ sqlite_schema:
         - "ROUND_REQUEST_APPROVED"
         - "ROUND_REQUEST_REJECTED"
         - "PAID_CASH"
+        - "PAID_SUMUP"
+        - "SUMUP_PAYMENT_FAILED"
+        - "SUMUP_PAYMENT_CANCELLED"
+        - "SUMUP_PAYMENT_TIMEOUT"
+        - "SUMUP_PAYMENT_UNKNOWN"
+        - "SUMUP_PAYMENT_ERROR"
+        - "SUMUP_PAYMENT_MISMATCH"
+        - "SUMUP_PAYMENT_STALE"
         - "ADMIN_ADJUSTMENT"
         - "ROUND_DEDUCTED"
         - "CASHUP"
@@ -635,6 +730,28 @@ sqlite_schema:
         client_time: {type: "TEXT", constraints: "nullable"}
         device_info: {type: "TEXT", constraints: "nullable"}
         created_at: {type: "TEXT", constraints: "NOT NULL"}
+    self_payment_sessions:
+      purpose: "Idempotente SumUp-Selbstzahlung und Sperre gegen Doppelbuchungen/Parallelbuchungen"
+      statuses: ["CREATED", "SENT_TO_READER", "PENDING", "PAID", "FAILED", "CANCELLED", "TIMEOUT", "UNKNOWN", "EXPIRED"]
+      columns:
+        id: {type: "INTEGER", constraints: "PRIMARY KEY AUTOINCREMENT"}
+        person_id: {type: "INTEGER", constraints: "NOT NULL REFERENCES people(id)"}
+        client_payment_id: {type: "TEXT", constraints: "UNIQUE nullable, vom iPad erzeugt"}
+        status: {type: "TEXT", constraints: "NOT NULL"}
+        amount_eur: {type: "REAL", constraints: "NOT NULL"}
+        amount_cents: {type: "INTEGER", constraints: "NOT NULL"}
+        currency: {type: "TEXT", constraints: "NOT NULL DEFAULT EUR"}
+        provider: {type: "TEXT", constraints: "NOT NULL DEFAULT sumup"}
+        provider_checkout_id: {type: "TEXT", constraints: "nullable"}
+        revision: {type: "TEXT", constraints: "NOT NULL"}
+        terminal_result: {type: "TEXT", constraints: "nullable JSON"}
+        terminal_reference: {type: "TEXT", constraints: "nullable"}
+        raw_response: {type: "TEXT", constraints: "nullable JSON"}
+        error: {type: "TEXT", constraints: "nullable"}
+        transaction_id: {type: "INTEGER", constraints: "nullable REFERENCES transactions(id)"}
+        created_at: {type: "TEXT", constraints: "NOT NULL"}
+        updated_at: {type: "TEXT", constraints: "NOT NULL"}
+        completed_at: {type: "TEXT", constraints: "nullable"}
     transaction_items:
       purpose: "Mengen-/Preisdetails für Auswertungen"
       columns:
@@ -679,6 +796,10 @@ sqlite_schema:
     - "idx_member_messages_active ON member_messages(active, archived_at)"
     - "idx_member_message_recipients_person_ack ON member_message_recipients(person_id, acknowledged_at)"
     - "idx_member_message_recipients_message ON member_message_recipients(message_id)"
+    - "idx_self_payment_sessions_person_status ON self_payment_sessions(person_id, status, updated_at)"
+    - "idx_self_payment_sessions_status_updated ON self_payment_sessions(status, updated_at)"
+    - "idx_self_payment_sessions_client_payment_id UNIQUE ON self_payment_sessions(client_payment_id)"
+    - "idx_self_payment_sessions_provider_checkout ON self_payment_sessions(provider, provider_checkout_id)"
 
 api:
   style: "JSON REST"
@@ -691,7 +812,11 @@ api:
     - {method: "GET", path: "/", purpose: "Kassenansicht"}
     - {method: "GET", path: "/admin", purpose: "Adminseite"}
     - {method: "GET", path: "/kassa", purpose: "versteckte mobile Kassierseite fuer Handy-Hochformat; kein Button in der Standardansicht"}
+    - {method: "GET", path: "/self-pay", purpose: "Mitglieder-Selbstzahlung per SumUp; kein Zugriff auf /kassa erforderlich"}
+    - {method: "GET", path: "/bezahlen", purpose: "Alias fuer /self-pay"}
     - {method: "GET", path: "/manifest.webmanifest", purpose: "PWA manifest"}
+    - {method: "GET", path: "/kassa.webmanifest", purpose: "PWA manifest fuer interne Kassa"}
+    - {method: "GET", path: "/self-pay.webmanifest", purpose: "PWA manifest fuer Mitglieder-Selbstzahlung"}
     - {method: "GET", path: "/service-worker.js", purpose: "PWA service worker"}
     - {method: "GET", path: "/icon.svg", purpose: "Icon SVG"}
     - {method: "GET", path: "/icon-192.png", purpose: "PWA Icon"}
@@ -704,6 +829,11 @@ api:
     - {method: "GET", path: "/api/people", returns: "aktive Personen mit offenen Posten, Summen, Strichliste, pending requests"}
     - {method: "GET", path: "/api/kassa/people", returns: "kompakte offene Personen fuer die mobile Kassa: id, Name, offene Striche, Betrag"}
     - {method: "GET", path: "/api/kassa/person/{person_id}", returns: "mobile Kassa-Detail mit gruppierten Getraenken, Betrag, can_pay und revision"}
+    - {method: "GET", path: "/api/self-pay/config", returns: "oeffentliche Self-Pay-Konfiguration ohne SumUp API Key"}
+    - {method: "GET", path: "/api/self-pay/people", returns: "offene Personen fuer Mitglieder-Selbstzahlung"}
+    - {method: "GET", path: "/api/self-pay/person/{person_id}", returns: "offene Posten, can_self_pay und revision fuer SumUp-Zahlung"}
+    - {method: "POST", path: "/api/self-pay/pay", body: "SelfPayRequest", purpose: "idempotenter SumUp-Zahlungsstart mit client_payment_id"}
+    - {method: "GET", path: "/api/self-pay/payment/{client_payment_id}", returns: "Status/Wiederaufnahme: created, sent_to_reader, pending, paid, failed, cancelled, timeout, unknown, expired"}
     - {method: "POST", path: "/api/add-drink", body: "AddDrinkRequest", purpose: "Konsum buchen; optional idempotente Offline-Nachsynchronisierung ueber client_operation_id"}
     - {method: "POST", path: "/api/edit-request", body: "EditRequestIn", purpose: "Löschanfrage stellen"}
     - {method: "POST", path: "/api/round-request", body: "RoundRequestIn", purpose: "Runde zahlen; wird sofort als APPROVED protokolliert und gebucht"}
@@ -731,6 +861,9 @@ api:
     - {method: "POST", path: "/api/admin/drinks/update", body: "AdminItemUpdate", purpose: "Artikel ändern"}
     - {method: "POST", path: "/api/admin/drinks/delete", body: "AdminItemDelete", purpose: "Artikel archivieren"}
     - {method: "POST", path: "/api/admin/settings/update", body: "SettingsUpdateRequest", purpose: "Einstellungen ändern"}
+    - {method: "POST", path: "/api/admin/sumup/status", body: "PinRequest", purpose: "SumUp Readerstatus testen"}
+    - {method: "POST", path: "/api/admin/sumup/readers", body: "PinRequest", purpose: "Gekoppelte SumUp Reader listen"}
+    - {method: "POST", path: "/api/admin/sumup/pair-reader", body: "SumUpPairReaderRequest", purpose: "SumUp Solo per Pairing-Code koppeln"}
     - {method: "POST", path: "/api/admin/transactions/filter", body: "TransactionFilterRequest", purpose: "Verlauf filtern"}
     - {method: "POST", path: "/api/admin/transactions", body: "PinRequest", purpose: "letzte Transaktionen"}
     - {method: "GET", path: "/api/transactions?pin=...", purpose: "PIN-pflichtige Kompatibilitäts-/Debugroute; Verlauf nicht mehr öffentlich"}
@@ -753,6 +886,8 @@ pydantic_models:
   EditRequestIn: {fields: {person_id: "int", line_quantities: "dict|null", changes: "legacy|null", reason: "str|null"}}
   RoundRequestIn: {fields: {person_id: "int", quantity: "int default 1", reason: "str|null"}}
   PayRequest: {fields: {person_id: "int", pin: "str", approve_request_ids: "list[int]", reject_request_ids: "list[int]", approve_pending: "bool legacy", reject_pending: "bool legacy"}}
+  KassaPayRequest: {fields: {person_id: "int", pin: "str", expected_revision: "str"}}
+  SelfPayRequest: {fields: {person_id: "int", expected_revision: "str", client_payment_id: "str required by endpoint"}}
   MemberMessageAckRequest: {fields: {person_id: "int", message_id: "int"}}
   AdminMemberMessageCreate: {fields: {pin: "str", title: "str|null", message: "str", person_ids: "list[int]"}}
   AdminMemberMessageArchive: {fields: {pin: "str", message_id: "int"}}
@@ -891,7 +1026,7 @@ frontend_admin_html:
   tabs:
     people: "Personen anlegen, ändern, aktivieren/deaktivieren, archivieren"
     items: "Artikel & Preise ohne Systemartikel '1 Runde'"
-    settings: "App, Rundenpreis, Mitgliedernachrichten, Sync, PIN"
+    settings: "App, Rundenpreis, Mitgliedernachrichten, Sync, SumUp-Selbstzahlung, PIN"
     appearance: "Anzeige, Design, Strichliste, Popup, Kostenwarnung/Zahlungserinnerung, Feedback/Sounds"
     statistics: "KPIs, Top-Artikel, offene Betraege, Finanzverlauf, Runden"
     history: "Transaktionsverlauf filtern"
@@ -925,7 +1060,7 @@ reporting:
     meaning: "Verbrauch der aktuellen Strichliste"
     source: "order_lines WHERE event_open=1"
   revenue:
-    meaning: "Einnahmen/Umsatz; für echte Kasse primär PAID_CASH betrachten"
+    meaning: "Einnahmen/Umsatz aus echten Zahlungen; PAID_CASH und PAID_SUMUP werden als bezahlte Transaktionstypen ausgewertet."
   profit:
     meaning: "Gewinn aus VK/Einnahmen minus EK auf Snapshotbasis"
   rounds:
@@ -947,6 +1082,7 @@ security:
     - "/health und /api/config redigieren den DB-Pfad in production."
     - "SQLite Foreign Keys und busy_timeout werden in get_conn pro Verbindung gesetzt."
     - "Admin-Login und direkte PIN-pflichtige Admin-API-Calls werden in production blockiert, solange die Standard-PIN 1234 aktiv ist."
+    - "SumUp-Selbstzahlung nutzt eindeutige client_payment_id, self_payment_sessions und Personensperren, damit Retry/Doppeltippen keine zweite Zahlung startet."
   recommended_if_public:
     - "nicht Port 8088 direkt ins Internet freigeben"
     - "VPN oder Reverse Proxy mit HTTPS und zusätzlicher Auth"
@@ -962,7 +1098,7 @@ testing_checklist:
     javascript_index: "node --check extracted-index-script.js oder entsprechender Extrakt aus index.html"
     javascript_admin: "node --check extracted-admin-script.js oder entsprechender Extrakt aus admin.html"
   backend_scenarios:
-    - "Automatisierte Tests in tests/test_backend.py decken Foreign Keys/busy_timeout, Buchung, Zahlung, Kassa-Revisionskonflikt, Kassensturz, Runde, Offline-Idempotenz und /api/transactions-PIN ab."
+    - "Automatisierte Tests in tests/test_backend.py decken Foreign Keys/busy_timeout, Buchung, Zahlung, Kassa-Revisionskonflikt, SumUp-Self-Pay-Idempotenz, Kassensturz, Runde, Offline-Idempotenz und /api/transactions-PIN ab."
     - "Neue development DB starten; /api/config und /api/people prüfen."
     - "Production DB separat prüfen; keine Testdaten/Synclogs."
     - "Konsum buchen; order_lines, transactions, transaction_items prüfen."
@@ -974,6 +1110,7 @@ testing_checklist:
     - "Kassensturz: event_open=0, offene Beträge bleiben."
     - "Runde abziehen: nur aktuelle event_open normale Artikel."
     - "Barzahlung: alle offenen Posten quantity=0, PAID_CASH geschrieben."
+    - "SumUp-Selbstzahlung: gleicher client_payment_id-Retry startet keine zweite SumUp-Zahlung; PAID_SUMUP wird nur einmal geschrieben."
     - "Offline-Getraenkebuchung mit client_operation_id zweimal senden; Menge darf nur einmal steigen."
     - "client_operations muss transaction_id der ersten erfolgreichen Buchung speichern."
     - "/api/transactions ohne PIN muss 403 liefern; mit PIN 200."
@@ -1076,16 +1213,57 @@ known_open_points_current:
   remote_access:
     status: "nicht implementiert; als Betriebsoption empfohlen"
     note: "Fuer externen Zugriff ohne Port-Forwarding soll spaeter eine separate VPN- oder Reverse-Proxy-Loesung genutzt werden."
-  card_terminal_nexi_ccv_a77:
-    status: "nicht implementiert; Abhaengigkeit von Nexi/CCV API-Freischaltung"
-    recommended_integration: "Cloud/API-Integration statt Browser-Direktzugriff; Karte bezahlt waere spaeter eigener Zahlungstyp."
+  card_terminal_sumup_solo:
+    status: "implementiert fuer SumUp Solo Cloud API aus Server-Sicht"
+    integration: "DiskStation/Server startet SumUp-Zahlung per Cloud API; iPad spricht nur mit Drink POS in der normalen Listenansicht. /self-pay bleibt Test-/Fallbackseite."
+    accounting: "Karte/SumUp schreibt PAID_SUMUP als eigenen Zahlungstyp."
+    required_for_first_real_terminal_test: "SUMUP_API_KEY, SUMUP_MERCHANT_CODE und SUMUP_READER_ID muessen serverseitig gesetzt sein; SumUp Solo muss online sein."
   shared_popup_preview_renderer:
     status: "optional"
     note: "Admin-Vorschau ist verbessert, nutzt aber weiterhin eigene Preview-Struktur statt gemeinsamer Renderfunktion mit index.html."
 
+current_update_2026_06_10:
+  cache_name: "drink-pos-shell-v88"
+  branch_note: "Feature-Branch feature/member-self-payment-sumup enthaelt Mitglieder-Selbstzahlung per SumUp Solo Cloud API in der Listenansicht, /self-pay als Test-/Fallbackseite, Container-Deployment und Agenten-REST-API."
+  self_payment_sumup:
+    route: "/"
+    test_route: "/self-pay"
+    alias: "/bezahlen"
+    member_access: "Mitglieder/Kassierer verwenden die normale Listenansicht; im Personenfenster gibt es unten Kartenzahlung. /self-pay bleibt Test-/Fallbackseite; /kassa bleibt interne Kassaansicht."
+    terminal_network: "iPad -> DiskStation/Drink-POS-Server; Server -> SumUp Cloud API -> SumUp Solo."
+    online_api: "SumUp Solo wird per SumUp Cloud API gestartet; API-Key bleibt nur serverseitig."
+    reader_pairing:
+      - "Reader-ID ist die SumUp API Reader-ID der Form rdr_..., nicht Seriennummer oder Terminal-ID."
+      - "POST /api/admin/sumup/pair-reader koppelt das SumUp Solo per frischem Pairing-Code."
+      - "POST /api/admin/sumup/readers listet gekoppelte Reader; POST /api/admin/sumup/status prueft den konfigurierten Reader."
+      - "Der gekoppelte Reader muss als SUMUP_READER_ID in .env stehen; echte Secrets bleiben ausserhalb von Git."
+    settings:
+      - "PAYMENT_PROVIDER=sumup"
+      - "SUMUP_API_BASE"
+      - "SUMUP_API_KEY"
+      - "SUMUP_MERCHANT_CODE"
+      - "SUMUP_READER_ID"
+      - "SUMUP_AFFILIATE_KEY optional"
+      - "SUMUP_AFFILIATE_APP_ID optional"
+      - "SUMUP_CURRENCY"
+      - "SUMUP_TIMEOUT_SECONDS"
+    double_booking_protection:
+      - "client_payment_id ist pro Zahlungsversuch eindeutig und per Index eindeutig."
+      - "Wiederholte POST /api/self-pay/pay mit derselben client_payment_id liefern den bestehenden Sessionstatus."
+      - "Status CREATED, SENT_TO_READER oder PENDING sperrt die Person gegen weitere Buchungen, Kassa-Zahlungen, Kassensturz und Rundenabzug."
+      - "Nach erfolgreichem SumUp-Status wird expected_revision erneut geprueft; nur unveraenderte Rechnungen werden automatisch als PAID_SUMUP gebucht."
+    connection_recovery:
+      - "self-pay.html speichert laufende client_payment_id in localStorage."
+      - "Nach Reload/Funkloch pollt die Seite GET /api/self-pay/payment/{client_payment_id}."
+      - "created/sent_to_reader/pending/paid/failed/cancelled/timeout/unknown/expired sind die oeffentlichen Statuswerte."
+    docs:
+      - "README.md"
+      - "docs/self-payment-sumup.md"
+      - "docs/agent-api.md"
+
 current_update_2026_05_18:
   cache_name: "drink-pos-shell-v73"
-  branch_note: "Git-Repository aktiv; main enthaelt den aktuellen Stand inklusive versteckter Handy-Kassa unter /kassa, Container-Deployment und Agenten-REST-API."
+  branch_note: "Historischer Stand inklusive versteckter Handy-Kassa unter /kassa, Container-Deployment und Agenten-REST-API."
   mobile_kassa:
     route: "/kassa"
     linked_from_standard_view: false
@@ -1285,6 +1463,18 @@ bedienszenarien_und_bedienreihenfolgen:
       - "Alle zum geprueften Stand offenen Posten der Person werden auf quantity=0 gesetzt."
       - "Wenn ein anderes Geraet seit dem Oeffnen der Detailansicht noch gebucht hat, wird nicht bezahlt; die Seite zeigt den aktualisierten Stand zur erneuten Pruefung."
       - "Die Standard-Kassenansicht bleibt unveraendert und verlinkt die mobile Kassa nicht."
+  mitglieder_sumup_selbstzahlung:
+    steps:
+      - "iPad-PWA oder URL / oeffnen; nicht /kassa."
+      - "Name in der normalen Listenansicht antippen und offene Posten pruefen."
+      - "Unten im Personenfenster 'Mit SumUp zahlen' antippen und Zahlung bestaetigen."
+      - "Karte/Smartphone am SumUp Solo verwenden."
+      - "Bei Verbindungsabbruch Seite offen lassen oder erneut die Liste bzw. /self-pay-Testseite oeffnen; die gespeicherte client_payment_id wird weiter geprueft."
+    expected_result:
+      - "PAID_SUMUP wird genau einmal geschrieben."
+      - "Retry/Doppeltippen mit derselben client_payment_id startet keine zweite SumUp-Zahlung."
+      - "Bei created/sent_to_reader/pending bleibt die Person gegen parallele Buchungen/Zahlungen gesperrt."
+      - "Bei failed/cancelled/timeout/unknown/expired zeigt die Seite den Status; Admin prueft im Zweifel SumUp-Status und Verlauf."
   manuelle_synchronisierung:
     steps:
       - "Auf der Seite ganz nach oben scrollen."
@@ -1339,6 +1529,7 @@ backup_and_recovery:
       - "member_message_recipients"
       - "transactions"
       - "client_operations"
+      - "self_payment_sessions"
       - "transaction_items"
       - "round_events"
   consistency:
