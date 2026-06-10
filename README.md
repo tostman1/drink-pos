@@ -119,7 +119,7 @@ Der vorgesehene Bedienweg liegt in der normalen Listenansicht:
 http://<NAS-IP>:8088/
 ```
 
-Name antippen, Rechnung prüfen und unten im Personenfenster `Mit SumUp zahlen`
+Name antippen, Rechnung prüfen und unten im Personenfenster `Kartenzahlung starten`
 wählen. Die separate Selbstzahl-Seite bleibt als Test-/Fallbackseite erhalten:
 
 ```text
@@ -152,14 +152,15 @@ aufrufen. Die Antwort liefert eine Reader-ID der Form `rdr_...`; diese wird als
 `SUMUP_READER_ID` in `.env` gesetzt. `POST /api/admin/sumup/readers` listet bereits gekoppelte
 Reader, `POST /api/admin/sumup/status` prüft den Reader-Status.
 
-Im Kartenzahlungs-Popup wird automatisch `Kartenzahlung +3 %` als zusätzliche Zeile addiert,
-mindestens jedoch `0,20 €`. Der Endbetrag kann optional nicht aufgerundet, auf volle Euro,
-auf den nächsten 5er oder auf den nächsten 10er aufgerundet werden. SumUp erhält immer den
-serverseitig berechneten Endbetrag inklusive Gebühr und Aufrundung.
+Im Kartenzahlungs-Popup wird automatisch `Kartenzahlung +3 % (min. 0,20 €)` als zusätzliche
+Zeile addiert. Danach muss eine Rundungsoption gewählt werden: `Nicht aufrunden` oder, sofern
+sinnvoll, ein dynamisch berechnetes Ziel auf volle Euro, den nächsten 5er oder den nächsten 10er.
+Der Button `Mit Karte zahlen` startet SumUp erst nach dieser Auswahl. SumUp erhält immer den
+serverseitig berechneten Endbetrag inklusive Gebühr und optionalem Aufrunden.
 
 Die interne Kassaansicht `/kassa` bietet dieselbe Kartenzahlungslogik im Zahlungsdialog für
-Kassierer an. `Bar buchen` schließt weiterhin nur den offenen Originalbetrag, `Mit SumUp zahlen`
-startet den SumUp-Vorgang inklusive Kartengebühr und optionaler Aufrundung.
+Kassierer an. `Bar buchen` schließt weiterhin nur den offenen Originalbetrag, `Mit Karte zahlen`
+startet den SumUp-Vorgang inklusive Kartengebühr und optionalem Aufrunden.
 
 Eine Self-Pay-Zahlung sperrt die gewählte Person während der Terminalfreigabe gegen
 parallele Buchungen. Das iPad erzeugt für jeden Zahlungsversuch eine eindeutige

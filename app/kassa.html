@@ -303,25 +303,38 @@
       color:#0f172a;
       white-space:nowrap;
     }
-    .card-rounding-row {
+    .card-rounding-options {
       display:grid;
-      gap:6px;
+      gap:8px;
     }
-    .card-rounding-row label {
+    .card-rounding-title {
       color:#334155;
       font-size:13px;
       font-weight:900;
     }
-    .card-rounding-row select {
+    .card-rounding-buttons {
+      display:grid;
+      gap:7px;
+    }
+    .card-rounding-option {
       width:100%;
       min-height:44px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
       border:1px solid var(--line);
       border-radius:8px;
       background:#fff;
       color:var(--ink);
       padding:9px 10px;
       font:inherit;
-      font-weight:750;
+      font-weight:850;
+      text-align:left;
+      box-shadow:0 2px 8px rgba(15,23,42,.05);
+    }
+    .card-rounding-option:hover {
+      border-color:#93c5fd;
+      background:#f8fbff;
     }
     .payment-visual-status {
       display:grid;
@@ -552,25 +565,17 @@
       </div>
       <div class="confirm-breakdown">
         <div class="confirm-row"><span>Offene Posten</span><strong id="confirmBaseTotal">€ 0,00</strong></div>
-        <div class="confirm-row"><span>Kartenzahlung +3 %</span><strong id="confirmCardFee">€ 0,00</strong></div>
-        <div class="confirm-row" id="confirmRoundingRow"><span>Aufrundung</span><strong id="confirmRoundingAmount">€ 0,00</strong></div>
+        <div class="confirm-row"><span>Kartenzahlung +3 % (min. 0,20 €)</span><strong id="confirmCardFee">€ 0,00</strong></div>
+        <div class="confirm-row" id="confirmRoundingRow"><span>Aufrunden</span><strong id="confirmRoundingAmount">€ 0,00</strong></div>
       </div>
-      <div class="card-rounding-row">
-        <label for="kassaCardRoundingMode">SumUp-Endbetrag aufrunden</label>
-        <select id="kassaCardRoundingMode">
-          <option value="none">nicht aufrunden</option>
-          <option value="euro">auf volle Euro aufrunden</option>
-          <option value="five">auf den nächsten 5er aufrunden</option>
-          <option value="ten">auf den nächsten 10er aufrunden</option>
-        </select>
-      </div>
+      <div class="card-rounding-options" id="kassaCardRoundingOptions"></div>
       <div class="confirm-total"><span>SumUp-Endbetrag</span><strong id="confirmCardTotal">€ 0,00</strong></div>
       <div class="confirm-hint" id="confirmPaymentHint"></div>
       <div class="payment-visual-status idle" id="kassaCardPaymentStatus" aria-live="polite"></div>
       <div class="confirm-actions three">
         <button id="confirmCancelButton" class="secondary" type="button">Abbrechen</button>
         <button id="confirmPayButton" class="secondary" type="button">Bar buchen</button>
-        <button id="confirmCardPayButton" class="primary" type="button">Mit SumUp zahlen</button>
+        <button id="confirmCardPayButton" class="primary" type="button">Mit Karte zahlen</button>
       </div>
     </section>
   </dialog>
@@ -601,6 +606,7 @@
       cardBusy: false,
       cardTimer: null,
       activeCardPayment: null,
+      cardRoundingMode: null,
       selfPaymentAvailable: false,
       sumupConfigured: false,
       sumupMissing: [],
@@ -642,6 +648,33 @@
         roundingAdjustment: eurFromCents(amountCents - subtotalCents),
         amount: eurFromCents(amountCents),
       };
+    }
+    function ceilCents(value, stepCents) {
+      return Math.ceil(Number(value || 0) / stepCents) * stepCents;
+    }
+    function targetEuroText(cents) {
+      return `${new Intl.NumberFormat('de-AT', { maximumFractionDigits:0 }).format(eurFromCents(cents))} €`;
+    }
+    function diffEuroText(cents) {
+      return `${new Intl.NumberFormat('de-AT', { minimumFractionDigits:2, maximumFractionDigits:2 }).format(eurFromCents(cents))} €`;
+    }
+    function roundingOptionsForBreakdown(breakdown) {
+      const payableCents = breakdown.baseAmountCents + breakdown.cardFeeCents;
+      const options = [{ mode:'none', targetCents:payableCents, addCents:0, label:'Nicht aufrunden' }];
+      const seenTargets = new Set();
+      for (const mode of ['euro', 'five', 'ten']) {
+        const targetCents = ceilCents(payableCents, CARD_PAYMENT_ROUNDING_OPTIONS[mode].stepCents);
+        if (targetCents <= payableCents || seenTargets.has(targetCents)) continue;
+        seenTargets.add(targetCents);
+        const addCents = targetCents - payableCents;
+        options.push({
+          mode,
+          targetCents,
+          addCents,
+          label:`Auf ${targetEuroText(targetCents)} (+${diffEuroText(addCents)}) aufrunden`,
+        });
+      }
+      return options;
     }
 
     function syncModalOpen() {
@@ -937,22 +970,42 @@
     function updateKassaCardBreakdown() {
       const person = state.selected;
       if (!person) return null;
-      const roundingMode = el('kassaCardRoundingMode')?.value || 'none';
+      const roundingMode = state.cardRoundingMode || 'none';
       const breakdown = cardPaymentBreakdown(person.total_eur ?? person.total, roundingMode);
+      const baseBreakdown = cardPaymentBreakdown(person.total_eur ?? person.total, 'none');
       el('confirmBaseTotal').textContent = money(breakdown.baseTotal);
       el('confirmCardFee').textContent = money(breakdown.cardFee);
       el('confirmRoundingAmount').textContent = money(breakdown.roundingAdjustment);
       el('confirmRoundingRow').classList.toggle('hidden', breakdown.roundingAdjustmentCents <= 0);
       el('confirmCardTotal').textContent = money(breakdown.amount);
+      const roundingBox = el('kassaCardRoundingOptions');
+      if (roundingBox) {
+        if (state.cardRoundingMode) {
+          roundingBox.innerHTML = '';
+          roundingBox.classList.add('hidden');
+        } else {
+          const buttons = roundingOptionsForBreakdown(baseBreakdown)
+            .map(option => `<button class="card-rounding-option" type="button" onclick="selectKassaCardRounding('${option.mode}')">${escapeHtml(option.label)}</button>`)
+            .join('');
+          roundingBox.classList.remove('hidden');
+          roundingBox.innerHTML = `<div class="card-rounding-title">Rundung auswählen</div><div class="card-rounding-buttons">${buttons}</div>`;
+        }
+      }
       el('confirmPaymentHint').textContent =
-        `Bar buchen bleibt bei ${money(breakdown.baseTotal)}. SumUp erhält ${money(breakdown.amount)} inklusive Kartenzahlung +3 % und Aufrundung.`;
+        `Bar buchen bleibt bei ${money(breakdown.baseTotal)}. SumUp erhält ${money(breakdown.amount)} inklusive Kartenzahlung +3 % und optionalem Aufrunden.`;
+      el('confirmCardPayButton').disabled = !state.selfPaymentAvailable || !state.cardRoundingMode || state.cardBusy;
       return breakdown;
+    }
+
+    function selectKassaCardRounding(mode) {
+      state.cardRoundingMode = CARD_PAYMENT_ROUNDING_OPTIONS[mode] ? mode : 'none';
+      updateKassaCardBreakdown();
     }
 
     function setKassaCardVisualStatus(status = 'idle', message = '') {
       const box = el('kassaCardPaymentStatus');
       const visual = {
-        idle: { icon:'💳', title:'Karte vorhalten', text:'Mit SumUp zahlen startet den Reader-Checkout. Betrag am Solo prüfen.' },
+        idle: { icon:'💳', title:'Karte vorhalten', text:'Mit Karte zahlen startet den Reader-Checkout. Betrag am Solo prüfen.' },
         waiting: { icon:'⌛', title:'Auf SumUp warten', text:'Reader-Checkout läuft. Keine zweite Zahlung starten.' },
         paid: { icon:'✓', title:'Zahlung erfolgreich', text:'SumUp bezahlt; offene Posten wurden lokal geschlossen.' },
         failed: { icon:'✕', title:'Zahlung abgelehnt', text:'Keine lokale Buchung. Rechnung bleibt offen.' },
@@ -969,13 +1022,13 @@
         el('confirmPayButton').disabled = true;
         el('confirmCardPayButton').disabled = true;
         el('confirmCardPayButton').textContent = 'Auf SumUp warten';
-        el('kassaCardRoundingMode').disabled = true;
+        el('kassaCardRoundingOptions')?.classList.add('hidden');
       } else if (['paid', 'failed', 'timeout', 'unknown'].includes(status)) {
         el('confirmCancelButton').disabled = false;
         el('confirmPayButton').disabled = true;
         el('confirmCardPayButton').disabled = true;
         el('confirmCancelButton').textContent = 'Schließen';
-        el('kassaCardRoundingMode').disabled = true;
+        el('kassaCardRoundingOptions')?.classList.add('hidden');
       }
     }
 
@@ -1014,7 +1067,8 @@
       } finally {
         state.busy = false;
         el('confirmPayButton').disabled = false;
-        el('confirmCardPayButton').disabled = !state.selfPaymentAvailable;
+        el('confirmCardPayButton').disabled = !state.selfPaymentAvailable || !state.cardRoundingMode;
+        el('confirmCardPayButton').textContent = state.selfPaymentAvailable ? 'Mit Karte zahlen' : 'SumUp nicht bereit';
         el('confirmCancelButton').disabled = false;
         el('payButton').textContent = 'Zahlung buchen';
         if (state.selected) el('payButton').disabled = !state.selected.can_pay;
@@ -1041,7 +1095,6 @@
         clearActiveCardPayment(clientPaymentId);
         setKassaCardVisualStatus('paid', `Bezahlt: ${money(data.total)}`);
         showStatus(`SumUp bezahlt: ${money(data.total)}`);
-        if (el('payConfirmDialog').open) el('payConfirmDialog').close();
         closeDetail();
         return true;
       }
@@ -1103,7 +1156,12 @@
         showStatus('SumUp ist nicht vollständig konfiguriert', 4200);
         return;
       }
-      const roundingMode = el('kassaCardRoundingMode')?.value || 'none';
+      if (!state.cardRoundingMode) {
+        showStatus('Bitte Rundungsoption auswählen', 2800);
+        updateKassaCardBreakdown();
+        return;
+      }
+      const roundingMode = state.cardRoundingMode;
       const activeForPerson = state.activeCardPayment?.person_id === Number(person.id) ? state.activeCardPayment : null;
       const clientPaymentId = activeForPerson?.client_payment_id || makeKassaCardPaymentId(person);
       storeActiveCardPayment({
@@ -1178,10 +1236,9 @@
       el('confirmCancelButton').textContent = 'Abbrechen';
       el('confirmCancelButton').disabled = false;
       el('confirmPayButton').disabled = false;
-      el('confirmCardPayButton').disabled = !state.selfPaymentAvailable;
-      el('confirmCardPayButton').textContent = state.selfPaymentAvailable ? 'Mit SumUp zahlen' : 'SumUp nicht bereit';
-      el('kassaCardRoundingMode').disabled = false;
-      el('kassaCardRoundingMode').value = 'none';
+      state.cardRoundingMode = null;
+      el('confirmCardPayButton').disabled = true;
+      el('confirmCardPayButton').textContent = state.selfPaymentAvailable ? 'Mit Karte zahlen' : 'SumUp nicht bereit';
       updateKassaCardBreakdown();
       setKassaCardVisualStatus(
         state.selfPaymentAvailable ? 'idle' : 'failed',
@@ -1193,7 +1250,7 @@
         el('confirmCancelButton').disabled = false;
         el('confirmPayButton').disabled = false;
         el('confirmCardPayButton').disabled = true;
-        el('kassaCardRoundingMode').disabled = true;
+        el('kassaCardRoundingOptions')?.classList.add('hidden');
       }
       const dialog = el('payConfirmDialog');
       dialog.showModal();
@@ -1226,10 +1283,12 @@
     el('confirmCancelButton').addEventListener('click', () => el('payConfirmDialog').close());
     el('confirmPayButton').addEventListener('click', paySelected);
     el('confirmCardPayButton').addEventListener('click', startCardPayment);
-    el('kassaCardRoundingMode').addEventListener('change', updateKassaCardBreakdown);
     el('historyCloseIcon').addEventListener('click', closeHistoryDialog);
     el('historyCloseButton').addEventListener('click', closeHistoryDialog);
-    el('payConfirmDialog').addEventListener('close', syncModalOpen);
+    el('payConfirmDialog').addEventListener('close', () => {
+      state.cardRoundingMode = null;
+      syncModalOpen();
+    });
     el('payConfirmDialog').addEventListener('cancel', event => {
       if (state.cardBusy) event.preventDefault();
     });
