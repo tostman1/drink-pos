@@ -67,6 +67,14 @@ DEFAULT_PAYMENT_REMINDER_TEMPLATE = "Offen: {betrag}. Oberes Limit {oberes_limit
 SYSTEM_ITEM_NAMES = {ROUND_ITEM_NAME}
 PAID_TRANSACTION_TYPES = ("PAID_CASH", "PAID_SUMUP")
 PAID_TRANSACTION_KINDS = ("PAID_CASH", "PAID_SUMUP")
+CARD_PAYMENT_FEE_RATE_PERCENT = 3
+CARD_PAYMENT_MIN_FEE_CENTS = 20
+CARD_PAYMENT_ROUNDING_STEPS = {
+    "none": 1,
+    "euro": 100,
+    "five": 500,
+    "ten": 1000,
+}
 
 
 def is_system_item_name(name: str | None) -> bool:
@@ -557,6 +565,10 @@ def init_db():
                 person_id INTEGER NOT NULL,
                 client_payment_id TEXT,
                 status TEXT NOT NULL,
+                base_amount_cents INTEGER NOT NULL DEFAULT 0,
+                card_fee_cents INTEGER NOT NULL DEFAULT 0,
+                rounding_mode TEXT NOT NULL DEFAULT 'none',
+                rounding_adjustment_cents INTEGER NOT NULL DEFAULT 0,
                 amount_eur REAL NOT NULL,
                 amount_cents INTEGER NOT NULL,
                 currency TEXT NOT NULL DEFAULT 'EUR',
@@ -582,6 +594,10 @@ def init_db():
         add_column_if_missing(conn, "self_payment_sessions", "provider_checkout_id TEXT")
         add_column_if_missing(conn, "self_payment_sessions", "raw_response TEXT")
         add_column_if_missing(conn, "self_payment_sessions", "completed_at TEXT")
+        add_column_if_missing(conn, "self_payment_sessions", "base_amount_cents INTEGER NOT NULL DEFAULT 0")
+        add_column_if_missing(conn, "self_payment_sessions", "card_fee_cents INTEGER NOT NULL DEFAULT 0")
+        add_column_if_missing(conn, "self_payment_sessions", "rounding_mode TEXT NOT NULL DEFAULT 'none'")
+        add_column_if_missing(conn, "self_payment_sessions", "rounding_adjustment_cents INTEGER NOT NULL DEFAULT 0")
 
         conn.execute(
             """
@@ -1067,6 +1083,7 @@ class SelfPayRequest(BaseModel):
     person_id: int
     expected_revision: str
     client_payment_id: str | None = None
+    rounding_mode: str = "none"
 
 
 class SumUpPairReaderRequest(BaseModel):
@@ -2134,10 +2151,10 @@ def sumup_config_from_settings(settings: dict, require_reader: bool = True) -> S
     if missing:
         missing_text = ", ".join(missing)
         action = "Reader koppeln" if not require_reader else "Self-Checkout starten"
-        raise HTTPException(status_code=503, detail=f"SumUp ist fuer {action} nicht vollstaendig konfiguriert: {missing_text}")
+        raise HTTPException(status_code=503, detail=f"SumUp ist für {action} nicht vollständig konfiguriert: {missing_text}")
     if require_reader and not settings.get("sumup_configured"):
         missing = ", ".join(settings.get("sumup_missing") or [])
-        raise HTTPException(status_code=503, detail=f"SumUp ist nicht vollstaendig konfiguriert: {missing}")
+        raise HTTPException(status_code=503, detail=f"SumUp ist nicht vollständig konfiguriert: {missing}")
     return SumUpConfig(
         api_base=str(settings["sumup_api_base"]),
         api_key=str(os.getenv("SUMUP_API_KEY") or ""),
@@ -2196,13 +2213,13 @@ def active_self_payment_session(conn: sqlite3.Connection, person_id: int | None 
 def ensure_no_active_self_payment(conn: sqlite3.Connection, person_id: int, allow_session_id: int | None = None):
     row = active_self_payment_session(conn, person_id)
     if row and (allow_session_id is None or int(row["id"]) != int(allow_session_id)):
-        raise HTTPException(status_code=409, detail="Fuer diese Person laeuft gerade eine SumUp-Zahlung")
+        raise HTTPException(status_code=409, detail="Für diese Person läuft gerade eine SumUp-Zahlung")
 
 
 def ensure_no_active_self_payments(conn: sqlite3.Connection):
     row = active_self_payment_session(conn)
     if row:
-        raise HTTPException(status_code=409, detail="Es laeuft gerade eine SumUp-Zahlung. Bitte warten.")
+        raise HTTPException(status_code=409, detail="Es läuft gerade eine SumUp-Zahlung. Bitte warten.")
 
 
 def payment_result_reference(result: dict | None) -> str | None:
@@ -2216,6 +2233,50 @@ def payment_result_reference(result: dict | None) -> str | None:
     ]
     clean = [part for part in parts if part]
     return " / ".join(clean)[:120] if clean else None
+
+
+def normalize_card_rounding_mode(mode: str | None) -> str:
+    normalized = str(mode or "none").strip().lower()
+    if normalized not in CARD_PAYMENT_ROUNDING_STEPS:
+        raise HTTPException(status_code=400, detail="Ungültige Aufrundungsoption")
+    return normalized
+
+
+def eur_cents(value: float) -> int:
+    return max(0, int(round(float(value or 0) * 100)))
+
+
+def cents_to_eur(cents: int) -> float:
+    return rounded_money(int(cents or 0) / 100)
+
+
+def card_payment_breakdown(base_total_eur: float, rounding_mode: str | None = "none") -> dict:
+    normalized_mode = normalize_card_rounding_mode(rounding_mode)
+    base_amount_cents = eur_cents(base_total_eur)
+    card_fee_cents = max(CARD_PAYMENT_MIN_FEE_CENTS, (base_amount_cents * CARD_PAYMENT_FEE_RATE_PERCENT + 99) // 100)
+    subtotal_cents = base_amount_cents + card_fee_cents
+    step_cents = CARD_PAYMENT_ROUNDING_STEPS[normalized_mode]
+    rounded_total_cents = subtotal_cents if step_cents <= 1 else ((subtotal_cents + step_cents - 1) // step_cents) * step_cents
+    rounding_adjustment_cents = rounded_total_cents - subtotal_cents
+    return {
+        "base_amount_cents": base_amount_cents,
+        "base_total_eur": cents_to_eur(base_amount_cents),
+        "card_fee_cents": card_fee_cents,
+        "card_fee_eur": cents_to_eur(card_fee_cents),
+        "rounding_mode": normalized_mode,
+        "rounding_adjustment_cents": rounding_adjustment_cents,
+        "rounding_adjustment_eur": cents_to_eur(rounding_adjustment_cents),
+        "amount_cents": rounded_total_cents,
+        "amount_eur": cents_to_eur(rounded_total_cents),
+    }
+
+
+def card_rounding_label(mode: str | None) -> str:
+    return {
+        "euro": "auf volle Euro",
+        "five": "auf den nächsten 5er",
+        "ten": "auf den nächsten 10er",
+    }.get(str(mode or "none").strip().lower(), "nicht aufrunden")
 
 
 def mark_self_payment_session(
@@ -2278,12 +2339,12 @@ def self_payment_status_payload(conn: sqlite3.Connection, session, duplicate: bo
     message_by_status = {
         "CREATED": "SumUp-Zahlung wird vorbereitet.",
         "SENT_TO_READER": "SumUp Solo zeigt den Betrag an. Bitte keine zweite Zahlung starten.",
-        "PENDING": "SumUp-Zahlung laeuft. Bitte keine zweite Zahlung starten.",
+        "PENDING": "SumUp-Zahlung läuft. Bitte keine zweite Zahlung starten.",
         "PAID": "Zahlung abgeschlossen.",
         "FAILED": session["error"] or "SumUp-Zahlung fehlgeschlagen.",
         "CANCELLED": session["error"] or "SumUp-Zahlung abgebrochen.",
         "TIMEOUT": session["error"] or "SumUp-Zahlung ist abgelaufen. Offene Posten bleiben bestehen.",
-        "UNKNOWN": session["error"] or "SumUp-Status ist unklar. Bitte Zahlung pruefen; offene Posten bleiben bestehen.",
+        "UNKNOWN": session["error"] or "SumUp-Status ist unklar. Bitte Zahlung prüfen; offene Posten bleiben bestehen.",
         "EXPIRED": session["error"] or "SumUp-Zahlung ist abgelaufen.",
     }
     public_status = {
@@ -2297,6 +2358,12 @@ def self_payment_status_payload(conn: sqlite3.Connection, session, duplicate: bo
         "UNKNOWN": "unknown",
         "EXPIRED": "expired",
     }.get(status, status.lower() or "unknown")
+    amount_cents = int(session["amount_cents"] or 0)
+    base_amount_cents = int(session["base_amount_cents"] or 0) if "base_amount_cents" in session.keys() else 0
+    card_fee_cents = int(session["card_fee_cents"] or 0) if "card_fee_cents" in session.keys() else 0
+    rounding_adjustment_cents = int(session["rounding_adjustment_cents"] or 0) if "rounding_adjustment_cents" in session.keys() else 0
+    if base_amount_cents <= 0:
+        base_amount_cents = max(0, amount_cents - card_fee_cents - rounding_adjustment_cents)
     payload = {
         "status": public_status,
         "session_status": status,
@@ -2305,6 +2372,13 @@ def self_payment_status_payload(conn: sqlite3.Connection, session, duplicate: bo
         "client_payment_id": session["client_payment_id"],
         "payment_method": "SUMUP",
         "total": rounded_money(float(session["amount_eur"] or 0)),
+        "base_total": cents_to_eur(base_amount_cents),
+        "base_amount_cents": base_amount_cents,
+        "card_fee": cents_to_eur(card_fee_cents),
+        "card_fee_cents": card_fee_cents,
+        "rounding_mode": session["rounding_mode"] if "rounding_mode" in session.keys() else "none",
+        "rounding_adjustment": cents_to_eur(rounding_adjustment_cents),
+        "rounding_adjustment_cents": rounding_adjustment_cents,
         "currency": session["currency"] if "currency" in session.keys() else "EUR",
         "transaction_id": session["transaction_id"],
         "provider_checkout_id": session["provider_checkout_id"] if "provider_checkout_id" in session.keys() else None,
@@ -2871,7 +2945,7 @@ def require_self_payment_available(conn: sqlite3.Connection) -> dict:
         raise HTTPException(status_code=403, detail="Self-Checkout ist deaktiviert. PAYMENT_PROVIDER=sumup setzen.")
     if not settings["sumup_configured"]:
         missing = ", ".join(settings.get("sumup_missing") or [])
-        raise HTTPException(status_code=503, detail=f"SumUp ist nicht vollstaendig konfiguriert: {missing}")
+        raise HTTPException(status_code=503, detail=f"SumUp ist nicht vollständig konfiguriert: {missing}")
     return settings
 
 
@@ -2964,7 +3038,7 @@ def self_pay(req: SelfPayRequest):
         existing_session = self_payment_session_by_client_id(conn, client_payment_id)
         if existing_session:
             if int(existing_session["person_id"]) != int(person["id"]):
-                raise HTTPException(status_code=409, detail="Diese Zahlungs-ID wurde bereits fuer eine andere Person verwendet")
+                raise HTTPException(status_code=409, detail="Diese Zahlungs-ID wurde bereits für eine andere Person verwendet")
             payload = self_payment_status_payload(conn, existing_session, duplicate=True)
             conn.commit()
             return payload
@@ -2979,7 +3053,7 @@ def self_pay(req: SelfPayRequest):
             raise HTTPException(
                 status_code=409,
                 detail={
-                    "message": "Der offene Stand hat sich gerade geaendert. Bitte die aktualisierte Liste pruefen und erneut bezahlen.",
+                    "message": "Der offene Stand hat sich gerade geändert. Bitte die aktualisierte Liste prüfen und erneut bezahlen.",
                     "current": current_payload,
                 },
             )
@@ -2987,7 +3061,7 @@ def self_pay(req: SelfPayRequest):
             raise HTTPException(
                 status_code=409,
                 detail={
-                    "message": "Fuer diese Person gibt es offene Loeschanfragen. Bitte zuerst im Adminbereich entscheiden.",
+                    "message": "Für diese Person gibt es offene Löschanfragen. Bitte zuerst im Adminbereich entscheiden.",
                     "current": current_payload,
                 },
             )
@@ -2995,14 +3069,30 @@ def self_pay(req: SelfPayRequest):
             raise HTTPException(status_code=400, detail="Keine offenen Posten")
 
         total = person_total_from_lines(lines)
-        amount_cents = int(round(total * 100))
+        breakdown = card_payment_breakdown(total, req.rounding_mode)
+        amount_cents = int(breakdown["amount_cents"])
         cur = conn.execute(
             """
             INSERT INTO self_payment_sessions (
-                person_id, client_payment_id, status, amount_eur, amount_cents, currency, provider, revision, created_at, updated_at
-            ) VALUES (?, ?, 'CREATED', ?, ?, ?, 'sumup', ?, ?, ?)
+                person_id, client_payment_id, status,
+                base_amount_cents, card_fee_cents, rounding_mode, rounding_adjustment_cents,
+                amount_eur, amount_cents, currency, provider, revision, created_at, updated_at
+            ) VALUES (?, ?, 'CREATED', ?, ?, ?, ?, ?, ?, ?, 'sumup', ?, ?, ?)
             """,
-            (req.person_id, client_payment_id, total, amount_cents, settings["sumup_currency"], current_revision, now_text(), now_text()),
+            (
+                req.person_id,
+                client_payment_id,
+                breakdown["base_amount_cents"],
+                breakdown["card_fee_cents"],
+                breakdown["rounding_mode"],
+                breakdown["rounding_adjustment_cents"],
+                breakdown["amount_eur"],
+                amount_cents,
+                settings["sumup_currency"],
+                current_revision,
+                now_text(),
+                now_text(),
+            ),
         )
         session_id = int(cur.lastrowid)
         person_name = display_name(person["first_name"], person["last_name"]) or person["name"]
@@ -3068,8 +3158,8 @@ def self_pay(req: SelfPayRequest):
     result_currency = str(result.get("currency") or settings["sumup_currency"]).upper()
     if (result_amount is not None and int(result_amount) != amount_cents) or result_currency != str(settings["sumup_currency"]).upper():
         with get_conn() as conn:
-            mark_self_payment_session(conn, session_id, "UNKNOWN", result=result, error="SumUp-Betrag oder Waehrung passt nicht zur Rechnung", provider_checkout_id=result.get("provider_checkout_id"))
-            log_transaction(conn, req.person_id, "SUMUP_PAYMENT_MISMATCH", total, f"SumUp erfolgreich, aber Betrag/Waehrung abweichend. Session #{session_id}")
+            mark_self_payment_session(conn, session_id, "UNKNOWN", result=result, error="SumUp-Betrag oder Währung passt nicht zur Rechnung", provider_checkout_id=result.get("provider_checkout_id"))
+            log_transaction(conn, req.person_id, "SUMUP_PAYMENT_MISMATCH", total, f"SumUp erfolgreich, aber Betrag/Währung abweichend. Session #{session_id}")
             session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
             payload = self_payment_status_payload(conn, session) if session else {"status": "unknown"}
             conn.commit()
@@ -3086,8 +3176,8 @@ def self_pay(req: SelfPayRequest):
         current_revision = open_lines_payment_revision(lines, len(pending))
         current_payload = kassa_person_payload(conn, person, lines)
         if current_revision != session["revision"] or pending:
-            mark_self_payment_session(conn, session_id, "UNKNOWN", result=result, error="Rechnung hat sich nach SumUp-Freigabe geaendert", provider_checkout_id=result.get("provider_checkout_id"))
-            log_transaction(conn, req.person_id, "SUMUP_PAYMENT_STALE", float(session["amount_eur"]), f"SumUp erfolgreich, aber Rechnung geaendert. Session #{session_id}")
+            mark_self_payment_session(conn, session_id, "UNKNOWN", result=result, error="Rechnung hat sich nach SumUp-Freigabe geändert", provider_checkout_id=result.get("provider_checkout_id"))
+            log_transaction(conn, req.person_id, "SUMUP_PAYMENT_STALE", float(session["amount_eur"]), f"SumUp erfolgreich, aber Rechnung geändert. Session #{session_id}")
             stale_session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
             payload = self_payment_status_payload(conn, stale_session) if stale_session else {"status": "unknown"}
             payload["current"] = current_payload
@@ -3102,6 +3192,13 @@ def self_pay(req: SelfPayRequest):
             f"{int(line['quantity'])}x {line['item']} zu {eur_text(line['unit_price_eur'])}"
             for line in grouped_details
         ]
+        card_fee_cents = int(session["card_fee_cents"] or 0) if "card_fee_cents" in session.keys() else 0
+        rounding_adjustment_cents = int(session["rounding_adjustment_cents"] or 0) if "rounding_adjustment_cents" in session.keys() else 0
+        rounding_mode = session["rounding_mode"] if "rounding_mode" in session.keys() else "none"
+        if card_fee_cents > 0:
+            details.append(f"Kartenzahlung +3 % {eur_text(cents_to_eur(card_fee_cents))}")
+        if rounding_adjustment_cents > 0:
+            details.append(f"Aufrundung {card_rounding_label(rounding_mode)} {eur_text(cents_to_eur(rounding_adjustment_cents))}")
         person_name = display_name(person["first_name"], person["last_name"]) or person["name"]
         reference = payment_result_reference(result)
         reference_text = f"; Ref {reference}" if reference else ""

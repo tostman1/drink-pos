@@ -215,7 +215,11 @@ class BackendFlowTests(unittest.TestCase):
         self.assertEqual(duplicate["status"], "paid")
         self.assertTrue(duplicate["duplicate"])
         self.assertEqual(len(calls), 1)
-        self.assertEqual(calls[0][1], int(round(preview["total_eur"] * 100)))
+        expected_breakdown = self.main.card_payment_breakdown(preview["total_eur"])
+        self.assertEqual(calls[0][1], expected_breakdown["amount_cents"])
+        self.assertEqual(paid["base_amount_cents"], expected_breakdown["base_amount_cents"])
+        self.assertEqual(paid["card_fee_cents"], expected_breakdown["card_fee_cents"])
+        self.assertEqual(paid["rounding_adjustment_cents"], 0)
         self.assertIn("Drink POS", calls[0][2])
         self.assertEqual(calls[0][3], payment_id)
         self.assertEqual(paid["provider_checkout_id"], "sumup-checkout-paid-1")
@@ -228,6 +232,47 @@ class BackendFlowTests(unittest.TestCase):
         history = self.main.kassa_person_history(person["id"])
         self.assertEqual(history["history"][-1]["type"], "PAID_SUMUP")
         self.assertEqual(history["history"][-1]["type_label"], "SumUp-Zahlung")
+
+    def test_self_payment_adds_card_fee_and_rounding_to_sumup_amount(self):
+        self.configure_sumup()
+        person, item = self.first_person_and_item()
+        self.main.add_drink(self.main.AddDrinkRequest(person_id=person["id"], item_id=item["id"]))
+        preview = self.main.self_pay_person(person["id"])
+        expected = self.main.card_payment_breakdown(preview["total_eur"], "five")
+        calls = []
+        original_create = self.main.create_sumup_checkout
+        original_poll = self.main.poll_sumup_payment
+
+        def fake_create(cfg, amount_cents, receipt_text="", foreign_transaction_id=None):
+            calls.append(amount_cents)
+            return {"provider_checkout_id": "sumup-checkout-rounded-1", "status": "sent_to_reader"}
+
+        def fake_poll(cfg, provider_checkout_id):
+            return self.paid_sumup_result(calls[0], provider_checkout_id)
+
+        self.main.create_sumup_checkout = fake_create
+        self.main.poll_sumup_payment = fake_poll
+        try:
+            paid = self.main.self_pay(
+                self.main.SelfPayRequest(
+                    person_id=person["id"],
+                    expected_revision=preview["revision"],
+                    client_payment_id="selfpay-rounded-1",
+                    rounding_mode="five",
+                )
+            )
+        finally:
+            self.main.create_sumup_checkout = original_create
+            self.main.poll_sumup_payment = original_poll
+
+        self.assertEqual(calls, [expected["amount_cents"]])
+        self.assertEqual(paid["status"], "paid")
+        self.assertEqual(paid["total"], expected["amount_eur"])
+        self.assertEqual(paid["base_amount_cents"], expected["base_amount_cents"])
+        self.assertEqual(paid["card_fee_cents"], expected["card_fee_cents"])
+        self.assertEqual(paid["rounding_mode"], "five")
+        self.assertEqual(paid["rounding_adjustment_cents"], expected["rounding_adjustment_cents"])
+        self.assertGreaterEqual(paid["card_fee_cents"], 20)
 
     def test_self_payment_locks_person_while_sumup_is_running(self):
         self.configure_sumup()
@@ -257,7 +302,7 @@ class BackendFlowTests(unittest.TestCase):
             return {"provider_checkout_id": "sumup-checkout-lock-1", "status": "sent_to_reader"}
 
         def fake_poll(cfg, provider_checkout_id):
-            return self.paid_sumup_result(int(round(preview["total_eur"] * 100)), provider_checkout_id)
+            return self.paid_sumup_result(create_calls[0][0], provider_checkout_id)
 
         self.main.create_sumup_checkout = fake_create
         self.main.poll_sumup_payment = fake_poll
@@ -289,6 +334,12 @@ class BackendFlowTests(unittest.TestCase):
         self.assertIn("cardPayPanel", list_html)
         self.assertIn("/api/self-pay/pay", list_html)
         self.assertIn("client_payment_id", list_html)
+        kassa_page = self.main.kassa_page()
+        kassa_html = Path(kassa_page.path).read_text(encoding="utf-8")
+        self.assertIn("confirmCardPayButton", kassa_html)
+        self.assertIn("Kartenzahlung +3 %", kassa_html)
+        self.assertIn("kassaCardRoundingMode", kassa_html)
+        self.assertIn("/api/self-pay/pay", kassa_html)
         manifest = self.main.self_pay_manifest()
         self.assertEqual(Path(manifest.path).name, "self-pay.webmanifest")
         disabled = self.main.self_pay_config()
@@ -326,7 +377,7 @@ class BackendFlowTests(unittest.TestCase):
         original_poll = self.main.poll_sumup_payment
 
         def fake_create(cfg, amount_cents, receipt_text="", foreign_transaction_id=None):
-            raise self.main.SumUpError("reader_busy", "SumUp Solo ist beschaeftigt")
+            raise self.main.SumUpError("reader_busy", "SumUp Solo ist beschäftigt")
 
         self.main.create_sumup_checkout = fake_create
         self.main.poll_sumup_payment = lambda *args, **kwargs: self.fail("Polling must not start after API error")

@@ -738,6 +738,10 @@ sqlite_schema:
         person_id: {type: "INTEGER", constraints: "NOT NULL REFERENCES people(id)"}
         client_payment_id: {type: "TEXT", constraints: "UNIQUE nullable, vom iPad erzeugt"}
         status: {type: "TEXT", constraints: "NOT NULL"}
+        base_amount_cents: {type: "INTEGER", constraints: "NOT NULL DEFAULT 0", meaning: "offene Posten vor Kartengebühr"}
+        card_fee_cents: {type: "INTEGER", constraints: "NOT NULL DEFAULT 0", meaning: "Kartenzahlung +3 %, mindestens 20 Cent"}
+        rounding_mode: {type: "TEXT", constraints: "NOT NULL DEFAULT none", meaning: "none, euro, five oder ten"}
+        rounding_adjustment_cents: {type: "INTEGER", constraints: "NOT NULL DEFAULT 0", meaning: "optionale Aufrundung des Endbetrags"}
         amount_eur: {type: "REAL", constraints: "NOT NULL"}
         amount_cents: {type: "INTEGER", constraints: "NOT NULL"}
         currency: {type: "TEXT", constraints: "NOT NULL DEFAULT EUR"}
@@ -1223,7 +1227,7 @@ known_open_points_current:
     note: "Admin-Vorschau ist verbessert, nutzt aber weiterhin eigene Preview-Struktur statt gemeinsamer Renderfunktion mit index.html."
 
 current_update_2026_06_10:
-  cache_name: "drink-pos-shell-v88"
+  cache_name: "drink-pos-shell-v90"
   branch_note: "Feature-Branch feature/member-self-payment-sumup enthaelt Mitglieder-Selbstzahlung per SumUp Solo Cloud API in der Listenansicht, /self-pay als Test-/Fallbackseite, Container-Deployment und Agenten-REST-API."
   self_payment_sumup:
     route: "/"
@@ -1232,6 +1236,12 @@ current_update_2026_06_10:
     member_access: "Mitglieder/Kassierer verwenden die normale Listenansicht; im Personenfenster gibt es unten Kartenzahlung. /self-pay bleibt Test-/Fallbackseite; /kassa bleibt interne Kassaansicht."
     terminal_network: "iPad -> DiskStation/Drink-POS-Server; Server -> SumUp Cloud API -> SumUp Solo."
     online_api: "SumUp Solo wird per SumUp Cloud API gestartet; API-Key bleibt nur serverseitig."
+    card_fee_and_rounding:
+      - "Kartenzahlungs-Popup zeigt automatisch die Zeile 'Kartenzahlung +3 %'."
+      - "Gebühr beträgt 3 Prozent des offenen Betrags, mindestens 0,20 EUR."
+      - "Endbetrag kann nicht, auf volle Euro, auf den nächsten 5er oder auf den nächsten 10er aufgerundet werden."
+      - "SumUp erhält den serverseitig berechneten Endbetrag inklusive Gebühr und Aufrundung."
+      - "/kassa nutzt dieselbe Kartenabrechnung im Zahlungsdialog für Kassierer; Bar buchen bleibt ohne Kartengebühr."
     reader_pairing:
       - "Reader-ID ist die SumUp API Reader-ID der Form rdr_..., nicht Seriennummer oder Terminal-ID."
       - "POST /api/admin/sumup/pair-reader koppelt das SumUp Solo per frischem Pairing-Code."

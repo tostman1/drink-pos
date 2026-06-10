@@ -282,10 +282,95 @@
       font-weight:950;
     }
     .confirm-total strong { font-size:24px; }
+    .confirm-breakdown {
+      display:grid;
+      gap:7px;
+      padding:10px 12px;
+      border:1px solid var(--line);
+      border-radius:8px;
+      background:#fbfdff;
+      font-size:14px;
+    }
+    .confirm-row {
+      display:flex;
+      justify-content:space-between;
+      align-items:baseline;
+      gap:12px;
+      color:#334155;
+      font-weight:750;
+    }
+    .confirm-row strong {
+      color:#0f172a;
+      white-space:nowrap;
+    }
+    .card-rounding-row {
+      display:grid;
+      gap:6px;
+    }
+    .card-rounding-row label {
+      color:#334155;
+      font-size:13px;
+      font-weight:900;
+    }
+    .card-rounding-row select {
+      width:100%;
+      min-height:44px;
+      border:1px solid var(--line);
+      border-radius:8px;
+      background:#fff;
+      color:var(--ink);
+      padding:9px 10px;
+      font:inherit;
+      font-weight:750;
+    }
+    .payment-visual-status {
+      display:grid;
+      grid-template-columns:42px 1fr;
+      gap:10px;
+      align-items:center;
+      padding:11px;
+      border:1px solid #bfdbfe;
+      border-radius:8px;
+      background:#eff6ff;
+      color:#1d4ed8;
+    }
+    .payment-visual-status strong { display:block; margin-bottom:2px; color:inherit; font-size:14px; }
+    .payment-visual-status span { display:block; color:inherit; font-size:12.5px; line-height:1.35; }
+    .payment-status-icon {
+      width:42px;
+      height:42px;
+      border-radius:999px;
+      display:grid;
+      place-items:center;
+      background:#dbeafe;
+      color:#1d4ed8;
+      font-size:23px;
+      font-weight:1000;
+    }
+    .payment-visual-status.waiting { background:#fffbeb; border-color:#fde68a; color:#92400e; }
+    .payment-visual-status.waiting .payment-status-icon { background:#fef3c7; color:#92400e; animation:kassaHourglassSpin 1.05s linear infinite; }
+    .payment-visual-status.paid { background:#ecfdf5; border-color:#86efac; color:#166534; }
+    .payment-visual-status.paid .payment-status-icon { background:#bbf7d0; color:#166534; }
+    .payment-visual-status.failed { background:#fef2f2; border-color:#fecaca; color:#991b1b; }
+    .payment-visual-status.failed .payment-status-icon { background:#fee2e2; color:#991b1b; }
+    .payment-visual-status.timeout,
+    .payment-visual-status.unknown { background:#fff7ed; border-color:#fed7aa; color:#9a3412; }
+    .payment-visual-status.timeout .payment-status-icon,
+    .payment-visual-status.unknown .payment-status-icon { background:#ffedd5; color:#9a3412; }
+    .confirm-hint {
+      color:var(--muted);
+      font-size:12.5px;
+      line-height:1.35;
+      font-weight:650;
+    }
+    @keyframes kassaHourglassSpin { to { transform:rotate(360deg); } }
     .confirm-actions {
       display:grid;
       grid-template-columns:1fr 1.25fr;
       gap:9px;
+    }
+    .confirm-actions.three {
+      grid-template-columns:1fr 1fr 1.25fr;
     }
     dialog.history-dialog { width:min(calc(100vw - 28px),520px); }
     .history-card { max-height:calc(100dvh - 28px); }
@@ -407,6 +492,10 @@
       .person-name { font-size:16px; }
       .detail-actions { grid-template-columns:1fr; }
       .line-list { margin-bottom:210px; }
+      .confirm-actions.three { grid-template-columns:1fr; }
+    }
+    @media (prefers-reduced-motion:reduce) {
+      .payment-visual-status.waiting .payment-status-icon { animation:none; }
     }
   </style>
 </head>
@@ -461,10 +550,27 @@
         <h2 id="confirmTitle">Zahlung bestätigen</h2>
         <p id="confirmText"></p>
       </div>
-      <div class="confirm-total"><span>Gesamt</span><strong id="confirmTotal">€ 0,00</strong></div>
-      <div class="confirm-actions">
+      <div class="confirm-breakdown">
+        <div class="confirm-row"><span>Offene Posten</span><strong id="confirmBaseTotal">€ 0,00</strong></div>
+        <div class="confirm-row"><span>Kartenzahlung +3 %</span><strong id="confirmCardFee">€ 0,00</strong></div>
+        <div class="confirm-row" id="confirmRoundingRow"><span>Aufrundung</span><strong id="confirmRoundingAmount">€ 0,00</strong></div>
+      </div>
+      <div class="card-rounding-row">
+        <label for="kassaCardRoundingMode">SumUp-Endbetrag aufrunden</label>
+        <select id="kassaCardRoundingMode">
+          <option value="none">nicht aufrunden</option>
+          <option value="euro">auf volle Euro aufrunden</option>
+          <option value="five">auf den nächsten 5er aufrunden</option>
+          <option value="ten">auf den nächsten 10er aufrunden</option>
+        </select>
+      </div>
+      <div class="confirm-total"><span>SumUp-Endbetrag</span><strong id="confirmCardTotal">€ 0,00</strong></div>
+      <div class="confirm-hint" id="confirmPaymentHint"></div>
+      <div class="payment-visual-status idle" id="kassaCardPaymentStatus" aria-live="polite"></div>
+      <div class="confirm-actions three">
         <button id="confirmCancelButton" class="secondary" type="button">Abbrechen</button>
-        <button id="confirmPayButton" class="primary" type="button">Buchen</button>
+        <button id="confirmPayButton" class="secondary" type="button">Bar buchen</button>
+        <button id="confirmCardPayButton" class="primary" type="button">Mit SumUp zahlen</button>
       </div>
     </section>
   </dialog>
@@ -492,11 +598,51 @@
       listTimer: null,
       busy: false,
       historyBusy: false,
+      cardBusy: false,
+      cardTimer: null,
+      activeCardPayment: null,
+      selfPaymentAvailable: false,
+      sumupConfigured: false,
+      sumupMissing: [],
     };
 
     const el = id => document.getElementById(id);
     const money = value => new Intl.NumberFormat('de-AT', { style:'currency', currency:'EUR' }).format(Number(value || 0));
     const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]));
+    const ACTIVE_KASSA_CARD_PAYMENT_KEY = 'drinkPosKassaActiveCardPayment';
+    const CARD_PAYMENT_FEE_RATE_PERCENT = 3;
+    const CARD_PAYMENT_MIN_FEE_CENTS = 20;
+    const CARD_PAYMENT_ROUNDING_OPTIONS = {
+      none: { stepCents: 1 },
+      euro: { stepCents: 100 },
+      five: { stepCents: 500 },
+      ten: { stepCents: 1000 },
+    };
+
+    function centsFromEur(value) { return Math.max(0, Math.round(Number(value || 0) * 100)); }
+    function eurFromCents(cents) { return Number(cents || 0) / 100; }
+    function cardPaymentFeeCents(baseCents) {
+      return Math.max(CARD_PAYMENT_MIN_FEE_CENTS, Math.ceil(Number(baseCents || 0) * CARD_PAYMENT_FEE_RATE_PERCENT / 100));
+    }
+    function cardPaymentBreakdown(baseTotal, roundingMode = 'none') {
+      const mode = CARD_PAYMENT_ROUNDING_OPTIONS[roundingMode] ? roundingMode : 'none';
+      const baseAmountCents = centsFromEur(baseTotal);
+      const cardFeeCents = cardPaymentFeeCents(baseAmountCents);
+      const subtotalCents = baseAmountCents + cardFeeCents;
+      const stepCents = CARD_PAYMENT_ROUNDING_OPTIONS[mode].stepCents;
+      const amountCents = stepCents <= 1 ? subtotalCents : Math.ceil(subtotalCents / stepCents) * stepCents;
+      return {
+        baseAmountCents,
+        cardFeeCents,
+        roundingMode: mode,
+        roundingAdjustmentCents: amountCents - subtotalCents,
+        amountCents,
+        baseTotal: eurFromCents(baseAmountCents),
+        cardFee: eurFromCents(cardFeeCents),
+        roundingAdjustment: eurFromCents(amountCents - subtotalCents),
+        amount: eurFromCents(amountCents),
+      };
+    }
 
     function syncModalOpen() {
       document.body.classList.toggle('modal-open', el('payConfirmDialog').open || el('historyDialog').open);
@@ -508,6 +654,42 @@
       box.classList.add('show');
       clearTimeout(showStatus.timer);
       showStatus.timer = setTimeout(() => box.classList.remove('show'), duration);
+    }
+
+    function makeKassaCardPaymentId(person) {
+      const random = globalThis.crypto?.getRandomValues
+        ? Array.from(globalThis.crypto.getRandomValues(new Uint32Array(2)), n => n.toString(36)).join('')
+        : Math.random().toString(36).slice(2);
+      return `kassapay-${Date.now().toString(36)}-${Number(person.id)}-${random}`.slice(0, 80);
+    }
+
+    function readActiveCardPayment() {
+      try {
+        const raw = localStorage.getItem(ACTIVE_KASSA_CARD_PAYMENT_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch {
+        return null;
+      }
+    }
+
+    function storeActiveCardPayment(payment) {
+      state.activeCardPayment = payment;
+      localStorage.setItem(ACTIVE_KASSA_CARD_PAYMENT_KEY, JSON.stringify(payment));
+    }
+
+    function clearActiveCardPayment(clientPaymentId = null) {
+      const stored = readActiveCardPayment();
+      if (!clientPaymentId || !stored || stored.client_payment_id === clientPaymentId) {
+        localStorage.removeItem(ACTIVE_KASSA_CARD_PAYMENT_KEY);
+      }
+      if (!clientPaymentId || state.activeCardPayment?.client_payment_id === clientPaymentId) {
+        state.activeCardPayment = null;
+      }
+    }
+
+    function stopCardPaymentPolling() {
+      if (state.cardTimer) clearTimeout(state.cardTimer);
+      state.cardTimer = null;
     }
 
     async function apiGet(url) {
@@ -542,6 +724,8 @@
       el('appView').classList.toggle('hidden', !unlocked);
       if (unlocked) {
         loadPeople();
+        loadPaymentConfig();
+        resumeActiveCardPayment();
         startAutoRefresh();
       } else {
         stopAutoRefresh();
@@ -575,6 +759,19 @@
         if (!silent) showStatus('Aktualisiert', 1000);
       } catch (err) {
         if (!silent) showStatus(err.message || 'Kann nicht aktualisieren');
+      }
+    }
+
+    async function loadPaymentConfig() {
+      try {
+        const cfg = await apiGet('/api/self-pay/config');
+        state.selfPaymentAvailable = cfg.self_payment_available === true;
+        state.sumupConfigured = cfg.sumup_configured === true;
+        state.sumupMissing = Array.isArray(cfg.sumup_missing) ? cfg.sumup_missing : [];
+      } catch {
+        state.selfPaymentAvailable = false;
+        state.sumupConfigured = false;
+        state.sumupMissing = [];
       }
     }
 
@@ -652,7 +849,7 @@
         </div>
       `).join('') : '<div class="empty">Keine offenen Posten.</div>';
       el('historyButton').disabled = false;
-      el('payButton').disabled = !person.can_pay || !lines.length;
+      el('payButton').disabled = state.cardBusy || !person.can_pay || !lines.length;
     }
 
     function closeDetail() {
@@ -737,12 +934,59 @@
       else await loadPeople();
     }
 
+    function updateKassaCardBreakdown() {
+      const person = state.selected;
+      if (!person) return null;
+      const roundingMode = el('kassaCardRoundingMode')?.value || 'none';
+      const breakdown = cardPaymentBreakdown(person.total_eur ?? person.total, roundingMode);
+      el('confirmBaseTotal').textContent = money(breakdown.baseTotal);
+      el('confirmCardFee').textContent = money(breakdown.cardFee);
+      el('confirmRoundingAmount').textContent = money(breakdown.roundingAdjustment);
+      el('confirmRoundingRow').classList.toggle('hidden', breakdown.roundingAdjustmentCents <= 0);
+      el('confirmCardTotal').textContent = money(breakdown.amount);
+      el('confirmPaymentHint').textContent =
+        `Bar buchen bleibt bei ${money(breakdown.baseTotal)}. SumUp erhält ${money(breakdown.amount)} inklusive Kartenzahlung +3 % und Aufrundung.`;
+      return breakdown;
+    }
+
+    function setKassaCardVisualStatus(status = 'idle', message = '') {
+      const box = el('kassaCardPaymentStatus');
+      const visual = {
+        idle: { icon:'💳', title:'Karte vorhalten', text:'Mit SumUp zahlen startet den Reader-Checkout. Betrag am Solo prüfen.' },
+        waiting: { icon:'⌛', title:'Auf SumUp warten', text:'Reader-Checkout läuft. Keine zweite Zahlung starten.' },
+        paid: { icon:'✓', title:'Zahlung erfolgreich', text:'SumUp bezahlt; offene Posten wurden lokal geschlossen.' },
+        failed: { icon:'✕', title:'Zahlung abgelehnt', text:'Keine lokale Buchung. Rechnung bleibt offen.' },
+        timeout: { icon:'⌛', title:'Timeout', text:'Status nicht eindeutig. Rechnung bleibt offen und SumUp muss geprüft werden.' },
+        unknown: { icon:'?', title:'Status unklar', text:'Keine lokale Buchung. Bitte SumUp und Verlauf prüfen.' },
+      }[status] || {};
+      box.className = `payment-visual-status ${status}`;
+      box.innerHTML = `
+        <div class="payment-status-icon" aria-hidden="true">${visual.icon || '?'}</div>
+        <div><strong>${escapeHtml(visual.title || 'Zahlungsstatus')}</strong><span>${escapeHtml(message || visual.text || '')}</span></div>
+      `;
+      if (status === 'waiting') {
+        el('confirmCancelButton').disabled = true;
+        el('confirmPayButton').disabled = true;
+        el('confirmCardPayButton').disabled = true;
+        el('confirmCardPayButton').textContent = 'Auf SumUp warten';
+        el('kassaCardRoundingMode').disabled = true;
+      } else if (['paid', 'failed', 'timeout', 'unknown'].includes(status)) {
+        el('confirmCancelButton').disabled = false;
+        el('confirmPayButton').disabled = true;
+        el('confirmCardPayButton').disabled = true;
+        el('confirmCancelButton').textContent = 'Schließen';
+        el('kassaCardRoundingMode').disabled = true;
+      }
+    }
+
     async function paySelected() {
       const person = state.selected;
-      if (!person || state.busy) return;
+      if (!person || state.busy || state.cardBusy) return;
       state.busy = true;
       el('payButton').disabled = true;
       el('confirmPayButton').disabled = true;
+      el('confirmCardPayButton').disabled = true;
+      el('confirmCancelButton').disabled = true;
       el('payButton').textContent = 'Bucht...';
       try {
         const data = await apiPost('/api/kassa/pay', {
@@ -770,17 +1014,187 @@
       } finally {
         state.busy = false;
         el('confirmPayButton').disabled = false;
+        el('confirmCardPayButton').disabled = !state.selfPaymentAvailable;
+        el('confirmCancelButton').disabled = false;
         el('payButton').textContent = 'Zahlung buchen';
         if (state.selected) el('payButton').disabled = !state.selected.can_pay;
       }
     }
 
-    function requestPayConfirmation() {
+    async function fetchCardPaymentStatus(clientPaymentId) {
+      return apiGet(`/api/self-pay/payment/${encodeURIComponent(clientPaymentId)}`);
+    }
+
+    async function applyCardPaymentStatus(data, clientPaymentId, options = {}) {
+      const status = String(data.status || '').toLowerCase();
+      if (status === 'created' || status === 'sent_to_reader' || status === 'pending') {
+        state.cardBusy = true;
+        setKassaCardVisualStatus('waiting', data.message || 'Auf SumUp warten');
+        if (!options.quiet) showStatus(data.message || 'Auf SumUp warten', 2800);
+        return false;
+      }
+
+      stopCardPaymentPolling();
+      state.cardBusy = false;
+
+      if (status === 'paid') {
+        clearActiveCardPayment(clientPaymentId);
+        setKassaCardVisualStatus('paid', `Bezahlt: ${money(data.total)}`);
+        showStatus(`SumUp bezahlt: ${money(data.total)}`);
+        if (el('payConfirmDialog').open) el('payConfirmDialog').close();
+        closeDetail();
+        return true;
+      }
+
+      if (status === 'failed' || status === 'cancelled') {
+        clearActiveCardPayment(clientPaymentId);
+        setKassaCardVisualStatus('failed', data.message || 'SumUp-Zahlung abgelehnt oder abgebrochen.');
+        showStatus(data.message || 'SumUp-Zahlung nicht abgeschlossen', 4200);
+        if (state.selected) await openPerson(state.selected.id);
+        return true;
+      }
+
+      if (status === 'timeout' || status === 'unknown' || status === 'expired') {
+        clearActiveCardPayment(clientPaymentId);
+        setKassaCardVisualStatus(status === 'timeout' || status === 'expired' ? 'timeout' : 'unknown', data.message || 'SumUp-Status unklar.');
+        showStatus(data.message || 'SumUp-Status unklar. Rechnung bleibt offen.', 5200);
+        if (state.selected) await openPerson(state.selected.id);
+        return true;
+      }
+
+      return false;
+    }
+
+    function pollCardPaymentStatus(clientPaymentId, attempt = 0) {
+      stopCardPaymentPolling();
+      state.cardBusy = true;
+      const tick = async () => {
+        try {
+          const data = await fetchCardPaymentStatus(clientPaymentId);
+          const done = await applyCardPaymentStatus(data, clientPaymentId, { quiet: attempt > 0 });
+          if (!done) {
+            state.cardTimer = setTimeout(() => pollCardPaymentStatus(clientPaymentId, attempt + 1), 2200);
+          }
+        } catch (err) {
+          if (err.status === 404) {
+            clearActiveCardPayment(clientPaymentId);
+            state.cardBusy = false;
+            setKassaCardVisualStatus('unknown', 'Zahlungsvorgang nicht gefunden.');
+            showStatus('Zahlungsvorgang nicht gefunden', 3600);
+            return;
+          }
+          setKassaCardVisualStatus('waiting', 'Verbindung unterbrochen. Auf SumUp warten.');
+          showStatus('Verbindung unterbrochen. SumUp-Status wird erneut geprüft.', 3600);
+          state.cardTimer = setTimeout(() => pollCardPaymentStatus(clientPaymentId, attempt + 1), 3600);
+        }
+      };
+      tick();
+    }
+
+    async function startCardPayment() {
+      const person = state.selected;
+      if (!person || state.busy || state.cardBusy) return;
+      if (!state.selfPaymentAvailable) {
+        await loadPaymentConfig();
+      }
+      if (!state.selfPaymentAvailable) {
+        const missing = state.sumupMissing.length ? ` Fehlend: ${state.sumupMissing.join(', ')}` : '';
+        setKassaCardVisualStatus('failed', `SumUp ist nicht vollständig konfiguriert.${missing}`);
+        showStatus('SumUp ist nicht vollständig konfiguriert', 4200);
+        return;
+      }
+      const roundingMode = el('kassaCardRoundingMode')?.value || 'none';
+      const activeForPerson = state.activeCardPayment?.person_id === Number(person.id) ? state.activeCardPayment : null;
+      const clientPaymentId = activeForPerson?.client_payment_id || makeKassaCardPaymentId(person);
+      storeActiveCardPayment({
+        client_payment_id: clientPaymentId,
+        person_id: Number(person.id),
+        expected_revision: person.revision,
+        rounding_mode: activeForPerson?.rounding_mode || roundingMode,
+        created_at: new Date().toISOString(),
+      });
+      state.cardBusy = true;
+      setKassaCardVisualStatus('waiting', 'Auf SumUp warten');
+      showStatus('SumUp-Zahlung startet...');
+      try {
+        const data = await apiPost('/api/self-pay/pay', {
+          person_id: person.id,
+          expected_revision: person.revision,
+          client_payment_id: clientPaymentId,
+          rounding_mode: activeForPerson?.rounding_mode || roundingMode,
+        });
+        const done = await applyCardPaymentStatus(data, clientPaymentId);
+        if (!done) pollCardPaymentStatus(clientPaymentId);
+      } catch (err) {
+        const detailPayload = err.detail && typeof err.detail === 'object' ? err.detail : null;
+        if (detailPayload?.status) {
+          const done = await applyCardPaymentStatus(detailPayload, clientPaymentId);
+          if (!done) pollCardPaymentStatus(clientPaymentId);
+        } else if (err.status === 409 && detailPayload?.current) {
+          state.selected = detailPayload.current;
+          renderDetail();
+          clearActiveCardPayment(clientPaymentId);
+          setKassaCardVisualStatus('unknown', err.message || 'Rechnung hat sich geändert.');
+          showStatus(err.message || 'Rechnung hat sich geändert', 4200);
+        } else if (!err.status) {
+          setKassaCardVisualStatus('waiting', 'Verbindung unterbrochen. Auf SumUp warten.');
+          showStatus('Verbindung unterbrochen. SumUp-Status wird geprüft.', 4200);
+          pollCardPaymentStatus(clientPaymentId);
+        } else {
+          clearActiveCardPayment(clientPaymentId);
+          setKassaCardVisualStatus('failed', err.message || 'SumUp-Zahlung konnte nicht gestartet werden.');
+          showStatus(err.message || 'SumUp-Zahlung konnte nicht gestartet werden', 4200);
+        }
+      } finally {
+        if (!state.activeCardPayment) state.cardBusy = false;
+      }
+    }
+
+    async function resumeActiveCardPayment() {
+      const saved = readActiveCardPayment();
+      if (!saved?.client_payment_id) return;
+      state.activeCardPayment = saved;
+      showStatus('Vorherige SumUp-Zahlung wird geprüft...', 2800);
+      try {
+        const data = await fetchCardPaymentStatus(saved.client_payment_id);
+        const done = await applyCardPaymentStatus(data, saved.client_payment_id);
+        if (!done) pollCardPaymentStatus(saved.client_payment_id);
+      } catch (err) {
+        if (err.status === 404) {
+          clearActiveCardPayment(saved.client_payment_id);
+          showStatus('Alter SumUp-Vorgang nicht mehr vorhanden', 3600);
+          return;
+        }
+        pollCardPaymentStatus(saved.client_payment_id);
+      }
+    }
+
+    async function requestPayConfirmation() {
       const person = state.selected;
       if (!person || state.busy || !person.can_pay) return;
+      await loadPaymentConfig();
       el('confirmTitle').textContent = `${person.name} bezahlen?`;
-      el('confirmText').textContent = `${Number(person.open_items || 0)} offene Striche · ${money(person.total_eur ?? person.total)}`;
-      el('confirmTotal').textContent = money(person.total_eur ?? person.total);
+      el('confirmText').textContent = `${Number(person.open_items || 0)} offene Striche · Barbetrag ${money(person.total_eur ?? person.total)}`;
+      el('confirmCancelButton').textContent = 'Abbrechen';
+      el('confirmCancelButton').disabled = false;
+      el('confirmPayButton').disabled = false;
+      el('confirmCardPayButton').disabled = !state.selfPaymentAvailable;
+      el('confirmCardPayButton').textContent = state.selfPaymentAvailable ? 'Mit SumUp zahlen' : 'SumUp nicht bereit';
+      el('kassaCardRoundingMode').disabled = false;
+      el('kassaCardRoundingMode').value = 'none';
+      updateKassaCardBreakdown();
+      setKassaCardVisualStatus(
+        state.selfPaymentAvailable ? 'idle' : 'failed',
+        state.selfPaymentAvailable
+          ? ''
+          : `SumUp nicht verfügbar${state.sumupMissing.length ? `: ${state.sumupMissing.join(', ')}` : ''}.`
+      );
+      if (!state.selfPaymentAvailable) {
+        el('confirmCancelButton').disabled = false;
+        el('confirmPayButton').disabled = false;
+        el('confirmCardPayButton').disabled = true;
+        el('kassaCardRoundingMode').disabled = true;
+      }
       const dialog = el('payConfirmDialog');
       dialog.showModal();
       syncModalOpen();
@@ -811,12 +1225,20 @@
     el('payButton').addEventListener('click', requestPayConfirmation);
     el('confirmCancelButton').addEventListener('click', () => el('payConfirmDialog').close());
     el('confirmPayButton').addEventListener('click', paySelected);
+    el('confirmCardPayButton').addEventListener('click', startCardPayment);
+    el('kassaCardRoundingMode').addEventListener('change', updateKassaCardBreakdown);
     el('historyCloseIcon').addEventListener('click', closeHistoryDialog);
     el('historyCloseButton').addEventListener('click', closeHistoryDialog);
     el('payConfirmDialog').addEventListener('close', syncModalOpen);
+    el('payConfirmDialog').addEventListener('cancel', event => {
+      if (state.cardBusy) event.preventDefault();
+    });
     el('historyDialog').addEventListener('close', syncModalOpen);
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && state.pin) refreshCurrent();
+      if (!document.hidden && state.pin) {
+        refreshCurrent();
+        if (state.activeCardPayment?.client_payment_id) pollCardPaymentStatus(state.activeCardPayment.client_payment_id);
+      }
     });
 
     if (state.pin) setUnlocked(true);

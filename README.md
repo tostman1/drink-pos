@@ -119,8 +119,8 @@ Der vorgesehene Bedienweg liegt in der normalen Listenansicht:
 http://<NAS-IP>:8088/
 ```
 
-Name antippen, Rechnung pruefen und unten im Personenfenster `Mit SumUp zahlen`
-waehlen. Die separate Selbstzahl-Seite bleibt als Test-/Fallbackseite erhalten:
+Name antippen, Rechnung prüfen und unten im Personenfenster `Mit SumUp zahlen`
+wählen. Die separate Selbstzahl-Seite bleibt als Test-/Fallbackseite erhalten:
 
 ```text
 http://<NAS-IP>:8088/self-pay
@@ -130,8 +130,8 @@ Das iPad ruft nur den Drink-POS-Server auf der DiskStation auf. Mitglieder brauc
 direkten Zugriff auf `/kassa`. Die Zahlung wird aus der App gestartet und am SumUp Solo mit
 Karte oder Smartphone bezahlt. Das SumUp Solo muss online sein.
 
-Benoetigt werden SumUp Solo, API Key, Merchant Code und Reader ID. Optional koennen Affiliate
-Key und App ID gesetzt werden, falls SumUp sie fuer den Cloud-API-Checkout verlangt. Diese Werte
+Benötigt werden SumUp Solo, API Key, Merchant Code und Reader ID. Optional können Affiliate
+Key und App ID gesetzt werden, falls SumUp sie für den Cloud-API-Checkout verlangt. Diese Werte
 werden nur serverseitig per ENV gesetzt:
 
 ```dotenv
@@ -147,22 +147,31 @@ SUMUP_TIMEOUT_SECONDS=120
 ```
 
 Die `SUMUP_READER_ID` ist nicht die Seriennummer. Sie entsteht beim Koppeln des SumUp Solo:
-Am Solo einen frischen Pairing-Code anzeigen, dann PIN-geschuetzt `POST /api/admin/sumup/pair-reader`
+Am Solo einen frischen Pairing-Code anzeigen, dann PIN-geschützt `POST /api/admin/sumup/pair-reader`
 aufrufen. Die Antwort liefert eine Reader-ID der Form `rdr_...`; diese wird als
 `SUMUP_READER_ID` in `.env` gesetzt. `POST /api/admin/sumup/readers` listet bereits gekoppelte
-Reader, `POST /api/admin/sumup/status` prueft den Reader-Status.
+Reader, `POST /api/admin/sumup/status` prüft den Reader-Status.
 
-Eine Self-Pay-Zahlung sperrt die gewaehlte Person waehrend der Terminalfreigabe gegen
-parallele Buchungen. Das iPad erzeugt fuer jeden Zahlungsversuch eine eindeutige
+Im Kartenzahlungs-Popup wird automatisch `Kartenzahlung +3 %` als zusätzliche Zeile addiert,
+mindestens jedoch `0,20 €`. Der Endbetrag kann optional nicht aufgerundet, auf volle Euro,
+auf den nächsten 5er oder auf den nächsten 10er aufgerundet werden. SumUp erhält immer den
+serverseitig berechneten Endbetrag inklusive Gebühr und Aufrundung.
+
+Die interne Kassaansicht `/kassa` bietet dieselbe Kartenzahlungslogik im Zahlungsdialog für
+Kassierer an. `Bar buchen` schließt weiterhin nur den offenen Originalbetrag, `Mit SumUp zahlen`
+startet den SumUp-Vorgang inklusive Kartengebühr und optionaler Aufrundung.
+
+Eine Self-Pay-Zahlung sperrt die gewählte Person während der Terminalfreigabe gegen
+parallele Buchungen. Das iPad erzeugt für jeden Zahlungsversuch eine eindeutige
 `client_payment_id`; der Server legt dazu genau eine `self_payment_sessions`-Zeile an. Wenn
 derselbe Request wegen Verbindungsabbruch oder Doppeltippen erneut gesendet wird, startet der
-Server keine zweite SumUp-Zahlung, sondern liefert den gespeicherten Status zurueck.
+Server keine zweite SumUp-Zahlung, sondern liefert den gespeicherten Status zurück.
 
 Die Listenansicht und die separate Testseite speichern eine laufende Zahlung lokal im Browser und fragen nach Reload oder
 Netzunterbruch `/api/self-pay/payment/{client_payment_id}` ab. Solange der Status `created`,
 `sent_to_reader` oder `pending` ist, bleibt die Zahlung gesperrt. Nur bei eindeutig
 erfolgreichem SumUp-Status wird lokal `PAID_SUMUP` gebucht. Bei Timeout, Fehler, Abbruch oder
-unklarem Status bleiben die Posten offen und muessen geprueft werden.
+unklarem Status bleiben die Posten offen und müssen geprüft werden.
 
 ## Podman-Instanz starten
 

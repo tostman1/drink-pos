@@ -1,8 +1,8 @@
 # SumUp Solo Self-Checkout
 
-Die Mitglieder-Selbstzahlung laeuft ueber die normale Listenansicht. Name antippen, offene Posten pruefen und unten `Mit SumUp zahlen` starten. `/self-pay` bleibt als Test- und Fallbackseite erhalten.
+Die Mitglieder-Selbstzahlung läuft über die normale Listenansicht. Name antippen, offene Posten prüfen und unten `Mit SumUp zahlen` starten. `/self-pay` bleibt als Test- und Fallbackseite erhalten.
 
-Der SumUp API Key liegt nur auf dem Server. Das Frontend bekommt nur oeffentliche Statusinformationen und startet keine direkte SumUp-API-Anfrage.
+Der SumUp API Key liegt nur auf dem Server. Das Frontend bekommt nur öffentliche Statusinformationen und startet keine direkte SumUp-API-Anfrage.
 
 Serverseitige ENV-Variablen:
 
@@ -20,11 +20,19 @@ SUMUP_TIMEOUT_SECONDS=120
 
 Reader koppeln:
 
-1. SumUp Solo mit dem Internet verbinden und im Solo-Menue den API-/Pairing-Code anzeigen.
+1. SumUp Solo mit dem Internet verbinden und im Solo-Menü den API-/Pairing-Code anzeigen.
 2. Server-ENV mindestens mit `PAYMENT_PROVIDER=sumup`, `SUMUP_API_KEY` und `SUMUP_MERCHANT_CODE` starten.
 3. Pairing-Code an `POST /api/admin/sumup/pair-reader` senden.
-4. Die zurueckgegebene Reader-ID als `SUMUP_READER_ID` in `.env` setzen und Container neu starten.
+4. Die zurückgegebene Reader-ID als `SUMUP_READER_ID` in `.env` setzen und Container neu starten.
+
+Im Kartenzahlungs-Popup wird automatisch `Kartenzahlung +3 %` als zusätzliche Zeile addiert,
+mindestens jedoch `0,20 €`. Danach kann der Endbetrag nicht aufgerundet, auf volle Euro,
+auf den nächsten 5er oder auf den nächsten 10er aufgerundet werden.
+
+Die Kassaansicht `/kassa` zeigt dieselbe Kartenabrechnung im Zahlungsdialog für Kassierer.
+`Bar buchen` bleibt eine normale Kassa-/Barbuchung ohne Kartengebühr, `Mit SumUp zahlen`
+startet die SumUp-Zahlung mit Gebühr und optionaler Aufrundung.
 
 Eine Zahlung legt lokal eine `self_payment_sessions`-Zeile an. Doppelklicks oder wiederholte Requests mit derselben `client_payment_id` verwenden diese bestehende Session und starten keine zweite SumUp-Zahlung.
 
-Nur ein eindeutig erfolgreicher SumUp-Status fuehrt zu `PAID_SUMUP` und setzt die offenen Posten in einer SQLite-Transaktion auf bezahlt. Bei Fehler, Abbruch, Timeout oder unklarem Status bleiben die Posten offen.
+Nur ein eindeutig erfolgreicher SumUp-Status führt zu `PAID_SUMUP` und setzt die offenen Posten in einer SQLite-Transaktion auf bezahlt. Bei Fehler, Abbruch, Timeout oder unklarem Status bleiben die Posten offen.
