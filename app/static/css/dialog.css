@@ -1,0 +1,5 @@
+dialog {
+  border: 1px solid var(--drink-pos-border);
+  border-radius: 8px;
+  color: var(--drink-pos-text);
+}

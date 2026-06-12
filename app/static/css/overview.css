@@ -1,0 +1,11 @@
+.person-card {
+  align-items: center;
+  background: var(--drink-pos-surface);
+  border: 1px solid var(--drink-pos-border);
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 8px 10px;
+  width: 100%;
+}
