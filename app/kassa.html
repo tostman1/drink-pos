@@ -217,6 +217,12 @@
       border-radius:8px;
       padding:10px;
     }
+    .line-row.deduction {
+      border-color:#fed7aa;
+      background:#fff7ed;
+      color:#9a3412;
+    }
+    .line-row.deduction .qty { background:#ffedd5; color:#c2410c; }
     .qty {
       width:38px;
       height:38px;
@@ -230,6 +236,23 @@
     .item { min-width:0; font-weight:850; }
     .item small { display:block; margin-top:2px; color:var(--muted); font-weight:650; }
     .line-total { font-weight:950; white-space:nowrap; }
+    .request-list {
+      display:grid;
+      gap:8px;
+    }
+    .request-row {
+      display:grid;
+      grid-template-columns:1fr auto auto;
+      gap:8px;
+      align-items:center;
+      padding:10px;
+      border:1px solid #fde68a;
+      border-radius:8px;
+      background:#fffbeb;
+    }
+    .request-title { font-weight:900; color:#78350f; }
+    .request-note { margin-top:2px; color:#92400e; font-size:12px; font-weight:650; }
+    .request-row button { padding:8px 10px; }
     .detail-actions {
       position:fixed;
       left:50%;
@@ -271,6 +294,42 @@
     }
     .confirm-card h2 { margin:0; font-size:24px; line-height:1.1; }
     .confirm-card p { margin:0; color:var(--muted); line-height:1.35; }
+    .confirm-line-list {
+      display:grid;
+      gap:6px;
+      max-height:30vh;
+      overflow:auto;
+      padding-right:2px;
+    }
+    .confirm-line-row {
+      display:grid;
+      grid-template-columns:38px minmax(0,1fr) auto;
+      align-items:center;
+      gap:8px;
+      padding:8px 9px;
+      border:1px solid var(--line);
+      border-radius:8px;
+      background:#fff;
+      font-size:13px;
+    }
+    .confirm-line-row.deduction {
+      border-color:#fed7aa;
+      background:#fff7ed;
+      color:#9a3412;
+    }
+    .confirm-line-qty {
+      min-width:0;
+      border-radius:8px;
+      padding:5px 6px;
+      background:#eef6ff;
+      color:#1d4ed8;
+      font-weight:950;
+      text-align:center;
+      white-space:nowrap;
+    }
+    .confirm-line-row.deduction .confirm-line-qty { background:#ffedd5; color:#c2410c; }
+    .confirm-line-name { min-width:0; font-weight:850; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .confirm-line-price { font-weight:950; white-space:nowrap; }
     .confirm-total {
       display:flex;
       justify-content:space-between;
@@ -554,12 +613,14 @@
           <input id="searchInput" class="search" type="search" placeholder="Name suchen..." autocomplete="off">
           <div id="listSummary" class="list-summary" aria-live="polite"></div>
         </div>
+        <div id="activePaymentPanel" class="warning hidden"></div>
         <div id="personList" class="person-list"></div>
       </main>
 
       <main id="detailView" class="content hidden">
         <section id="detailHead" class="detail-head"></section>
         <div id="detailWarning" class="warning hidden"></div>
+        <section id="requestList" class="request-list"></section>
         <section id="lineList" class="line-list"></section>
         <div class="detail-actions">
           <button id="cancelButton" class="secondary" type="button">Abbrechen</button>
@@ -576,6 +637,7 @@
         <h2 id="confirmTitle">Zahlung bestätigen</h2>
         <p id="confirmText"></p>
       </div>
+      <div id="confirmLineList" class="confirm-line-list"></div>
       <div class="confirm-breakdown">
         <div class="confirm-row"><span>Offene Posten</span><strong id="confirmBaseTotal">€ 0,00</strong></div>
         <div class="confirm-row"><span>Kartenzahlung +3 % (min. 0,20 €)</span><strong id="confirmCardFee">€ 0,00</strong></div>
@@ -623,6 +685,7 @@
       selfPaymentAvailable: false,
       sumupConfigured: false,
       sumupMissing: [],
+      testPaymentMode: false,
     };
 
     const el = id => document.getElementById(id);
@@ -640,7 +703,11 @@
 
     function centsFromEur(value) { return Math.max(0, Math.round(Number(value || 0) * 100)); }
     function eurFromCents(cents) { return Number(cents || 0) / 100; }
+    function cardProviderLabel() { return state.testPaymentMode ? 'Test-Kartenzahlung' : 'SumUp'; }
+    function cardProviderReadyLabel() { return state.testPaymentMode ? 'Testzahlung bereit' : 'SumUp bereit'; }
+    function cardProviderUnavailableLabel() { return state.testPaymentMode ? 'Testzahlung nicht bereit' : 'SumUp nicht bereit'; }
     function cardPaymentFeeCents(baseCents) {
+      if (Number(baseCents || 0) <= 0) return 0;
       return Math.max(CARD_PAYMENT_MIN_FEE_CENTS, Math.ceil(Number(baseCents || 0) * CARD_PAYMENT_FEE_RATE_PERCENT / 100));
     }
     function cardPaymentBreakdown(baseTotal, roundingMode = 'none') {
@@ -721,6 +788,7 @@
     function storeActiveCardPayment(payment) {
       state.activeCardPayment = payment;
       localStorage.setItem(ACTIVE_KASSA_CARD_PAYMENT_KEY, JSON.stringify(payment));
+      renderActivePaymentPanel();
     }
 
     function clearActiveCardPayment(clientPaymentId = null) {
@@ -731,6 +799,7 @@
       if (!clientPaymentId || state.activeCardPayment?.client_payment_id === clientPaymentId) {
         state.activeCardPayment = null;
       }
+      renderActivePaymentPanel();
     }
 
     function stopCardPaymentPolling() {
@@ -814,10 +883,12 @@
         state.selfPaymentAvailable = cfg.self_payment_available === true;
         state.sumupConfigured = cfg.sumup_configured === true;
         state.sumupMissing = Array.isArray(cfg.sumup_missing) ? cfg.sumup_missing : [];
+        state.testPaymentMode = cfg.test_payment_mode === true;
       } catch {
         state.selfPaymentAvailable = false;
         state.sumupConfigured = false;
         state.sumupMissing = [];
+        state.testPaymentMode = false;
       }
     }
 
@@ -831,11 +902,31 @@
       `;
     }
 
+    function renderActivePaymentPanel() {
+      const panel = el('activePaymentPanel');
+      if (!panel) return;
+      const payment = state.activeCardPayment;
+      if (!payment?.client_payment_id) {
+        panel.classList.add('hidden');
+        panel.innerHTML = '';
+        return;
+      }
+      const person = state.people.find(item => Number(item.id) === Number(payment.person_id));
+      const name = person?.name || 'ausgewaehlte Person';
+      panel.classList.remove('hidden');
+      panel.innerHTML = `
+        <strong>${escapeHtml(cardProviderLabel())} laeuft</strong><br>
+        ${escapeHtml(name)} ${state.testPaymentMode ? 'hat eine simulierte Kartenzahlung offen.' : 'wartet am Reader.'}
+        <button class="danger" type="button" style="margin-left:8px" onclick="cancelActiveCardPayment()">Abbrechen</button>
+      `;
+    }
+
     function renderPeople() {
       const term = el('searchInput').value.trim().toLowerCase();
       const list = el('personList');
       const people = state.people.filter(person => !term || person.name.toLowerCase().includes(term));
       renderListSummary(people);
+      renderActivePaymentPanel();
       el('pageSub').textContent = term
         ? `${people.length} von ${state.people.length} offenen Rechnungen`
         : `${state.people.length} offene Rechnung${state.people.length === 1 ? '' : 'en'}`;
@@ -867,6 +958,43 @@
       }
     }
 
+    function renderPendingRequests(person) {
+      const box = el('requestList');
+      const requests = Array.isArray(person.pending_requests) ? person.pending_requests : [];
+      if (!requests.length) {
+        box.innerHTML = '';
+        return;
+      }
+      box.innerHTML = requests.map(request => {
+        const kind = request.request_kind || 'DELETE';
+        const qty = Number(request.quantity_to_remove ?? request.quantity_to_add ?? Math.abs(Number(request.delta || 0)) ?? 0);
+        const verb = kind === 'ROUND_ADD' ? 'Runde eintragen' : 'Loeschen';
+        const note = request.reason ? ` - ${request.reason}` : '';
+        return `
+          <div class="request-row">
+            <div>
+              <div class="request-title">${escapeHtml(verb)}: ${qty}x ${escapeHtml(request.item || request.drink || '')}</div>
+              <div class="request-note">${escapeHtml(request.requested_at || '')}${escapeHtml(note)}</div>
+            </div>
+            <button class="save" type="button" onclick="decidePendingRequest('${escapeHtml(kind)}','${escapeHtml(String(request.raw_id ?? request.id))}','approve')">Annehmen</button>
+            <button class="danger" type="button" onclick="decidePendingRequest('${escapeHtml(kind)}','${escapeHtml(String(request.raw_id ?? request.id))}','reject')">Ablehnen</button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function decidePendingRequest(kind, rawId, decision) {
+      const endpoint = kind === 'ROUND_ADD' ? '/api/admin/round-request/decide' : '/api/admin/change-request/decide';
+      try {
+        await apiPost(endpoint, { pin: state.pin, request_id: Number(rawId), decision });
+        showStatus(decision === 'approve' ? 'Anfrage angenommen' : 'Anfrage abgelehnt');
+        if (state.selected) await openPerson(state.selected.id);
+        await loadPeople(true);
+      } catch (err) {
+        showStatus(err.message || 'Anfrage konnte nicht bearbeitet werden', 4200);
+      }
+    }
+
     function renderDetail() {
       const person = state.selected;
       if (!person) return;
@@ -880,15 +1008,29 @@
         <div class="detail-note">${Number(person.open_items || 0)} offene Striche</div>
       `;
       const warning = el('detailWarning');
+      const warningParts = [];
       if (Number(person.pending_requests_count || 0) > 0) {
-        warning.textContent = 'Offene Löschanfragen vorhanden. Bitte zuerst im Adminbereich entscheiden.';
+        warningParts.push('Offene Anfragen vorhanden. Bitte hier annehmen oder ablehnen.');
+      }
+      if (Number(person.round_deduction_items || 0) > 0) {
+        warningParts.push(`Offene Runden werden beim Bezahlen abgezogen: -${Number(person.round_deduction_items || 0)} Striche (${money(person.round_deduction_total_eur || 0)}).`);
+      }
+      if (warningParts.length) {
+        warning.textContent = warningParts.join(' ');
         warning.classList.remove('hidden');
       } else {
         warning.classList.add('hidden');
       }
+      renderPendingRequests(person);
+      if (false && Number(person.pending_requests_count || 0) > 0) {
+        warning.textContent = 'Offene Löschanfragen vorhanden. Bitte zuerst im Adminbereich entscheiden.';
+        warning.classList.remove('hidden');
+      } else if (false) {
+        warning.classList.add('hidden');
+      }
       const lines = person.lines || [];
       el('lineList').innerHTML = lines.length ? lines.map(line => `
-        <div class="line-row">
+        <div class="line-row ${line.is_round_deduction ? 'deduction' : ''}">
           <div class="qty">${Number(line.quantity || 0)}×</div>
           <div class="item">${escapeHtml(line.item || line.name || '')}<small>${money(line.unit_price_eur)} pro Stück</small></div>
           <div class="line-total">${money(line.subtotal_eur)}</div>
@@ -980,21 +1122,65 @@
       else await loadPeople();
     }
 
+    function orderedPaymentLines(lines) {
+      return (lines || [])
+        .map((line, index) => ({ line, index }))
+        .sort((a, b) => {
+          const aDeduct = Boolean(a.line.is_round_deduction);
+          const bDeduct = Boolean(b.line.is_round_deduction);
+          if (aDeduct !== bDeduct) return aDeduct ? 1 : -1;
+          if (aDeduct && bDeduct) {
+            const priceDiff = Number(a.line.unit_price_eur || 0) - Number(b.line.unit_price_eur || 0);
+            if (priceDiff) return priceDiff;
+            return String(a.line.item || a.line.name || '').localeCompare(String(b.line.item || b.line.name || ''), 'de');
+          }
+          return a.index - b.index;
+        })
+        .map(item => item.line);
+    }
+
+    function renderConfirmLineList(lines) {
+      const box = el('confirmLineList');
+      if (!box) return;
+      const ordered = orderedPaymentLines(lines);
+      box.innerHTML = ordered.length ? ordered.map(line => {
+        const qty = Number(line.quantity || 0);
+        const qtyText = `${qty > 0 ? qty : qty}x`;
+        return `
+          <div class="confirm-line-row ${line.is_round_deduction ? 'deduction' : ''}">
+            <div class="confirm-line-qty">${escapeHtml(qtyText)}</div>
+            <div class="confirm-line-name">${escapeHtml(line.item || line.name || '')}</div>
+            <div class="confirm-line-price">${money(line.subtotal_eur)}</div>
+          </div>
+        `;
+      }).join('') : '<div class="empty">Keine offenen Posten.</div>';
+    }
+
     function updateKassaCardBreakdown() {
       const person = state.selected;
       if (!person) return null;
       const roundingMode = state.cardRoundingMode || 'none';
       const breakdown = cardPaymentBreakdown(person.total_eur ?? person.total, roundingMode);
       const baseBreakdown = cardPaymentBreakdown(person.total_eur ?? person.total, 'none');
+      const cardMode = Boolean(state.cardRoundingMode);
+      const hasCardAmount = breakdown.baseAmountCents > 0;
+      const cardFeeRow = el('confirmCardFee')?.closest('.confirm-row');
+      const cardTotalLabel = el('confirmCardTotalRow')?.querySelector('span');
+      if (cardTotalLabel) cardTotalLabel.textContent = `${cardProviderLabel()}-Endbetrag`;
       el('confirmBaseTotal').textContent = money(breakdown.baseTotal);
       el('confirmCardFee').textContent = money(breakdown.cardFee);
       el('confirmRoundingAmount').textContent = money(breakdown.roundingAdjustment);
-      el('confirmRoundingRow').classList.toggle('hidden', breakdown.roundingAdjustmentCents <= 0);
-      el('confirmCardTotalRow').classList.toggle('hidden', !state.cardRoundingMode);
+      cardFeeRow?.classList.toggle('hidden', !cardMode);
+      el('confirmRoundingRow').classList.toggle('hidden', !cardMode || breakdown.roundingAdjustmentCents <= 0);
+      el('confirmCardTotalRow').classList.toggle('hidden', !cardMode);
       el('confirmCardTotal').textContent = money(breakdown.amount);
       const roundingBox = el('kassaCardRoundingOptions');
       if (roundingBox) {
-        if (state.cardRoundingMode) {
+        if (!hasCardAmount) {
+          roundingBox.innerHTML = '';
+          roundingBox.classList.add('hidden');
+          roundingBox.classList.remove('required');
+        } else if (state.cardRoundingMode) {
           roundingBox.innerHTML = '';
           roundingBox.classList.add('hidden');
           roundingBox.classList.remove('required');
@@ -1012,8 +1198,13 @@
         }
       }
       el('confirmPaymentHint').textContent =
-        `Bar buchen bleibt bei ${money(breakdown.baseTotal)}. SumUp erhält ${money(breakdown.amount)} inklusive Kartenzahlung +3 % und optionalem Aufrunden.`;
-      el('confirmCardPayButton').disabled = !state.selfPaymentAvailable || !state.cardRoundingMode || state.cardBusy;
+        `Bar buchen bleibt bei ${money(breakdown.baseTotal)}. ${cardProviderLabel()} erhält ${money(breakdown.amount)} inklusive Kartenzahlung +3 % und optionalem Aufrunden.`;
+      el('confirmPaymentHint').textContent = !hasCardAmount
+        ? 'Kein Kartenbetrag offen. Bar buchen schliesst den Rundenabzug ab.'
+        : (cardMode
+          ? `${cardProviderLabel()} erhaelt ${money(breakdown.amount)} inklusive Kartenzahlung +3 % und optionalem Aufrunden.`
+          : `Bar buchen bleibt bei ${money(breakdown.baseTotal)} ohne Kartengebuehr.`);
+      el('confirmCardPayButton').disabled = !state.selfPaymentAvailable || !state.cardRoundingMode || state.cardBusy || !hasCardAmount;
       return breakdown;
     }
 
@@ -1024,13 +1215,14 @@
 
     function setKassaCardVisualStatus(status = 'idle', message = '') {
       const box = el('kassaCardPaymentStatus');
+      const provider = cardProviderLabel();
       const visual = {
-        idle: { icon:'💳', title:'Karte vorhalten', text:'Mit Karte zahlen startet den Reader-Checkout. Betrag am Solo prüfen.' },
-        waiting: { icon:'⌛', title:'Auf SumUp warten', text:'Reader-Checkout läuft. Keine zweite Zahlung starten.' },
-        paid: { icon:'✓', title:'Zahlung erfolgreich', text:'SumUp bezahlt; offene Posten wurden lokal geschlossen.' },
+        idle: { icon:'💳', title:'Karte vorhalten', text: state.testPaymentMode ? 'Testmodus: Mit Karte zahlen simuliert den Checkout.' : 'Mit Karte zahlen startet den Reader-Checkout. Betrag am Solo prüfen.' },
+        waiting: { icon:'⌛', title:`Auf ${provider} warten`, text: state.testPaymentMode ? 'Test-Checkout laeuft. Keine zweite Zahlung starten.' : 'Reader-Checkout läuft. Keine zweite Zahlung starten.' },
+        paid: { icon:'✓', title:'Zahlung erfolgreich', text:`${provider} bezahlt; offene Posten wurden lokal geschlossen.` },
         failed: { icon:'✕', title:'Zahlung abgelehnt', text:'Keine lokale Buchung. Rechnung bleibt offen.' },
-        timeout: { icon:'⌛', title:'Timeout', text:'Status nicht eindeutig. Rechnung bleibt offen und SumUp muss geprüft werden.' },
-        unknown: { icon:'?', title:'Status unklar', text:'Keine lokale Buchung. Bitte SumUp und Verlauf prüfen.' },
+        timeout: { icon:'⌛', title:'Timeout', text:`Status nicht eindeutig. Rechnung bleibt offen und ${provider} muss geprüft werden.` },
+        unknown: { icon:'?', title:'Status unklar', text:`Keine lokale Buchung. Bitte ${provider} und Verlauf prüfen.` },
       }[status] || {};
       box.className = `payment-visual-status ${status}`;
       box.innerHTML = `
@@ -1038,10 +1230,11 @@
         <div><strong>${escapeHtml(visual.title || 'Zahlungsstatus')}</strong><span>${escapeHtml(message || visual.text || '')}</span></div>
       `;
       if (status === 'waiting') {
-        el('confirmCancelButton').disabled = true;
+        el('confirmCancelButton').disabled = false;
+        el('confirmCancelButton').textContent = `${provider} abbrechen`;
         el('confirmPayButton').disabled = true;
         el('confirmCardPayButton').disabled = true;
-        el('confirmCardPayButton').textContent = 'Auf SumUp warten';
+        el('confirmCardPayButton').textContent = `Auf ${provider} warten`;
         el('kassaCardRoundingOptions')?.classList.add('hidden');
       } else if (['paid', 'failed', 'timeout', 'unknown'].includes(status)) {
         el('confirmCancelButton').disabled = false;
@@ -1087,8 +1280,8 @@
       } finally {
         state.busy = false;
         el('confirmPayButton').disabled = false;
-        el('confirmCardPayButton').disabled = !state.selfPaymentAvailable || !state.cardRoundingMode;
-        el('confirmCardPayButton').textContent = state.selfPaymentAvailable ? 'Mit Karte zahlen' : 'SumUp nicht bereit';
+        updateKassaCardBreakdown();
+        el('confirmCardPayButton').textContent = state.selfPaymentAvailable ? 'Mit Karte zahlen' : cardProviderUnavailableLabel();
         el('confirmCancelButton').disabled = false;
         el('payButton').textContent = 'Zahlung buchen';
         if (state.selected) el('payButton').disabled = !state.selected.can_pay;
@@ -1099,12 +1292,33 @@
       return apiGet(`/api/self-pay/payment/${encodeURIComponent(clientPaymentId)}`);
     }
 
+    async function cancelActiveCardPayment() {
+      const clientPaymentId = state.activeCardPayment?.client_payment_id;
+      if (!clientPaymentId) return;
+      el('confirmCancelButton').disabled = true;
+      try {
+        const data = await apiPost(`/api/self-pay/payment/${encodeURIComponent(clientPaymentId)}/cancel`, {});
+        await applyCardPaymentStatus(data, clientPaymentId);
+      } catch (err) {
+        el('confirmCancelButton').disabled = false;
+        showStatus(err.message || `${cardProviderLabel()}-Abbruch fehlgeschlagen`, 4200);
+      }
+    }
+
+    function handleConfirmCancel() {
+      if (state.cardBusy && state.activeCardPayment?.client_payment_id) {
+        cancelActiveCardPayment();
+        return;
+      }
+      el('payConfirmDialog').close();
+    }
+
     async function applyCardPaymentStatus(data, clientPaymentId, options = {}) {
       const status = String(data.status || '').toLowerCase();
       if (status === 'created' || status === 'sent_to_reader' || status === 'pending') {
         state.cardBusy = true;
-        setKassaCardVisualStatus('waiting', data.message || 'Auf SumUp warten');
-        if (!options.quiet) showStatus(data.message || 'Auf SumUp warten', 2800);
+        setKassaCardVisualStatus('waiting', data.message || `Auf ${cardProviderLabel()} warten`);
+        if (!options.quiet) showStatus(data.message || `Auf ${cardProviderLabel()} warten`, 2800);
         return false;
       }
 
@@ -1114,23 +1328,23 @@
       if (status === 'paid') {
         clearActiveCardPayment(clientPaymentId);
         setKassaCardVisualStatus('paid', `Bezahlt: ${money(data.total)}`);
-        showStatus(`SumUp bezahlt: ${money(data.total)}`);
+        showStatus(`${cardProviderLabel()} bezahlt: ${money(data.total)}`);
         closeDetail();
         return true;
       }
 
       if (status === 'failed' || status === 'cancelled') {
         clearActiveCardPayment(clientPaymentId);
-        setKassaCardVisualStatus('failed', data.message || 'SumUp-Zahlung abgelehnt oder abgebrochen.');
-        showStatus(data.message || 'SumUp-Zahlung nicht abgeschlossen', 4200);
+        setKassaCardVisualStatus('failed', data.message || `${cardProviderLabel()} abgelehnt oder abgebrochen.`);
+        showStatus(data.message || `${cardProviderLabel()} nicht abgeschlossen`, 4200);
         if (state.selected) await openPerson(state.selected.id);
         return true;
       }
 
       if (status === 'timeout' || status === 'unknown' || status === 'expired') {
         clearActiveCardPayment(clientPaymentId);
-        setKassaCardVisualStatus(status === 'timeout' || status === 'expired' ? 'timeout' : 'unknown', data.message || 'SumUp-Status unklar.');
-        showStatus(data.message || 'SumUp-Status unklar. Rechnung bleibt offen.', 5200);
+        setKassaCardVisualStatus(status === 'timeout' || status === 'expired' ? 'timeout' : 'unknown', data.message || `${cardProviderLabel()}-Status unklar.`);
+        showStatus(data.message || `${cardProviderLabel()}-Status unklar. Rechnung bleibt offen.`, 5200);
         if (state.selected) await openPerson(state.selected.id);
         return true;
       }
@@ -1156,8 +1370,8 @@
             showStatus('Zahlungsvorgang nicht gefunden', 3600);
             return;
           }
-          setKassaCardVisualStatus('waiting', 'Verbindung unterbrochen. Auf SumUp warten.');
-          showStatus('Verbindung unterbrochen. SumUp-Status wird erneut geprüft.', 3600);
+          setKassaCardVisualStatus('waiting', `Verbindung unterbrochen. Auf ${cardProviderLabel()} warten.`);
+          showStatus(`Verbindung unterbrochen. ${cardProviderLabel()}-Status wird erneut geprüft.`, 3600);
           state.cardTimer = setTimeout(() => pollCardPaymentStatus(clientPaymentId, attempt + 1), 3600);
         }
       };
@@ -1172,8 +1386,13 @@
       }
       if (!state.selfPaymentAvailable) {
         const missing = state.sumupMissing.length ? ` Fehlend: ${state.sumupMissing.join(', ')}` : '';
-        setKassaCardVisualStatus('failed', `SumUp ist nicht vollständig konfiguriert.${missing}`);
-        showStatus('SumUp ist nicht vollständig konfiguriert', 4200);
+        setKassaCardVisualStatus('failed', `${cardProviderUnavailableLabel()}.${missing}`);
+        showStatus(cardProviderUnavailableLabel(), 4200);
+        return;
+      }
+      if (centsFromEur(person.total_eur ?? person.total) <= 0) {
+        showStatus('Kein Kartenbetrag offen. Bitte Bar buchen abschliessen.', 3200);
+        updateKassaCardBreakdown();
         return;
       }
       if (!state.cardRoundingMode) {
@@ -1192,8 +1411,8 @@
         created_at: new Date().toISOString(),
       });
       state.cardBusy = true;
-      setKassaCardVisualStatus('waiting', 'Auf SumUp warten');
-      showStatus('SumUp-Zahlung startet...');
+      setKassaCardVisualStatus('waiting', `Auf ${cardProviderLabel()} warten`);
+      showStatus(`${cardProviderLabel()} startet...`);
       try {
         const data = await apiPost('/api/self-pay/pay', {
           person_id: person.id,
@@ -1215,13 +1434,13 @@
           setKassaCardVisualStatus('unknown', err.message || 'Rechnung hat sich geändert.');
           showStatus(err.message || 'Rechnung hat sich geändert', 4200);
         } else if (!err.status) {
-          setKassaCardVisualStatus('waiting', 'Verbindung unterbrochen. Auf SumUp warten.');
-          showStatus('Verbindung unterbrochen. SumUp-Status wird geprüft.', 4200);
+          setKassaCardVisualStatus('waiting', `Verbindung unterbrochen. Auf ${cardProviderLabel()} warten.`);
+          showStatus(`Verbindung unterbrochen. ${cardProviderLabel()}-Status wird geprüft.`, 4200);
           pollCardPaymentStatus(clientPaymentId);
         } else {
           clearActiveCardPayment(clientPaymentId);
-          setKassaCardVisualStatus('failed', err.message || 'SumUp-Zahlung konnte nicht gestartet werden.');
-          showStatus(err.message || 'SumUp-Zahlung konnte nicht gestartet werden', 4200);
+          setKassaCardVisualStatus('failed', err.message || `${cardProviderLabel()} konnte nicht gestartet werden.`);
+          showStatus(err.message || `${cardProviderLabel()} konnte nicht gestartet werden`, 4200);
         }
       } finally {
         if (!state.activeCardPayment) state.cardBusy = false;
@@ -1232,7 +1451,7 @@
       const saved = readActiveCardPayment();
       if (!saved?.client_payment_id) return;
       state.activeCardPayment = saved;
-      showStatus('Vorherige SumUp-Zahlung wird geprüft...', 2800);
+      showStatus(`Vorherige ${cardProviderLabel()} wird geprüft...`, 2800);
       try {
         const data = await fetchCardPaymentStatus(saved.client_payment_id);
         const done = await applyCardPaymentStatus(data, saved.client_payment_id);
@@ -1240,7 +1459,7 @@
       } catch (err) {
         if (err.status === 404) {
           clearActiveCardPayment(saved.client_payment_id);
-          showStatus('Alter SumUp-Vorgang nicht mehr vorhanden', 3600);
+          showStatus(`Alter ${cardProviderLabel()}-Vorgang nicht mehr vorhanden`, 3600);
           return;
         }
         pollCardPaymentStatus(saved.client_payment_id);
@@ -1253,18 +1472,19 @@
       await loadPaymentConfig();
       el('confirmTitle').textContent = `${person.name} bezahlen?`;
       el('confirmText').textContent = `${Number(person.open_items || 0)} offene Striche · Barbetrag ${money(person.total_eur ?? person.total)}`;
+      renderConfirmLineList(person.lines || []);
       el('confirmCancelButton').textContent = 'Abbrechen';
       el('confirmCancelButton').disabled = false;
       el('confirmPayButton').disabled = false;
       state.cardRoundingMode = null;
       el('confirmCardPayButton').disabled = true;
-      el('confirmCardPayButton').textContent = state.selfPaymentAvailable ? 'Mit Karte zahlen' : 'SumUp nicht bereit';
+      el('confirmCardPayButton').textContent = state.selfPaymentAvailable ? 'Mit Karte zahlen' : cardProviderUnavailableLabel();
       updateKassaCardBreakdown();
       setKassaCardVisualStatus(
         state.selfPaymentAvailable ? 'idle' : 'failed',
         state.selfPaymentAvailable
           ? ''
-          : `SumUp nicht verfügbar${state.sumupMissing.length ? `: ${state.sumupMissing.join(', ')}` : ''}.`
+          : `${cardProviderUnavailableLabel()}${state.sumupMissing.length ? `: ${state.sumupMissing.join(', ')}` : ''}.`
       );
       if (!state.selfPaymentAvailable) {
         el('confirmCancelButton').disabled = false;
@@ -1300,7 +1520,7 @@
     el('cancelButton').addEventListener('click', closeDetail);
     el('historyButton').addEventListener('click', openHistory);
     el('payButton').addEventListener('click', requestPayConfirmation);
-    el('confirmCancelButton').addEventListener('click', () => el('payConfirmDialog').close());
+    el('confirmCancelButton').addEventListener('click', handleConfirmCancel);
     el('confirmPayButton').addEventListener('click', paySelected);
     el('confirmCardPayButton').addEventListener('click', startCardPayment);
     el('historyCloseIcon').addEventListener('click', closeHistoryDialog);
@@ -1310,7 +1530,10 @@
       syncModalOpen();
     });
     el('payConfirmDialog').addEventListener('cancel', event => {
-      if (state.cardBusy) event.preventDefault();
+      if (state.cardBusy) {
+        event.preventDefault();
+        handleConfirmCancel();
+      }
     });
     el('historyDialog').addEventListener('close', syncModalOpen);
     document.addEventListener('visibilitychange', () => {

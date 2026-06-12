@@ -35,6 +35,10 @@ ENV_PIN_CODE = (RAW_ENV_PIN_CODE or "1234").strip() or "1234"
 ENV_PIN_FROM_ENV = RAW_ENV_PIN_CODE is not None and RAW_ENV_PIN_CODE.strip() != ""
 AGENT_API_TOKEN = os.getenv("DRINK_POS_AGENT_TOKEN", "").strip()
 APP_DIR = Path(__file__).resolve().parent
+TEST_PAYMENT_APP_ENVS = {"test", "testing"}
+TEST_PAYMENT_PROVIDER_ENVS = {"development", "dev", "local", *TEST_PAYMENT_APP_ENVS}
+TEST_PAYMENT_PROVIDERS = {"test", "mock", "demo"}
+TEST_PAYMENT_FLAG_ENV = "DRINK_POS_ALLOW_TEST_CARD_PAYMENTS"
 
 
 def default_db_path_for_env(env: str) -> str:
@@ -601,6 +605,25 @@ def init_db():
 
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS paid_round_units (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_order_line_id INTEGER,
+                payer_person_id INTEGER NOT NULL,
+                payer_name_snapshot TEXT NOT NULL,
+                round_price_eur REAL NOT NULL,
+                payment_transaction_id INTEGER,
+                event_open INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                closed_at TEXT,
+                FOREIGN KEY(source_order_line_id) REFERENCES order_lines(id),
+                FOREIGN KEY(payer_person_id) REFERENCES people(id),
+                FOREIGN KEY(payment_transaction_id) REFERENCES transactions(id)
+            )
+            """
+        )
+
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS transaction_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 transaction_id INTEGER NOT NULL,
@@ -676,6 +699,8 @@ def ensure_indexes(conn: sqlite3.Connection):
         "CREATE INDEX IF NOT EXISTS idx_self_payment_sessions_status_updated ON self_payment_sessions(status, updated_at)",
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_self_payment_sessions_client_payment_id ON self_payment_sessions(client_payment_id)",
         "CREATE INDEX IF NOT EXISTS idx_self_payment_sessions_provider_checkout ON self_payment_sessions(provider, provider_checkout_id)",
+        "CREATE INDEX IF NOT EXISTS idx_paid_round_units_event ON paid_round_units(event_open, created_at)",
+        "CREATE INDEX IF NOT EXISTS idx_paid_round_units_source ON paid_round_units(source_order_line_id)",
     ]
     for sql in indexes:
         conn.execute(sql)
@@ -1672,6 +1697,354 @@ def make_payment_detail_lines(lines: list[sqlite3.Row]) -> list[dict]:
     )
 
 
+def is_round_order_line(line: sqlite3.Row | dict) -> bool:
+    return is_system_item_name(str(row_get(line, "item_name_snapshot", "") or ""))
+
+
+def current_event_round_units(conn: sqlite3.Connection) -> list[dict]:
+    round_rows = conn.execute(
+        """
+        SELECT
+            ol.*,
+            p.name,
+            p.first_name,
+            p.last_name,
+            COALESCE((
+                SELECT SUM(cr.quantity_to_remove)
+                FROM change_requests cr
+                WHERE cr.order_line_id = ol.id AND cr.status = 'PENDING'
+            ), 0) AS pending_remove
+        FROM order_lines ol
+        LEFT JOIN people p ON p.id = ol.person_id
+        LEFT JOIN items i ON i.id = ol.item_id
+        WHERE ol.quantity > 0
+          AND ol.event_open = 1
+          AND (ol.item_name_snapshot = ? OR i.name = ?)
+        ORDER BY ol.consumed_date ASC, ol.created_at ASC, ol.id ASC
+        """,
+        (ROUND_ITEM_NAME, ROUND_ITEM_NAME),
+    ).fetchall()
+    units: list[dict] = []
+    for row in round_rows:
+        qty = max(0, int(row["quantity"]) - int(row["pending_remove"] or 0))
+        if qty <= 0:
+            continue
+        payer_name = display_name(row["first_name"], row["last_name"]) or row["name"] or "Unbekannt"
+        price = rounded_money(float(row["unit_price_eur"] or 0))
+        for _ in range(qty):
+            units.append(
+                {
+                    "source": "open_line",
+                    "round_index": len(units) + 1,
+                    "payer_person_id": int(row["person_id"]),
+                    "payer_name": payer_name,
+                    "round_price_eur": price,
+                    "order_line_id": int(row["id"]),
+                    "paid_round_unit_id": None,
+                    "already_paid": False,
+                    "deductions": [],
+                }
+            )
+
+    paid_rows = conn.execute(
+        """
+        SELECT pru.*, p.name, p.first_name, p.last_name
+        FROM paid_round_units pru
+        LEFT JOIN people p ON p.id = pru.payer_person_id
+        WHERE pru.event_open = 1
+        ORDER BY pru.created_at ASC, pru.id ASC
+        """
+    ).fetchall()
+    for row in paid_rows:
+        fallback_name = display_name(row["first_name"], row["last_name"]) or row["name"] or "Unbekannt"
+        units.append(
+            {
+                "source": "paid_unit",
+                "round_index": len(units) + 1,
+                "payer_person_id": int(row["payer_person_id"]),
+                "payer_name": row["payer_name_snapshot"] or fallback_name,
+                "round_price_eur": rounded_money(float(row["round_price_eur"] or 0)),
+                "order_line_id": row["source_order_line_id"],
+                "paid_round_unit_id": int(row["id"]),
+                "already_paid": True,
+                "deductions": [],
+            }
+        )
+    return units
+
+
+def current_event_rounds_revision(conn: sqlite3.Connection) -> str:
+    parts = []
+    for unit in current_event_round_units(conn):
+        source_id = unit["paid_round_unit_id"] if unit["source"] == "paid_unit" else unit["order_line_id"]
+        parts.append(
+            f"{unit['source']}:{source_id}:{unit['payer_person_id']}:{unit['round_price_eur']}"
+        )
+    raw = "|".join(parts)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:24]
+
+
+def payment_revision(conn: sqlite3.Connection, lines: list[sqlite3.Row], pending_count: int = 0) -> str:
+    raw = f"{open_lines_payment_revision(lines, pending_count)}|rounds:{current_event_rounds_revision(conn)}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:24]
+
+
+def empty_person_round_deduction_plan(rounds_count: int = 0) -> dict:
+    return {
+        "rounds_count": int(rounds_count or 0),
+        "deducted_items": 0,
+        "deducted_vk_eur": 0.0,
+        "deducted_purchase_eur": 0.0,
+        "deductions": [],
+    }
+
+
+def build_person_round_deduction_plan(conn: sqlite3.Connection, person_id: int) -> dict:
+    round_units = current_event_round_units(conn)
+    if not round_units:
+        return empty_person_round_deduction_plan()
+
+    drink_rows = conn.execute(
+        """
+        SELECT
+            ol.*,
+            p.name,
+            p.first_name,
+            p.last_name,
+            COALESCE((
+                SELECT SUM(cr.quantity_to_remove)
+                FROM change_requests cr
+                WHERE cr.order_line_id = ol.id AND cr.status = 'PENDING'
+            ), 0) AS pending_remove
+        FROM order_lines ol
+        JOIN people p ON p.id = ol.person_id
+        LEFT JOIN items i ON i.id = ol.item_id
+        WHERE ol.person_id = ?
+          AND ol.quantity > 0
+          AND ol.event_open = 1
+          AND COALESCE(ol.admin_only_snapshot, 0) = 0
+          AND ol.item_name_snapshot <> ?
+          AND COALESCE(i.name, '') <> ?
+        ORDER BY ol.unit_price_eur ASC, ol.consumed_date ASC, ol.created_at ASC, ol.id ASC
+        """,
+        (person_id, ROUND_ITEM_NAME, ROUND_ITEM_NAME),
+    ).fetchall()
+    remaining = {
+        int(row["id"]): max(0, int(row["quantity"]) - int(row["pending_remove"] or 0))
+        for row in drink_rows
+    }
+    deductions = []
+    for round_unit in round_units:
+        chosen = None
+        for row in drink_rows:
+            if remaining.get(int(row["id"]), 0) > 0:
+                chosen = row
+                break
+        if not chosen:
+            continue
+        remaining[int(chosen["id"])] -= 1
+        price = rounded_money(float(chosen["unit_price_eur"] or 0))
+        purchase = rounded_money(float(chosen["unit_purchase_price_eur"] if "unit_purchase_price_eur" in chosen.keys() else 0))
+        deductions.append(
+            {
+                "round_index": round_unit["round_index"],
+                "payer_name": round_unit["payer_name"],
+                "person_id": int(chosen["person_id"]),
+                "name": display_name(chosen["first_name"], chosen["last_name"]) or chosen["name"] or "Unbekannt",
+                "line_id": int(chosen["id"]),
+                "item_id": chosen["item_id"],
+                "item": chosen["item_name_snapshot"],
+                "short_label": chosen["item_short_label_snapshot"],
+                "quantity": 1,
+                "unit_price_eur": price,
+                "unit_purchase_price_eur": purchase,
+                "subtotal_eur": price,
+                "purchase_total_eur": purchase,
+            }
+        )
+
+    deducted_vk = rounded_money(sum(float(item["subtotal_eur"]) for item in deductions))
+    deducted_purchase = rounded_money(sum(float(item["purchase_total_eur"]) for item in deductions))
+    return {
+        "rounds_count": len(round_units),
+        "deducted_items": len(deductions),
+        "deducted_vk_eur": deducted_vk,
+        "deducted_purchase_eur": deducted_purchase,
+        "deductions": sorted(deductions, key=lambda item: (float(item["unit_price_eur"]), str(item["item"]).lower(), int(item["line_id"]))),
+    }
+
+
+def payment_total_after_round_deductions(lines: list[sqlite3.Row], plan: dict) -> float:
+    return max(0.0, rounded_money(person_total_from_lines(lines) - float(plan.get("deducted_vk_eur", 0) or 0)))
+
+
+def no_payable_total_detail() -> str:
+    return "Keine Zahlung noetig; offene Posten werden durch Rundenabzug ausgeglichen."
+
+
+def has_payable_total_after_round_deductions(lines: list[sqlite3.Row], plan: dict, pending_count: int = 0) -> bool:
+    return bool(lines) and int(pending_count or 0) == 0 and payment_total_after_round_deductions(lines, plan) > 0
+
+
+def make_payment_detail_lines_with_round_deductions(lines: list[sqlite3.Row], plan: dict) -> list[dict]:
+    details = make_payment_detail_lines(lines)
+    deduction_groups: dict[tuple, dict] = {}
+    for item in plan.get("deductions", []):
+        price = rounded_money(float(item["unit_price_eur"] or 0))
+        purchase = rounded_money(float(item["unit_purchase_price_eur"] or 0))
+        key = (item.get("item_id"), item["item"], item["short_label"], price, purchase)
+        if key not in deduction_groups:
+            deduction_groups[key] = {
+                "item_id": item.get("item_id"),
+                "item": f"Rundenabzug: {item['item']}",
+                "short_label": item["short_label"],
+                "quantity": 0,
+                "unit_price_eur": price,
+                "unit_purchase_price_eur": purchase,
+                "subtotal_eur": 0.0,
+                "line_ids": [],
+                "is_round_deduction": True,
+            }
+        deduction_groups[key]["quantity"] -= 1
+        deduction_groups[key]["subtotal_eur"] = rounded_money(deduction_groups[key]["subtotal_eur"] - price)
+        deduction_groups[key]["line_ids"].append(int(item["line_id"]))
+    deductions = sorted(
+        deduction_groups.values(),
+        key=lambda item: (float(item["unit_price_eur"]), str(item["item"]).lower(), min(item["line_ids"] or [0])),
+    )
+    return details + deductions
+
+
+def validate_round_deductions_are_current(conn: sqlite3.Connection, deductions: list[dict]):
+    if not deductions:
+        return
+    by_line: dict[int, int] = {}
+    expected: dict[int, dict] = {}
+    for item in deductions:
+        line_id = int(item["line_id"])
+        by_line[line_id] = by_line.get(line_id, 0) + 1
+        expected[line_id] = item
+    placeholders = ",".join("?" for _ in by_line)
+    rows = conn.execute(
+        f"""
+        SELECT
+            ol.*,
+            COALESCE((
+                SELECT SUM(cr.quantity_to_remove)
+                FROM change_requests cr
+                WHERE cr.order_line_id = ol.id AND cr.status = 'PENDING'
+            ), 0) AS pending_remove
+        FROM order_lines ol
+        WHERE ol.id IN ({placeholders})
+        """,
+        list(by_line.keys()),
+    ).fetchall()
+    rows_by_id = {int(row["id"]): row for row in rows}
+    for line_id, needed in by_line.items():
+        row = rows_by_id.get(line_id)
+        item = expected[line_id]
+        if not row:
+            raise HTTPException(status_code=409, detail="Rundenabzug nicht mehr aktuell: Posten wurde bereits entfernt")
+        available = max(0, int(row["quantity"] or 0) - int(row["pending_remove"] or 0))
+        if not bool(row["event_open"]):
+            raise HTTPException(status_code=409, detail="Rundenabzug nicht mehr aktuell: Posten wurde bereits beim Kassensturz geschlossen")
+        if is_round_order_line(row) or bool(row["admin_only_snapshot"]):
+            raise HTTPException(status_code=409, detail="Rundenabzug darf nur normale offene Getraenke entfernen")
+        if available < needed:
+            raise HTTPException(status_code=409, detail="Rundenabzug nicht mehr aktuell: Posten wurde bereits entfernt")
+        if row["item_name_snapshot"] != item["item"] or rounded_money(float(row["unit_price_eur"] or 0)) != rounded_money(float(item["unit_price_eur"] or 0)):
+            raise HTTPException(status_code=409, detail="Rundenabzug nicht mehr aktuell: Artikelstand hat sich geaendert")
+
+
+def apply_person_round_deductions(
+    conn: sqlite3.Connection,
+    person_id: int,
+    plan: dict,
+    context: str,
+    allow_session_id: int | None = None,
+) -> int | None:
+    deductions = list(plan.get("deductions") or [])
+    if not deductions:
+        return None
+    validate_round_deductions_are_current(conn, deductions)
+    deducted_vk = rounded_money(sum(float(item["subtotal_eur"]) for item in deductions))
+    deducted_purchase = rounded_money(sum(float(item["purchase_total_eur"]) for item in deductions))
+    details_main = " | ".join(f"{item['name']}: -1x {item['item']}" for item in deductions)
+    tx_id = log_transaction(
+        conn,
+        None,
+        "ROUND_DEDUCTED",
+        deducted_vk,
+        f"{context}; vor Zahlung abgezogen: {details_main}",
+    )
+    for item in deductions:
+        _, actual = remove_from_order_line(conn, int(item["line_id"]), 1, allow_session_id=allow_session_id)
+        if actual != 1:
+            raise HTTPException(status_code=409, detail="Rundenabzug konnte nicht konsistent ausgefuehrt werden")
+        log_transaction_item(conn, tx_id, int(item["person_id"]), {
+            "item_id": item["item_id"],
+            "item_name_snapshot": item["item"],
+            "item_short_label_snapshot": item["short_label"],
+            "unit_price_eur": item["unit_price_eur"],
+            "unit_purchase_price_eur": item["unit_purchase_price_eur"],
+        }, -1, "ROUND_DEDUCTED")
+    conn.execute(
+        """
+        INSERT INTO round_events (
+            transaction_id, timestamp, round_price_eur, deducted_vk_eur, deducted_purchase_eur,
+            profit_vs_purchase_eur, profit_vs_retail_eur, details
+        ) VALUES (?, ?, 0, ?, ?, ?, ?, ?)
+        """,
+        (
+            tx_id,
+            now_text(),
+            deducted_vk,
+            deducted_purchase,
+            -deducted_purchase,
+            -deducted_vk,
+            f"Vor Zahlung abgezogen: {details_main}",
+        ),
+    )
+    return tx_id
+
+
+def preserve_paid_round_units(
+    conn: sqlite3.Connection,
+    person: sqlite3.Row,
+    lines: list[sqlite3.Row],
+    payment_transaction_id: int,
+):
+    payer_name = display_name(person["first_name"], person["last_name"]) or person["name"] or "Unbekannt"
+    rows = []
+    for line in lines:
+        if not bool(line["event_open"]) or not is_round_order_line(line):
+            continue
+        qty = max(0, int(line["quantity"] or 0))
+        price = rounded_money(float(line["unit_price_eur"] or 0))
+        rows.extend(
+            (
+                int(line["id"]),
+                int(person["id"]),
+                payer_name,
+                price,
+                int(payment_transaction_id),
+                1,
+                now_text(),
+            )
+            for _ in range(qty)
+        )
+    if rows:
+        conn.executemany(
+            """
+            INSERT INTO paid_round_units (
+                source_order_line_id, payer_person_id, payer_name_snapshot, round_price_eur,
+                payment_transaction_id, event_open, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            rows,
+        )
+
+
 def kassa_history_timestamp_labels(timestamp: str | None) -> tuple[str, str, str]:
     raw = str(timestamp or "")
     try:
@@ -1841,18 +2214,26 @@ def kassa_person_payload(conn: sqlite3.Connection, person: sqlite3.Row, lines: l
         lines = get_open_lines(conn, person["id"])
     pending = get_pending_requests_for_person(conn, int(person["id"]))
     pending_count = len(pending)
-    total = person_total_from_lines(lines)
+    round_plan = build_person_round_deduction_plan(conn, int(person["id"]))
+    raw_total = person_total_from_lines(lines)
+    total = payment_total_after_round_deductions(lines, round_plan)
     open_items = sum(int(line["quantity"] or 0) for line in lines)
     return {
         "id": int(person["id"]),
         "name": display_name(person["first_name"], person["last_name"]) or person["name"],
         "open_items": open_items,
+        "payable_items": max(0, open_items - int(round_plan.get("deducted_items", 0) or 0)),
+        "total_before_round_deductions": raw_total,
         "total": total,
         "total_eur": total,
-        "lines": make_payment_detail_lines(lines),
+        "round_deduction_items": int(round_plan.get("deducted_items", 0) or 0),
+        "round_deduction_total_eur": rounded_money(float(round_plan.get("deducted_vk_eur", 0) or 0)),
+        "open_rounds_count": int(round_plan.get("rounds_count", 0) or 0),
+        "lines": make_payment_detail_lines_with_round_deductions(lines, round_plan),
         "pending_requests_count": pending_count,
-        "can_pay": bool(lines) and pending_count == 0,
-        "revision": open_lines_payment_revision(lines, pending_count),
+        "pending_requests": pending,
+        "can_pay": has_payable_total_after_round_deductions(lines, round_plan, pending_count),
+        "revision": payment_revision(conn, lines, pending_count),
     }
 
 
@@ -1976,11 +2357,11 @@ def add_order_line(conn: sqlite3.Connection, person_id: int, item: sqlite3.Row, 
     return cur.lastrowid
 
 
-def remove_from_order_line(conn: sqlite3.Connection, line_id: int, quantity: int):
+def remove_from_order_line(conn: sqlite3.Connection, line_id: int, quantity: int, allow_session_id: int | None = None):
     row = conn.execute("SELECT * FROM order_lines WHERE id = ?", (line_id,)).fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Offener Posten nicht gefunden")
-    ensure_no_active_self_payment(conn, int(row["person_id"]))
+    ensure_no_active_self_payment(conn, int(row["person_id"]), allow_session_id=allow_session_id)
     if quantity <= 0:
         raise HTTPException(status_code=400, detail="Menge muss positiv sein")
     current_qty = int(row["quantity"])
@@ -2081,8 +2462,20 @@ def parse_timeout_value(value: str | int | None) -> int:
     return max(30, min(600, timeout))
 
 
+def test_card_payment_mode(raw_provider: str | None = None) -> bool:
+    provider = (raw_provider if raw_provider is not None else os.getenv("PAYMENT_PROVIDER") or "").strip().lower()
+    explicit_flag = (os.getenv(TEST_PAYMENT_FLAG_ENV) or "").strip().lower() in {"1", "true", "yes", "on"}
+    if APP_ENV in TEST_PAYMENT_APP_ENVS:
+        return True
+    if explicit_flag and provider in TEST_PAYMENT_PROVIDERS:
+        return True
+    return APP_ENV in TEST_PAYMENT_PROVIDER_ENVS and provider in TEST_PAYMENT_PROVIDERS
+
+
 def sumup_payment_settings(conn: sqlite3.Connection | None = None) -> dict:
-    provider = (os.getenv("PAYMENT_PROVIDER") or "").strip().lower()
+    raw_provider = (os.getenv("PAYMENT_PROVIDER") or "").strip().lower()
+    test_payment_mode = test_card_payment_mode(raw_provider)
+    provider = "test" if test_payment_mode else raw_provider
     api_base = (os.getenv("SUMUP_API_BASE") or "https://api.sumup.com").strip().rstrip("/")
     api_key = (os.getenv("SUMUP_API_KEY") or "").strip()
     merchant_code = (os.getenv("SUMUP_MERCHANT_CODE") or "").strip()
@@ -2092,20 +2485,26 @@ def sumup_payment_settings(conn: sqlite3.Connection | None = None) -> dict:
     currency = (os.getenv("SUMUP_CURRENCY") or "EUR").strip().upper()
     timeout = parse_timeout_value(os.getenv("SUMUP_TIMEOUT_SECONDS") or "120")
     missing = []
-    if provider != "sumup":
+    if test_payment_mode:
+        configured = True
+    else:
+        if provider != "sumup":
+            missing.append("PAYMENT_PROVIDER=sumup")
+        if not api_key:
+            missing.append("SUMUP_API_KEY")
+        if not merchant_code:
+            missing.append("SUMUP_MERCHANT_CODE")
+        if not reader_id:
+            missing.append("SUMUP_READER_ID")
+        if not currency:
+            missing.append("SUMUP_CURRENCY")
+        configured = provider == "sumup" and not missing
+    if provider not in {"sumup", "test"} and not missing:
         missing.append("PAYMENT_PROVIDER=sumup")
-    if not api_key:
-        missing.append("SUMUP_API_KEY")
-    if not merchant_code:
-        missing.append("SUMUP_MERCHANT_CODE")
-    if not reader_id:
-        missing.append("SUMUP_READER_ID")
-    if not currency:
-        missing.append("SUMUP_CURRENCY")
-    configured = provider == "sumup" and not missing
     return {
         "payment_provider": provider,
-        "self_payment_enabled": provider == "sumup",
+        "self_payment_enabled": provider == "sumup" or test_payment_mode,
+        "test_payment_mode": test_payment_mode,
         "sumup_api_base": api_base,
         "sumup_api_key_configured": bool(api_key),
         "sumup_merchant_code": merchant_code,
@@ -2125,6 +2524,7 @@ def public_self_payment_settings(settings: dict) -> dict:
     return {
         "self_payment_enabled": enabled,
         "payment_provider": settings.get("payment_provider") or "",
+        "test_payment_mode": bool(settings.get("test_payment_mode")),
         "sumup_configured": configured,
         "sumup_missing": list(settings.get("sumup_missing") or []),
         "sumup_reader_id": settings.get("sumup_reader_id") or "",
@@ -2213,13 +2613,13 @@ def active_self_payment_session(conn: sqlite3.Connection, person_id: int | None 
 def ensure_no_active_self_payment(conn: sqlite3.Connection, person_id: int, allow_session_id: int | None = None):
     row = active_self_payment_session(conn, person_id)
     if row and (allow_session_id is None or int(row["id"]) != int(allow_session_id)):
-        raise HTTPException(status_code=409, detail="Für diese Person läuft gerade eine SumUp-Zahlung")
+        raise HTTPException(status_code=409, detail="Für diese Person läuft gerade eine Kartenzahlung")
 
 
 def ensure_no_active_self_payments(conn: sqlite3.Connection):
     row = active_self_payment_session(conn)
     if row:
-        raise HTTPException(status_code=409, detail="Es läuft gerade eine SumUp-Zahlung. Bitte warten.")
+        raise HTTPException(status_code=409, detail="Es läuft gerade eine Kartenzahlung. Bitte warten.")
 
 
 def payment_result_reference(result: dict | None) -> str | None:
@@ -2253,7 +2653,7 @@ def cents_to_eur(cents: int) -> float:
 def card_payment_breakdown(base_total_eur: float, rounding_mode: str | None = "none") -> dict:
     normalized_mode = normalize_card_rounding_mode(rounding_mode)
     base_amount_cents = eur_cents(base_total_eur)
-    card_fee_cents = max(CARD_PAYMENT_MIN_FEE_CENTS, (base_amount_cents * CARD_PAYMENT_FEE_RATE_PERCENT + 99) // 100)
+    card_fee_cents = 0 if base_amount_cents <= 0 else max(CARD_PAYMENT_MIN_FEE_CENTS, (base_amount_cents * CARD_PAYMENT_FEE_RATE_PERCENT + 99) // 100)
     subtotal_cents = base_amount_cents + card_fee_cents
     step_cents = CARD_PAYMENT_ROUNDING_STEPS[normalized_mode]
     rounded_total_cents = subtotal_cents if step_cents <= 1 else ((subtotal_cents + step_cents - 1) // step_cents) * step_cents
@@ -2336,8 +2736,11 @@ def self_payment_session_by_client_id(conn: sqlite3.Connection, client_payment_i
 
 def self_payment_status_payload(conn: sqlite3.Connection, session, duplicate: bool = False) -> dict:
     status = str(session["status"] or "").strip().upper()
+    provider = str(session["provider"] or "sumup").strip().lower() if "provider" in session.keys() else "sumup"
+    is_test_payment = provider == "test"
+    payment_label = "Test-Kartenzahlung" if is_test_payment else "SumUp-Zahlung"
     message_by_status = {
-        "CREATED": "SumUp-Zahlung wird vorbereitet.",
+        "CREATED": f"{payment_label} wird vorbereitet.",
         "SENT_TO_READER": "Zahlung eingeleitet, bitte Bezahlterminal beachten.",
         "PENDING": "Zahlung läuft. Bitte warten.",
         "PAID": "Zahlung abgeschlossen.",
@@ -2370,7 +2773,9 @@ def self_payment_status_payload(conn: sqlite3.Connection, session, duplicate: bo
         "session_id": int(session["id"]),
         "person_id": int(session["person_id"]),
         "client_payment_id": session["client_payment_id"],
-        "payment_method": "SUMUP",
+        "payment_method": "TEST_CARD" if is_test_payment else "SUMUP",
+        "payment_provider": provider,
+        "test_payment_mode": is_test_payment,
         "total": rounded_money(float(session["amount_eur"] or 0)),
         "base_total": cents_to_eur(base_amount_cents),
         "base_amount_cents": base_amount_cents,
@@ -2407,6 +2812,29 @@ def create_sumup_checkout(
 
 def poll_sumup_payment(cfg: SumUpConfig, provider_checkout_id: str) -> dict:
     return sumup_poll_checkout_status(cfg, provider_checkout_id, cfg.timeout_seconds)
+
+
+def create_test_card_checkout(session_id: int) -> dict:
+    provider_checkout_id = f"test-card-checkout-{session_id}"
+    return {
+        "provider_checkout_id": provider_checkout_id,
+        "status": "sent_to_reader",
+        "test_payment_mode": True,
+    }
+
+
+def paid_test_card_result(session_id: int, amount_cents: int, currency: str, provider_checkout_id: str) -> dict:
+    return {
+        "status": "paid",
+        "provider_checkout_id": provider_checkout_id,
+        "transaction_id": f"test-card-tx-{session_id}",
+        "transaction_code": f"TESTCARD{session_id}",
+        "auth_code": "TEST",
+        "amount_cents": int(amount_cents),
+        "currency": str(currency or "EUR").upper(),
+        "test_payment_mode": True,
+        "raw_response": {"status": "SUCCESSFUL", "test_payment_mode": True},
+    }
 
 
 def connection_event_label(event_type: str) -> str:
@@ -2870,6 +3298,9 @@ def list_people():
             lines = get_open_lines(conn, person["id"])
             pending = get_pending_requests_for_person(conn, person["id"])
             member_messages = get_member_messages_for_person(conn, person["id"])
+            round_plan = build_person_round_deduction_plan(conn, int(person["id"]))
+            raw_total = person_total_from_lines(lines)
+            payable_total = payment_total_after_round_deductions(lines, round_plan)
             result.append(
                 {
                     "id": person["id"],
@@ -2880,7 +3311,13 @@ def list_people():
                     "summary_lines": make_summary_lines(lines),
                     "event_summary_lines": make_event_summary_lines(lines),
                     "lines": [serialize_open_line(line) for line in lines],
-                    "total": person_total_from_lines(lines),
+                    "total": raw_total,
+                    "total_before_round_deductions": raw_total,
+                    "payable_total": payable_total,
+                    "payable_total_eur": payable_total,
+                    "round_deduction_items": int(round_plan.get("deducted_items", 0) or 0),
+                    "round_deduction_total_eur": rounded_money(float(round_plan.get("deducted_vk_eur", 0) or 0)),
+                    "can_pay": has_payable_total_after_round_deductions(lines, round_plan, len(pending)),
                     "pending_requests": pending,
                     "member_messages": member_messages,
                     "member_message_count": len(member_messages),
@@ -2906,16 +3343,23 @@ def kassa_people():
             ORDER BY p.last_name COLLATE NOCASE ASC, p.first_name COLLATE NOCASE ASC, p.name COLLATE NOCASE ASC
             """
         ).fetchall()
-        people = [
-            {
-                "id": int(row["id"]),
-                "name": display_name(row["first_name"], row["last_name"]) or row["name"],
-                "open_items": int(row["open_items"] or 0),
-                "total": rounded_money(float(row["open_total"] or 0)),
-                "total_eur": rounded_money(float(row["open_total"] or 0)),
-            }
-            for row in sorted(rows, key=lambda r: normalize_for_sort(display_name(r["first_name"], r["last_name"]) or r["name"]))
-        ]
+        people = []
+        for row in sorted(rows, key=lambda r: normalize_for_sort(display_name(r["first_name"], r["last_name"]) or r["name"])):
+            lines = get_open_lines(conn, int(row["id"]))
+            payload = kassa_person_payload(conn, row, lines)
+            people.append(
+                {
+                    "id": int(row["id"]),
+                    "name": payload["name"],
+                    "open_items": int(row["open_items"] or 0),
+                    "payable_items": payload["payable_items"],
+                    "total_before_round_deductions": payload["total_before_round_deductions"],
+                    "round_deduction_items": payload["round_deduction_items"],
+                    "round_deduction_total_eur": payload["round_deduction_total_eur"],
+                    "total": payload["total"],
+                    "total_eur": payload["total_eur"],
+                }
+            )
         return {"people": people, **get_sync_state(conn)}
 
 
@@ -2942,7 +3386,7 @@ def kassa_person_history(person_id: int, limit: int = 200):
 def require_self_payment_available(conn: sqlite3.Connection) -> dict:
     settings = sumup_payment_settings(conn)
     if not settings["self_payment_enabled"]:
-        raise HTTPException(status_code=403, detail="Self-Checkout ist deaktiviert. PAYMENT_PROVIDER=sumup setzen.")
+        raise HTTPException(status_code=403, detail="Self-Checkout ist deaktiviert. PAYMENT_PROVIDER=sumup setzen; im Testmodus ist PAYMENT_PROVIDER=test möglich.")
     if not settings["sumup_configured"]:
         missing = ", ".join(settings.get("sumup_missing") or [])
         raise HTTPException(status_code=503, detail=f"SumUp ist nicht vollständig konfiguriert: {missing}")
@@ -3023,6 +3467,37 @@ def self_pay_payment_status(client_payment_id: str):
         return payload
 
 
+@app.post("/api/self-pay/payment/{client_payment_id}/cancel")
+def self_pay_cancel_payment(client_payment_id: str):
+    normalized_id = normalize_client_operation_id(client_payment_id)
+    if not normalized_id:
+        raise HTTPException(status_code=400, detail="Zahlungs-ID fehlt")
+    with get_conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        session = self_payment_session_by_client_id(conn, normalized_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Zahlungsvorgang nicht gefunden")
+        status = str(session["status"] or "").upper()
+        if status in {"CREATED", "SENT_TO_READER", "PENDING"}:
+            mark_self_payment_session(
+                conn,
+                int(session["id"]),
+                "CANCELLED",
+                error="Zahlung manuell in der Kassa abgebrochen.",
+            )
+            log_transaction(
+                conn,
+                int(session["person_id"]),
+                "SUMUP_PAYMENT_CANCELLED",
+                0,
+                f"SumUp-Zahlung manuell abgebrochen. Session #{int(session['id'])}",
+            )
+            session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (int(session["id"]),)).fetchone()
+        payload = self_payment_status_payload(conn, session)
+        conn.commit()
+        return payload
+
+
 @app.post("/api/self-pay/pay")
 def self_pay(req: SelfPayRequest):
     client_payment_id = normalize_client_operation_id(req.client_payment_id)
@@ -3031,7 +3506,8 @@ def self_pay(req: SelfPayRequest):
 
     with get_conn() as conn:
         settings = require_self_payment_available(conn)
-        cfg = sumup_config_from_settings(settings)
+        provider = str(settings.get("payment_provider") or "").strip().lower()
+        cfg = sumup_config_from_settings(settings) if provider == "sumup" else None
         conn.execute("BEGIN IMMEDIATE")
         person = get_person(conn, req.person_id, allow_archived=False)
 
@@ -3046,7 +3522,7 @@ def self_pay(req: SelfPayRequest):
         ensure_no_active_self_payment(conn, int(person["id"]))
         lines = get_open_lines(conn, req.person_id)
         pending = get_pending_requests_for_person(conn, req.person_id)
-        current_revision = open_lines_payment_revision(lines, len(pending))
+        current_revision = payment_revision(conn, lines, len(pending))
         current_payload = kassa_person_payload(conn, person, lines)
 
         if current_revision != (req.expected_revision or "").strip():
@@ -3068,7 +3544,10 @@ def self_pay(req: SelfPayRequest):
         if not lines:
             raise HTTPException(status_code=400, detail="Keine offenen Posten")
 
-        total = person_total_from_lines(lines)
+        round_plan = build_person_round_deduction_plan(conn, req.person_id)
+        total = payment_total_after_round_deductions(lines, round_plan)
+        if total <= 0:
+            raise HTTPException(status_code=400, detail=no_payable_total_detail())
         breakdown = card_payment_breakdown(total, req.rounding_mode)
         amount_cents = int(breakdown["amount_cents"])
         cur = conn.execute(
@@ -3077,7 +3556,7 @@ def self_pay(req: SelfPayRequest):
                 person_id, client_payment_id, status,
                 base_amount_cents, card_fee_cents, rounding_mode, rounding_adjustment_cents,
                 amount_eur, amount_cents, currency, provider, revision, created_at, updated_at
-            ) VALUES (?, ?, 'CREATED', ?, ?, ?, ?, ?, ?, ?, 'sumup', ?, ?, ?)
+            ) VALUES (?, ?, 'CREATED', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 req.person_id,
@@ -3089,6 +3568,7 @@ def self_pay(req: SelfPayRequest):
                 breakdown["amount_eur"],
                 amount_cents,
                 settings["sumup_currency"],
+                provider,
                 current_revision,
                 now_text(),
                 now_text(),
@@ -3100,9 +3580,17 @@ def self_pay(req: SelfPayRequest):
         conn.commit()
 
     try:
-        checkout = create_sumup_checkout(cfg, amount_cents, receipt_text, client_payment_id)
+        if provider == "test":
+            checkout = create_test_card_checkout(session_id)
+        else:
+            checkout = create_sumup_checkout(cfg, amount_cents, receipt_text, client_payment_id)
         provider_checkout_id = str(checkout.get("provider_checkout_id") or "").strip()
         with get_conn() as conn:
+            session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
+            if session and str(session["status"] or "").upper() == "CANCELLED":
+                payload = self_payment_status_payload(conn, session)
+                conn.commit()
+                return payload
             mark_self_payment_session(
                 conn,
                 session_id,
@@ -3111,10 +3599,18 @@ def self_pay(req: SelfPayRequest):
                 provider_checkout_id=provider_checkout_id,
             )
             conn.commit()
-        result = poll_sumup_payment(cfg, provider_checkout_id)
+        if provider == "test":
+            result = paid_test_card_result(session_id, amount_cents, settings["sumup_currency"], provider_checkout_id)
+        else:
+            result = poll_sumup_payment(cfg, provider_checkout_id)
     except SumUpError as exc:
         session_status = "UNKNOWN" if exc.category == "unknown" else "FAILED"
         with get_conn() as conn:
+            session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
+            if session and str(session["status"] or "").upper() == "CANCELLED":
+                payload = self_payment_status_payload(conn, session)
+                conn.commit()
+                return payload
             mark_self_payment_session(conn, session_id, session_status, result=exc.raw_response, error=exc.message)
             log_transaction(conn, req.person_id, "SUMUP_PAYMENT_ERROR", 0, f"SumUp-Zahlung Fehler Session #{session_id}: {exc.message[:180]}")
             session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
@@ -3123,12 +3619,24 @@ def self_pay(req: SelfPayRequest):
         raise HTTPException(status_code=502, detail=payload)
     except Exception as exc:
         with get_conn() as conn:
+            session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
+            if session and str(session["status"] or "").upper() == "CANCELLED":
+                payload = self_payment_status_payload(conn, session)
+                conn.commit()
+                return payload
             mark_self_payment_session(conn, session_id, "UNKNOWN", error=str(exc))
             log_transaction(conn, req.person_id, "SUMUP_PAYMENT_ERROR", 0, f"SumUp-Zahlung unklar Session #{session_id}: {str(exc)[:180]}")
             session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
             payload = self_payment_status_payload(conn, session) if session else {"message": str(exc)}
             conn.commit()
         raise HTTPException(status_code=502, detail=payload)
+
+    with get_conn() as conn:
+        session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
+        if session and str(session["status"] or "").upper() == "CANCELLED":
+            payload = self_payment_status_payload(conn, session)
+            conn.commit()
+            return payload
 
     provider_status = str(result.get("status") or "unknown").lower()
     if provider_status != "paid":
@@ -3168,12 +3676,16 @@ def self_pay(req: SelfPayRequest):
     with get_conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
+        if session and str(session["status"] or "").upper() == "CANCELLED":
+            payload = self_payment_status_payload(conn, session)
+            conn.commit()
+            return payload
         if not session or session["status"] not in {"CREATED", "SENT_TO_READER", "PENDING"}:
             raise HTTPException(status_code=409, detail="Zahlungssession ist nicht mehr aktiv")
         person = get_person(conn, req.person_id, allow_archived=False)
         lines = get_open_lines(conn, req.person_id)
         pending = get_pending_requests_for_person(conn, req.person_id)
-        current_revision = open_lines_payment_revision(lines, len(pending))
+        current_revision = payment_revision(conn, lines, len(pending))
         current_payload = kassa_person_payload(conn, person, lines)
         if current_revision != session["revision"] or pending:
             mark_self_payment_session(conn, session_id, "UNKNOWN", result=result, error="Rechnung hat sich nach SumUp-Freigabe geändert", provider_checkout_id=result.get("provider_checkout_id"))
@@ -3187,11 +3699,17 @@ def self_pay(req: SelfPayRequest):
                 detail=payload,
             )
 
+        provider_label = "Test-Kartenzahlung" if provider == "test" else "SumUp-Zahlung"
+        round_plan = build_person_round_deduction_plan(conn, req.person_id)
+        apply_person_round_deductions(conn, req.person_id, round_plan, f"Bei {provider_label}", allow_session_id=session_id)
+        lines = get_open_lines(conn, req.person_id)
         grouped_details = make_payment_detail_lines(lines)
         details = [
             f"{int(line['quantity'])}x {line['item']} zu {eur_text(line['unit_price_eur'])}"
             for line in grouped_details
         ]
+        if int(round_plan.get("deducted_items", 0) or 0) > 0:
+            details.append(f"Rundenabzug -{int(round_plan['deducted_items'])} Striche ({eur_text(round_plan['deducted_vk_eur'])})")
         card_fee_cents = int(session["card_fee_cents"] or 0) if "card_fee_cents" in session.keys() else 0
         rounding_adjustment_cents = int(session["rounding_adjustment_cents"] or 0) if "rounding_adjustment_cents" in session.keys() else 0
         rounding_mode = session["rounding_mode"] if "rounding_mode" in session.keys() else "none"
@@ -3202,20 +3720,25 @@ def self_pay(req: SelfPayRequest):
         person_name = display_name(person["first_name"], person["last_name"]) or person["name"]
         reference = payment_result_reference(result)
         reference_text = f"; Ref {reference}" if reference else ""
-        tx_id = log_transaction(conn, req.person_id, "PAID_SUMUP", float(session["amount_eur"]), f"SumUp bezahlt von {person_name}{reference_text}: " + ", ".join(details))
+        payment_text = "Test-Kartenzahlung bezahlt" if provider == "test" else "SumUp bezahlt"
+        tx_id = log_transaction(conn, req.person_id, "PAID_SUMUP", float(session["amount_eur"]), f"{payment_text} von {person_name}{reference_text}: " + ", ".join(details))
+        preserve_paid_round_units(conn, person, lines, tx_id)
         for line in lines:
             log_transaction_item(conn, tx_id, req.person_id, line, int(line["quantity"]), "PAID_SUMUP")
         line_ids = [int(line["id"]) for line in lines]
-        placeholders = ",".join("?" for _ in line_ids)
-        conn.execute(
-            f"UPDATE order_lines SET quantity = 0, updated_at = ? WHERE id IN ({placeholders})",
-            [now_text(), *line_ids],
-        )
+        if line_ids:
+            placeholders = ",".join("?" for _ in line_ids)
+            conn.execute(
+                f"UPDATE order_lines SET quantity = 0, updated_at = ? WHERE id IN ({placeholders})",
+                [now_text(), *line_ids],
+            )
         mark_self_payment_session(conn, session_id, "PAID", result=result, transaction_id=tx_id, provider_checkout_id=result.get("provider_checkout_id"))
         paid_session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
         payload = self_payment_status_payload(conn, paid_session)
         payload["paid_items"] = sum(int(line["quantity"] or 0) for line in lines)
         payload["paid_lines"] = len(lines)
+        payload["round_deduction_items"] = int(round_plan.get("deducted_items", 0) or 0)
+        payload["round_deduction_total_eur"] = rounded_money(float(round_plan.get("deducted_vk_eur", 0) or 0))
         sync_state = get_sync_state(conn)
         conn.commit()
 
@@ -3660,10 +4183,16 @@ def pay(req: PayRequest):
             raise HTTPException(status_code=400, detail="Bitte zuerst alle Rundenanfragen mit ✓ oder ✕ abschließen")
 
         lines = get_open_lines(conn, req.person_id)
-        if not lines:
+        round_plan = build_person_round_deduction_plan(conn, req.person_id)
+        if not lines and int(round_plan.get("deducted_items", 0) or 0) <= 0:
             conn.commit()
             raise HTTPException(status_code=400, detail="Keine offenen Posten")
+        total_after_round_deductions = payment_total_after_round_deductions(lines, round_plan)
+        if total_after_round_deductions <= 0:
+            raise HTTPException(status_code=400, detail=no_payable_total_detail())
 
+        apply_person_round_deductions(conn, req.person_id, round_plan, "Beim Bezahlen")
+        lines = get_open_lines(conn, req.person_id)
         total = person_total_from_lines(lines)
         details = []
         for line in lines:
@@ -3672,14 +4201,32 @@ def pay(req: PayRequest):
                 f"à {eur_text(line['unit_price_eur'])} ({line['consumed_date']})"
             )
 
+        if int(round_plan.get("deducted_items", 0) or 0) > 0:
+            details.append(f"Rundenabzug -{int(round_plan['deducted_items'])} Striche ({eur_text(round_plan['deducted_vk_eur'])})")
+        if not details:
+            details.append("durch Rundenabzug ausgeglichen")
+
         person_name = display_name(person["first_name"], person["last_name"]) or person["name"]
         tx_id = log_transaction(conn, req.person_id, "PAID_CASH", total, f"Bar bezahlt von {person_name}: " + ", ".join(details))
+        preserve_paid_round_units(conn, person, lines, tx_id)
         for line in lines:
             log_transaction_item(conn, tx_id, req.person_id, line, int(line["quantity"]), "PAID_CASH")
-        conn.execute("UPDATE order_lines SET quantity = 0, updated_at = ? WHERE person_id = ? AND quantity > 0", (now_text(), req.person_id))
+        line_ids = [int(line["id"]) for line in lines]
+        if line_ids:
+            placeholders = ",".join("?" for _ in line_ids)
+            conn.execute(
+                f"UPDATE order_lines SET quantity = 0, updated_at = ? WHERE id IN ({placeholders})",
+                [now_text(), *line_ids],
+            )
         conn.commit()
 
-    return {"status": "paid", "total": round(total, 2), "pending_handled": len(handled)}
+    return {
+        "status": "paid",
+        "total": round(total, 2),
+        "round_deduction_items": int(round_plan.get("deducted_items", 0) or 0),
+        "round_deduction_total_eur": rounded_money(float(round_plan.get("deducted_vk_eur", 0) or 0)),
+        "pending_handled": len(handled),
+    }
 
 
 @app.post("/api/kassa/pay")
@@ -3691,7 +4238,7 @@ def kassa_pay(req: KassaPayRequest):
         ensure_no_active_self_payment(conn, int(person["id"]))
         lines = get_open_lines(conn, req.person_id)
         pending = get_pending_requests_for_person(conn, req.person_id)
-        current_revision = open_lines_payment_revision(lines, len(pending))
+        current_revision = payment_revision(conn, lines, len(pending))
         current_payload = kassa_person_payload(conn, person, lines)
 
         if current_revision != (req.expected_revision or "").strip():
@@ -3713,22 +4260,35 @@ def kassa_pay(req: KassaPayRequest):
         if not lines:
             raise HTTPException(status_code=400, detail="Keine offenen Posten")
 
+        round_plan = build_person_round_deduction_plan(conn, req.person_id)
+        total_after_round_deductions = payment_total_after_round_deductions(lines, round_plan)
+        if total_after_round_deductions <= 0:
+            raise HTTPException(status_code=400, detail=no_payable_total_detail())
+        apply_person_round_deductions(conn, req.person_id, round_plan, "Beim Kassa-Bezahlen")
+        lines = get_open_lines(conn, req.person_id)
         total = person_total_from_lines(lines)
         grouped_details = make_payment_detail_lines(lines)
         details = [
             f"{int(line['quantity'])}x {line['item']} à {eur_text(line['unit_price_eur'])}"
             for line in grouped_details
         ]
+        if int(round_plan.get("deducted_items", 0) or 0) > 0:
+            details.append(f"Rundenabzug -{int(round_plan['deducted_items'])} Striche ({eur_text(round_plan['deducted_vk_eur'])})")
+        if not details:
+            details.append("durch Rundenabzug ausgeglichen")
+
         person_name = display_name(person["first_name"], person["last_name"]) or person["name"]
         tx_id = log_transaction(conn, req.person_id, "PAID_CASH", total, f"Kassa bezahlt von {person_name}: " + ", ".join(details))
+        preserve_paid_round_units(conn, person, lines, tx_id)
         for line in lines:
             log_transaction_item(conn, tx_id, req.person_id, line, int(line["quantity"]), "PAID_CASH")
         line_ids = [int(line["id"]) for line in lines]
-        placeholders = ",".join("?" for _ in line_ids)
-        conn.execute(
-            f"UPDATE order_lines SET quantity = 0, updated_at = ? WHERE id IN ({placeholders})",
-            [now_text(), *line_ids],
-        )
+        if line_ids:
+            placeholders = ",".join("?" for _ in line_ids)
+            conn.execute(
+                f"UPDATE order_lines SET quantity = 0, updated_at = ? WHERE id IN ({placeholders})",
+                [now_text(), *line_ids],
+            )
         sync_state = get_sync_state(conn)
         conn.commit()
 
@@ -3737,6 +4297,8 @@ def kassa_pay(req: KassaPayRequest):
         "total": round(total, 2),
         "paid_items": sum(int(line["quantity"] or 0) for line in lines),
         "paid_lines": len(lines),
+        "round_deduction_items": int(round_plan.get("deducted_items", 0) or 0),
+        "round_deduction_total_eur": rounded_money(float(round_plan.get("deducted_vk_eur", 0) or 0)),
         **sync_state,
     }
 
@@ -3856,43 +4418,20 @@ def empty_auto_round_plan() -> dict:
 
 
 def build_auto_round_plan(conn: sqlite3.Connection) -> dict:
-    round_rows = conn.execute(
-        """
-        SELECT
-            ol.*,
-            p.name,
-            p.first_name,
-            p.last_name,
-            COALESCE((
-                SELECT SUM(cr.quantity_to_remove)
-                FROM change_requests cr
-                WHERE cr.order_line_id = ol.id AND cr.status = 'PENDING'
-            ), 0) AS pending_remove
-        FROM order_lines ol
-        LEFT JOIN people p ON p.id = ol.person_id
-        LEFT JOIN items i ON i.id = ol.item_id
-        WHERE ol.quantity > 0
-          AND ol.event_open = 1
-          AND (ol.item_name_snapshot = ? OR i.name = ?)
-        ORDER BY ol.consumed_date ASC, ol.created_at ASC, ol.id ASC
-        """,
-        (ROUND_ITEM_NAME, ROUND_ITEM_NAME),
-    ).fetchall()
-    if not round_rows:
+    round_units = current_event_round_units(conn)
+    if not round_units:
         return empty_auto_round_plan()
 
     charge_groups: dict[tuple, dict] = {}
-    round_units = []
-    for row in round_rows:
-        payer_name = display_name(row["first_name"], row["last_name"]) or row["name"] or "Unbekannt"
-        qty = max(0, int(row["quantity"]) - int(row["pending_remove"] or 0))
-        if qty <= 0:
+    for round_unit in round_units:
+        if bool(round_unit.get("already_paid")):
             continue
-        price = round(float(row["unit_price_eur"]), 2)
-        key = (row["person_id"], payer_name, price)
+        payer_name = round_unit["payer_name"]
+        price = rounded_money(float(round_unit["round_price_eur"] or 0))
+        key = (round_unit["payer_person_id"], payer_name, price)
         if key not in charge_groups:
             charge_groups[key] = {
-                "person_id": row["person_id"],
+                "person_id": round_unit["payer_person_id"],
                 "name": payer_name,
                 "item": ROUND_ITEM_NAME,
                 "short_label": ROUND_ITEM_SHORT,
@@ -3900,19 +4439,8 @@ def build_auto_round_plan(conn: sqlite3.Connection) -> dict:
                 "unit_price_eur": price,
                 "subtotal_eur": 0.0,
             }
-        charge_groups[key]["quantity"] += qty
+        charge_groups[key]["quantity"] += 1
         charge_groups[key]["subtotal_eur"] = round(charge_groups[key]["quantity"] * price, 2)
-        for _ in range(qty):
-            round_units.append(
-                {
-                    "round_index": len(round_units) + 1,
-                    "payer_person_id": row["person_id"],
-                    "payer_name": payer_name,
-                    "round_price_eur": price,
-                    "order_line_id": row["id"],
-                    "deductions": [],
-                }
-            )
 
     drink_rows = conn.execute(
         """
@@ -4014,6 +4542,7 @@ def build_auto_round_plan(conn: sqlite3.Connection) -> dict:
 def apply_auto_round_deductions(conn: sqlite3.Connection, plan: dict):
     if int(plan.get("rounds_count", 0) or 0) <= 0:
         return
+    validate_round_deductions_are_current(conn, list(plan.get("deductions") or []))
     for round_unit in plan.get("rounds", []):
         deductions = round_unit.get("deductions", [])
         if not deductions:
@@ -4063,6 +4592,17 @@ def apply_auto_round_deductions(conn: sqlite3.Connection, plan: dict):
                 round(float(round_unit["round_price_eur"]) - deducted_vk, 2),
                 f"Automatisch bei Kassensturz; bezahlt von {round_unit['payer_name']}: {details_main}",
             ),
+        )
+    paid_unit_ids = [
+        int(round_unit["paid_round_unit_id"])
+        for round_unit in plan.get("rounds", [])
+        if round_unit.get("paid_round_unit_id")
+    ]
+    if paid_unit_ids:
+        placeholders = ",".join("?" for _ in paid_unit_ids)
+        conn.execute(
+            f"UPDATE paid_round_units SET event_open = 0, closed_at = ? WHERE id IN ({placeholders})",
+            [now_text(), *paid_unit_ids],
         )
 
 
@@ -4130,7 +4670,7 @@ def admin_cashup(req: CashupRequest):
         ensure_no_active_self_payments(conn)
         data = calculate_cashup_preview(conn)
         auto_rounds = data.get("auto_rounds", {})
-        if data["gross_lines"]:
+        if data["gross_lines"] or int(auto_rounds.get("rounds_count", 0) or 0) > 0:
             apply_auto_round_deductions(conn, auto_rounds)
         if data["closed_lines"]:
             log_transaction(
@@ -5411,7 +5951,8 @@ def admin_statistics(req: StatisticsRequest):
             statistics_timestamp_where("round_events", period)[1],
         ).fetchall()
         for row in round_rows:
-            rounds["count"] += 1
+            if float(row["round_price_eur"] or 0) > 0:
+                rounds["count"] += 1
             rounds["round_price_eur"] += float(row["round_price_eur"] or 0)
             rounds["deducted_vk_eur"] += float(row["deducted_vk_eur"] or 0)
             rounds["deducted_purchase_eur"] += float(row["deducted_purchase_eur"] or 0)

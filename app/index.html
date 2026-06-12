@@ -146,6 +146,7 @@
     .line-actions { display:flex; gap:6px; justify-content:flex-end; flex-wrap:wrap; }
     .danger { background:var(--red-bg); color:var(--red); }
     .pay-btn { background:var(--green); font-weight:850; }
+    .payment-choice-row .pay-btn { min-height:50px; margin-top:0; }
     .card-pay-panel { background:linear-gradient(180deg,#f0fdf4,#ffffff); border-color:#bbf7d0; }
     .card-pay-panel h3 { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:7px; }
     .card-pay-btn { width:100%; margin-top:10px; min-height:50px; background:linear-gradient(180deg,#86efac,#4ade80); color:#052e16; font-weight:950; border:1px solid #22c55e; }
@@ -283,8 +284,9 @@
         <div class="card-pay-status" id="cardPayStatus"></div>
       </div>
 
-      <div class="bottom-row" id="payRow" style="display:none">
-        <button id="payButton" class="pay-btn" style="display:none" onclick="payCurrentPerson()">💰 Bar bezahlt</button>
+      <div class="bottom-row payment-choice-row" id="payRow" style="display:none">
+        <button id="payButton" class="pay-btn" style="display:none" onclick="payCurrentPerson()">Barzahlung</button>
+        <button id="adminCardPayButton" class="pay-btn" style="display:none" onclick="requestCardPayment()">Kartenzahlung</button>
       </div>
     </div>
   </dialog>
@@ -360,6 +362,7 @@
     let selfPaymentEnabled = false;
     let selfPaymentAvailable = false;
     let sumupConfigured = false;
+    let testPaymentMode = false;
     let selfPaymentBusy = false;
     let selfPaymentTimer = null;
     let activeSelfPayment = null;
@@ -401,7 +404,11 @@
     function decimalText(value, digits = 2) { return numberComma(value, digits, digits); }
     function centsFromEur(value) { return Math.max(0, Math.round(Number(value || 0) * 100)); }
     function eurFromCents(cents) { return Number(cents || 0) / 100; }
+    function paymentDueForPerson(person) {
+      return Number(person?.payable_total_eur ?? person?.payable_total ?? person?.total_eur ?? person?.total ?? 0);
+    }
     function cardPaymentFeeCents(baseCents) {
+      if (Number(baseCents || 0) <= 0) return 0;
       return Math.max(CARD_PAYMENT_MIN_FEE_CENTS, Math.ceil(Number(baseCents || 0) * CARD_PAYMENT_FEE_RATE_PERCENT / 100));
     }
     function cardPaymentBreakdown(baseTotal, roundingMode = 'none') {
@@ -869,6 +876,7 @@
       selfPaymentEnabled = cfg.self_payment_enabled === true;
       sumupConfigured = cfg.sumup_configured === true;
       selfPaymentAvailable = cfg.self_payment_available === true;
+      testPaymentMode = cfg.test_payment_mode === true;
       syncDrinkFeedbackSlots();
       showPersonPopupTotal = cfg.show_person_popup_total !== false;
       appBackgroundColor = cfg.app_background_color || '#f3f4f6';
@@ -1749,16 +1757,19 @@
       const hint = document.getElementById('cardPayHint');
       const status = document.getElementById('cardPayStatus');
       if (!panel || !button || !hint || !status) return;
-      const total = Number(currentPerson?.total || 0);
+      updatePaymentChoiceButtons();
+      const total = paymentDueForPerson(currentPerson);
       const pendingCount = (currentPerson?.pending_requests || []).length;
       const showPanel = !adminMode && selfPaymentEnabled && total > 0;
       panel.style.display = showPanel ? 'block' : 'none';
       if (!showPanel) return;
 
-      let message = 'Zahlung am SumUp Solo starten. Bitte Rechnung vorher prüfen.';
+      let message = testPaymentMode
+        ? 'Test-Kartenzahlung starten. Bitte Rechnung vorher prüfen.'
+        : 'Zahlung am SumUp Solo starten. Bitte Rechnung vorher prüfen.';
       let warning = false;
       if (!sumupConfigured) {
-        message = 'SumUp ist noch nicht vollständig konfiguriert. API Key, Merchant Code und Reader ID prüfen.';
+        message = `${cardProviderUnavailableLabel()}. API Key, Merchant Code und Reader ID prüfen.`;
         warning = true;
       } else if (!selfPaymentAvailable) {
         message = 'Kartenzahlung ist aktuell nicht verfügbar.';
@@ -1769,10 +1780,31 @@
       }
 
       hint.textContent = message;
-      status.textContent = selfPaymentBusy ? 'Terminalvorgang läuft. Bitte keine zweite Zahlung starten.' : '';
+      status.textContent = selfPaymentBusy ? `${cardProviderLabel()} laeuft. Bitte keine zweite Zahlung starten.` : '';
       status.classList.toggle('warning', warning);
       button.disabled = selfPaymentBusy || !selfPaymentAvailable || pendingCount > 0;
-      button.textContent = selfPaymentBusy ? 'SumUp wartet...' : 'Kartenzahlung starten';
+      button.textContent = selfPaymentBusy ? `${cardProviderLabel()} laeuft...` : 'Kartenzahlung starten';
+    }
+
+    function updatePaymentChoiceButtons() {
+      const row = document.getElementById('payRow');
+      const cashButton = document.getElementById('payButton');
+      const cardButton = document.getElementById('adminCardPayButton');
+      const total = paymentDueForPerson(currentPerson);
+      const pendingCount = (currentPerson?.pending_requests || []).length;
+      const showAdminPayments = Boolean(adminMode && currentPerson);
+      if (row) row.style.display = showAdminPayments ? 'flex' : 'none';
+      if (cashButton) {
+        cashButton.style.display = showAdminPayments ? 'block' : 'none';
+        cashButton.textContent = 'Barzahlung';
+        cashButton.disabled = !showAdminPayments || total <= 0 || pendingCount > 0;
+      }
+      if (cardButton) {
+        cardButton.style.display = showAdminPayments ? 'block' : 'none';
+        cardButton.textContent = selfPaymentBusy ? `${cardProviderLabel()} laeuft...` : 'Kartenzahlung';
+        cardButton.disabled = !showAdminPayments || selfPaymentBusy || !selfPaymentAvailable || total <= 0 || pendingCount > 0;
+        cardButton.title = selfPaymentAvailable ? '' : `${cardProviderUnavailableLabel()}.`;
+      }
     }
 
     async function ackMemberMessage(messageId) {
@@ -1804,10 +1836,9 @@
       if (!currentPerson) return;
       document.getElementById('dialogName').textContent = currentPerson.name;
       const dialogTotal = document.getElementById('dialogTotal');
-      dialogTotal.textContent = `Offen: ${money(currentPerson.total)}`;
+      dialogTotal.textContent = `Offen: ${money(paymentDueForPerson(currentPerson))}`;
       dialogTotal.style.display = showPersonPopupTotal ? 'block' : 'none';
-      document.getElementById('payButton').style.display = adminMode ? 'block' : 'none';
-      document.getElementById('payRow').style.display = adminMode ? 'flex' : 'none';
+      updatePaymentChoiceButtons();
       document.getElementById('billPanel').style.display = adminMode ? 'block' : 'none';
       document.getElementById('roundRequestPanel').style.display = adminMode ? 'none' : 'block';
       document.getElementById('userEditPanel').style.display = (!adminMode && enableDeleteRequests) ? 'block' : 'none';
@@ -1820,6 +1851,14 @@
       renderAdminAdjustments();
       renderDrinkButtons();
       renderCardPaymentPanel();
+    }
+
+    function cardProviderLabel() {
+      return testPaymentMode ? 'Test-Kartenzahlung' : 'SumUp';
+    }
+
+    function cardProviderUnavailableLabel() {
+      return testPaymentMode ? 'Testzahlung nicht bereit' : 'SumUp nicht bereit';
     }
 
     function renderBill() {
@@ -2204,9 +2243,10 @@
     function setCardPaymentVisualStatus(state = 'idle', message = '') {
       const box = document.getElementById('cardPaymentVisualStatus');
       if (!box) return;
+      const provider = cardProviderLabel();
       const visual = {
-        idle: { icon: '💳', title: 'Karte bereithalten', text: 'Nach dem Start den Betrag am Kartenterminal prüfen und Karte oder Smartphone vorhalten.' },
-        waiting: { icon: '⌛', title: 'Auf SumUp warten', text: 'Bitte den Anweisungen auf dem Kartenterminal folgen.' },
+        idle: { icon: '💳', title: 'Karte bereithalten', text: testPaymentMode ? 'Testmodus: Der Checkout wird lokal simuliert.' : 'Nach dem Start den Betrag am Kartenterminal prüfen und Karte oder Smartphone vorhalten.' },
+        waiting: { icon: '⌛', title: `Auf ${provider} warten`, text: testPaymentMode ? 'Test-Checkout laeuft. Bitte warten.' : 'Bitte den Anweisungen auf dem Kartenterminal folgen.' },
         paid: { icon: '✓', title: 'Zahlung erfolgreich', text: 'Zahlung erfolgreich, Danke!' },
         failed: { icon: '✕', title: 'Zahlung abgelehnt', text: 'Die offenen Posten bleiben unbezahlt.' },
         timeout: { icon: '⌛', title: 'Timeout', text: 'Es wurde zu lange gewartet. Die offenen Posten bleiben unbezahlt.' },
@@ -2287,8 +2327,8 @@
       if (status === 'created' || status === 'sent_to_reader' || status === 'pending') {
         selfPaymentBusy = true;
         renderCardPaymentPanel();
-        setCardPaymentVisualStatus('waiting', 'Auf SumUp warten');
-        if (!options.quiet) showStatus(data.message || 'SumUp-Zahlung läuft...');
+        setCardPaymentVisualStatus('waiting', `Auf ${cardProviderLabel()} warten`);
+        if (!options.quiet) showStatus(data.message || `${cardProviderLabel()} läuft...`);
         return false;
       }
 
@@ -2308,15 +2348,15 @@
       if (status === 'failed' || status === 'cancelled') {
         clearActiveSelfPayment(clientPaymentId);
         setCardPaymentVisualStatus('failed', data.message || 'Zahlung abgelehnt oder abgebrochen.');
-        showStatus(data.message || 'SumUp-Zahlung nicht abgeschlossen');
+        showStatus(data.message || `${cardProviderLabel()} nicht abgeschlossen`);
         await loadPeople(true);
         return true;
       }
 
       if (status === 'timeout' || status === 'unknown' || status === 'expired') {
         clearActiveSelfPayment(clientPaymentId);
-        setCardPaymentVisualStatus(status === 'timeout' || status === 'expired' ? 'timeout' : 'unknown', data.message || 'SumUp-Status unklar.');
-        showStatus(data.message || 'SumUp-Status unklar. Offene Posten bleiben bestehen.');
+        setCardPaymentVisualStatus(status === 'timeout' || status === 'expired' ? 'timeout' : 'unknown', data.message || `${cardProviderLabel()}-Status unklar.`);
+        showStatus(data.message || `${cardProviderLabel()}-Status unklar. Offene Posten bleiben bestehen.`);
         await loadPeople(true);
         return true;
       }
@@ -2343,7 +2383,7 @@
             showStatus('Zahlungsvorgang nicht gefunden');
             return;
           }
-          setCardPaymentVisualStatus('waiting', 'Verbindung unterbrochen. Auf SumUp warten.');
+          setCardPaymentVisualStatus('waiting', `Verbindung unterbrochen. Auf ${cardProviderLabel()} warten.`);
           showStatus('Verbindung unterbrochen. Zahlung wird weiter geprüft...');
           selfPaymentTimer = setTimeout(() => pollSelfPaymentStatus(clientPaymentId, attempt + 1), 3600);
         }
@@ -2364,7 +2404,7 @@
       selfPaymentBusy = true;
       renderCardPaymentPanel();
       setCardPaymentVisualStatus('waiting', 'Verbindungsaufbau (kann bis zu 30 Sekunden dauern)');
-      showStatus('SumUp-Zahlung startet...');
+      showStatus(`${cardProviderLabel()} startet...`);
       let keepBusy = false;
       try {
         const data = await apiPost('/api/self-pay/pay', {
@@ -2392,7 +2432,7 @@
           showStatus(err.message || 'Rechnung hat sich geändert');
         } else if (!err.status) {
           keepBusy = true;
-          setCardPaymentVisualStatus('waiting', 'Verbindung unterbrochen. Auf SumUp warten.');
+          setCardPaymentVisualStatus('waiting', `Verbindung unterbrochen. Auf ${cardProviderLabel()} warten.`);
           showStatus('Verbindung unterbrochen. Zahlung wird geprüft...');
           pollSelfPaymentStatus(clientPaymentId);
         } else {
@@ -2408,13 +2448,17 @@
 
     async function requestCardPayment() {
       if (!currentPerson) return;
-      if (!selfPaymentAvailable) { showStatus('Kartenzahlung ist noch nicht vollständig konfiguriert.'); return; }
-      if (Number(currentPerson.total || 0) <= 0) { showStatus(`${currentPerson.name} hat keine offenen Posten.`); return; }
+      if (!selfPaymentAvailable) { showStatus(`${cardProviderUnavailableLabel()}.`); return; }
+      if (paymentDueForPerson(currentPerson) <= 0) { showStatus('Keine Zahlung noetig; offene Posten werden durch Rundenabzug ausgeglichen.'); return; }
       if ((currentPerson.pending_requests || []).length > 0) { showStatus('Bitte zuerst alle offenen Anfragen entscheiden lassen.'); return; }
       try {
         const detail = await apiGet(`/api/self-pay/person/${currentPerson.id}`);
         currentPerson = {...currentPerson, ...detail, total: Number(detail.total_eur ?? detail.total ?? currentPerson.total)};
         updateDialogInfo();
+        if (!detail.can_self_pay || paymentDueForPerson(detail) <= 0) {
+          showStatus('Keine Zahlung noetig; offene Posten werden durch Rundenabzug ausgeglichen.');
+          return;
+        }
         cardPaymentPreviewDetail = detail;
         cardPaymentSelectedRoundingMode = null;
         const body = `
@@ -2465,16 +2509,17 @@
 
     async function payCurrentPerson() {
       if (!currentPerson || !adminMode || !adminPin) return;
-      if (currentPerson.total <= 0) { showStatus(`${currentPerson.name} hat keine offenen Posten.`); return; }
+      const payableTotal = paymentDueForPerson(currentPerson);
+      if (payableTotal <= 0) { showStatus('Keine Zahlung noetig; offene Posten werden durch Rundenabzug ausgeglichen.'); return; }
       if ((currentPerson.pending_requests || []).length > 0) { showStatus('Bitte zuerst alle Anfragen mit ✓ oder ✕ abschließen.'); return; }
       const body = `
         <div class="muted">Barzahlung für <strong>${escapeHtml(currentPerson.name)}</strong></div>
         ${lineTableHtml(currentPerson.lines || [])}
-        <div class="action-total"><span>Gesamtbetrag</span><span>${money(currentPerson.total)}</span></div>
+        <div class="action-total"><span>Gesamtbetrag</span><span>${money(payableTotal)}</span></div>
       `;
-      openActionDialog('Bar bezahlen', body, 'Bar bezahlt', 'pay-btn', async () => {
+      openActionDialog('Barzahlung', body, 'Barzahlung buchen', 'pay-btn', async () => {
         const data = await apiPost('/api/pay', { person_id: currentPerson.id, pin: adminPin });
-        showStatus(`Bar bezahlt: ${money(data.total)}`);
+        showStatus(`Barzahlung gebucht: ${money(data.total)}`);
         closeDialog();
       });
     }

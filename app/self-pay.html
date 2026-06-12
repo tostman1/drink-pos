@@ -419,6 +419,7 @@
       people: [],
       selected: null,
       busy: false,
+      testPaymentMode: false,
       listTimer: null,
       paymentTimer: null,
       activePayment: null,
@@ -439,6 +440,20 @@
       box.classList.add('show');
       clearTimeout(showStatus.timer);
       showStatus.timer = setTimeout(() => box.classList.remove('show'), duration);
+    }
+
+    function paymentProviderLabel() {
+      return state.testPaymentMode ? 'Test-Kartenzahlung' : 'SumUp';
+    }
+
+    function paymentActionLabel() {
+      return state.testPaymentMode ? 'Testzahlung starten' : 'Mit SumUp zahlen';
+    }
+
+    function paymentWaitText() {
+      return state.testPaymentMode
+        ? 'Testmodus: Die Kartenzahlung wird simuliert. Diese Seite offen lassen, bis die Zahlung bestaetigt ist.'
+        : 'Karte oder Smartphone am SumUp Solo verwenden. Diese Seite offen lassen, bis die Zahlung bestaetigt ist.';
     }
 
     function createClientPaymentId(person) {
@@ -517,7 +532,7 @@
       const status = String(data.status || '').toLowerCase();
       if (paymentIsRunning(status)) {
         setTerminalBusy(true);
-        if (!options.quiet) showStatus(data.message || 'SumUp-Zahlung laeuft...', 3200);
+        if (!options.quiet) showStatus(data.message || `${paymentProviderLabel()} laeuft...`, 3200);
         return false;
       }
 
@@ -536,13 +551,13 @@
 
       if (status === 'failed' || status === 'cancelled') {
         clearActivePayment(clientPaymentId);
-        showStatus(data.message || 'SumUp-Zahlung wurde nicht abgeschlossen', 4200);
+        showStatus(data.message || `${paymentProviderLabel()} wurde nicht abgeschlossen`, 4200);
         return true;
       }
 
       if (status === 'timeout' || status === 'unknown' || status === 'expired') {
         clearActivePayment(clientPaymentId);
-        showStatus(data.message || 'SumUp-Status unklar. Offene Posten wurden nicht verbucht.', 5600);
+        showStatus(data.message || `${paymentProviderLabel()}-Status unklar. Offene Posten wurden nicht verbucht.`, 5600);
         return true;
       }
 
@@ -605,10 +620,11 @@
     async function loadConfig() {
       const cfg = await apiGet('/api/self-pay/config');
       state.config = cfg;
+      state.testPaymentMode = cfg.test_payment_mode === true;
       const available = Boolean(cfg.self_payment_available);
       if (!available) {
         const reason = !cfg.self_payment_enabled
-          ? 'Self-Checkout ist deaktiviert. PAYMENT_PROVIDER=sumup setzen.'
+          ? 'Self-Checkout ist deaktiviert. PAYMENT_PROVIDER=sumup setzen; im Testmodus PAYMENT_PROVIDER=test.'
           : 'SumUp ist noch nicht vollstaendig konfiguriert.';
         el('setupText').textContent = reason;
         setMode('setup');
@@ -709,7 +725,7 @@
         </div>
       `).join('') : '<div class="empty">Keine offenen Posten.</div>';
       el('payButton').disabled = state.busy || !person.can_self_pay || !lines.length;
-      el('payButton').textContent = 'Mit SumUp zahlen';
+      el('payButton').textContent = paymentActionLabel();
     }
 
     function closeDetail() {
@@ -725,12 +741,16 @@
       el('confirmPayButton').disabled = busy;
       el('confirmCancelButton').disabled = busy;
       el('terminalWait').classList.toggle('hidden', !busy);
+      const waitTitle = el('terminalWait').querySelector('strong');
+      if (waitTitle) {
+        waitTitle.textContent = state.testPaymentMode ? 'Testzahlung laeuft' : 'SumUp Solo wartet';
+      }
       const waitText = el('terminalWait').querySelector('p');
       if (waitText) {
-        waitText.textContent = 'Karte oder Smartphone am SumUp Solo verwenden. Diese Seite offen lassen, bis die Zahlung bestaetigt ist.';
+        waitText.textContent = paymentWaitText();
       }
-      el('payButton').textContent = busy ? 'SumUp Solo wartet...' : 'Mit SumUp zahlen';
-      el('confirmPayButton').textContent = busy ? 'Warten...' : 'Mit SumUp zahlen';
+      el('payButton').textContent = busy ? `${paymentProviderLabel()} laeuft...` : paymentActionLabel();
+      el('confirmPayButton').textContent = busy ? 'Warten...' : paymentActionLabel();
     }
 
     async function paySelected() {
@@ -790,7 +810,7 @@
       const person = state.selected;
       if (!person || state.busy || !person.can_self_pay) return;
       el('confirmTitle').textContent = `${person.name} bezahlen?`;
-      el('confirmText').textContent = `${Number(person.open_items || 0)} offene Striche. Danach Karte oder Smartphone am SumUp Solo verwenden.`;
+      el('confirmText').textContent = `${Number(person.open_items || 0)} offene Striche. Danach ${state.testPaymentMode ? 'wird die Kartenzahlung simuliert' : 'Karte oder Smartphone am SumUp Solo verwenden'}.`;
       el('confirmTotal').textContent = money(person.total_eur ?? person.total);
       el('terminalWait').classList.add('hidden');
       const dialog = el('payConfirmDialog');

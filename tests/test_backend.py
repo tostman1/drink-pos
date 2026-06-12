@@ -37,6 +37,7 @@ class BackendFlowTests(unittest.TestCase):
                 "SUMUP_AFFILIATE_APP_ID",
                 "SUMUP_CURRENCY",
                 "SUMUP_TIMEOUT_SECONDS",
+                "DRINK_POS_ALLOW_TEST_CARD_PAYMENTS",
             ]
         }
         os.environ["DRINK_POS_ENV"] = "development"
@@ -127,6 +128,16 @@ class BackendFlowTests(unittest.TestCase):
         os.environ["SUMUP_AFFILIATE_APP_ID"] = "drink-pos-test"
         os.environ["SUMUP_CURRENCY"] = "EUR"
         os.environ["SUMUP_TIMEOUT_SECONDS"] = "30"
+
+    def configure_test_card_payments(self):
+        self.main.APP_ENV = "test"
+        os.environ.pop("PAYMENT_PROVIDER", None)
+        for key in [
+            "SUMUP_API_KEY",
+            "SUMUP_MERCHANT_CODE",
+            "SUMUP_READER_ID",
+        ]:
+            os.environ.pop(key, None)
 
     def paid_sumup_result(self, amount_cents, provider_checkout_id="sumup-checkout-1"):
         return {
@@ -233,6 +244,57 @@ class BackendFlowTests(unittest.TestCase):
         self.assertEqual(history["history"][-1]["type"], "PAID_SUMUP")
         self.assertEqual(history["history"][-1]["type_label"], "SumUp-Zahlung")
 
+    def test_test_environment_card_payment_uses_local_mock_without_sumup(self):
+        self.configure_test_card_payments()
+        person, item = self.first_person_and_item()
+        self.main.add_drink(self.main.AddDrinkRequest(person_id=person["id"], item_id=item["id"]))
+
+        config = self.main.self_pay_config()
+        self.assertTrue(config["self_payment_available"])
+        self.assertTrue(config["test_payment_mode"])
+        self.assertEqual(config["payment_provider"], "test")
+        self.assertFalse(config["sumup_missing"])
+
+        preview = self.main.self_pay_person(person["id"])
+        paid = self.main.self_pay(
+            self.main.SelfPayRequest(
+                person_id=person["id"],
+                expected_revision=preview["revision"],
+                client_payment_id="selfpay-test-mode-1",
+            )
+        )
+
+        self.assertEqual(paid["status"], "paid")
+        self.assertEqual(paid["payment_method"], "TEST_CARD")
+        self.assertTrue(paid["test_payment_mode"])
+        self.assertTrue(str(paid["provider_checkout_id"]).startswith("test-card-checkout-"))
+        self.assertEqual(paid["currency"], "EUR")
+        self.assertFalse(self.main.kassa_person(person["id"])["lines"])
+        with self.main.get_conn() as conn:
+            session = conn.execute("SELECT provider FROM self_payment_sessions WHERE client_payment_id = ?", ("selfpay-test-mode-1",)).fetchone()
+            self.assertEqual(session["provider"], "test")
+
+    def test_production_does_not_enable_test_card_provider(self):
+        self.main.APP_ENV = "production"
+        os.environ["PAYMENT_PROVIDER"] = "test"
+
+        config = self.main.self_pay_config()
+
+        self.assertFalse(config["self_payment_available"])
+        self.assertFalse(config["test_payment_mode"])
+        self.assertIn("PAYMENT_PROVIDER=sumup", config["sumup_missing"])
+
+    def test_production_can_explicitly_enable_test_card_provider(self):
+        self.main.APP_ENV = "production"
+        os.environ["PAYMENT_PROVIDER"] = "test"
+        os.environ["DRINK_POS_ALLOW_TEST_CARD_PAYMENTS"] = "1"
+
+        config = self.main.self_pay_config()
+
+        self.assertTrue(config["self_payment_available"])
+        self.assertTrue(config["test_payment_mode"])
+        self.assertEqual(config["payment_provider"], "test")
+
     def test_self_payment_adds_card_fee_and_rounding_to_sumup_amount(self):
         self.configure_sumup()
         person, item = self.first_person_and_item()
@@ -332,6 +394,9 @@ class BackendFlowTests(unittest.TestCase):
         list_page = self.main.home()
         list_html = Path(list_page.path).read_text(encoding="utf-8")
         self.assertIn("cardPayPanel", list_html)
+        self.assertIn("adminCardPayButton", list_html)
+        self.assertIn("Barzahlung", list_html)
+        self.assertIn("Kartenzahlung", list_html)
         self.assertIn("cardRoundingOptions", list_html)
         self.assertIn("Kartenzahlungsgebühr +3 % (min. 0,20 €)", list_html)
         self.assertIn("Mit Karte zahlen", list_html)
@@ -451,6 +516,153 @@ class BackendFlowTests(unittest.TestCase):
 
         cashup = self.main.admin_cashup(self.main.CashupRequest(pin=PIN))
         self.assertEqual(cashup["status"], "ok")
+
+    def test_kassa_payment_before_cashup_applies_round_deduction_once(self):
+        people = self.main.list_people()
+        config = self.main.config()
+        item = next(item for item in config["user_items"] if item["name"] != "1 Runde")
+        other = people[0]
+        payer = people[1]
+        with self.main.get_conn() as conn:
+            round_price = float(self.main.get_setting(conn, "round_item_price_eur", self.main.DEFAULT_ROUND_PRICE_EUR))
+
+        self.main.add_drink(self.main.AddDrinkRequest(person_id=other["id"], item_id=item["id"]))
+        self.main.add_drink(self.main.AddDrinkRequest(person_id=payer["id"], item_id=item["id"]))
+        self.main.create_round_request(self.main.RoundRequestIn(person_id=payer["id"], quantity=1))
+
+        payer_preview = self.main.kassa_person(payer["id"])
+        self.assertEqual(payer_preview["round_deduction_items"], 1)
+        self.assertEqual(payer_preview["total"], round_price)
+
+        paid = self.main.kassa_pay(
+            self.main.KassaPayRequest(
+                pin=PIN,
+                person_id=payer["id"],
+                expected_revision=payer_preview["revision"],
+            )
+        )
+        self.assertEqual(paid["status"], "paid")
+        self.assertEqual(paid["round_deduction_items"], 1)
+        self.assertEqual(paid["total"], round_price)
+
+        cashup_preview = self.main.admin_cashup_preview(self.main.CashupRequest(pin=PIN))
+        self.assertEqual(cashup_preview["auto_rounds"]["rounds_count"], 1)
+        deducted_people = {item["person_id"] for item in cashup_preview["auto_rounds"]["deductions"]}
+        self.assertIn(other["id"], deducted_people)
+        self.assertNotIn(payer["id"], deducted_people)
+
+        cashup = self.main.admin_cashup(self.main.CashupRequest(pin=PIN))
+        self.assertEqual(cashup["status"], "ok")
+        self.assertFalse(self.main.kassa_person(other["id"])["lines"])
+
+    def test_payments_are_blocked_when_round_deductions_clear_balance(self):
+        self.configure_test_card_payments()
+        people = self.main.list_people()
+        config = self.main.config()
+        item = next(item for item in config["user_items"] if item["name"] != "1 Runde")
+        round_payer = people[0]
+        person = people[1]
+
+        self.main.add_drink(self.main.AddDrinkRequest(person_id=person["id"], item_id=item["id"]))
+        self.main.add_drink(self.main.AddDrinkRequest(person_id=person["id"], item_id=item["id"]))
+        self.main.create_round_request(self.main.RoundRequestIn(person_id=round_payer["id"], quantity=2))
+
+        preview = self.main.kassa_person(person["id"])
+        self.assertEqual(preview["round_deduction_items"], 2)
+        self.assertEqual(preview["total"], 0.0)
+        self.assertFalse(preview["can_pay"])
+
+        self_pay_preview = self.main.self_pay_person(person["id"])
+        self.assertFalse(self_pay_preview["can_self_pay"])
+        with self.assertRaises(HTTPException) as card_ctx:
+            self.main.self_pay(
+                self.main.SelfPayRequest(
+                    person_id=person["id"],
+                    expected_revision=self_pay_preview["revision"],
+                    client_payment_id="round-cleared-card-payment",
+                )
+            )
+        self.assertEqual(card_ctx.exception.status_code, 400)
+        with self.main.get_conn() as conn:
+            sessions = conn.execute(
+                "SELECT COUNT(*) AS c FROM self_payment_sessions WHERE client_payment_id = ?",
+                ("round-cleared-card-payment",),
+            ).fetchone()["c"]
+        self.assertEqual(sessions, 0)
+
+        with self.assertRaises(HTTPException) as kassa_ctx:
+            self.main.kassa_pay(
+                self.main.KassaPayRequest(
+                    pin=PIN,
+                    person_id=person["id"],
+                    expected_revision=preview["revision"],
+                )
+            )
+        self.assertEqual(kassa_ctx.exception.status_code, 400)
+
+        with self.assertRaises(HTTPException) as cash_ctx:
+            self.main.pay(self.main.PayRequest(pin=PIN, person_id=person["id"]))
+        self.assertEqual(cash_ctx.exception.status_code, 400)
+
+    def test_round_deductions_are_visible_and_sorted_by_cheapest_item(self):
+        person, _ = self.first_person_and_item()
+        self.main.admin_create_drink(
+            self.main.AdminItemCreate(pin=PIN, name="Test teuer", short_label="T", price="5.00", purchase_price="0.50")
+        )
+        self.main.admin_create_drink(
+            self.main.AdminItemCreate(pin=PIN, name="Test billig", short_label="B", price="1.00", purchase_price="0.20")
+        )
+        config = self.main.config()
+        cheap = next(item for item in config["items"] if item["name"] == "Test billig")
+        expensive = next(item for item in config["items"] if item["name"] == "Test teuer")
+
+        self.main.add_drink(self.main.AddDrinkRequest(person_id=person["id"], item_id=expensive["id"]))
+        self.main.add_drink(self.main.AddDrinkRequest(person_id=person["id"], item_id=cheap["id"]))
+        self.main.create_round_request(self.main.RoundRequestIn(person_id=person["id"], quantity=2))
+
+        preview = self.main.kassa_person(person["id"])
+        deductions = [line for line in preview["lines"] if line.get("is_round_deduction")]
+
+        self.assertEqual([line["unit_price_eur"] for line in deductions], [1.0, 5.0])
+        self.assertEqual([line["quantity"] for line in deductions], [-1, -1])
+        self.assertTrue(all(str(line["item"]).startswith("Rundenabzug:") for line in deductions))
+
+    def test_stale_round_deduction_plan_cannot_remove_twice(self):
+        person, item = self.first_person_and_item()
+        self.main.add_drink(self.main.AddDrinkRequest(person_id=person["id"], item_id=item["id"]))
+        self.main.create_round_request(self.main.RoundRequestIn(person_id=person["id"], quantity=1))
+
+        with self.main.get_conn() as conn:
+            plan = self.main.build_person_round_deduction_plan(conn, person["id"])
+            self.assertEqual(plan["deducted_items"], 1)
+            self.main.apply_person_round_deductions(conn, person["id"], plan, "Test")
+            with self.assertRaises(HTTPException) as ctx:
+                self.main.apply_person_round_deductions(conn, person["id"], plan, "Test")
+            self.assertEqual(ctx.exception.status_code, 409)
+
+    def test_manual_sumup_cancel_unlocks_person(self):
+        person, item = self.first_person_and_item()
+        self.main.add_drink(self.main.AddDrinkRequest(person_id=person["id"], item_id=item["id"]))
+        payment_id = "manual-cancel-1"
+
+        with self.main.get_conn() as conn:
+            conn.execute(
+                """
+                INSERT INTO self_payment_sessions (
+                    person_id, client_payment_id, status,
+                    base_amount_cents, card_fee_cents, rounding_mode, rounding_adjustment_cents,
+                    amount_eur, amount_cents, currency, provider, revision, created_at, updated_at
+                ) VALUES (?, ?, 'SENT_TO_READER', 250, 20, 'none', 0, 2.70, 270, 'EUR', 'sumup', ?, ?, ?)
+                """,
+                (person["id"], payment_id, "test-revision", self.main.now_text(), self.main.now_text()),
+            )
+            conn.commit()
+
+        cancelled = self.main.self_pay_cancel_payment(payment_id)
+        self.assertEqual(cancelled["status"], "cancelled")
+
+        added = self.main.add_drink(self.main.AddDrinkRequest(person_id=person["id"], item_id=item["id"]))
+        self.assertEqual(added["status"], "ok")
 
     def test_kassa_person_history_shows_consumption_and_round_deductions_without_prices(self):
         people = self.main.list_people()
