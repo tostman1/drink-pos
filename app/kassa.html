@@ -687,6 +687,7 @@
       sumupMissing: [],
       testPaymentMode: false,
     };
+    let messageCatalog = {};
 
     const el = id => document.getElementById(id);
     const money = value => new Intl.NumberFormat('de-AT', { style:'currency', currency:'EUR' }).format(Number(value || 0));
@@ -703,9 +704,23 @@
 
     function centsFromEur(value) { return Math.max(0, Math.round(Number(value || 0) * 100)); }
     function eurFromCents(cents) { return Number(cents || 0) / 100; }
-    function cardProviderLabel() { return state.testPaymentMode ? 'Test-Kartenzahlung' : 'SumUp'; }
-    function cardProviderReadyLabel() { return state.testPaymentMode ? 'Testzahlung bereit' : 'SumUp bereit'; }
-    function cardProviderUnavailableLabel() { return state.testPaymentMode ? 'Testzahlung nicht bereit' : 'SumUp nicht bereit'; }
+    function formatMessageTemplate(text, values = {}) {
+      return String(text ?? '').replace(/\{([A-Za-z0-9_]+)\}/g, (_, key) => values[key] ?? `{${key}}`);
+    }
+    function msg(key, fallback, values = {}) {
+      return formatMessageTemplate(Object.prototype.hasOwnProperty.call(messageCatalog, key) ? messageCatalog[key] : fallback, values);
+    }
+    async function loadMessageCatalog() {
+      try {
+        const res = await fetch('/api/messages', { cache:'no-store', headers:{'Cache-Control':'no-cache'} });
+        if (!res.ok) return;
+        const payload = await res.json();
+        messageCatalog = payload.messages || payload || {};
+      } catch {}
+    }
+    function cardProviderLabel() { return state.testPaymentMode ? msg('card_provider_test', 'Test-Kartenzahlung') : msg('card_provider_sumup', 'SumUp'); }
+    function cardProviderReadyLabel() { return state.testPaymentMode ? msg('card_provider_ready_test', 'Testzahlung bereit') : msg('card_provider_ready_sumup', 'SumUp bereit'); }
+    function cardProviderUnavailableLabel() { return state.testPaymentMode ? msg('card_provider_unavailable_test', 'Testzahlung nicht bereit') : msg('card_provider_unavailable_sumup', 'SumUp nicht bereit'); }
     function cardPaymentFeeCents(baseCents) {
       if (Number(baseCents || 0) <= 0) return 0;
       return Math.max(CARD_PAYMENT_MIN_FEE_CENTS, Math.ceil(Number(baseCents || 0) * CARD_PAYMENT_FEE_RATE_PERCENT / 100));
@@ -879,6 +894,7 @@
 
     async function loadPaymentConfig() {
       try {
+        await loadMessageCatalog();
         const cfg = await apiGet('/api/self-pay/config');
         state.selfPaymentAvailable = cfg.self_payment_available === true;
         state.sumupConfigured = cfg.sumup_configured === true;
@@ -1224,17 +1240,48 @@
         timeout: { icon:'⌛', title:'Timeout', text:`Status nicht eindeutig. Rechnung bleibt offen und ${provider} muss geprüft werden.` },
         unknown: { icon:'?', title:'Status unklar', text:`Keine lokale Buchung. Bitte ${provider} und Verlauf prüfen.` },
       }[status] || {};
+      const editableVisual = {
+        idle: {
+          title: msg('kassa_card_idle_title', visual.title || 'Karte vorhalten'),
+          text: state.testPaymentMode
+            ? msg('kassa_card_idle_text_test', visual.text || 'Testmodus: Mit Karte zahlen simuliert den Checkout.')
+            : msg('kassa_card_idle_text', visual.text || 'Mit Karte zahlen startet den Reader-Checkout. Betrag am Solo pruefen.'),
+        },
+        waiting: {
+          title: msg('card_visual_waiting_title', visual.title || 'Warten auf Kartenterminal', { provider }),
+          text: state.testPaymentMode
+            ? msg('kassa_card_waiting_text_test', visual.text || 'Test-Checkout laeuft. Keine zweite Zahlung starten.', { provider })
+            : msg('kassa_card_waiting_text', visual.text || 'Reader-Checkout laeuft. Keine zweite Zahlung starten.', { provider }),
+        },
+        paid: {
+          title: msg('card_visual_paid_title', visual.title || 'Zahlung erfolgreich'),
+          text: msg('kassa_card_paid_text', visual.text || '{provider} bezahlt; offene Posten wurden lokal geschlossen.', { provider }),
+        },
+        failed: {
+          title: msg('card_visual_failed_title', visual.title || 'Zahlung abgelehnt'),
+          text: msg('kassa_card_failed_text', visual.text || 'Keine lokale Buchung. Rechnung bleibt offen.'),
+        },
+        timeout: {
+          title: msg('card_visual_timeout_title', visual.title || 'Timeout'),
+          text: msg('kassa_card_timeout_text', visual.text || 'Status nicht eindeutig. Rechnung bleibt offen und {provider} muss geprueft werden.', { provider }),
+        },
+        unknown: {
+          title: msg('card_visual_unknown_title', visual.title || 'Status unklar'),
+          text: msg('kassa_card_unknown_text', visual.text || 'Keine lokale Buchung. Bitte {provider} und Verlauf pruefen.', { provider }),
+        },
+      }[status];
+      if (editableVisual) Object.assign(visual, editableVisual);
       box.className = `payment-visual-status ${status}`;
       box.innerHTML = `
         <div class="payment-status-icon" aria-hidden="true">${visual.icon || '?'}</div>
-        <div><strong>${escapeHtml(visual.title || 'Zahlungsstatus')}</strong><span>${escapeHtml(message || visual.text || '')}</span></div>
+        <div><strong>${escapeHtml(visual.title || msg('card_visual_status_title', 'Zahlungsstatus'))}</strong><span>${escapeHtml(message || visual.text || '')}</span></div>
       `;
       if (status === 'waiting') {
         el('confirmCancelButton').disabled = false;
-        el('confirmCancelButton').textContent = `${provider} abbrechen`;
+        el('confirmCancelButton').textContent = msg('kassa_card_cancel_button', '{provider} abbrechen', { provider });
         el('confirmPayButton').disabled = true;
         el('confirmCardPayButton').disabled = true;
-        el('confirmCardPayButton').textContent = `Auf ${provider} warten`;
+        el('confirmCardPayButton').textContent = msg('kassa_card_wait_button', 'Warten auf Kartenterminal', { provider });
         el('kassaCardRoundingOptions')?.classList.add('hidden');
       } else if (['paid', 'failed', 'timeout', 'unknown'].includes(status)) {
         el('confirmCancelButton').disabled = false;
@@ -1281,7 +1328,7 @@
         state.busy = false;
         el('confirmPayButton').disabled = false;
         updateKassaCardBreakdown();
-        el('confirmCardPayButton').textContent = state.selfPaymentAvailable ? 'Mit Karte zahlen' : cardProviderUnavailableLabel();
+        el('confirmCardPayButton').textContent = state.selfPaymentAvailable ? msg('kassa_card_pay_button', 'Mit Karte zahlen') : cardProviderUnavailableLabel();
         el('confirmCancelButton').disabled = false;
         el('payButton').textContent = 'Zahlung buchen';
         if (state.selected) el('payButton').disabled = !state.selected.can_pay;
@@ -1317,8 +1364,8 @@
       const status = String(data.status || '').toLowerCase();
       if (status === 'created' || status === 'sent_to_reader' || status === 'pending') {
         state.cardBusy = true;
-        setKassaCardVisualStatus('waiting', data.message || `Auf ${cardProviderLabel()} warten`);
-        if (!options.quiet) showStatus(data.message || `Auf ${cardProviderLabel()} warten`, 2800);
+        setKassaCardVisualStatus('waiting', data.message || msg('card_waiting_short', 'Auf {provider} warten', { provider: cardProviderLabel() }));
+        if (!options.quiet) showStatus(data.message || msg('card_waiting_short', 'Auf {provider} warten', { provider: cardProviderLabel() }), 2800);
         return false;
       }
 
@@ -1327,24 +1374,24 @@
 
       if (status === 'paid') {
         clearActiveCardPayment(clientPaymentId);
-        setKassaCardVisualStatus('paid', `Bezahlt: ${money(data.total)}`);
-        showStatus(`${cardProviderLabel()} bezahlt: ${money(data.total)}`);
+        setKassaCardVisualStatus('paid', msg('card_paid_status', 'Kartenzahlung bezahlt: {total}', { total: money(data.total) }));
+        showStatus(msg('card_paid_status', 'Kartenzahlung bezahlt: {total}', { total: money(data.total) }));
         closeDetail();
         return true;
       }
 
       if (status === 'failed' || status === 'cancelled') {
         clearActiveCardPayment(clientPaymentId);
-        setKassaCardVisualStatus('failed', data.message || `${cardProviderLabel()} abgelehnt oder abgebrochen.`);
-        showStatus(data.message || `${cardProviderLabel()} nicht abgeschlossen`, 4200);
+        setKassaCardVisualStatus('failed', data.message || msg('card_failed_or_cancelled', 'Zahlung abgelehnt oder abgebrochen.', { provider: cardProviderLabel() }));
+        showStatus(data.message || msg('card_not_completed', '{provider} nicht abgeschlossen', { provider: cardProviderLabel() }), 4200);
         if (state.selected) await openPerson(state.selected.id);
         return true;
       }
 
       if (status === 'timeout' || status === 'unknown' || status === 'expired') {
         clearActiveCardPayment(clientPaymentId);
-        setKassaCardVisualStatus(status === 'timeout' || status === 'expired' ? 'timeout' : 'unknown', data.message || `${cardProviderLabel()}-Status unklar.`);
-        showStatus(data.message || `${cardProviderLabel()}-Status unklar. Rechnung bleibt offen.`, 5200);
+        setKassaCardVisualStatus(status === 'timeout' || status === 'expired' ? 'timeout' : 'unknown', data.message || msg('card_unknown_status', '{provider}-Status unklar.', { provider: cardProviderLabel() }));
+        showStatus(data.message || msg('card_unknown_status_open', '{provider}-Status unklar. Offene Posten bleiben bestehen.', { provider: cardProviderLabel() }), 5200);
         if (state.selected) await openPerson(state.selected.id);
         return true;
       }
@@ -1366,11 +1413,11 @@
           if (err.status === 404) {
             clearActiveCardPayment(clientPaymentId);
             state.cardBusy = false;
-            setKassaCardVisualStatus('unknown', 'Zahlungsvorgang nicht gefunden.');
-            showStatus('Zahlungsvorgang nicht gefunden', 3600);
+            setKassaCardVisualStatus('unknown', msg('card_payment_not_found', 'Zahlungsvorgang nicht gefunden'));
+            showStatus(msg('card_payment_not_found', 'Zahlungsvorgang nicht gefunden'), 3600);
             return;
           }
-          setKassaCardVisualStatus('waiting', `Verbindung unterbrochen. Auf ${cardProviderLabel()} warten.`);
+          setKassaCardVisualStatus('waiting', msg('card_connection_lost_wait', 'Verbindung unterbrochen. Auf {provider} warten.', { provider: cardProviderLabel() }));
           showStatus(`Verbindung unterbrochen. ${cardProviderLabel()}-Status wird erneut geprüft.`, 3600);
           state.cardTimer = setTimeout(() => pollCardPaymentStatus(clientPaymentId, attempt + 1), 3600);
         }
@@ -1385,13 +1432,17 @@
         await loadPaymentConfig();
       }
       if (!state.selfPaymentAvailable) {
-        const missing = state.sumupMissing.length ? ` Fehlend: ${state.sumupMissing.join(', ')}` : '';
-        setKassaCardVisualStatus('failed', `${cardProviderUnavailableLabel()}.${missing}`);
+        const missing = state.sumupMissing.length ? state.sumupMissing.join(', ') : '';
+        setKassaCardVisualStatus('failed', msg(
+          missing ? 'kassa_card_unavailable_missing' : 'kassa_card_unavailable',
+          missing ? '{provider_unavailable}. Fehlend: {missing}' : '{provider_unavailable}.',
+          { provider_unavailable: cardProviderUnavailableLabel(), missing },
+        ));
         showStatus(cardProviderUnavailableLabel(), 4200);
         return;
       }
       if (centsFromEur(person.total_eur ?? person.total) <= 0) {
-        showStatus('Kein Kartenbetrag offen. Bitte Bar buchen abschliessen.', 3200);
+        showStatus(msg('kassa_card_no_amount', 'Kein Kartenbetrag offen. Bitte Bar buchen abschliessen.'), 3200);
         updateKassaCardBreakdown();
         return;
       }
@@ -1411,8 +1462,8 @@
         created_at: new Date().toISOString(),
       });
       state.cardBusy = true;
-      setKassaCardVisualStatus('waiting', `Auf ${cardProviderLabel()} warten`);
-      showStatus(`${cardProviderLabel()} startet...`);
+      setKassaCardVisualStatus('waiting', msg('card_waiting_short', 'Auf {provider} warten', { provider: cardProviderLabel() }));
+      showStatus(msg('card_starting_status', '{provider} startet...', { provider: cardProviderLabel() }));
       try {
         const data = await apiPost('/api/self-pay/pay', {
           person_id: person.id,
@@ -1434,13 +1485,13 @@
           setKassaCardVisualStatus('unknown', err.message || 'Rechnung hat sich geändert.');
           showStatus(err.message || 'Rechnung hat sich geändert', 4200);
         } else if (!err.status) {
-          setKassaCardVisualStatus('waiting', `Verbindung unterbrochen. Auf ${cardProviderLabel()} warten.`);
+          setKassaCardVisualStatus('waiting', msg('card_connection_lost_wait', 'Verbindung unterbrochen. Auf {provider} warten.', { provider: cardProviderLabel() }));
           showStatus(`Verbindung unterbrochen. ${cardProviderLabel()}-Status wird geprüft.`, 4200);
           pollCardPaymentStatus(clientPaymentId);
         } else {
           clearActiveCardPayment(clientPaymentId);
-          setKassaCardVisualStatus('failed', err.message || `${cardProviderLabel()} konnte nicht gestartet werden.`);
-          showStatus(err.message || `${cardProviderLabel()} konnte nicht gestartet werden`, 4200);
+          setKassaCardVisualStatus('failed', err.message || msg('card_payment_failed', 'Kartenzahlung fehlgeschlagen'));
+          showStatus(err.message || msg('card_payment_failed', 'Kartenzahlung fehlgeschlagen'), 4200);
         }
       } finally {
         if (!state.activeCardPayment) state.cardBusy = false;
@@ -1452,6 +1503,7 @@
       if (!saved?.client_payment_id) return;
       state.activeCardPayment = saved;
       showStatus(`Vorherige ${cardProviderLabel()} wird geprüft...`, 2800);
+      showStatus(msg('self_pay_previous_checking', 'Vorherige Zahlung wird geprueft...'), 2800);
       try {
         const data = await fetchCardPaymentStatus(saved.client_payment_id);
         const done = await applyCardPaymentStatus(data, saved.client_payment_id);
@@ -1460,6 +1512,7 @@
         if (err.status === 404) {
           clearActiveCardPayment(saved.client_payment_id);
           showStatus(`Alter ${cardProviderLabel()}-Vorgang nicht mehr vorhanden`, 3600);
+          showStatus(msg('self_pay_old_payment_missing', 'Alter Zahlungsvorgang nicht mehr vorhanden'), 3600);
           return;
         }
         pollCardPaymentStatus(saved.client_payment_id);
@@ -1478,7 +1531,7 @@
       el('confirmPayButton').disabled = false;
       state.cardRoundingMode = null;
       el('confirmCardPayButton').disabled = true;
-      el('confirmCardPayButton').textContent = state.selfPaymentAvailable ? 'Mit Karte zahlen' : cardProviderUnavailableLabel();
+      el('confirmCardPayButton').textContent = state.selfPaymentAvailable ? msg('kassa_card_pay_button', 'Mit Karte zahlen') : cardProviderUnavailableLabel();
       updateKassaCardBreakdown();
       setKassaCardVisualStatus(
         state.selfPaymentAvailable ? 'idle' : 'failed',

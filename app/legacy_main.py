@@ -71,6 +71,8 @@ DB_PATH = os.getenv("DRINK_POS_DB") or default_db_path_for_env(APP_ENV)
 DB_PATH_SOURCE = "DRINK_POS_DB" if os.getenv("DRINK_POS_DB") else "environment-default"
 DB_TIMEOUT_SECONDS = 15
 DB_BUSY_TIMEOUT_MS = 15000
+DEFAULT_MESSAGES_PATH = APP_DIR / "messages.json"
+MESSAGES_PATH = Path(os.getenv("DRINK_POS_MESSAGES") or (Path(DB_PATH).parent / "messages.json"))
 ADMIN_LOGIN_RATE_WINDOW_SECONDS = 300
 ADMIN_LOGIN_RATE_LIMIT = 8
 ADMIN_LOGIN_ATTEMPTS: dict[str, list[float]] = {}
@@ -177,6 +179,49 @@ def database_info() -> dict:
     }
     info["path"] = "hidden" if is_production() else DB_PATH
     return info
+
+
+def _read_message_file(path: Path) -> dict:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def ensure_messages_file() -> None:
+    """Create a persistent editable message catalog when missing."""
+    try:
+        MESSAGES_PATH.parent.mkdir(parents=True, exist_ok=True)
+        if not MESSAGES_PATH.exists() and DEFAULT_MESSAGES_PATH.exists():
+            MESSAGES_PATH.write_text(DEFAULT_MESSAGES_PATH.read_text(encoding="utf-8"), encoding="utf-8")
+    except OSError:
+        # Message overrides are optional; bundled defaults remain available.
+        return
+
+
+def load_message_catalog() -> dict:
+    """Load bundled messages with persistent overrides from the data folder."""
+    defaults = _read_message_file(DEFAULT_MESSAGES_PATH)
+    if MESSAGES_PATH == DEFAULT_MESSAGES_PATH:
+        return defaults
+    overrides = _read_message_file(MESSAGES_PATH)
+    return {**defaults, **overrides}
+
+
+class _MessageValues(dict):
+    def __missing__(self, key):
+        return "{" + key + "}"
+
+
+def message_text(key: str, default: str = "", **values) -> str:
+    """Return an editable message value with optional placeholder replacement."""
+    raw = load_message_catalog().get(key, default)
+    text = str(raw if raw is not None else default)
+    try:
+        return text.format_map(_MessageValues(values))
+    except (KeyError, ValueError):
+        return text
 
 
 def configure_connection(conn: sqlite3.Connection) -> sqlite3.Connection:
@@ -416,6 +461,7 @@ def log_transaction_item(
 
 def init_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    ensure_messages_file()
 
     with get_conn() as conn:
         conn.execute("PRAGMA journal_mode=WAL")
@@ -2768,6 +2814,21 @@ def self_payment_status_payload(conn: sqlite3.Connection, session, duplicate: bo
         "UNKNOWN": session["error"] or "Status ist unklar. Bitte Zahlung prüfen; offene Posten bleiben bestehen.",
         "EXPIRED": session["error"] or "Bezahlsession ist abgelaufen.",
     }
+    payment_label = message_text(
+        "payment_label_test" if is_test_payment else "payment_label_sumup",
+        "Test-Kartenzahlung" if is_test_payment else "SumUp-Zahlung",
+    )
+    message_by_status = {
+        "CREATED": message_text("payment_status_created", "{payment_label} wird vorbereitet.", payment_label=payment_label),
+        "SENT_TO_READER": message_text("payment_status_sent_to_reader", "Zahlung eingeleitet, bitte Bezahlterminal beachten."),
+        "PENDING": message_text("payment_status_pending", "Zahlung laeuft. Bitte warten."),
+        "PAID": message_text("payment_status_paid", "Zahlung abgeschlossen."),
+        "FAILED": session["error"] or message_text("payment_status_failed", "Zahlung fehlgeschlagen."),
+        "CANCELLED": session["error"] or message_text("payment_status_cancelled", "Zahlung abgebrochen."),
+        "TIMEOUT": session["error"] or message_text("payment_status_timeout", "Bezahlsession ist abgelaufen. Offene Posten bleiben bestehen."),
+        "UNKNOWN": session["error"] or message_text("payment_status_unknown", "Status ist unklar. Bitte Zahlung pruefen; offene Posten bleiben bestehen."),
+        "EXPIRED": session["error"] or message_text("payment_status_expired", "Bezahlsession ist abgelaufen."),
+    }
     public_status = {
         "CREATED": "created",
         "SENT_TO_READER": "sent_to_reader",
@@ -2785,6 +2846,10 @@ def self_payment_status_payload(conn: sqlite3.Connection, session, duplicate: bo
     rounding_adjustment_cents = int(session["rounding_adjustment_cents"] or 0) if "rounding_adjustment_cents" in session.keys() else 0
     if base_amount_cents <= 0:
         base_amount_cents = max(0, amount_cents - card_fee_cents - rounding_adjustment_cents)
+    fallback_payment_message = message_by_status.get(
+        status,
+        session["error"] or message_text("payment_status_updated", "Zahlungsstatus aktualisiert."),
+    )
     payload = {
         "status": public_status,
         "session_status": status,
@@ -2806,7 +2871,7 @@ def self_payment_status_payload(conn: sqlite3.Connection, session, duplicate: bo
         "transaction_id": session["transaction_id"],
         "provider_checkout_id": session["provider_checkout_id"] if "provider_checkout_id" in session.keys() else None,
         "terminal_reference": session["terminal_reference"],
-        "message": message_by_status.get(status, session["error"] or "Zahlungsstatus aktualisiert."),
+        "message": fallback_payment_message,
         "duplicate": bool(duplicate),
         **get_sync_state(conn),
     }
@@ -3267,6 +3332,11 @@ def kassa_icon_192_png():
 @app.get("/kassa-icon-512.png")
 def kassa_icon_512_png():
     return FileResponse(APP_DIR / "kassa-icon-512.png", media_type="image/png")
+
+
+@app.get("/api/messages")
+def messages():
+    return {"messages": load_message_catalog()}
 
 
 @app.get("/api/config")

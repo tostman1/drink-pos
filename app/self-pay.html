@@ -425,10 +425,29 @@
       activePayment: null,
     };
 
+    let messageCatalog = {};
+
     const ACTIVE_PAYMENT_KEY = 'drinkPosSelfPayActivePayment';
     const el = id => document.getElementById(id);
     const money = value => new Intl.NumberFormat('de-AT', { style:'currency', currency:'EUR' }).format(Number(value || 0));
     const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[ch]));
+
+    function formatMessageTemplate(text, values = {}) {
+      return String(text ?? '').replace(/\{([A-Za-z0-9_]+)\}/g, (_, key) => values[key] ?? `{${key}}`);
+    }
+
+    function msg(key, fallback, values = {}) {
+      return formatMessageTemplate(Object.prototype.hasOwnProperty.call(messageCatalog, key) ? messageCatalog[key] : fallback, values);
+    }
+
+    async function loadMessageCatalog() {
+      try {
+        const res = await fetch('/api/messages', { cache:'no-store', headers:{ 'Cache-Control':'no-cache' } });
+        if (!res.ok) return;
+        const payload = await res.json();
+        messageCatalog = payload.messages || payload || {};
+      } catch {}
+    }
 
     function syncModalOpen() {
       document.body.classList.toggle('modal-open', el('payConfirmDialog').open);
@@ -443,17 +462,17 @@
     }
 
     function paymentProviderLabel() {
-      return state.testPaymentMode ? 'Test-Kartenzahlung' : 'SumUp';
+      return state.testPaymentMode ? msg('card_provider_test', 'Test-Kartenzahlung') : msg('card_provider_sumup', 'SumUp');
     }
 
     function paymentActionLabel() {
-      return state.testPaymentMode ? 'Testzahlung starten' : 'Mit SumUp zahlen';
+      return state.testPaymentMode ? msg('self_pay_action_test', 'Testzahlung starten') : msg('self_pay_action_sumup', 'Mit SumUp zahlen');
     }
 
     function paymentWaitText() {
       return state.testPaymentMode
-        ? 'Testmodus: Die Kartenzahlung wird simuliert. Diese Seite offen lassen, bis die Zahlung bestaetigt ist.'
-        : 'Karte oder Smartphone am SumUp Solo verwenden. Diese Seite offen lassen, bis die Zahlung bestaetigt ist.';
+        ? msg('self_pay_wait_text_test', 'Testmodus: Die Kartenzahlung wird simuliert. Diese Seite offen lassen, bis die Zahlung bestaetigt ist.')
+        : msg('self_pay_wait_text_sumup', 'Karte oder Smartphone am SumUp Solo verwenden. Diese Seite offen lassen, bis die Zahlung bestaetigt ist.');
     }
 
     function createClientPaymentId(person) {
@@ -532,7 +551,7 @@
       const status = String(data.status || '').toLowerCase();
       if (paymentIsRunning(status)) {
         setTerminalBusy(true);
-        if (!options.quiet) showStatus(data.message || `${paymentProviderLabel()} laeuft...`, 3200);
+        if (!options.quiet) showStatus(data.message || msg('card_running_status', '{provider} laeuft...', { provider: paymentProviderLabel() }), 3200);
         return false;
       }
 
@@ -542,7 +561,7 @@
       if (status === 'paid') {
         clearActivePayment(clientPaymentId);
         if (el('payConfirmDialog').open) el('payConfirmDialog').close();
-        showStatus(`Bezahlt: ${money(data.total)}`, 3600);
+        showStatus(msg('card_paid_status', 'Kartenzahlung bezahlt: {total}', { total: money(data.total) }), 3600);
         state.selected = null;
         await loadPeople(true);
         setMode('list');
@@ -551,13 +570,13 @@
 
       if (status === 'failed' || status === 'cancelled') {
         clearActivePayment(clientPaymentId);
-        showStatus(data.message || `${paymentProviderLabel()} wurde nicht abgeschlossen`, 4200);
+        showStatus(data.message || msg('self_pay_failed_fallback', '{provider} wurde nicht abgeschlossen', { provider: paymentProviderLabel() }), 4200);
         return true;
       }
 
       if (status === 'timeout' || status === 'unknown' || status === 'expired') {
         clearActivePayment(clientPaymentId);
-        showStatus(data.message || `${paymentProviderLabel()}-Status unklar. Offene Posten wurden nicht verbucht.`, 5600);
+        showStatus(data.message || msg('self_pay_unknown_fallback', '{provider}-Status unklar. Offene Posten wurden nicht verbucht.', { provider: paymentProviderLabel() }), 5600);
         return true;
       }
 
@@ -578,10 +597,10 @@
           if (err.status === 404) {
             clearActivePayment(clientPaymentId);
             setTerminalBusy(false);
-            showStatus('Zahlungsvorgang nicht gefunden', 4200);
+            showStatus(msg('card_payment_not_found', 'Zahlungsvorgang nicht gefunden'), 4200);
             return;
           }
-          showStatus('Verbindung unterbrochen. Zahlung wird weiter geprueft...', 4200);
+          showStatus(msg('card_connection_lost_checking_long', 'Verbindung unterbrochen. Zahlung wird weiter geprueft...'), 4200);
           state.paymentTimer = setTimeout(() => pollPaymentStatus(clientPaymentId, attempt + 1), 3600);
         }
       };
@@ -592,7 +611,7 @@
       const saved = readStoredPayment();
       if (!saved?.client_payment_id) return;
       state.activePayment = saved;
-      showStatus('Vorherige Zahlung wird geprueft...', 3200);
+      showStatus(msg('self_pay_previous_checking', 'Vorherige Zahlung wird geprueft...'), 3200);
       try {
         const data = await fetchPaymentStatus(saved.client_payment_id);
         const done = await applyPaymentStatus(data, saved.client_payment_id);
@@ -600,7 +619,7 @@
       } catch (err) {
         if (err.status === 404) {
           clearActivePayment(saved.client_payment_id);
-          showStatus('Alter Zahlungsvorgang nicht mehr vorhanden', 3600);
+          showStatus(msg('self_pay_old_payment_missing', 'Alter Zahlungsvorgang nicht mehr vorhanden'), 3600);
           return;
         }
         pollPaymentStatus(saved.client_payment_id);
@@ -618,14 +637,15 @@
     }
 
     async function loadConfig() {
+      await loadMessageCatalog();
       const cfg = await apiGet('/api/self-pay/config');
       state.config = cfg;
       state.testPaymentMode = cfg.test_payment_mode === true;
       const available = Boolean(cfg.self_payment_available);
       if (!available) {
         const reason = !cfg.self_payment_enabled
-          ? 'Self-Checkout ist deaktiviert. PAYMENT_PROVIDER=sumup setzen; im Testmodus PAYMENT_PROVIDER=test.'
-          : 'SumUp ist noch nicht vollstaendig konfiguriert.';
+          ? msg('self_pay_setup_disabled', 'Self-Checkout ist deaktiviert. PAYMENT_PROVIDER=sumup setzen; im Testmodus PAYMENT_PROVIDER=test.')
+          : msg('self_pay_setup_missing', 'SumUp ist noch nicht vollstaendig konfiguriert.');
         el('setupText').textContent = reason;
         setMode('setup');
         stopAutoRefresh();
@@ -645,7 +665,7 @@
         if (!silent) showStatus('Aktualisiert', 1000);
         startAutoRefresh();
       } catch (err) {
-        el('setupText').textContent = err.message || 'Selbstzahlung ist aktuell nicht erreichbar.';
+        el('setupText').textContent = err.message || msg('self_pay_not_reachable', 'Selbstzahlung ist aktuell nicht erreichbar.');
         setMode('setup');
         if (!silent) showStatus(err.message || 'Kann nicht aktualisieren', 3600);
       }
@@ -743,14 +763,16 @@
       el('terminalWait').classList.toggle('hidden', !busy);
       const waitTitle = el('terminalWait').querySelector('strong');
       if (waitTitle) {
-        waitTitle.textContent = state.testPaymentMode ? 'Testzahlung laeuft' : 'SumUp Solo wartet';
+        waitTitle.textContent = state.testPaymentMode
+          ? msg('self_pay_wait_title_test', 'Testzahlung laeuft')
+          : msg('self_pay_wait_title_sumup', 'Warten auf Kartenterminal');
       }
       const waitText = el('terminalWait').querySelector('p');
       if (waitText) {
         waitText.textContent = paymentWaitText();
       }
-      el('payButton').textContent = busy ? `${paymentProviderLabel()} laeuft...` : paymentActionLabel();
-      el('confirmPayButton').textContent = busy ? 'Warten...' : paymentActionLabel();
+      el('payButton').textContent = busy ? msg('self_pay_running_button', '{provider} laeuft...', { provider: paymentProviderLabel() }) : paymentActionLabel();
+      el('confirmPayButton').textContent = busy ? msg('self_pay_waiting_button', 'Warten...') : paymentActionLabel();
     }
 
     async function paySelected() {
@@ -794,11 +816,11 @@
           pollPaymentStatus(clientPaymentId);
         } else if (!err.status) {
           keepBusy = true;
-          showStatus('Verbindung unterbrochen. Zahlung wird geprueft...', 5200);
+          showStatus(msg('card_connection_lost_checking', 'Verbindung unterbrochen. Zahlung wird geprueft...'), 5200);
           pollPaymentStatus(clientPaymentId);
         } else {
           clearActivePayment(clientPaymentId);
-          showStatus(err.message || 'Zahlung fehlgeschlagen', 5200);
+          showStatus(err.message || msg('payment_status_failed', 'Zahlung fehlgeschlagen.'), 5200);
         }
       } finally {
         if (!keepBusy) setTerminalBusy(false);
@@ -810,7 +832,9 @@
       const person = state.selected;
       if (!person || state.busy || !person.can_self_pay) return;
       el('confirmTitle').textContent = `${person.name} bezahlen?`;
-      el('confirmText').textContent = `${Number(person.open_items || 0)} offene Striche. Danach ${state.testPaymentMode ? 'wird die Kartenzahlung simuliert' : 'Karte oder Smartphone am SumUp Solo verwenden'}.`;
+      el('confirmText').textContent = state.testPaymentMode
+        ? msg('self_pay_confirm_text_test', '{open_items} offene Striche. Danach wird die Kartenzahlung simuliert.', { open_items: Number(person.open_items || 0) })
+        : msg('self_pay_confirm_text_sumup', '{open_items} offene Striche. Danach Karte oder Smartphone am SumUp Solo verwenden.', { open_items: Number(person.open_items || 0) });
       el('confirmTotal').textContent = money(person.total_eur ?? person.total);
       el('terminalWait').classList.add('hidden');
       const dialog = el('payConfirmDialog');

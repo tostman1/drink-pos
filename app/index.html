@@ -389,6 +389,7 @@
       five: { stepCents: 500 },
       ten: { stepCents: 1000 },
     };
+    let messageCatalog = {};
     let syncFailureCount = 0;
     let syncOfflineSince = 0;
     let syncRecoveryTimer = null;
@@ -404,6 +405,20 @@
     function decimalText(value, digits = 2) { return numberComma(value, digits, digits); }
     function centsFromEur(value) { return Math.max(0, Math.round(Number(value || 0) * 100)); }
     function eurFromCents(cents) { return Number(cents || 0) / 100; }
+    function formatMessageTemplate(text, values = {}) {
+      return String(text ?? '').replace(/\{([A-Za-z0-9_]+)\}/g, (_, key) => values[key] ?? `{${key}}`);
+    }
+    function msg(key, fallback, values = {}) {
+      return formatMessageTemplate(Object.prototype.hasOwnProperty.call(messageCatalog, key) ? messageCatalog[key] : fallback, values);
+    }
+    async function loadMessageCatalog() {
+      try {
+        const res = await fetch('/api/messages', { cache:'no-store', headers:{'Cache-Control':'no-cache'} });
+        if (!res.ok) return;
+        const payload = await res.json();
+        messageCatalog = payload.messages || payload || {};
+      } catch {}
+    }
     function paymentDueForPerson(person) {
       return Number(person?.payable_total_eur ?? person?.payable_total ?? person?.total_eur ?? person?.total ?? 0);
     }
@@ -903,6 +918,7 @@
     }
 
     async function loadConfig() {
+      await loadMessageCatalog();
       const cfg = await apiGet('/api/config');
       writeJsonStorage(OFFLINE_CONFIG_CACHE_KEY, cfg);
       applyConfig(cfg);
@@ -1854,11 +1870,11 @@
     }
 
     function cardProviderLabel() {
-      return testPaymentMode ? 'Test-Kartenzahlung' : 'SumUp';
+      return testPaymentMode ? msg('card_provider_test', 'Test-Kartenzahlung') : msg('card_provider_sumup', 'SumUp');
     }
 
     function cardProviderUnavailableLabel() {
-      return testPaymentMode ? 'Testzahlung nicht bereit' : 'SumUp nicht bereit';
+      return testPaymentMode ? msg('card_provider_unavailable_test', 'Testzahlung nicht bereit') : msg('card_provider_unavailable_sumup', 'SumUp nicht bereit');
     }
 
     function renderBill() {
@@ -2252,10 +2268,41 @@
         timeout: { icon: '⌛', title: 'Timeout', text: 'Es wurde zu lange gewartet. Die offenen Posten bleiben unbezahlt.' },
         unknown: { icon: '?', title: 'Status unklar', text: 'Ein Fehler ist aufgetreten. Die offenen Posten bleiben unbezahlt.' },
       }[state] || {};
+      const editableVisual = {
+        idle: {
+          title: msg('card_visual_idle_title', visual.title || 'Karte bereithalten'),
+          text: testPaymentMode
+            ? msg('card_visual_idle_text_test', visual.text || 'Testmodus: Der Checkout wird lokal simuliert.')
+            : msg('card_visual_idle_text', visual.text || 'Nach dem Start den Betrag am Kartenterminal pruefen und Karte oder Smartphone vorhalten.'),
+        },
+        waiting: {
+          title: msg('card_visual_waiting_title', visual.title || 'Warten auf Kartenterminal', { provider }),
+          text: testPaymentMode
+            ? msg('card_visual_waiting_text_test', visual.text || 'Test-Checkout laeuft. Bitte warten.', { provider })
+            : msg('card_visual_waiting_text', visual.text || 'Bitte den Anweisungen auf dem Kartenterminal folgen.', { provider }),
+        },
+        paid: {
+          title: msg('card_visual_paid_title', visual.title || 'Zahlung erfolgreich'),
+          text: msg('card_visual_paid_text', visual.text || 'Zahlung erfolgreich, Danke!'),
+        },
+        failed: {
+          title: msg('card_visual_failed_title', visual.title || 'Zahlung abgelehnt'),
+          text: msg('card_visual_failed_text', visual.text || 'Die offenen Posten bleiben unbezahlt.'),
+        },
+        timeout: {
+          title: msg('card_visual_timeout_title', visual.title || 'Timeout'),
+          text: msg('card_visual_timeout_text', visual.text || 'Es wurde zu lange gewartet. Die offenen Posten bleiben unbezahlt.'),
+        },
+        unknown: {
+          title: msg('card_visual_unknown_title', visual.title || 'Status unklar'),
+          text: msg('card_visual_unknown_text', visual.text || 'Ein Fehler ist aufgetreten. Die offenen Posten bleiben unbezahlt.'),
+        },
+      }[state];
+      if (editableVisual) Object.assign(visual, editableVisual);
       box.className = `payment-visual-status ${state}`;
       box.innerHTML = `
         <div class="payment-status-icon" aria-hidden="true">${visual.icon || '?'}</div>
-        <div><strong>${escapeHtml(visual.title || 'Zahlungsstatus')}</strong><span>${escapeHtml(message || visual.text || '')}</span></div>
+        <div><strong>${escapeHtml(visual.title || msg('card_visual_status_title', 'Zahlungsstatus'))}</strong><span>${escapeHtml(message || visual.text || '')}</span></div>
       `;
       const confirm = document.getElementById('actionConfirmButton');
       const cancel = document.getElementById('actionCancelButton');
@@ -2263,7 +2310,7 @@
       if (state === 'waiting') {
         if (confirm) {
           confirm.disabled = true;
-          confirm.textContent = 'Verbindungsaufbau (kann bis zu 30 Sekunden dauern)';
+          confirm.textContent = msg('card_connecting_button', 'Verbindungsaufbau (kann bis zu 30 Sekunden dauern)');
         }
         if (cancel) cancel.disabled = true;
         if (rounding) rounding.classList.add('hidden');
@@ -2327,8 +2374,8 @@
       if (status === 'created' || status === 'sent_to_reader' || status === 'pending') {
         selfPaymentBusy = true;
         renderCardPaymentPanel();
-        setCardPaymentVisualStatus('waiting', `Auf ${cardProviderLabel()} warten`);
-        if (!options.quiet) showStatus(data.message || `${cardProviderLabel()} läuft...`);
+        setCardPaymentVisualStatus('waiting', msg('card_waiting_short', 'Auf {provider} warten', { provider: cardProviderLabel() }));
+        if (!options.quiet) showStatus(data.message || msg('card_running_status', '{provider} laeuft...', { provider: cardProviderLabel() }));
         return false;
       }
 
@@ -2339,7 +2386,7 @@
       if (status === 'paid') {
         clearActiveSelfPayment(clientPaymentId);
         setCardPaymentVisualStatus('paid', `Bezahlt: ${money(data.total)}`);
-        showStatus(`Kartenzahlung bezahlt: ${money(data.total)}`);
+        showStatus(msg('card_paid_status', 'Kartenzahlung bezahlt: {total}', { total: money(data.total) }));
         closeDialog();
         await loadPeople(true);
         return true;
@@ -2347,16 +2394,16 @@
 
       if (status === 'failed' || status === 'cancelled') {
         clearActiveSelfPayment(clientPaymentId);
-        setCardPaymentVisualStatus('failed', data.message || 'Zahlung abgelehnt oder abgebrochen.');
-        showStatus(data.message || `${cardProviderLabel()} nicht abgeschlossen`);
+        setCardPaymentVisualStatus('failed', data.message || msg('card_failed_or_cancelled', 'Zahlung abgelehnt oder abgebrochen.'));
+        showStatus(data.message || msg('card_not_completed', '{provider} nicht abgeschlossen', { provider: cardProviderLabel() }));
         await loadPeople(true);
         return true;
       }
 
       if (status === 'timeout' || status === 'unknown' || status === 'expired') {
         clearActiveSelfPayment(clientPaymentId);
-        setCardPaymentVisualStatus(status === 'timeout' || status === 'expired' ? 'timeout' : 'unknown', data.message || `${cardProviderLabel()}-Status unklar.`);
-        showStatus(data.message || `${cardProviderLabel()}-Status unklar. Offene Posten bleiben bestehen.`);
+        setCardPaymentVisualStatus(status === 'timeout' || status === 'expired' ? 'timeout' : 'unknown', data.message || msg('card_unknown_status', '{provider}-Status unklar.', { provider: cardProviderLabel() }));
+        showStatus(data.message || msg('card_unknown_status_open', '{provider}-Status unklar. Offene Posten bleiben bestehen.', { provider: cardProviderLabel() }));
         await loadPeople(true);
         return true;
       }
@@ -2380,11 +2427,12 @@
             clearActiveSelfPayment(clientPaymentId);
             selfPaymentBusy = false;
             renderCardPaymentPanel();
-            showStatus('Zahlungsvorgang nicht gefunden');
+            showStatus(msg('card_payment_not_found', 'Zahlungsvorgang nicht gefunden'));
             return;
           }
-          setCardPaymentVisualStatus('waiting', `Verbindung unterbrochen. Auf ${cardProviderLabel()} warten.`);
+          setCardPaymentVisualStatus('waiting', msg('card_connection_lost_wait', 'Verbindung unterbrochen. Auf {provider} warten.', { provider: cardProviderLabel() }));
           showStatus('Verbindung unterbrochen. Zahlung wird weiter geprüft...');
+          showStatus(msg('card_connection_lost_checking_long', 'Verbindung unterbrochen. Zahlung wird weiter geprueft...'));
           selfPaymentTimer = setTimeout(() => pollSelfPaymentStatus(clientPaymentId, attempt + 1), 3600);
         }
       };
@@ -2403,8 +2451,8 @@
       });
       selfPaymentBusy = true;
       renderCardPaymentPanel();
-      setCardPaymentVisualStatus('waiting', 'Verbindungsaufbau (kann bis zu 30 Sekunden dauern)');
-      showStatus(`${cardProviderLabel()} startet...`);
+      setCardPaymentVisualStatus('waiting', msg('card_connecting_button', 'Verbindungsaufbau (kann bis zu 30 Sekunden dauern)'));
+      showStatus(msg('card_starting_status', '{provider} startet...', { provider: cardProviderLabel() }));
       let keepBusy = false;
       try {
         const data = await apiPost('/api/self-pay/pay', {
@@ -2432,13 +2480,14 @@
           showStatus(err.message || 'Rechnung hat sich geändert');
         } else if (!err.status) {
           keepBusy = true;
-          setCardPaymentVisualStatus('waiting', `Verbindung unterbrochen. Auf ${cardProviderLabel()} warten.`);
+          setCardPaymentVisualStatus('waiting', msg('card_connection_lost_wait', 'Verbindung unterbrochen. Auf {provider} warten.', { provider: cardProviderLabel() }));
           showStatus('Verbindung unterbrochen. Zahlung wird geprüft...');
+          showStatus(msg('card_connection_lost_checking', 'Verbindung unterbrochen. Zahlung wird geprueft...'));
           pollSelfPaymentStatus(clientPaymentId);
         } else {
           clearActiveSelfPayment(clientPaymentId);
-          setCardPaymentVisualStatus('failed', err.message || 'Kartenzahlung fehlgeschlagen');
-          showStatus(err.message || 'Kartenzahlung fehlgeschlagen');
+          setCardPaymentVisualStatus('failed', err.message || msg('card_payment_failed', 'Kartenzahlung fehlgeschlagen'));
+          showStatus(err.message || msg('card_payment_failed', 'Kartenzahlung fehlgeschlagen'));
         }
       } finally {
         if (!keepBusy) selfPaymentBusy = false;
