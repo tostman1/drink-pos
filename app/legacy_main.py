@@ -47,6 +47,13 @@ except ImportError:
         reader_status as sumup_reader_status,
     )
 
+try:
+    from .core.build import build_info
+    from .services import messages as message_service
+except ImportError:
+    from core.build import build_info
+    from services import messages as message_service
+
 APP_ENV = os.getenv("DRINK_POS_ENV", "development").strip().lower()
 RAW_ENV_PIN_CODE = os.getenv("DRINK_POS_PIN")
 ENV_PIN_CODE = (RAW_ENV_PIN_CODE or "1234").strip() or "1234"
@@ -71,8 +78,8 @@ DB_PATH = os.getenv("DRINK_POS_DB") or default_db_path_for_env(APP_ENV)
 DB_PATH_SOURCE = "DRINK_POS_DB" if os.getenv("DRINK_POS_DB") else "environment-default"
 DB_TIMEOUT_SECONDS = 15
 DB_BUSY_TIMEOUT_MS = 15000
-DEFAULT_MESSAGES_PATH = APP_DIR / "messages.json"
-MESSAGES_PATH = Path(os.getenv("DRINK_POS_MESSAGES") or (Path(DB_PATH).parent / "messages.json"))
+DEFAULT_MESSAGES_PATH = message_service.DEFAULT_MESSAGES_PATH
+MESSAGES_PATH = message_service.runtime_messages_path(DB_PATH)
 ADMIN_LOGIN_RATE_WINDOW_SECONDS = 300
 ADMIN_LOGIN_RATE_LIMIT = 8
 ADMIN_LOGIN_ATTEMPTS: dict[str, list[float]] = {}
@@ -181,47 +188,22 @@ def database_info() -> dict:
     return info
 
 
-def _read_message_file(path: Path) -> dict:
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return {}
-    return data if isinstance(data, dict) else {}
-
-
 def ensure_messages_file() -> None:
-    """Create a persistent editable message catalog when missing."""
-    try:
-        MESSAGES_PATH.parent.mkdir(parents=True, exist_ok=True)
-        if not MESSAGES_PATH.exists() and DEFAULT_MESSAGES_PATH.exists():
-            MESSAGES_PATH.write_text(DEFAULT_MESSAGES_PATH.read_text(encoding="utf-8"), encoding="utf-8")
-    except OSError:
-        # Message overrides are optional; bundled defaults remain available.
-        return
+    """Compatibility wrapper for the message catalog service."""
+
+    message_service.ensure_messages_file(DB_PATH)
 
 
 def load_message_catalog() -> dict:
-    """Load bundled messages with persistent overrides from the data folder."""
-    defaults = _read_message_file(DEFAULT_MESSAGES_PATH)
-    if MESSAGES_PATH == DEFAULT_MESSAGES_PATH:
-        return defaults
-    overrides = _read_message_file(MESSAGES_PATH)
-    return {**defaults, **overrides}
+    """Compatibility wrapper for the message catalog service."""
 
-
-class _MessageValues(dict):
-    def __missing__(self, key):
-        return "{" + key + "}"
+    return message_service.load_message_catalog(DB_PATH)
 
 
 def message_text(key: str, default: str = "", **values) -> str:
-    """Return an editable message value with optional placeholder replacement."""
-    raw = load_message_catalog().get(key, default)
-    text = str(raw if raw is not None else default)
-    try:
-        return text.format_map(_MessageValues(values))
-    except (KeyError, ValueError):
-        return text
+    """Compatibility wrapper for the message catalog service."""
+
+    return message_service.message_text(key, default, db_path=DB_PATH, values=values)
 
 
 def configure_connection(conn: sqlite3.Connection) -> sqlite3.Connection:
@@ -3349,6 +3331,7 @@ def config():
             "app_name": get_setting(conn, "app_name", "Drink POS") or "Drink POS",
             "environment": APP_ENV,
             "database": database_info(),
+            "build": build_info(),
             "production": is_production(),
             "debug_enabled": not is_production(),
             "show_total_on_overview": setting_bool(conn, "show_total_on_overview", "1"),
@@ -4463,6 +4446,7 @@ def admin_login(req: PinRequest, request: Request):
         return {
             "status": "ok",
             "environment": APP_ENV,
+            "build": build_info(),
             "production": is_production(),
             "debug_enabled": not is_production(),
             "pin_default_warning": (get_setting(conn, "admin_pin", ENV_PIN_CODE) == "1234"),
@@ -4968,6 +4952,8 @@ def admin_overview(req: PinRequest):
             "settings": {
                 "currency": "EUR",
                 "app_name": get_setting(conn, "app_name", "Drink POS") or "Drink POS",
+                "database": database_info(),
+                "build": build_info(),
                 "round_item_price_eur": float(get_setting(conn, "round_item_price_eur", DEFAULT_ROUND_PRICE_EUR) or DEFAULT_ROUND_PRICE_EUR),
                 "show_total_on_overview": setting_bool(conn, "show_total_on_overview", "1"),
                 "tally_roughness": max(1, min(10, int(get_setting(conn, "tally_roughness", "4") or 4))),

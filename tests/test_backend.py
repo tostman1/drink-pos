@@ -25,6 +25,7 @@ class BackendFlowTests(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.original_agent_token = os.environ.pop("DRINK_POS_AGENT_TOKEN", None)
+        self.original_build_commit = os.environ.pop("APP_BUILD_COMMIT", None)
         self.original_payment_env = {
             key: os.environ.pop(key, None)
             for key in [
@@ -43,6 +44,7 @@ class BackendFlowTests(unittest.TestCase):
         os.environ["DRINK_POS_ENV"] = "development"
         os.environ["DRINK_POS_DB"] = str(Path(self.temp_dir.name) / "drink_pos_test.db")
         os.environ["DRINK_POS_PIN"] = PIN
+        os.environ["APP_BUILD_COMMIT"] = "test-build-abc"
         os.environ.pop("DRINK_POS_AGENT_TOKEN", None)
 
         sys.modules.pop("main", None)
@@ -60,6 +62,10 @@ class BackendFlowTests(unittest.TestCase):
             os.environ.pop("DRINK_POS_AGENT_TOKEN", None)
         else:
             os.environ["DRINK_POS_AGENT_TOKEN"] = self.original_agent_token
+        if self.original_build_commit is None:
+            os.environ.pop("APP_BUILD_COMMIT", None)
+        else:
+            os.environ["APP_BUILD_COMMIT"] = self.original_build_commit
         for key, value in self.original_payment_env.items():
             if value is None:
                 os.environ.pop(key, None)
@@ -77,6 +83,14 @@ class BackendFlowTests(unittest.TestCase):
         with self.main.get_conn() as conn:
             self.assertEqual(conn.execute("PRAGMA foreign_keys").fetchone()[0], 1)
             self.assertEqual(conn.execute("PRAGMA busy_timeout").fetchone()[0], 15000)
+
+    def test_config_and_admin_overview_include_build_commit(self):
+        config = self.main.config()
+        overview = self.main.admin_overview(self.main.PinRequest(pin=PIN))
+
+        self.assertEqual(config["build"]["commit"], "test-build-abc")
+        self.assertEqual(overview["settings"]["build"]["commit"], "test-build-abc")
+        self.assertEqual(overview["settings"]["database"]["source"], "DRINK_POS_DB")
 
     def test_booking_and_payment_flow(self):
         person, item = self.first_person_and_item()

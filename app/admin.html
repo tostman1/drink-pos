@@ -613,6 +613,7 @@
           <span class="muted">PIN wird im SQLite-Setting gespeichert.</span>
         </div>
         <div class="muted" id="settingsInfo" style="margin-top:12px"></div>
+        <div class="muted" id="buildVersionInfo" style="margin-top:6px"></div>
       </section>
 
       <section id="messagesSection" class="card section">
@@ -1857,6 +1858,9 @@
       renderAppearancePreview();
       const dbName = (s.database && s.database.path) ? s.database.path.split('/').pop() : 'Standard';
       const dbSource = (s.database && s.database.source === 'DRINK_POS_DB') ? 'manuell gesetzt' : 'automatisch';
+      const buildCommit = (s.build && s.build.commit) ? s.build.commit : 'local-dev';
+      const buildInfo = document.getElementById('buildVersionInfo');
+      if (buildInfo) buildInfo.textContent = `Container build commit: ${buildCommit}`;
       document.getElementById('settingsInfo').textContent = `Umgebung: ${s.environment || 'development'} · Datenbank: ${dbName} (${dbSource}) · Währung: EUR`;
     }
 

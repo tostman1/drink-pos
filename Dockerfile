@@ -1,10 +1,13 @@
 FROM python:3.12-slim
 
+ARG BUILD_COMMIT=unknown
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     DRINK_POS_ENV=production \
     DRINK_POS_DB=/app/data/drink_pos.db \
-    DRINK_POS_BACKUP_DIR=/app/data/backups
+    DRINK_POS_BACKUP_DIR=/app/data/backups \
+    APP_BUILD_COMMIT=${BUILD_COMMIT}
 
 WORKDIR /app
 

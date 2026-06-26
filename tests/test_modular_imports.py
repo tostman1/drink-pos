@@ -7,6 +7,7 @@ class ModularImportTests(unittest.TestCase):
         modules = [
             'app.application',
             'app.config',
+            'app.core.build',
             'app.db.connection',
             'app.db.init',
             'app.models.requests',
@@ -19,6 +20,7 @@ class ModularImportTests(unittest.TestCase):
             'app.services.items',
             'app.services.orders',
             'app.services.payments',
+            'app.services.messages',
             'app.services.statistics',
             'app.services.rounds',
             'app.services.sync',
