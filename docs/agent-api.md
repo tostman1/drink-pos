@@ -7,7 +7,8 @@ Die SumUp-Selbstzahlung fuer Mitglieder ist in der normalen Listenansicht integr
 bleibt nur als Test-/Fallbackseite erhalten. Der Zahlungsflow gehoert nicht zur Agenten-API.
 
 Die API eignet sich direkt fuer Agenten und kann bei Bedarf von einem MCP-Server als Tool-Backend
-gewrappt werden.
+gewrappt werden. Ein nativer MCP-Server ist aktuell nicht Teil dieses Repos; siehe
+`docs/mcp.md` und `docs/ai-agent-manual.md`.
 
 ## Aktivierung und Auth
 

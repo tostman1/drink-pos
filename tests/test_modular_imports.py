@@ -5,6 +5,7 @@ import unittest
 class ModularImportTests(unittest.TestCase):
     def test_new_modular_packages_import(self):
         modules = [
+            'app.application',
             'app.config',
             'app.db.connection',
             'app.db.init',
