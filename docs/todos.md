@@ -10,8 +10,9 @@ source comments.
   instead of polling `/api/sync-status`.
 - Add a native MCP server wrapper if AI clients should connect through MCP
   directly instead of the current Agent REST API.
-- Continue extracting routes from `legacy_main.py` into focused route modules
-  once each domain has service coverage and tests.
+- Retire compatibility handler bodies from `legacy_main.py` gradually after each
+  domain has service coverage and behavior tests. The runtime app is already
+  assembled through modular routers.
 
 ## Optional Product Features
 

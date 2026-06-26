@@ -13,6 +13,11 @@ from types import ModuleType
 
 from fastapi import FastAPI
 
+try:
+    from app.routes.registry import include_legacy_routes
+except ImportError:
+    from routes.registry import include_legacy_routes
+
 
 LEGACY_MODULE_NAME = "legacy_main"
 
@@ -37,8 +42,24 @@ def load_legacy_module(package: str | None = None) -> ModuleType:
     return importlib.import_module(module_name)
 
 
+def build_app_from_legacy(legacy_app: FastAPI) -> FastAPI:
+    """Build the runtime app from categorized legacy routes."""
+
+    app = FastAPI(title=legacy_app.title)
+    include_legacy_routes(app, legacy_app)
+    for handler in legacy_app.router.on_startup:
+        app.router.on_startup.append(handler)
+    for handler in legacy_app.router.on_shutdown:
+        app.router.on_shutdown.append(handler)
+    return app
+
+
 def create_app(package: str | None = None) -> tuple[FastAPI, ModuleType]:
     """Return the FastAPI app and compatibility module for the current package."""
 
     legacy = load_legacy_module(package)
-    return legacy.app, legacy
+    legacy_app = legacy.app
+    app = build_app_from_legacy(legacy_app)
+    legacy.legacy_app = legacy_app
+    legacy.app = app
+    return app, legacy

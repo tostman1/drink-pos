@@ -1,9 +1,9 @@
 # Drink POS Architecture
 
-Drink POS is being migrated from a monolithic FastAPI module into a layered
-application. The stable production entrypoint is `app/main.py`, which loads the
-FastAPI app through `app/application.py`. The current production-compatible app
-still lives in `app/legacy_main.py` while code moves into focused modules.
+Drink POS has a modular runtime shell around the original production handlers.
+The stable production entrypoint is `app/main.py`, which loads the FastAPI app
+through `app/application.py`. Runtime routes are grouped by `app/routes/registry.py`
+into public, static, payment, admin, and agent routers before being mounted.
 
 ## Layers
 
@@ -12,18 +12,17 @@ still lives in `app/legacy_main.py` while code moves into focused modules.
 - `app/models/` owns Pydantic request models and typed response shapes.
 - `app/utils/` owns parsing, formatting, validation, and general helpers.
 - `app/services/` owns business logic with no FastAPI request or response types.
-- `app/routes/` owns thin APIRouter modules that validate input and call services.
+- `app/routes/` owns APIRouter modules and the legacy route registry.
 
 ## Migration Strategy
 
-`legacy_main.py` is the compatibility layer. New services accept
-`sqlite3.Connection` explicitly, which makes them testable without an ASGI app.
-Routes move one endpoint group at a time after matching service coverage exists
-and tests protect behavior.
+`legacy_main.py` is now a compatibility handler catalog rather than the app that
+is served directly. New services accept `sqlite3.Connection` explicitly, which
+makes them testable without an ASGI app.
 
-This avoids a risky big-bang rewrite of all production endpoints. The
-bootstrap, module layout, and import boundaries are explicit; removing the
-compatibility layer remains a tracked follow-up in `docs/todos.md`.
+This avoids changing all production handler bodies at once while still ensuring
+the served ASGI app is assembled through modular routers. Retiring individual
+legacy handler bodies remains a lower-risk follow-up in `docs/todos.md`.
 
 ## Compatibility Rules
 
