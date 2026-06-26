@@ -32,13 +32,13 @@ def decimal_comma(value, places: int = 2) -> str:
 def eur_text(value) -> str:
     """Format a numeric value as an EUR display string."""
 
-    return f"EUR {decimal_comma(value)}"
+    return f"€ {decimal_comma(value)}"
 
 
 def normalize_decimal_text(value) -> str:
     """Convert decimal points in money-like text fragments to commas."""
 
-    return re.sub(r"(EUR\s*-?\d+)\.(\d{1,2})(?=\D|$)", r"\1,\2", str(value or ""))
+    return re.sub(r"(€\s*-?\d+)\.(\d{1,2})(?=\D|$)", r"\1,\2", str(value or ""))
 
 
 def short_label_from_name(name: str) -> str:

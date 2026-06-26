@@ -4,40 +4,17 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
-
-
-def _positive_or_none(value, field_name: str):
-    if value is None:
-        return None
-    if int(value) <= 0:
-        raise ValueError(f"{field_name} must be a positive integer")
-    return value
+from pydantic import BaseModel, Field
 
 
 class PositiveIdModel(BaseModel):
-    """Base model that validates common identifier fields when present."""
-
-    @field_validator("person_id", "item_id", "request_id", "message_id", mode="before", check_fields=False)
-    @classmethod
-    def _validate_positive_ids(cls, value, info):
-        return _positive_or_none(value, info.field_name)
+    """Base class for request models carrying common identifier fields."""
 
 
 class PinRequest(BaseModel):
     """Request carrying an admin PIN."""
 
     pin: str
-
-    @field_validator("pin")
-    @classmethod
-    def validate_pin(cls, value: str) -> str:
-        clean = str(value or "").strip()
-        if not clean:
-            raise ValueError("PIN is required")
-        if len(clean) > 64:
-            raise ValueError("PIN is too long")
-        return clean
 
 
 class CashupRequest(PinRequest):
@@ -66,13 +43,6 @@ class RoundRequestIn(PositiveIdModel):
     person_id: int
     quantity: int = 1
     reason: str | None = None
-
-    @field_validator("quantity")
-    @classmethod
-    def validate_quantity(cls, value: int) -> int:
-        if int(value) <= 0:
-            raise ValueError("quantity must be positive")
-        return int(value)
 
 
 class PayRequest(PinRequest, PositiveIdModel):

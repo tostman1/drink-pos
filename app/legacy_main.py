@@ -20,13 +20,42 @@ import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from collections.abc import Iterator
-from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
-from pydantic import BaseModel
 
 try:
+    from .models.requests import (
+        AddDrinkRequest,
+        AdminAdjustItemRequest,
+        AdminChangeRequestDecision,
+        AdminItemCreate,
+        AdminItemDelete,
+        AdminItemUpdate,
+        AdminMemberMessageArchive,
+        AdminMemberMessageCreate,
+        AdminPersonCreate,
+        AdminPersonDelete,
+        AdminPersonUpdate,
+        AdminRoundRequestDecision,
+        AgentBookDrinkRequest,
+        AgentPersonRequest,
+        AgentRoundRequest,
+        CashupRequest,
+        ClientEventRequest,
+        EditRequestIn,
+        KassaPayRequest,
+        MemberMessageAckRequest,
+        PayRequest,
+        PinRequest,
+        ReportRequest,
+        RoundRequestIn,
+        SelfPayRequest,
+        SettingsUpdateRequest,
+        StatisticsRequest,
+        SumUpPairReaderRequest,
+        TransactionFilterRequest,
+    )
     from .services.sumup import (
         SumUpConfig,
         SumUpError,
@@ -37,6 +66,37 @@ try:
         reader_status as sumup_reader_status,
     )
 except ImportError:
+    from models.requests import (
+        AddDrinkRequest,
+        AdminAdjustItemRequest,
+        AdminChangeRequestDecision,
+        AdminItemCreate,
+        AdminItemDelete,
+        AdminItemUpdate,
+        AdminMemberMessageArchive,
+        AdminMemberMessageCreate,
+        AdminPersonCreate,
+        AdminPersonDelete,
+        AdminPersonUpdate,
+        AdminRoundRequestDecision,
+        AgentBookDrinkRequest,
+        AgentPersonRequest,
+        AgentRoundRequest,
+        CashupRequest,
+        ClientEventRequest,
+        EditRequestIn,
+        KassaPayRequest,
+        MemberMessageAckRequest,
+        PayRequest,
+        PinRequest,
+        ReportRequest,
+        RoundRequestIn,
+        SelfPayRequest,
+        SettingsUpdateRequest,
+        StatisticsRequest,
+        SumUpPairReaderRequest,
+        TransactionFilterRequest,
+    )
     from services.sumup import (
         SumUpConfig,
         SumUpError,
@@ -49,10 +109,52 @@ except ImportError:
 
 try:
     from .core.build import build_info
+    from .core import security as security_service
+    from .db import schema as schema_service
     from .services import messages as message_service
+    from .services.statistics import log_transaction, log_transaction_item
+    from .services.sync import get_sync_state
+    from .utils.formatting import (
+        decimal_comma,
+        eur_text,
+        normalize_decimal_text,
+        normalize_for_sort,
+        normalize_hex_color,
+        short_label_from_name,
+    )
+    from .utils.helpers import (
+        get_setting,
+        now_text,
+        row_get,
+        set_setting,
+        setting_bool,
+        today_text,
+    )
+    from .utils.parsing import display_name, split_name
 except ImportError:
     from core.build import build_info
+    import core.security as security_service
+    import db.schema as schema_service
     from services import messages as message_service
+    from services.statistics import log_transaction, log_transaction_item
+    from services.sync import get_sync_state
+    from utils.formatting import (
+        decimal_comma,
+        eur_text,
+        normalize_decimal_text,
+        normalize_for_sort,
+        normalize_hex_color,
+        short_label_from_name,
+    )
+    from utils.helpers import (
+        get_setting,
+        now_text,
+        row_get,
+        set_setting,
+        setting_bool,
+        today_text,
+    )
+    from utils.parsing import display_name, split_name
 
 APP_ENV = os.getenv("DRINK_POS_ENV", "development").strip().lower()
 RAW_ENV_PIN_CODE = os.getenv("DRINK_POS_PIN")
@@ -133,48 +235,6 @@ app = FastAPI(title="Drink POS")
 # General helpers
 # ---------------------------------------------------------------------------
 
-def now_text() -> str:
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-
-def today_text() -> str:
-    return datetime.now().strftime("%Y-%m-%d")
-
-
-def get_sync_state(conn: sqlite3.Connection) -> dict:
-    """Compact state used by clients to detect connectivity and changed server data."""
-    timestamp_checks = [
-        ("transactions", "timestamp"),
-        ("order_lines", "updated_at"),
-        ("settings", "updated_at"),
-        ("change_requests", "requested_at"),
-        ("change_requests", "decided_at"),
-        ("round_requests", "requested_at"),
-        ("round_requests", "decided_at"),
-        ("round_events", "timestamp"),
-    ]
-    timestamps: list[str] = []
-    for table, column in timestamp_checks:
-        try:
-            value = conn.execute(f"SELECT MAX({column}) AS v FROM {table}").fetchone()["v"]
-        except sqlite3.Error:
-            value = None
-        if value:
-            timestamps.append(str(value))
-
-    try:
-        max_transaction_id = int(conn.execute("SELECT COALESCE(MAX(id), 0) AS v FROM transactions").fetchone()["v"] or 0)
-    except sqlite3.Error:
-        max_transaction_id = 0
-
-    db_changed_at = max(timestamps) if timestamps else now_text()
-    return {
-        "db_changed_at": db_changed_at,
-        "max_transaction_id": max_transaction_id,
-        "db_revision": f"{max_transaction_id}:{db_changed_at}",
-    }
-
-
 def is_production() -> bool:
     return APP_ENV in {"prod", "production"}
 
@@ -206,6 +266,24 @@ def message_text(key: str, default: str = "", **values) -> str:
     return message_service.message_text(key, default, db_path=DB_PATH, values=values)
 
 
+def configured_admin_pin(conn: sqlite3.Connection) -> str:
+    """Compatibility wrapper for the admin PIN security service."""
+
+    return security_service.configured_admin_pin(conn, ENV_PIN_CODE)
+
+
+def ensure_admin_login_allowed(conn: sqlite3.Connection) -> None:
+    """Compatibility wrapper for the admin PIN security service."""
+
+    security_service.ensure_admin_login_allowed(conn, production=is_production(), env_pin=ENV_PIN_CODE)
+
+
+def require_pin(conn: sqlite3.Connection, pin: str) -> None:
+    """Compatibility wrapper for the admin PIN security service."""
+
+    security_service.require_pin(conn, pin, production=is_production(), env_pin=ENV_PIN_CODE)
+
+
 def configure_connection(conn: sqlite3.Connection) -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys=ON")
@@ -222,39 +300,11 @@ def get_conn() -> Iterator[sqlite3.Connection]:
         conn.close()
 
 
-def normalize_for_sort(text: str) -> str:
-    return (
-        text.lower()
-        .replace("ä", "ae")
-        .replace("ö", "oe")
-        .replace("ü", "ue")
-        .replace("ß", "ss")
-    )
-
-
 def clean_notice_template(value: str | None, default: str) -> str:
     text = " ".join(str(value or "").strip().split())
     if not text:
         return default
     return text[:300]
-
-
-def split_name(full_name: str) -> tuple[str, str]:
-    """Default club list is stored as 'Nachname Vorname'."""
-    clean = " ".join((full_name or "").strip().split())
-    if not clean:
-        return "", ""
-    parts = clean.split(" ", 1)
-    if len(parts) == 1:
-        return "", parts[0]
-    return parts[1], parts[0]
-
-
-def display_name(first_name: str, last_name: str) -> str:
-    first = (first_name or "").strip()
-    last = (last_name or "").strip()
-    return " ".join(part for part in [last, first] if part)
-
 
 
 def parse_decimal_value(value, field_name: str = "Wert") -> float:
@@ -281,1083 +331,75 @@ def parse_decimal_value(value, field_name: str = "Wert") -> float:
         raise HTTPException(status_code=400, detail=f"{field_name} ist keine gültige Zahl")
 
 
-def decimal_comma(value, places: int = 2) -> str:
-    return f"{float(value):.{places}f}".replace(".", ",")
-
-
-def eur_text(value) -> str:
-    return f"€ {decimal_comma(value)}"
-
-
-def normalize_decimal_text(value) -> str:
-    return re.sub(r"(€\s*-?\d+)\.(\d{1,2})(?=\D|$)", r"\1,\2", str(value or ""))
-
-
-def short_label_from_name(name: str) -> str:
-    words = re.findall(r"\w+", name or "", flags=re.UNICODE)
-    if not words:
-        return "?"
-    if len(words) >= 2 and words[0].lower() == "bier":
-        return words[1].capitalize()
-    return "".join(word[0].upper() for word in words)[:5]
-
-
-def table_exists(conn: sqlite3.Connection, table: str) -> bool:
-    row = conn.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name = ?", (table,)
-    ).fetchone()
-    return row is not None
-
-
-def column_exists(conn: sqlite3.Connection, table: str, column: str) -> bool:
-    if not table_exists(conn, table):
-        return False
-    rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
-    return any(row["name"] == column for row in rows)
-
-
-def add_column_if_missing(conn: sqlite3.Connection, table: str, ddl: str):
-    # ddl example: "first_name TEXT NOT NULL DEFAULT ''"
-    column = ddl.split()[0]
-    if not column_exists(conn, table, column):
-        conn.execute(f"ALTER TABLE {table} ADD COLUMN {ddl}")
-
-
-def get_setting(conn: sqlite3.Connection, key: str, default: str | None = None) -> str | None:
-    row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
-    return row["value"] if row else default
-
-
-def set_setting(conn: sqlite3.Connection, key: str, value: str):
-    conn.execute(
-        """
-        INSERT INTO settings (key, value, updated_at)
-        VALUES (?, ?, ?)
-        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-        """,
-        (key, str(value), now_text()),
-    )
-
-
-def setting_bool(conn: sqlite3.Connection, key: str, default: str = "1") -> bool:
-    return get_setting(conn, key, default) in {"1", "true", "True", True}
-
-
-def normalize_hex_color(value: str | None, default: str) -> str:
-    raw = (value or default or "").strip()
-    if re.fullmatch(r"#[0-9A-Fa-f]{6}", raw):
-        return raw.lower()
-    if re.fullmatch(r"[0-9A-Fa-f]{6}", raw):
-        return f"#{raw.lower()}"
-    return default
-
-
-def require_pin(conn: sqlite3.Connection, pin: str):
-    configured = configured_admin_pin(conn)
-    if is_production() and configured == "1234":
-        raise HTTPException(
-            status_code=403,
-            detail="Standard-PIN 1234 ist in Produktion gesperrt. Bitte DRINK_POS_PIN setzen oder die PIN in einer lokalen Entwicklungsumgebung ändern.",
-        )
-    if pin != configured:
-        raise HTTPException(status_code=403, detail="Falsche PIN")
-
-
-def configured_admin_pin(conn: sqlite3.Connection) -> str:
-    return get_setting(conn, "admin_pin", ENV_PIN_CODE) or ENV_PIN_CODE
-
-
-def ensure_admin_login_allowed(conn: sqlite3.Connection):
-    if is_production() and configured_admin_pin(conn) == "1234":
-        raise HTTPException(
-            status_code=403,
-            detail="Standard-PIN 1234 ist in Produktion gesperrt. Bitte DRINK_POS_PIN setzen oder die PIN in einer lokalen Entwicklungsumgebung ändern.",
-        )
-
-
-def log_transaction(
-    conn: sqlite3.Connection,
-    person_id: int | None,
-    typ: str,
-    total_eur: float,
-    details: str,
-) -> int:
-    cur = conn.execute(
-        """
-        INSERT INTO transactions (person_id, type, total, details, timestamp)
-        VALUES (?, ?, ?, ?, ?)
-        """,
-        (person_id, typ, round(float(total_eur), 2), details, now_text()),
-    )
-    return int(cur.lastrowid)
-
-
-def row_get(row: sqlite3.Row | dict, key: str, default=None):
-    if isinstance(row, dict):
-        return row.get(key, default)
-    return row[key] if key in row.keys() else default
-
-
-def log_transaction_item(
-    conn: sqlite3.Connection,
-    transaction_id: int,
-    person_id: int | None,
-    line: sqlite3.Row | dict,
-    quantity: int,
-    kind: str,
-):
-    qty = int(quantity)
-    price = float(row_get(line, "unit_price_eur", 0) or 0)
-    purchase = float(row_get(line, "unit_purchase_price_eur", 0) or 0)
-    total = round(qty * price, 2)
-    purchase_total = round(qty * purchase, 2)
-    profit = round(total - purchase_total, 2)
-    conn.execute(
-        """
-        INSERT INTO transaction_items (
-            transaction_id, person_id, item_id, item_name_snapshot, item_short_label_snapshot,
-            quantity, unit_price_eur, unit_purchase_price_eur, total_eur, purchase_total_eur, profit_eur, kind, timestamp
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (
-            transaction_id,
-            person_id,
-            row_get(line, "item_id"),
-            row_get(line, "item_name_snapshot"),
-            row_get(line, "item_short_label_snapshot"),
-            qty,
-            price,
-            purchase,
-            total,
-            purchase_total,
-            profit,
-            kind,
-            now_text(),
-        ),
-    )
-
+# ---------------------------------------------------------------------------
+# Database setup + migration from prototype tables
+# ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
 # Database setup + migration from prototype tables
 # ---------------------------------------------------------------------------
 
+def _configure_schema_runtime() -> None:
+    schema_service.configure_runtime(DB_PATH, ENV_PIN_CODE, ENV_PIN_FROM_ENV, get_conn)
+
+
 def init_db():
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    ensure_messages_file()
-
-    with get_conn() as conn:
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA foreign_keys=ON")
-
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS settings (
-                key TEXT PRIMARY KEY,
-                value TEXT NOT NULL,
-                updated_at TEXT NOT NULL
-            )
-            """
-        )
-
-        # Keep the old 'name' column for compatibility with old transaction joins,
-        # but the application now edits first_name/last_name explicitly.
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS people (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT UNIQUE NOT NULL
-            )
-            """
-        )
-        add_column_if_missing(conn, "people", "first_name TEXT NOT NULL DEFAULT ''")
-        add_column_if_missing(conn, "people", "last_name TEXT NOT NULL DEFAULT ''")
-        add_column_if_missing(conn, "people", "active INTEGER NOT NULL DEFAULT 1")
-        add_column_if_missing(conn, "people", "archived_at TEXT")
-        add_column_if_missing(conn, "people", "created_at TEXT")
-
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS items (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT UNIQUE NOT NULL,
-                short_label TEXT NOT NULL,
-                price_eur REAL NOT NULL DEFAULT 0,
-                purchase_price_eur REAL NOT NULL DEFAULT 0,
-                active INTEGER NOT NULL DEFAULT 1,
-                admin_only INTEGER NOT NULL DEFAULT 0,
-                sort_order INTEGER NOT NULL DEFAULT 100,
-                archived_at TEXT,
-                created_at TEXT NOT NULL
-            )
-            """
-        )
-        add_column_if_missing(conn, "items", "purchase_price_eur REAL NOT NULL DEFAULT 0")
-
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS order_lines (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                person_id INTEGER NOT NULL,
-                item_id INTEGER,
-                quantity INTEGER NOT NULL DEFAULT 0,
-                unit_price_eur REAL NOT NULL,
-                unit_purchase_price_eur REAL NOT NULL DEFAULT 0,
-                item_name_snapshot TEXT NOT NULL,
-                item_short_label_snapshot TEXT NOT NULL,
-                admin_only_snapshot INTEGER NOT NULL DEFAULT 0,
-                consumed_date TEXT NOT NULL,
-                event_open INTEGER NOT NULL DEFAULT 1,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                FOREIGN KEY(person_id) REFERENCES people(id),
-                FOREIGN KEY(item_id) REFERENCES items(id)
-            )
-            """
-        )
-
-        add_column_if_missing(conn, "order_lines", "event_open INTEGER NOT NULL DEFAULT 1")
-        add_column_if_missing(conn, "order_lines", "unit_purchase_price_eur REAL NOT NULL DEFAULT 0")
-
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS change_requests (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                person_id INTEGER NOT NULL,
-                order_line_id INTEGER NOT NULL,
-                item_id INTEGER,
-                quantity_to_remove INTEGER NOT NULL,
-                reason TEXT,
-                status TEXT NOT NULL DEFAULT 'PENDING',
-                requested_at TEXT NOT NULL,
-                decided_at TEXT,
-                FOREIGN KEY(person_id) REFERENCES people(id),
-                FOREIGN KEY(order_line_id) REFERENCES order_lines(id),
-                FOREIGN KEY(item_id) REFERENCES items(id)
-            )
-            """
-        )
-
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS round_requests (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                person_id INTEGER NOT NULL,
-                item_id INTEGER,
-                quantity INTEGER NOT NULL DEFAULT 1,
-                reason TEXT,
-                status TEXT NOT NULL DEFAULT 'PENDING',
-                requested_at TEXT NOT NULL,
-                decided_at TEXT,
-                FOREIGN KEY(person_id) REFERENCES people(id),
-                FOREIGN KEY(item_id) REFERENCES items(id)
-            )
-            """
-        )
-
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS member_messages (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT,
-                message TEXT NOT NULL,
-                active INTEGER NOT NULL DEFAULT 1,
-                created_at TEXT NOT NULL,
-                archived_at TEXT
-            )
-            """
-        )
-
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS member_message_recipients (
-                message_id INTEGER NOT NULL,
-                person_id INTEGER NOT NULL,
-                acknowledged_at TEXT,
-                PRIMARY KEY(message_id, person_id),
-                FOREIGN KEY(message_id) REFERENCES member_messages(id) ON DELETE CASCADE,
-                FOREIGN KEY(person_id) REFERENCES people(id)
-            )
-            """
-        )
-
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS transactions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                person_id INTEGER,
-                type TEXT NOT NULL,
-                total REAL NOT NULL,
-                details TEXT,
-                timestamp TEXT NOT NULL,
-                FOREIGN KEY(person_id) REFERENCES people(id)
-            )
-            """
-        )
-
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS client_operations (
-                client_operation_id TEXT PRIMARY KEY,
-                endpoint TEXT NOT NULL,
-                transaction_id INTEGER,
-                client_time TEXT,
-                device_info TEXT,
-                created_at TEXT NOT NULL,
-                FOREIGN KEY(transaction_id) REFERENCES transactions(id)
-            )
-            """
-        )
-
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS self_payment_sessions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                person_id INTEGER NOT NULL,
-                client_payment_id TEXT,
-                status TEXT NOT NULL,
-                base_amount_cents INTEGER NOT NULL DEFAULT 0,
-                card_fee_cents INTEGER NOT NULL DEFAULT 0,
-                rounding_mode TEXT NOT NULL DEFAULT 'none',
-                rounding_adjustment_cents INTEGER NOT NULL DEFAULT 0,
-                amount_eur REAL NOT NULL,
-                amount_cents INTEGER NOT NULL,
-                currency TEXT NOT NULL DEFAULT 'EUR',
-                provider TEXT NOT NULL DEFAULT 'sumup',
-                provider_checkout_id TEXT,
-                revision TEXT NOT NULL,
-                terminal_result TEXT,
-                terminal_reference TEXT,
-                raw_response TEXT,
-                error TEXT,
-                transaction_id INTEGER,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                completed_at TEXT,
-                FOREIGN KEY(person_id) REFERENCES people(id),
-                FOREIGN KEY(transaction_id) REFERENCES transactions(id)
-            )
-            """
-        )
-        add_column_if_missing(conn, "self_payment_sessions", "client_payment_id TEXT")
-        add_column_if_missing(conn, "self_payment_sessions", "currency TEXT NOT NULL DEFAULT 'EUR'")
-        add_column_if_missing(conn, "self_payment_sessions", "provider TEXT NOT NULL DEFAULT 'sumup'")
-        add_column_if_missing(conn, "self_payment_sessions", "provider_checkout_id TEXT")
-        add_column_if_missing(conn, "self_payment_sessions", "raw_response TEXT")
-        add_column_if_missing(conn, "self_payment_sessions", "completed_at TEXT")
-        add_column_if_missing(conn, "self_payment_sessions", "base_amount_cents INTEGER NOT NULL DEFAULT 0")
-        add_column_if_missing(conn, "self_payment_sessions", "card_fee_cents INTEGER NOT NULL DEFAULT 0")
-        add_column_if_missing(conn, "self_payment_sessions", "rounding_mode TEXT NOT NULL DEFAULT 'none'")
-        add_column_if_missing(conn, "self_payment_sessions", "rounding_adjustment_cents INTEGER NOT NULL DEFAULT 0")
-
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS paid_round_units (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                source_order_line_id INTEGER,
-                payer_person_id INTEGER NOT NULL,
-                payer_name_snapshot TEXT NOT NULL,
-                round_price_eur REAL NOT NULL,
-                payment_transaction_id INTEGER,
-                event_open INTEGER NOT NULL DEFAULT 1,
-                created_at TEXT NOT NULL,
-                closed_at TEXT,
-                FOREIGN KEY(source_order_line_id) REFERENCES order_lines(id),
-                FOREIGN KEY(payer_person_id) REFERENCES people(id),
-                FOREIGN KEY(payment_transaction_id) REFERENCES transactions(id)
-            )
-            """
-        )
-
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS transaction_items (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                transaction_id INTEGER NOT NULL,
-                person_id INTEGER,
-                item_id INTEGER,
-                item_name_snapshot TEXT NOT NULL,
-                item_short_label_snapshot TEXT NOT NULL,
-                quantity INTEGER NOT NULL,
-                unit_price_eur REAL NOT NULL,
-                unit_purchase_price_eur REAL NOT NULL DEFAULT 0,
-                total_eur REAL NOT NULL,
-                purchase_total_eur REAL NOT NULL DEFAULT 0,
-                profit_eur REAL NOT NULL DEFAULT 0,
-                kind TEXT NOT NULL,
-                timestamp TEXT NOT NULL,
-                FOREIGN KEY(transaction_id) REFERENCES transactions(id),
-                FOREIGN KEY(person_id) REFERENCES people(id),
-                FOREIGN KEY(item_id) REFERENCES items(id)
-            )
-            """
-        )
-        add_column_if_missing(conn, "transaction_items", "unit_purchase_price_eur REAL NOT NULL DEFAULT 0")
-        add_column_if_missing(conn, "transaction_items", "purchase_total_eur REAL NOT NULL DEFAULT 0")
-        add_column_if_missing(conn, "transaction_items", "profit_eur REAL NOT NULL DEFAULT 0")
-
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS round_events (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                transaction_id INTEGER,
-                timestamp TEXT NOT NULL,
-                round_price_eur REAL NOT NULL,
-                deducted_vk_eur REAL NOT NULL,
-                deducted_purchase_eur REAL NOT NULL,
-                profit_vs_purchase_eur REAL NOT NULL,
-                profit_vs_retail_eur REAL NOT NULL,
-                details TEXT,
-                FOREIGN KEY(transaction_id) REFERENCES transactions(id)
-            )
-            """
-        )
-
-        migrate_people(conn)
-        ensure_default_people(conn)
-        migrate_items(conn)
-        ensure_default_items(conn)
-        ensure_round_item(conn)
-        migrate_old_orders(conn)
-        backfill_missing_purchase_snapshots(conn)
-        ensure_settings(conn)
-        ensure_indexes(conn)
-
-        conn.commit()
+    _configure_schema_runtime()
+    return schema_service.init_db()
 
 
 def ensure_indexes(conn: sqlite3.Connection):
-    indexes = [
-        "CREATE INDEX IF NOT EXISTS idx_transaction_items_kind_timestamp ON transaction_items(kind, timestamp)",
-        "CREATE INDEX IF NOT EXISTS idx_transaction_items_timestamp ON transaction_items(timestamp)",
-        "CREATE INDEX IF NOT EXISTS idx_order_lines_quantity_event ON order_lines(quantity, event_open)",
-        "CREATE INDEX IF NOT EXISTS idx_order_lines_person_quantity_event ON order_lines(person_id, quantity, event_open)",
-        "CREATE INDEX IF NOT EXISTS idx_round_events_timestamp ON round_events(timestamp)",
-        "CREATE INDEX IF NOT EXISTS idx_transactions_type_timestamp ON transactions(type, timestamp)",
-        "CREATE INDEX IF NOT EXISTS idx_transactions_person_timestamp ON transactions(person_id, timestamp)",
-        "CREATE INDEX IF NOT EXISTS idx_change_requests_status ON change_requests(status)",
-        "CREATE INDEX IF NOT EXISTS idx_change_requests_line_status ON change_requests(order_line_id, status)",
-        "CREATE INDEX IF NOT EXISTS idx_round_requests_status ON round_requests(status)",
-        "CREATE INDEX IF NOT EXISTS idx_round_requests_person_status ON round_requests(person_id, status)",
-        "CREATE INDEX IF NOT EXISTS idx_member_messages_active ON member_messages(active, archived_at)",
-        "CREATE INDEX IF NOT EXISTS idx_member_message_recipients_person_ack ON member_message_recipients(person_id, acknowledged_at)",
-        "CREATE INDEX IF NOT EXISTS idx_member_message_recipients_message ON member_message_recipients(message_id)",
-        "CREATE INDEX IF NOT EXISTS idx_self_payment_sessions_person_status ON self_payment_sessions(person_id, status, updated_at)",
-        "CREATE INDEX IF NOT EXISTS idx_self_payment_sessions_status_updated ON self_payment_sessions(status, updated_at)",
-        "CREATE UNIQUE INDEX IF NOT EXISTS idx_self_payment_sessions_client_payment_id ON self_payment_sessions(client_payment_id)",
-        "CREATE INDEX IF NOT EXISTS idx_self_payment_sessions_provider_checkout ON self_payment_sessions(provider, provider_checkout_id)",
-        "CREATE INDEX IF NOT EXISTS idx_paid_round_units_event ON paid_round_units(event_open, created_at)",
-        "CREATE INDEX IF NOT EXISTS idx_paid_round_units_source ON paid_round_units(source_order_line_id)",
-    ]
-    for sql in indexes:
-        conn.execute(sql)
+    _configure_schema_runtime()
+    return schema_service.ensure_indexes(conn)
 
 
 def migrate_people(conn: sqlite3.Connection):
-    rows = conn.execute("SELECT id, name, first_name, last_name, created_at FROM people").fetchall()
-    for row in rows:
-        first = row["first_name"] or ""
-        last = row["last_name"] or ""
-        created = row["created_at"]
-        if not first and not last:
-            first, last = split_name(row["name"])
-        name = display_name(first, last) or row["name"]
-        conn.execute(
-            """
-            UPDATE people
-            SET first_name = ?, last_name = ?, name = ?, created_at = COALESCE(created_at, ?)
-            WHERE id = ?
-            """,
-            (first, last, name, now_text(), row["id"]),
-        )
+    _configure_schema_runtime()
+    return schema_service.migrate_people(conn)
 
 
 def is_placeholder_name(name: str) -> bool:
-    return bool(re.fullmatch(r"Person\s+\d+", (name or "").strip()))
+    return schema_service.is_placeholder_name(name)
 
 
 def ensure_default_people(conn: sqlite3.Connection):
-    existing = conn.execute("SELECT id, name FROM people ORDER BY id").fetchall()
-    if existing and all(is_placeholder_name(row["name"]) for row in existing):
-        for index, row in enumerate(existing[: len(DEFAULT_NAMES)]):
-            first, last = split_name(DEFAULT_NAMES[index])
-            conn.execute(
-                """
-                UPDATE people
-                SET first_name = ?, last_name = ?, name = ?, active = 1, archived_at = NULL
-                WHERE id = ?
-                """,
-                (first, last, display_name(first, last), row["id"]),
-            )
-
-    for full_name in DEFAULT_NAMES:
-        first, last = split_name(full_name)
-        name = display_name(first, last)
-        row = conn.execute("SELECT id FROM people WHERE name = ?", (name,)).fetchone()
-        if not row:
-            conn.execute(
-                """
-                INSERT INTO people (name, first_name, last_name, active, archived_at, created_at)
-                VALUES (?, ?, ?, 1, NULL, ?)
-                """,
-                (name, first, last, now_text()),
-            )
+    _configure_schema_runtime()
+    return schema_service.ensure_default_people(conn)
 
 
 def migrate_items(conn: sqlite3.Connection):
-    if not table_exists(conn, "drinks"):
-        return
-    old_drinks = conn.execute("SELECT * FROM drinks").fetchall()
-    for index, row in enumerate(old_drinks, start=1):
-        name = row["name"]
-        price = float(row["price"] if "price" in row.keys() else 0)
-        active = int(row["active"] if "active" in row.keys() else 1)
-        sort_order = int(row["sort_order"] if "sort_order" in row.keys() else index)
-        existing = conn.execute("SELECT id FROM items WHERE name = ?", (name,)).fetchone()
-        if not existing:
-            conn.execute(
-                """
-                INSERT INTO items (name, short_label, price_eur, purchase_price_eur, active, admin_only, sort_order, created_at)
-                VALUES (?, ?, ?, 0, ?, 0, ?, ?)
-                """,
-                (name, short_label_from_name(name), price, active, sort_order, now_text()),
-            )
+    _configure_schema_runtime()
+    return schema_service.migrate_items(conn)
 
 
 def ensure_default_items(conn: sqlite3.Connection):
-    for index, item in enumerate(DEFAULT_ITEMS, start=1):
-        default_purchase = float(item.get("purchase_price_eur", 0) or 0)
-        row = conn.execute("SELECT id, purchase_price_eur FROM items WHERE name = ?", (item["name"],)).fetchone()
-        if not row:
-            conn.execute(
-                """
-                INSERT INTO items (name, short_label, price_eur, purchase_price_eur, active, admin_only, sort_order, created_at)
-                VALUES (?, ?, ?, ?, 1, ?, ?, ?)
-                """,
-                (
-                    item["name"],
-                    item["short_label"],
-                    float(item["price_eur"]),
-                    default_purchase,
-                    1 if item.get("admin_only") else 0,
-                    index,
-                    now_text(),
-                ),
-            )
-        elif default_purchase > 0 and float(row["purchase_price_eur"] or 0) == 0:
-            # Upgrade alter Installationen: Vor dem EK-Feature existierende Standardartikel
-            # hatten automatisch EK=0. Beim ersten Start mit dieser Version bekommen sie
-            # sinnvolle Default-EKs, solange noch kein eigener EK gepflegt wurde.
-            conn.execute(
-                "UPDATE items SET purchase_price_eur = ? WHERE id = ? AND purchase_price_eur = 0",
-                (default_purchase, row["id"]),
-            )
+    _configure_schema_runtime()
+    return schema_service.ensure_default_items(conn)
 
 
 def ensure_round_item(conn: sqlite3.Connection):
-    """Internal helper item for billing a paid round.
-
-    The round is intentionally not a normal drink/article: only its sales price
-    is configurable in settings. Its purchase cost is always computed from the
-    actual drinks deducted by /api/deduct-round, not from this helper item.
-    """
-    row = conn.execute("SELECT id FROM items WHERE name = ?", (ROUND_ITEM_NAME,)).fetchone()
-    price = float(get_setting(conn, "round_item_price_eur", DEFAULT_ROUND_PRICE_EUR) or DEFAULT_ROUND_PRICE_EUR)
-    if not row:
-        max_order = conn.execute("SELECT COALESCE(MAX(sort_order), 0) AS max_order FROM items").fetchone()["max_order"]
-        conn.execute(
-            """
-            INSERT INTO items (name, short_label, price_eur, purchase_price_eur, active, admin_only, sort_order, created_at)
-            VALUES (?, ?, ?, 0, 1, 1, ?, ?)
-            """,
-            (ROUND_ITEM_NAME, ROUND_ITEM_SHORT, price, int(max_order) + 1, now_text()),
-        )
-    else:
-        conn.execute(
-            """
-            UPDATE items
-            SET name = ?, short_label = ?, price_eur = ?, purchase_price_eur = 0,
-                active = 1, admin_only = 1, archived_at = NULL
-            WHERE id = ?
-            """,
-            (ROUND_ITEM_NAME, ROUND_ITEM_SHORT, price, row["id"]),
-        )
+    _configure_schema_runtime()
+    return schema_service.ensure_round_item(conn)
 
 
 def migrate_old_orders(conn: sqlite3.Connection):
-    if not table_exists(conn, "orders"):
-        return
-    existing_new = conn.execute("SELECT COUNT(*) AS c FROM order_lines").fetchone()["c"]
-    if existing_new:
-        return
-    if not column_exists(conn, "orders", "drink"):
-        return
-    rows = conn.execute("SELECT person_id, drink, quantity FROM orders WHERE quantity > 0").fetchall()
-    for row in rows:
-        item = conn.execute("SELECT * FROM items WHERE name = ?", (row["drink"],)).fetchone()
-        if not item:
-            conn.execute(
-                """
-                INSERT INTO items (name, short_label, price_eur, purchase_price_eur, active, admin_only, sort_order, created_at)
-                VALUES (?, ?, 0, 0, 0, 0, 999, ?)
-                """,
-                (row["drink"], short_label_from_name(row["drink"]), now_text()),
-            )
-            item = conn.execute("SELECT * FROM items WHERE name = ?", (row["drink"],)).fetchone()
-        conn.execute(
-            """
-            INSERT INTO order_lines (
-                person_id, item_id, quantity, unit_price_eur, unit_purchase_price_eur, item_name_snapshot,
-                item_short_label_snapshot, admin_only_snapshot, consumed_date, event_open, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                row["person_id"],
-                item["id"],
-                int(row["quantity"]),
-                float(item["price_eur"]),
-                float(item["purchase_price_eur"] if "purchase_price_eur" in item.keys() else 0),
-                item["name"],
-                item["short_label"],
-                int(item["admin_only"]),
-                today_text(),
-                1,
-                now_text(),
-                now_text(),
-            ),
-        )
+    _configure_schema_runtime()
+    return schema_service.migrate_old_orders(conn)
 
 
 def backfill_missing_purchase_snapshots(conn: sqlite3.Connection):
-    """Backfill EK-Snapshots for data created before the EK feature existed.
-
-    New consumptions always snapshot the item's EK at consumption time. Older rows from
-    previous app versions can have 0.00 simply because the column did not exist yet.
-    For those rows only, use the current item EK so reports do not show false zero cost.
-    """
-    conn.execute(
-        """
-        UPDATE order_lines
-        SET unit_purchase_price_eur = (
-            SELECT purchase_price_eur FROM items WHERE items.id = order_lines.item_id
-        )
-        WHERE item_id IS NOT NULL
-          AND COALESCE(unit_purchase_price_eur, 0) = 0
-          AND COALESCE((SELECT purchase_price_eur FROM items WHERE items.id = order_lines.item_id), 0) > 0
-        """
-    )
-    conn.execute(
-        """
-        UPDATE transaction_items
-        SET
-            unit_purchase_price_eur = (
-                SELECT purchase_price_eur FROM items WHERE items.id = transaction_items.item_id
-            ),
-            purchase_total_eur = quantity * (
-                SELECT purchase_price_eur FROM items WHERE items.id = transaction_items.item_id
-            ),
-            profit_eur = total_eur - (quantity * (
-                SELECT purchase_price_eur FROM items WHERE items.id = transaction_items.item_id
-            ))
-        WHERE item_id IS NOT NULL
-          AND COALESCE(unit_purchase_price_eur, 0) = 0
-          AND COALESCE((SELECT purchase_price_eur FROM items WHERE items.id = transaction_items.item_id), 0) > 0
-        """
-    )
-    # „1 Runde“ ist ein interner Runden-Preis, kein Getränk mit eigenem EK.
-    # Falls eine frühere Version dort versehentlich einen EK-Snapshot gespeichert
-    # hat, wird dieser korrigiert. Der Runden-EK kommt ausschließlich aus den
-    # tatsächlich abgezogenen Getränken im round_events-Bericht.
-    conn.execute(
-        """
-        UPDATE order_lines
-        SET unit_purchase_price_eur = 0
-        WHERE item_name_snapshot = ?
-           OR item_id IN (SELECT id FROM items WHERE name = ?)
-        """,
-        (ROUND_ITEM_NAME, ROUND_ITEM_NAME),
-    )
-    conn.execute(
-        """
-        UPDATE transaction_items
-        SET unit_purchase_price_eur = 0,
-            purchase_total_eur = 0,
-            profit_eur = total_eur
-        WHERE item_name_snapshot = ?
-           OR item_id IN (SELECT id FROM items WHERE name = ?)
-        """,
-        (ROUND_ITEM_NAME, ROUND_ITEM_NAME),
-    )
+    _configure_schema_runtime()
+    return schema_service.backfill_missing_purchase_snapshots(conn)
 
 
 def ensure_settings(conn: sqlite3.Connection):
-    current_admin_pin = get_setting(conn, "admin_pin")
-    if current_admin_pin is None:
-        set_setting(conn, "admin_pin", ENV_PIN_CODE)
-    elif current_admin_pin == "1234" and ENV_PIN_FROM_ENV and ENV_PIN_CODE != "1234":
-        set_setting(conn, "admin_pin", ENV_PIN_CODE)
-    if get_setting(conn, "round_item_price_eur") is None:
-        set_setting(conn, "round_item_price_eur", DEFAULT_ROUND_PRICE_EUR)
-    if get_setting(conn, "currency") is None:
-        set_setting(conn, "currency", "EUR")
-    if get_setting(conn, "app_name") is None:
-        set_setting(conn, "app_name", "Drink POS")
-    if get_setting(conn, "show_total_on_overview") is None:
-        set_setting(conn, "show_total_on_overview", "1")
-    if get_setting(conn, "tally_roughness") is None:
-        set_setting(conn, "tally_roughness", "4")
-    if get_setting(conn, "overview_name_size_px") is None:
-        set_setting(conn, "overview_name_size_px", "15.5")
-    if get_setting(conn, "overview_summary_size_percent") is None:
-        set_setting(conn, "overview_summary_size_percent", "100")
-    if get_setting(conn, "show_summary_label_on_overview") is None:
-        set_setting(conn, "show_summary_label_on_overview", "1")
-    if get_setting(conn, "overview_summary_label_text") is None:
-        set_setting(conn, "overview_summary_label_text", "Gesamt:")
-    if get_setting(conn, "tally_size_percent") is None:
-        set_setting(conn, "tally_size_percent", "100")
-    if get_setting(conn, "show_sync_status") is None:
-        set_setting(conn, "show_sync_status", "1")
-    if get_setting(conn, "show_person_popup_total") is None:
-        set_setting(conn, "show_person_popup_total", "1")
-    if get_setting(conn, "sync_status_size_percent") is None:
-        set_setting(conn, "sync_status_size_percent", "100")
-    if get_setting(conn, "enable_delete_requests") is None:
-        set_setting(conn, "enable_delete_requests", "1")
-    if get_setting(conn, "app_background_color") is None:
-        set_setting(conn, "app_background_color", "#f3f4f6")
-    if get_setting(conn, "person_card_background_color") is None:
-        set_setting(conn, "person_card_background_color", "#ffffff")
-    if get_setting(conn, "person_card_border_color") is None:
-        set_setting(conn, "person_card_border_color", "#bfdbfe")
-    if get_setting(conn, "person_card_border_width_px") is None:
-        set_setting(conn, "person_card_border_width_px", "2")
-    if get_setting(conn, "person_card_gap_px") is None:
-        set_setting(conn, "person_card_gap_px", "10")
-    if get_setting(conn, "drink_feedback_enabled") is None:
-        set_setting(conn, "drink_feedback_enabled", "1")
-    if get_setting(conn, "drink_feedback_style") is None:
-        set_setting(conn, "drink_feedback_style", "strong")
-    if get_setting(conn, "drink_feedback_duration_ms") is None:
-        set_setting(conn, "drink_feedback_duration_ms", "1400")
-    if get_setting(conn, "drink_feedback_animation_intensity_percent") is None:
-        set_setting(conn, "drink_feedback_animation_intensity_percent", "100")
-    if get_setting(conn, "drink_feedback_position") is None:
-        set_setting(conn, "drink_feedback_position", "above")
-    if get_setting(conn, "drink_booking_sound_enabled") is None:
-        set_setting(conn, "drink_booking_sound_enabled", "1")
-    if get_setting(conn, "drink_booking_sound_preset") is None:
-        set_setting(conn, "drink_booking_sound_preset", "warm")
-    if get_setting(conn, "drink_celebration_mode") is None:
-        set_setting(conn, "drink_celebration_mode", "condition")
-    if get_setting(conn, "drink_celebration_condition_round") is None:
-        set_setting(conn, "drink_celebration_condition_round", "1")
-    if get_setting(conn, "drink_celebration_condition_debt") is None:
-        set_setting(conn, "drink_celebration_condition_debt", "1")
-    if get_setting(conn, "drink_celebration_debt_threshold_eur") is None:
-        set_setting(conn, "drink_celebration_debt_threshold_eur", "50.00")
-    if get_setting(conn, "drink_celebration_confetti_intensity_percent") is None:
-        set_setting(conn, "drink_celebration_confetti_intensity_percent", "100")
-    if get_setting(conn, "drink_celebration_sound_enabled") is None:
-        set_setting(conn, "drink_celebration_sound_enabled", "1")
-    if get_setting(conn, "cost_warning_enabled") is None:
-        set_setting(conn, "cost_warning_enabled", "1")
-    if get_setting(conn, "cost_warning_threshold_eur") is None:
-        set_setting(conn, "cost_warning_threshold_eur", "30.00")
-    if get_setting(conn, "cost_warning_template") is None:
-        set_setting(conn, "cost_warning_template", DEFAULT_COST_WARNING_TEMPLATE)
-    if get_setting(conn, "payment_reminder_enabled") is None:
-        set_setting(conn, "payment_reminder_enabled", "1")
-    if get_setting(conn, "payment_reminder_threshold_eur") is None:
-        set_setting(conn, "payment_reminder_threshold_eur", "50.00")
-    if get_setting(conn, "payment_reminder_template") is None:
-        set_setting(conn, "payment_reminder_template", DEFAULT_PAYMENT_REMINDER_TEMPLATE)
-    if get_setting(conn, "cost_warning_show_on_overview") is None:
-        set_setting(conn, "cost_warning_show_on_overview", get_setting(conn, "cost_notice_show_on_overview", "1") or "1")
-    if get_setting(conn, "cost_warning_show_in_popup") is None:
-        set_setting(conn, "cost_warning_show_in_popup", get_setting(conn, "cost_notice_show_in_popup", "1") or "1")
-    if get_setting(conn, "payment_reminder_show_on_overview") is None:
-        set_setting(conn, "payment_reminder_show_on_overview", get_setting(conn, "cost_notice_show_on_overview", "1") or "1")
-    if get_setting(conn, "payment_reminder_show_in_popup") is None:
-        set_setting(conn, "payment_reminder_show_in_popup", get_setting(conn, "cost_notice_show_in_popup", "1") or "1")
-    if get_setting(conn, "cost_notice_show_on_overview") is None:
-        set_setting(conn, "cost_notice_show_on_overview", "1")
-    if get_setting(conn, "cost_notice_show_in_popup") is None:
-        set_setting(conn, "cost_notice_show_in_popup", "1")
-    if get_setting(conn, "member_messages_show_on_overview") is None:
-        set_setting(conn, "member_messages_show_on_overview", "1")
-    if get_setting(conn, "member_messages_show_in_popup") is None:
-        set_setting(conn, "member_messages_show_in_popup", "1")
-    if get_setting(conn, "self_payment_enabled") is None:
-        set_setting(conn, "self_payment_enabled", "0")
+    _configure_schema_runtime()
+    return schema_service.ensure_settings(conn)
 
 
 @app.on_event("startup")
 def startup():
     init_db()
-
-
-# ---------------------------------------------------------------------------
-# Pydantic models
-# ---------------------------------------------------------------------------
-
-class PinRequest(BaseModel):
-    pin: str
-
-
-class CashupRequest(BaseModel):
-    pin: str
-
-
-class AddDrinkRequest(BaseModel):
-    person_id: int
-    item_id: int | None = None
-    drink: str | None = None
-    pin: str | None = None
-    client_operation_id: str | None = None
-    client_time: str | None = None
-    device_info: str | None = None
-    offline_queued: bool = False
-
-
-class EditRequestIn(BaseModel):
-    person_id: int
-    # New API: {"order_line_id": quantity_to_remove}
-    line_quantities: dict[str, int] | None = None
-    # Backward-compatible old API: {"drink name": negative_delta}
-    changes: dict[str, int] | None = None
-    reason: str | None = None
-
-
-class RoundRequestIn(BaseModel):
-    person_id: int
-    quantity: int = 1
-    reason: str | None = None
-
-
-class PayRequest(BaseModel):
-    person_id: int
-    pin: str
-    approve_request_ids: list[int] = []
-    reject_request_ids: list[int] = []
-    # Backward-compatible fields from prototype. If used, they apply to all pending requests.
-    approve_pending: bool = False
-    reject_pending: bool = False
-
-
-class KassaPayRequest(BaseModel):
-    person_id: int
-    pin: str
-    expected_revision: str
-
-
-class SelfPayRequest(BaseModel):
-    person_id: int
-    expected_revision: str
-    client_payment_id: str | None = None
-    rounding_mode: str = "none"
-
-
-class SumUpPairReaderRequest(BaseModel):
-    pin: str
-    pairing_code: str
-    name: str | None = "Drink POS"
-
-
-class MemberMessageAckRequest(BaseModel):
-    person_id: int
-    message_id: int
-
-
-class AdminAdjustItemRequest(BaseModel):
-    person_id: int
-    pin: str
-    delta: int
-    item_id: int | None = None
-    drink: str | None = None
-
-
-class AdminChangeRequestDecision(BaseModel):
-    pin: str
-    request_id: int
-    decision: Literal["approve", "reject", "APPROVED", "REJECTED"]
-
-
-class AdminRoundRequestDecision(BaseModel):
-    pin: str
-    request_id: int
-    decision: Literal["approve", "reject", "APPROVED", "REJECTED"]
-
-
-class AdminPersonCreate(BaseModel):
-    pin: str
-    first_name: str | None = None
-    last_name: str | None = None
-    name: str | None = None
-
-
-class AdminPersonUpdate(BaseModel):
-    pin: str
-    person_id: int
-    first_name: str | None = None
-    last_name: str | None = None
-    name: str | None = None
-    active: bool = True
-
-
-class AdminPersonDelete(BaseModel):
-    pin: str
-    person_id: int
-
-
-class AdminMemberMessageCreate(BaseModel):
-    pin: str
-    title: str | None = None
-    message: str
-    person_ids: list[int]
-
-
-class AdminMemberMessageArchive(BaseModel):
-    pin: str
-    message_id: int
-
-
-class AdminItemCreate(BaseModel):
-    pin: str
-    name: str
-    short_label: str | None = None
-    price: float | str
-    purchase_price: float | str = 0
-    purchase_price_eur: float | str | None = None
-    active: bool = True
-    admin_only: bool = False
-    sort_order: int | None = None
-
-
-class AdminItemUpdate(BaseModel):
-    pin: str
-    item_id: int | None = None
-    old_name: str | None = None
-    name: str
-    short_label: str | None = None
-    price: float | str
-    purchase_price: float | str = 0
-    purchase_price_eur: float | str | None = None
-    active: bool = True
-    admin_only: bool = False
-    sort_order: int = 100
-
-
-class AdminItemDelete(BaseModel):
-    pin: str
-    item_id: int
-
-
-class SettingsUpdateRequest(BaseModel):
-    pin: str
-    new_pin: str | None = None
-    round_item_price_eur: float | str | None = None
-    show_total_on_overview: bool | None = None
-    show_person_popup_total: bool | None = None
-    app_name: str | None = None
-    tally_roughness: int | None = None
-    overview_name_size_px: float | None = None
-    overview_summary_size_percent: int | None = None
-    show_summary_label_on_overview: bool | None = None
-    overview_summary_label_text: str | None = None
-    tally_size_percent: int | None = None
-    show_sync_status: bool | None = None
-    sync_status_size_percent: int | None = None
-    enable_delete_requests: bool | None = None
-    app_background_color: str | None = None
-    person_card_background_color: str | None = None
-    person_card_border_color: str | None = None
-    person_card_border_width_px: int | None = None
-    person_card_gap_px: int | None = None
-    drink_feedback_enabled: bool | None = None
-    drink_feedback_style: str | None = None
-    drink_feedback_duration_ms: int | None = None
-    drink_feedback_animation_intensity_percent: int | None = None
-    drink_feedback_position: str | None = None
-    drink_booking_sound_enabled: bool | None = None
-    drink_booking_sound_preset: str | None = None
-    drink_celebration_mode: str | None = None
-    drink_celebration_condition_round: bool | None = None
-    drink_celebration_condition_debt: bool | None = None
-    drink_celebration_debt_threshold_eur: float | str | None = None
-    drink_celebration_confetti_intensity_percent: int | None = None
-    drink_celebration_sound_enabled: bool | None = None
-    cost_warning_enabled: bool | None = None
-    cost_warning_threshold_eur: float | str | None = None
-    cost_warning_template: str | None = None
-    cost_warning_show_on_overview: bool | None = None
-    cost_warning_show_in_popup: bool | None = None
-    payment_reminder_enabled: bool | None = None
-    payment_reminder_threshold_eur: float | str | None = None
-    payment_reminder_template: str | None = None
-    payment_reminder_show_on_overview: bool | None = None
-    payment_reminder_show_in_popup: bool | None = None
-    cost_notice_show_on_overview: bool | None = None
-    cost_notice_show_in_popup: bool | None = None
-    member_messages_show_on_overview: bool | None = None
-    member_messages_show_in_popup: bool | None = None
-
-
-class ClientEventRequest(BaseModel):
-    event_type: Literal["CONNECTION_LOST", "CONNECTION_RESTORED", "SYNC_COMPLETED"]
-    page: str | None = None
-    client_time: str | None = None
-    last_sync_at: str | None = None
-    device_info: str | None = None
-    details: str | None = None
-
-
-class TransactionFilterRequest(BaseModel):
-    pin: str
-    name: str | None = None
-    person_id: int | None = None
-    action_type: str | None = None
-    action_types: list[str] | None = None
-    excluded_action_types: list[str] | None = None
-    date_from: str | None = None
-    date_to: str | None = None
-    limit: int = 500
-
-
-class ReportRequest(BaseModel):
-    pin: str
-    report_type: str = "consumption"  # consumption, event_consumption, revenue, profit, rounds
-    group_by: str = "item"  # none, date, person, item/type, item_person, item_date, person_date, item_person_date
-    date_from: str | None = None
-    date_to: str | None = None
-
-
-class StatisticsRequest(BaseModel):
-    pin: str
-    scope: str = "today"  # event, today, month, all, custom
-    date_from: str | None = None
-    date_to: str | None = None
-    include_admin_items: bool = False
-
-
-class AgentBookDrinkRequest(BaseModel):
-    person_id: int
-    item_id: int | None = None
-    drink: str | None = None
-    quantity: int = 1
-    client_operation_id: str | None = None
-    client_time: str | None = None
-    device_info: str | None = None
-    note: str | None = None
-
-
-class AgentPersonRequest(BaseModel):
-    person_id: int
-
-
-class AgentRoundRequest(BaseModel):
-    person_id: int
-    quantity: int = 1
-    reason: str | None = None
 
 
 # ---------------------------------------------------------------------------
