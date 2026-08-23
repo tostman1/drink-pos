@@ -32,6 +32,7 @@ class ModularImportTests(unittest.TestCase):
             'app.routes.agent',
             'app.routes.debug',
             'app.routes.registry',
+            'app.restore_database',
         ]
 
         for module in modules:

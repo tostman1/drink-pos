@@ -88,13 +88,41 @@ def configure_runtime(
     get_conn = get_conn_factory
 
 
+def database_unreadable_message(error: Exception) -> str:
+    return (
+        f"Drink POS database is not readable: {DB_PATH}. "
+        f"SQLite reported: {error}. "
+        "This is usually a corrupted or incomplete SQLite file, not a schema compatibility problem. "
+        "Stop the containers, copy drink_pos.db plus any drink_pos.db-wal/drink_pos.db-shm files aside, "
+        "run PRAGMA integrity_check, and restore from data/backups or a NAS snapshot."
+    )
+
+
+def is_database_unreadable_error(error: Exception) -> bool:
+    message = str(error).lower()
+    return any(
+        marker in message
+        for marker in (
+            "database disk image is malformed",
+            "file is not a database",
+            "unsupported file format",
+            "disk i/o error",
+        )
+    )
+
+
 def init_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     ensure_messages_file()
 
     with get_conn() as conn:
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA foreign_keys=ON")
+        try:
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA foreign_keys=ON")
+        except sqlite3.DatabaseError as exc:
+            if is_database_unreadable_error(exc):
+                raise RuntimeError(database_unreadable_message(exc)) from exc
+            raise
 
         conn.execute(
             """
