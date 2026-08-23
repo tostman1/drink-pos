@@ -1,4 +1,4 @@
-export function playTone({ frequency = 880, durationMs = 120, volume = 0.06 } = {}) {
+export function playTone({ frequency = 880, durationMs = 120, volume = 0.2 } = {}) {
   const AudioContext = globalThis.AudioContext || globalThis.webkitAudioContext;
   if (!AudioContext) return false;
   const ctx = new AudioContext();

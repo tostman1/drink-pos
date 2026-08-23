@@ -11,12 +11,19 @@ except ImportError:
     from utils.helpers import now_text, row_get
 
 
-def log_transaction(conn: sqlite3.Connection, person_id: int | None, typ: str, total_eur: float, details: str) -> int:
+def log_transaction(
+    conn: sqlite3.Connection,
+    person_id: int | None,
+    typ: str,
+    total_eur: float,
+    details: str,
+    timestamp: str | None = None,
+) -> int:
     """Insert a transaction row and return its id."""
 
     cur = conn.execute(
         "INSERT INTO transactions (person_id, type, total, details, timestamp) VALUES (?, ?, ?, ?, ?)",
-        (person_id, typ, round(float(total_eur), 2), details, now_text()),
+        (person_id, typ, round(float(total_eur), 2), details, timestamp or now_text()),
     )
     return int(cur.lastrowid)
 
@@ -28,6 +35,7 @@ def log_transaction_item(
     line: sqlite3.Row | dict[str, Any],
     quantity: int,
     kind: str,
+    timestamp: str | None = None,
 ) -> None:
     """Insert a transaction item snapshot."""
 
@@ -55,7 +63,7 @@ def log_transaction_item(
             round(qty * purchase, 2),
             round(qty * (price - purchase), 2),
             kind,
-            now_text(),
+            timestamp or now_text(),
         ),
     )
 

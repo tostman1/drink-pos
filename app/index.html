@@ -1558,6 +1558,21 @@
         ],
       },
     };
+    const BOOKING_SOUND_VOLUME_BOOST = 4;
+    const BOOKING_SOUND_MAX_MASTER_GAIN = 0.22;
+    const CELEBRATION_SOUND_VOLUME_BOOST = 2.4;
+
+    function soundOutput(ctx) {
+      if (!ctx.createDynamicsCompressor) return ctx.destination;
+      const limiter = ctx.createDynamicsCompressor();
+      limiter.threshold.setValueAtTime(-8, ctx.currentTime);
+      limiter.knee.setValueAtTime(0, ctx.currentTime);
+      limiter.ratio.setValueAtTime(12, ctx.currentTime);
+      limiter.attack.setValueAtTime(0.003, ctx.currentTime);
+      limiter.release.setValueAtTime(0.16, ctx.currentTime);
+      limiter.connect(ctx.destination);
+      return limiter;
+    }
 
     function bookingSoundPresetKey(value) {
       const key = String(value || 'warm').toLowerCase();
@@ -1572,11 +1587,12 @@
       toneFilter.type = 'lowpass';
       toneFilter.frequency.setValueAtTime(preset.filter, now);
       toneFilter.Q.setValueAtTime(preset.q, now);
+      const masterLevel = Math.min(BOOKING_SOUND_MAX_MASTER_GAIN, preset.master * volume * BOOKING_SOUND_VOLUME_BOOST);
       master.gain.setValueAtTime(0.0001, now);
-      master.gain.exponentialRampToValueAtTime(Math.max(0.001, preset.master * volume), now + preset.attack);
+      master.gain.exponentialRampToValueAtTime(Math.max(0.001, masterLevel), now + preset.attack);
       master.gain.exponentialRampToValueAtTime(0.0001, now + preset.release);
       toneFilter.connect(master);
-      master.connect(ctx.destination);
+      master.connect(soundOutput(ctx));
 
       preset.notes.forEach(({ freq, offset, type, gain: level, stop }) => {
         const osc = ctx.createOscillator();
@@ -1611,13 +1627,13 @@
         const master = ctx.createGain();
         const sparkle = ctx.createGain();
         master.gain.setValueAtTime(0.0001, ctx.currentTime);
-        master.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.025);
+        master.gain.exponentialRampToValueAtTime(Math.min(0.45, 0.18 * CELEBRATION_SOUND_VOLUME_BOOST), ctx.currentTime + 0.025);
         master.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.65);
-        master.connect(ctx.destination);
+        master.connect(soundOutput(ctx));
         sparkle.gain.setValueAtTime(0.0001, ctx.currentTime);
-        sparkle.gain.exponentialRampToValueAtTime(0.085, ctx.currentTime + 0.08);
+        sparkle.gain.exponentialRampToValueAtTime(Math.min(0.26, 0.085 * CELEBRATION_SOUND_VOLUME_BOOST), ctx.currentTime + 0.08);
         sparkle.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.35);
-        sparkle.connect(ctx.destination);
+        sparkle.connect(soundOutput(ctx));
 
         const now = ctx.currentTime;
         const notes = [

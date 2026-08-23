@@ -185,6 +185,7 @@ MESSAGES_PATH = message_service.runtime_messages_path(DB_PATH)
 ADMIN_LOGIN_RATE_WINDOW_SECONDS = 300
 ADMIN_LOGIN_RATE_LIMIT = 8
 ADMIN_LOGIN_ATTEMPTS: dict[str, list[float]] = {}
+CLIENT_BOOKING_MAX_FUTURE = timedelta(minutes=5)
 
 DEFAULT_ITEMS = [
     {"name": "Bier gross", "short_label": "Gross", "price_eur": 2.50, "purchase_price_eur": 1.40, "admin_only": False},
@@ -212,6 +213,25 @@ CARD_PAYMENT_ROUNDING_STEPS = {
 
 def is_system_item_name(name: str | None) -> bool:
     return (name or "").strip().lower() in {item.lower() for item in SYSTEM_ITEM_NAMES}
+
+
+def client_booking_timestamp(client_time: str | None) -> str | None:
+    raw = (client_time or "").strip()
+    if not raw:
+        return None
+    if len(raw) > 80:
+        raw = raw[:80]
+    if raw.endswith("Z"):
+        raw = raw[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(raw)
+    except ValueError:
+        return None
+    if parsed.tzinfo is not None:
+        parsed = parsed.astimezone().replace(tzinfo=None)
+    if parsed > datetime.now() + CLIENT_BOOKING_MAX_FUTURE:
+        return None
+    return parsed.strftime("%Y-%m-%d %H:%M:%S")
 
 DEFAULT_NAMES = [
     "Demo Person 01",
@@ -1378,11 +1398,19 @@ def make_event_summary_lines(lines: list[sqlite3.Row]) -> list[dict]:
     return make_summary_lines([line for line in lines if bool(line["event_open"])])
 
 
-def add_order_line(conn: sqlite3.Connection, person_id: int, item: sqlite3.Row, quantity: int = 1):
+def add_order_line(
+    conn: sqlite3.Connection,
+    person_id: int,
+    item: sqlite3.Row,
+    quantity: int = 1,
+    booked_at: str | None = None,
+):
     if quantity <= 0:
         raise HTTPException(status_code=400, detail="Menge muss positiv sein")
     ensure_no_active_self_payment(conn, int(person_id))
-    consumed_date = today_text()
+    booking_timestamp = booked_at or now_text()
+    consumed_date = booking_timestamp[:10]
+    updated_at = now_text()
     price = round(float(item["price_eur"]), 2)
     purchase = round(float(item["purchase_price_eur"] if "purchase_price_eur" in item.keys() else 0), 2)
     existing = conn.execute(
@@ -1416,7 +1444,7 @@ def add_order_line(conn: sqlite3.Connection, person_id: int, item: sqlite3.Row, 
     if existing:
         conn.execute(
             "UPDATE order_lines SET quantity = quantity + ?, updated_at = ? WHERE id = ?",
-            (quantity, now_text(), existing["id"]),
+            (quantity, updated_at, existing["id"]),
         )
         return existing["id"]
 
@@ -1438,8 +1466,8 @@ def add_order_line(conn: sqlite3.Connection, person_id: int, item: sqlite3.Row, 
             int(item["admin_only"]),
             consumed_date,
             1,
-            now_text(),
-            now_text(),
+            booking_timestamp,
+            updated_at,
         ),
     )
     return cur.lastrowid
@@ -2188,7 +2216,6 @@ def agent_book_drink(req: AgentBookDrinkRequest, request: Request):
                 ).fetchone()
                 return {"status": "ok", "duplicate": True, "transaction_id": existing_operation["transaction_id"] if existing_operation else None, **get_sync_state(conn)}
 
-        line_id = add_order_line(conn, person["id"], item, quantity)
         total = rounded_money(quantity * float(item["price_eur"]))
         detail_parts = [f"+{quantity}x {item['name']} via Agent API"]
         if req.note:
@@ -2202,14 +2229,16 @@ def agent_book_drink(req: AgentBookDrinkRequest, request: Request):
             if safe_device:
                 detail_parts.append(f"Geraet: {safe_device}")
 
-        tx_id = log_transaction(conn, person["id"], "CONSUME", total, " | ".join(detail_parts))
+        booking_timestamp = client_booking_timestamp(req.client_time)
+        line_id = add_order_line(conn, person["id"], item, quantity, booked_at=booking_timestamp)
+        tx_id = log_transaction(conn, person["id"], "CONSUME", total, " | ".join(detail_parts), timestamp=booking_timestamp)
         log_transaction_item(conn, tx_id, person["id"], {
             "item_id": item["id"],
             "item_name_snapshot": item["name"],
             "item_short_label_snapshot": item["short_label"],
             "unit_price_eur": item["price_eur"],
             "unit_purchase_price_eur": item["purchase_price_eur"] if "purchase_price_eur" in item.keys() else 0,
-        }, quantity, "CONSUME")
+        }, quantity, "CONSUME", timestamp=booking_timestamp)
         if client_operation_id:
             conn.execute(
                 "UPDATE client_operations SET transaction_id = ? WHERE client_operation_id = ?",
@@ -2936,7 +2965,8 @@ def add_drink(req: AddDrinkRequest):
                 ).fetchone()
                 return {"status": "ok", "duplicate": True, "transaction_id": existing_operation["transaction_id"] if existing_operation else None, **get_sync_state(conn)}
 
-        add_order_line(conn, person["id"], item, 1)
+        booking_timestamp = client_booking_timestamp(req.client_time) if req.offline_queued else None
+        add_order_line(conn, person["id"], item, 1, booked_at=booking_timestamp)
         detail_parts = [f"+1x {item['name']} à {eur_text(item['price_eur'])}"]
         if client_operation_id and req.offline_queued:
             detail_parts.append("offline/Client-Queue")
@@ -2952,6 +2982,7 @@ def add_drink(req: AddDrinkRequest):
             "CONSUME",
             float(item["price_eur"]),
             " · ".join(detail_parts),
+            timestamp=booking_timestamp,
         )
         log_transaction_item(conn, tx_id, person["id"], {
             "item_id": item["id"],
@@ -2959,7 +2990,7 @@ def add_drink(req: AddDrinkRequest):
             "item_short_label_snapshot": item["short_label"],
             "unit_price_eur": item["price_eur"],
             "unit_purchase_price_eur": item["purchase_price_eur"] if "purchase_price_eur" in item.keys() else 0,
-        }, 1, "CONSUME")
+        }, 1, "CONSUME", timestamp=booking_timestamp)
         if client_operation_id:
             conn.execute(
                 "UPDATE client_operations SET transaction_id = ? WHERE client_operation_id = ?",
@@ -4608,13 +4639,13 @@ def transactions(pin: str | None = None):
 
 
 def csv_response(filename: str, headers: list[str], rows: list[list[object]]):
-    output = io.StringIO()
+    output = io.StringIO(newline="")
     writer = csv.writer(output, delimiter=";")
     writer.writerow(headers)
     writer.writerows(rows)
-    output.seek(0)
+    content = output.getvalue().encode("utf-8-sig")
     return StreamingResponse(
-        iter([output.getvalue()]),
+        iter([content]),
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )

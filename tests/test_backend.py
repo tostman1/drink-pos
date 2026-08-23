@@ -1,3 +1,5 @@
+import asyncio
+import codecs
 import importlib
 import os
 import sys
@@ -19,6 +21,13 @@ class FakeRequest:
         self.headers = {}
         if token:
             self.headers["authorization"] = f"Bearer {token}"
+
+
+async def streaming_response_body(response) -> bytes:
+    chunks = []
+    async for chunk in response.body_iterator:
+        chunks.append(chunk.encode("utf-8") if isinstance(chunk, str) else chunk)
+    return b"".join(chunks)
 
 
 class BackendFlowTests(unittest.TestCase):
@@ -789,9 +798,47 @@ class BackendFlowTests(unittest.TestCase):
                 "SELECT transaction_id FROM client_operations WHERE client_operation_id = ?",
                 (operation_id,),
             ).fetchone()
+            transaction = conn.execute(
+                "SELECT timestamp FROM transactions WHERE id = ?",
+                (operation["transaction_id"],),
+            ).fetchone()
+            transaction_item = conn.execute(
+                "SELECT timestamp FROM transaction_items WHERE transaction_id = ?",
+                (operation["transaction_id"],),
+            ).fetchone()
+            order_line = conn.execute(
+                """
+                SELECT consumed_date, created_at
+                FROM order_lines
+                WHERE person_id = ? AND item_id = ?
+                """,
+                (person["id"], item["id"]),
+            ).fetchone()
 
         self.assertEqual(quantity, 1)
         self.assertIsNotNone(operation["transaction_id"])
+        self.assertTrue(transaction["timestamp"].startswith("2026-05-18 "))
+        self.assertTrue(transaction_item["timestamp"].startswith("2026-05-18 "))
+        self.assertEqual(order_line["consumed_date"], "2026-05-18")
+        self.assertTrue(order_line["created_at"].startswith("2026-05-18 "))
+
+    def test_csv_exports_include_utf8_bom_and_preserve_umlauts(self):
+        first_name = "M\u00e4rk"
+        last_name = "\u00d6hlinger"
+        created = self.main.admin_create_person(
+            self.main.AdminPersonCreate(pin=PIN, first_name=first_name, last_name=last_name)
+        )
+        person_id = created["id"]
+        item = next(item for item in self.main.config()["user_items"] if item["name"] != "1 Runde")
+        self.main.add_drink(self.main.AddDrinkRequest(person_id=person_id, item_id=item["id"]))
+
+        response = self.main.export_open_balances(self.main.PinRequest(pin=PIN))
+        body = asyncio.run(streaming_response_body(response))
+        text = body.decode("utf-8-sig")
+
+        self.assertTrue(body.startswith(codecs.BOM_UTF8))
+        self.assertIn(f"{last_name} {first_name}", text)
+        self.assertNotIn("M\u00c3\u00a4rk", text)
 
     def test_public_transactions_require_pin(self):
         with self.assertRaises(HTTPException) as ctx:

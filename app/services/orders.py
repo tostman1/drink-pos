@@ -11,13 +11,20 @@ except ImportError:
     from utils.helpers import now_text
 
 
-def add_order_line(conn: sqlite3.Connection, person_id: int, item_id: int, quantity: int = 1) -> int:
+def add_order_line(
+    conn: sqlite3.Connection,
+    person_id: int,
+    item_id: int,
+    quantity: int = 1,
+    booked_at: str | None = None,
+) -> int:
     """Add an order line for a person and return the line id."""
 
     item = conn.execute("SELECT * FROM items WHERE id = ? AND archived_at IS NULL", (item_id,)).fetchone()
     if item is None:
         raise LookupError("Item not found")
-    now = now_text()
+    booking_timestamp = booked_at or now_text()
+    updated_at = now_text()
     cur = conn.execute(
         """
         INSERT INTO order_lines (
@@ -35,9 +42,9 @@ def add_order_line(conn: sqlite3.Connection, person_id: int, item_id: int, quant
             item["name"],
             item["short_label"],
             int(item["admin_only"] or 0),
-            now[:10],
-            now,
-            now,
+            booking_timestamp[:10],
+            booking_timestamp,
+            updated_at,
         ),
     )
     return int(cur.lastrowid)
