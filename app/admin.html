@@ -1140,19 +1140,17 @@
     }
 
     function maybeReloadForSyncRecovery() {
-      if (!navigator.onLine || !syncOfflineSince || document.hidden || syncInteractionInProgress()) return false;
+      if (!syncOfflineSince || document.hidden || syncInteractionInProgress()) return false;
       if (Date.now() - syncOfflineSince < SYNC_RECOVERY_RELOAD_AFTER_MS) return false;
       const lastReload = Number(localStorage.getItem('drinkPosLastSyncRecoveryReload') || 0);
       if (Date.now() - lastReload < SYNC_RECOVERY_RELOAD_COOLDOWN_MS) return false;
       localStorage.setItem('drinkPosLastSyncRecoveryReload', String(Date.now()));
-      noteClientEvent('SYNC_COMPLETED', 'Automatische Aktualisierung nach haengendem Sync-Zustand gestartet.');
-      updateSyncUi('syncing', `Verbindung wird neu aufgebaut… letzter Sync: ${formatSyncTime(lastSyncAt)}`);
-      window.setTimeout(() => window.location.reload(), 350);
-      return true;
+      updateSyncUi('offline', `Nicht synchronisiert · letzter Sync: ${formatSyncTime(lastSyncAt)}`);
+      return false;
     }
 
     function queueSyncRecovery() {
-      if (!navigator.onLine || syncRecoveryTimer || syncRecoveryRunning) return;
+      if (syncRecoveryTimer || syncRecoveryRunning) return;
       if (syncFailureCount < SYNC_RECOVERY_FAILURE_LIMIT && Date.now() - syncOfflineSince < 12000) return;
       syncRecoveryTimer = window.setTimeout(() => {
         syncRecoveryTimer = null;
@@ -2570,7 +2568,7 @@
     installDecimalInputNormalization();
     setStatsScope(statsScope, false);
     installPullToRefresh();
-    updateSyncUi(navigator.onLine ? 'syncing' : 'offline', `${navigator.onLine ? 'Verbindung wird geprüft…' : 'Offline'} · letzter Sync: ${formatSyncTime(lastSyncAt)}`);
+    updateSyncUi('syncing', `Verbindung wird geprüft… letzter Sync: ${formatSyncTime(lastSyncAt)}`);
     loadSyncDisplayConfig();
     checkSyncStatus({ resyncOnChange:false });
     setInterval(() => checkSyncStatus({ resyncOnChange:true }), 5 * 1000);

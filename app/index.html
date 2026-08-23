@@ -674,14 +674,22 @@
       }
     }
 
-    function syncRequestOptions(timeoutMs = 4500) {
-      const options = { cache:'no-store', headers:{'Cache-Control':'no-cache'} };
+    function requestOptionsWithTimeout(options = {}, timeoutMs = 8000) {
+      const requestOptions = {...options};
       if (typeof AbortController !== 'undefined') {
         const controller = new AbortController();
-        options.signal = controller.signal;
-        options._cancelTimer = window.setTimeout(() => controller.abort(), timeoutMs);
+        requestOptions.signal = controller.signal;
+        requestOptions._cancelTimer = window.setTimeout(() => controller.abort(), timeoutMs);
       }
-      return options;
+      return requestOptions;
+    }
+
+    function clearRequestTimeout(options) {
+      if (options?._cancelTimer) clearTimeout(options._cancelTimer);
+    }
+
+    function syncRequestOptions(timeoutMs = 4500) {
+      return requestOptionsWithTimeout({ cache:'no-store', headers:{'Cache-Control':'no-cache'} }, timeoutMs);
     }
 
     async function fetchSyncStatus(kind = 'ts', timeoutMs = 4500) {
@@ -689,7 +697,7 @@
       try {
         return await fetch(`/api/sync-status?${kind}=${Date.now()}`, options);
       } finally {
-        if (options._cancelTimer) clearTimeout(options._cancelTimer);
+        clearRequestTimeout(options);
       }
     }
 
@@ -698,19 +706,17 @@
     }
 
     function maybeReloadForSyncRecovery() {
-      if (!navigator.onLine || !syncOfflineSince || document.hidden || syncInteractionInProgress()) return false;
+      if (!syncOfflineSince || document.hidden || syncInteractionInProgress()) return false;
       if (Date.now() - syncOfflineSince < SYNC_RECOVERY_RELOAD_AFTER_MS) return false;
       const lastReload = Number(localStorage.getItem('drinkPosLastSyncRecoveryReload') || 0);
       if (Date.now() - lastReload < SYNC_RECOVERY_RELOAD_COOLDOWN_MS) return false;
       localStorage.setItem('drinkPosLastSyncRecoveryReload', String(Date.now()));
-      noteClientEvent('SYNC_COMPLETED', 'Automatische Aktualisierung nach haengendem Sync-Zustand gestartet.');
-      updateSyncUi('syncing', `Verbindung wird neu aufgebaut… letzter Sync: ${formatSyncTime(lastSyncAt)}`);
-      window.setTimeout(() => window.location.reload(), 350);
-      return true;
+      updateSyncUi('offline', `Nicht synchronisiert · letzter Sync: ${formatSyncTime(lastSyncAt)}`);
+      return false;
     }
 
     function queueSyncRecovery() {
-      if (!navigator.onLine || syncRecoveryTimer || syncRecoveryRunning) return;
+      if (syncRecoveryTimer || syncRecoveryRunning) return;
       if (syncFailureCount < SYNC_RECOVERY_FAILURE_LIMIT && Date.now() - syncOfflineSince < 12000) return;
       syncRecoveryTimer = window.setTimeout(() => {
         syncRecoveryTimer = null;
@@ -771,14 +777,17 @@
       queueSyncRecovery();
     }
 
-    async function apiGet(url) {
+    async function apiGet(url, timeoutMs = 8000) {
       let res;
-      try { res = await fetch(url, { cache:'no-store' }); }
+      const options = requestOptionsWithTimeout({ cache:'no-store' }, timeoutMs);
+      try { res = await fetch(url, options); }
       catch {
         markSyncFailure();
         const err = new Error('Keine Verbindung zum Server');
         err.offline = true;
         throw err;
+      } finally {
+        clearRequestTimeout(options);
       }
       if (!res.ok) {
         markSyncSuccess();
@@ -795,14 +804,17 @@
       return data;
     }
 
-    async function apiPost(url, body) {
+    async function apiPost(url, body, timeoutMs = 8000) {
       let res;
-      try { res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body), cache:'no-store'}); }
+      const options = requestOptionsWithTimeout({method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body), cache:'no-store'}, timeoutMs);
+      try { res = await fetch(url, options); }
       catch {
         markSyncFailure();
         const err = new Error('Keine Verbindung zum Server. Änderung wurde vorgemerkt, falls möglich.');
         err.offline = true;
         throw err;
+      } finally {
+        clearRequestTimeout(options);
       }
       if (!res.ok) {
         markSyncSuccess();
@@ -1077,7 +1089,7 @@
     }
 
     async function flushOfflineDrinkQueue() {
-      if (offlineDrinkFlushing || !navigator.onLine) return false;
+      if (offlineDrinkFlushing) return false;
       let queue = getOfflineDrinkQueue();
       if (!queue.length) return true;
       offlineDrinkFlushing = true;
@@ -2071,7 +2083,7 @@
       try {
         if (!isRoundItem) primeBookingAudio();
         if (celebrationShouldRun({ totalAfter, isRoundPayment: false })) primeCelebrationAudio();
-        await apiPost('/api/add-drink', { person_id: currentPerson.id, item_id: itemId, pin: adminMode ? adminPin : null, client_operation_id: clientOperationId, client_time: clientTime, device_info: deviceInfoForLog() });
+        await apiPost('/api/add-drink', { person_id: currentPerson.id, item_id: itemId, pin: adminMode ? adminPin : null, client_operation_id: clientOperationId, client_time: clientTime, device_info: deviceInfoForLog() }, 3500);
         if (!isRoundItem) playBookingTone(itemName);
         showDrinkWrittenFeedback(button, itemName, { totalAfter, isRoundPayment: false });
         await loadPeople(true);
@@ -2706,7 +2718,7 @@
     }
 
     async function boot() {
-      updateSyncUi(navigator.onLine ? 'syncing' : 'offline', `${navigator.onLine ? 'Verbindung wird geprüft…' : 'Offline'} · letzter Sync: ${formatSyncTime(lastSyncAt)}`);
+      updateSyncUi('syncing', `Verbindung wird geprüft… letzter Sync: ${formatSyncTime(lastSyncAt)}`);
       try {
         await loadConfig();
         await loadPeople(true);
@@ -2735,7 +2747,7 @@
       });
     }
     window.addEventListener('offline', () => { markSyncFailure(); showStatus('Offline: Getränkebuchungen werden vorgemerkt.'); });
-    window.addEventListener('online', () => { showStatus('Wieder online. Synchronisiere…'); resyncNow(); });
+    window.addEventListener('online', () => { showStatus('Wieder online. Synchronisiere…'); queueSyncRecovery(); queueOfflineDrinkFlush(0); });
     document.getElementById('personDialog')?.addEventListener('cancel', event => { event.preventDefault(); closeDialog(); });
     document.getElementById('personDialog')?.addEventListener('close', updateDialogScrollLock);
     document.getElementById('actionDialog')?.addEventListener('close', () => {
