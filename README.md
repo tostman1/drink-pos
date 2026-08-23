@@ -284,6 +284,14 @@ Die vollstaendige FastAPI/OpenAPI-Beschreibung liegt unter `/openapi.json`.
 Eine Agenten-spezifische Doku mit Auth, Limits und Beispielen liegt in
 [`docs/agent-api.md`](docs/agent-api.md).
 
+Ein nativer MCP-Server ist aktuell nicht Teil dieses Repos. Die Agenten-REST-API
+ist aber so begrenzt, dass sie als Backend fuer einen spaeteren MCP-Wrapper
+genutzt werden kann. Kurzmanuals:
+
+- [`docs/mcp.md`](docs/mcp.md): menschliche Kurzfassung fuer MCP/Agent-Zugriff
+- [`docs/ai-agent-manual.md`](docs/ai-agent-manual.md): Bedienregeln fuer KI-Agenten
+- [`docs/todos.md`](docs/todos.md): offene Roadmap-Punkte wie iPad-Landscape
+
 ## Konfiguration
 
 Siehe `.env.example` fuer die wichtigsten Variablen:

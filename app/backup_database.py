@@ -17,8 +17,12 @@ IMPORTANT_TABLES = [
     "order_lines",
     "change_requests",
     "round_requests",
+    "member_messages",
+    "member_message_recipients",
     "transactions",
     "client_operations",
+    "self_payment_sessions",
+    "paid_round_units",
     "transaction_items",
     "round_events",
 ]

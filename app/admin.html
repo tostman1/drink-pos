@@ -613,6 +613,7 @@
           <span class="muted">PIN wird im SQLite-Setting gespeichert.</span>
         </div>
         <div class="muted" id="settingsInfo" style="margin-top:12px"></div>
+        <div class="muted" id="buildVersionInfo" style="margin-top:6px"></div>
       </section>
 
       <section id="messagesSection" class="card section">
@@ -1139,19 +1140,17 @@
     }
 
     function maybeReloadForSyncRecovery() {
-      if (!navigator.onLine || !syncOfflineSince || document.hidden || syncInteractionInProgress()) return false;
+      if (!syncOfflineSince || document.hidden || syncInteractionInProgress()) return false;
       if (Date.now() - syncOfflineSince < SYNC_RECOVERY_RELOAD_AFTER_MS) return false;
       const lastReload = Number(localStorage.getItem('drinkPosLastSyncRecoveryReload') || 0);
       if (Date.now() - lastReload < SYNC_RECOVERY_RELOAD_COOLDOWN_MS) return false;
       localStorage.setItem('drinkPosLastSyncRecoveryReload', String(Date.now()));
-      noteClientEvent('SYNC_COMPLETED', 'Automatische Aktualisierung nach haengendem Sync-Zustand gestartet.');
-      updateSyncUi('syncing', `Verbindung wird neu aufgebaut… letzter Sync: ${formatSyncTime(lastSyncAt)}`);
-      window.setTimeout(() => window.location.reload(), 350);
-      return true;
+      updateSyncUi('offline', `Nicht synchronisiert · letzter Sync: ${formatSyncTime(lastSyncAt)}`);
+      return false;
     }
 
     function queueSyncRecovery() {
-      if (!navigator.onLine || syncRecoveryTimer || syncRecoveryRunning) return;
+      if (syncRecoveryTimer || syncRecoveryRunning) return;
       if (syncFailureCount < SYNC_RECOVERY_FAILURE_LIMIT && Date.now() - syncOfflineSince < 12000) return;
       syncRecoveryTimer = window.setTimeout(() => {
         syncRecoveryTimer = null;
@@ -1857,6 +1856,9 @@
       renderAppearancePreview();
       const dbName = (s.database && s.database.path) ? s.database.path.split('/').pop() : 'Standard';
       const dbSource = (s.database && s.database.source === 'DRINK_POS_DB') ? 'manuell gesetzt' : 'automatisch';
+      const buildCommit = (s.build && s.build.commit) ? s.build.commit : 'local-dev';
+      const buildInfo = document.getElementById('buildVersionInfo');
+      if (buildInfo) buildInfo.textContent = `Container build commit: ${buildCommit}`;
       document.getElementById('settingsInfo').textContent = `Umgebung: ${s.environment || 'development'} · Datenbank: ${dbName} (${dbSource}) · Währung: EUR`;
     }
 
@@ -2148,6 +2150,21 @@
         notes: [[293.66,0.000,'triangle',0.62,0.38],[369.99,0.020,'sine',0.42,0.35],[440.00,0.040,'sine',0.30,0.32]],
       },
     };
+    const BOOKING_SOUND_VOLUME_BOOST = 4;
+    const BOOKING_SOUND_MAX_MASTER_GAIN = 0.22;
+    const CELEBRATION_SOUND_VOLUME_BOOST = 2.4;
+
+    function soundOutput(ctx) {
+      if (!ctx.createDynamicsCompressor) return ctx.destination;
+      const limiter = ctx.createDynamicsCompressor();
+      limiter.threshold.setValueAtTime(-8, ctx.currentTime);
+      limiter.knee.setValueAtTime(0, ctx.currentTime);
+      limiter.ratio.setValueAtTime(12, ctx.currentTime);
+      limiter.attack.setValueAtTime(0.003, ctx.currentTime);
+      limiter.release.setValueAtTime(0.16, ctx.currentTime);
+      limiter.connect(ctx.destination);
+      return limiter;
+    }
 
     function bookingSoundPresetKey(value) {
       const key = String(value || 'warm').toLowerCase();
@@ -2186,11 +2203,12 @@
       toneFilter.type = 'lowpass';
       toneFilter.frequency.setValueAtTime(preset.filter, now);
       toneFilter.Q.setValueAtTime(preset.q, now);
+      const masterLevel = Math.min(BOOKING_SOUND_MAX_MASTER_GAIN, preset.master * volume * BOOKING_SOUND_VOLUME_BOOST);
       master.gain.setValueAtTime(0.0001, now);
-      master.gain.exponentialRampToValueAtTime(Math.max(0.001, preset.master * volume), now + preset.attack);
+      master.gain.exponentialRampToValueAtTime(Math.max(0.001, masterLevel), now + preset.attack);
       master.gain.exponentialRampToValueAtTime(0.0001, now + preset.release);
       toneFilter.connect(master);
-      master.connect(ctx.destination);
+      master.connect(soundOutput(ctx));
       preset.notes.forEach(([freq, offset, type, level, stop]) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
@@ -2222,10 +2240,10 @@
         toneFilter.frequency.setValueAtTime(3600, now);
         toneFilter.Q.setValueAtTime(0.65, now);
         master.gain.setValueAtTime(0.0001, now);
-        master.gain.exponentialRampToValueAtTime(0.18, now + 0.014);
+        master.gain.exponentialRampToValueAtTime(Math.min(0.45, 0.18 * CELEBRATION_SOUND_VOLUME_BOOST), now + 0.014);
         master.gain.exponentialRampToValueAtTime(0.0001, now + 1.35);
         toneFilter.connect(master);
-        master.connect(ctx.destination);
+        master.connect(soundOutput(ctx));
         const notes = [[392,0,0.3,0.12],[523.25,0,0.3,0.12],[659.25,.08,.34,0.12],[783.99,.18,.38,0.12],[1046.5,.34,.42,0.11],[1567.98,.58,.5,0.09]];
         notes.forEach(([freq, offset, length, level], idx) => {
           const osc = ctx.createOscillator();
@@ -2566,7 +2584,7 @@
     installDecimalInputNormalization();
     setStatsScope(statsScope, false);
     installPullToRefresh();
-    updateSyncUi(navigator.onLine ? 'syncing' : 'offline', `${navigator.onLine ? 'Verbindung wird geprüft…' : 'Offline'} · letzter Sync: ${formatSyncTime(lastSyncAt)}`);
+    updateSyncUi('syncing', `Verbindung wird geprüft… letzter Sync: ${formatSyncTime(lastSyncAt)}`);
     loadSyncDisplayConfig();
     checkSyncStatus({ resyncOnChange:false });
     setInterval(() => checkSyncStatus({ resyncOnChange:true }), 5 * 1000);

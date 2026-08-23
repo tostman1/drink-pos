@@ -1,0 +1,6 @@
+@import url('./theme.css');
+
+body {
+  background: var(--drink-pos-bg);
+  color: var(--drink-pos-text);
+}

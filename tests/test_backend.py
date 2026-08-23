@@ -1,3 +1,5 @@
+import asyncio
+import codecs
 import importlib
 import os
 import sys
@@ -21,10 +23,18 @@ class FakeRequest:
             self.headers["authorization"] = f"Bearer {token}"
 
 
+async def streaming_response_body(response) -> bytes:
+    chunks = []
+    async for chunk in response.body_iterator:
+        chunks.append(chunk.encode("utf-8") if isinstance(chunk, str) else chunk)
+    return b"".join(chunks)
+
+
 class BackendFlowTests(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.original_agent_token = os.environ.pop("DRINK_POS_AGENT_TOKEN", None)
+        self.original_build_commit = os.environ.pop("APP_BUILD_COMMIT", None)
         self.original_payment_env = {
             key: os.environ.pop(key, None)
             for key in [
@@ -43,6 +53,7 @@ class BackendFlowTests(unittest.TestCase):
         os.environ["DRINK_POS_ENV"] = "development"
         os.environ["DRINK_POS_DB"] = str(Path(self.temp_dir.name) / "drink_pos_test.db")
         os.environ["DRINK_POS_PIN"] = PIN
+        os.environ["APP_BUILD_COMMIT"] = "test-build-abc"
         os.environ.pop("DRINK_POS_AGENT_TOKEN", None)
 
         sys.modules.pop("main", None)
@@ -60,6 +71,10 @@ class BackendFlowTests(unittest.TestCase):
             os.environ.pop("DRINK_POS_AGENT_TOKEN", None)
         else:
             os.environ["DRINK_POS_AGENT_TOKEN"] = self.original_agent_token
+        if self.original_build_commit is None:
+            os.environ.pop("APP_BUILD_COMMIT", None)
+        else:
+            os.environ["APP_BUILD_COMMIT"] = self.original_build_commit
         for key, value in self.original_payment_env.items():
             if value is None:
                 os.environ.pop(key, None)
@@ -77,6 +92,14 @@ class BackendFlowTests(unittest.TestCase):
         with self.main.get_conn() as conn:
             self.assertEqual(conn.execute("PRAGMA foreign_keys").fetchone()[0], 1)
             self.assertEqual(conn.execute("PRAGMA busy_timeout").fetchone()[0], 15000)
+
+    def test_config_and_admin_overview_include_build_commit(self):
+        config = self.main.config()
+        overview = self.main.admin_overview(self.main.PinRequest(pin=PIN))
+
+        self.assertEqual(config["build"]["commit"], "test-build-abc")
+        self.assertEqual(overview["settings"]["build"]["commit"], "test-build-abc")
+        self.assertEqual(overview["settings"]["database"]["source"], "DRINK_POS_DB")
 
     def test_booking_and_payment_flow(self):
         person, item = self.first_person_and_item()
@@ -775,9 +798,47 @@ class BackendFlowTests(unittest.TestCase):
                 "SELECT transaction_id FROM client_operations WHERE client_operation_id = ?",
                 (operation_id,),
             ).fetchone()
+            transaction = conn.execute(
+                "SELECT timestamp FROM transactions WHERE id = ?",
+                (operation["transaction_id"],),
+            ).fetchone()
+            transaction_item = conn.execute(
+                "SELECT timestamp FROM transaction_items WHERE transaction_id = ?",
+                (operation["transaction_id"],),
+            ).fetchone()
+            order_line = conn.execute(
+                """
+                SELECT consumed_date, created_at
+                FROM order_lines
+                WHERE person_id = ? AND item_id = ?
+                """,
+                (person["id"], item["id"]),
+            ).fetchone()
 
         self.assertEqual(quantity, 1)
         self.assertIsNotNone(operation["transaction_id"])
+        self.assertTrue(transaction["timestamp"].startswith("2026-05-18 "))
+        self.assertTrue(transaction_item["timestamp"].startswith("2026-05-18 "))
+        self.assertEqual(order_line["consumed_date"], "2026-05-18")
+        self.assertTrue(order_line["created_at"].startswith("2026-05-18 "))
+
+    def test_csv_exports_include_utf8_bom_and_preserve_umlauts(self):
+        first_name = "M\u00e4rk"
+        last_name = "\u00d6hlinger"
+        created = self.main.admin_create_person(
+            self.main.AdminPersonCreate(pin=PIN, first_name=first_name, last_name=last_name)
+        )
+        person_id = created["id"]
+        item = next(item for item in self.main.config()["user_items"] if item["name"] != "1 Runde")
+        self.main.add_drink(self.main.AddDrinkRequest(person_id=person_id, item_id=item["id"]))
+
+        response = self.main.export_open_balances(self.main.PinRequest(pin=PIN))
+        body = asyncio.run(streaming_response_body(response))
+        text = body.decode("utf-8-sig")
+
+        self.assertTrue(body.startswith(codecs.BOM_UTF8))
+        self.assertIn(f"{last_name} {first_name}", text)
+        self.assertNotIn("M\u00c3\u00a4rk", text)
 
     def test_public_transactions_require_pin(self):
         with self.assertRaises(HTTPException) as ctx:
