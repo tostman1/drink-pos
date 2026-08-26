@@ -2,7 +2,7 @@
   drink-pos:
     # Synology Container Manager zieht dieses fertige Image aus GHCR.
     # Es wird nichts lokal gebaut.
-    image: ghcr.io/tostman1/drink-pos:latest
+    image: ghcr.io/tostman1/drink-pos:stable
     # Beim Projektstart nach dem aktuellen Image schauen.
     # Unveraenderte Image-Layer werden von Docker weiterverwendet.
     pull_policy: always
@@ -41,7 +41,7 @@
 
   drink-pos-backup:
     # Nutzt dasselbe Image, startet aber nur den Backup-Zeitplaner.
-    image: ghcr.io/tostman1/drink-pos:latest
+    image: ghcr.io/tostman1/drink-pos:stable
     pull_policy: always
     container_name: drink-pos-backup
     restart: unless-stopped

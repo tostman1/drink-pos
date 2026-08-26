@@ -17,7 +17,7 @@ if (Test-Path $EnvFile) {
 }
 
 if (-not $env:DRINK_POS_IMAGE) {
-    $env:DRINK_POS_IMAGE = "ghcr.io/tostman1/drink-pos:latest"
+    $env:DRINK_POS_IMAGE = "ghcr.io/tostman1/drink-pos:stable"
 }
 
 podman pull --policy newer $env:DRINK_POS_IMAGE

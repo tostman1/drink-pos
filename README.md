@@ -23,8 +23,9 @@ Mitglieder-Selbstzahlung: http://127.0.0.1:8088/self-pay
 ## GitHub + GHCR
 
 Das Repository ist fuer GitHub Container Registry vorbereitet. Der Workflow
-`.github/workflows/container.yml` baut bei jedem Push ein Image und veroeffentlicht den Tag
-`latest`, den Branch-Tag und einen `sha-...` Tag.
+`.github/workflows/container.yml` baut bei jedem Push ein Image. Pushes auf `main`
+veroeffentlichen `stable`, `latest`, den Branch-Tag und einen `sha-...` Tag; andere
+Branches erhalten nur ihren Branch-Tag und den unveraenderlichen `sha-...` Tag.
 
 Repo anlegen und pushen:
 
@@ -43,7 +44,7 @@ git push -u origin HEAD
 Nach dem ersten erfolgreichen GitHub-Actions-Lauf ist das Image hier verfuegbar:
 
 ```text
-ghcr.io/tostman1/drink-pos:latest
+ghcr.io/tostman1/drink-pos:stable
 ```
 
 ## Synology Container Manager
@@ -188,7 +189,7 @@ mkdir -p data
 In `.env` mindestens setzen:
 
 ```dotenv
-DRINK_POS_IMAGE=ghcr.io/tostman1/drink-pos:latest
+DRINK_POS_IMAGE=ghcr.io/tostman1/drink-pos:stable
 DRINK_POS_ENV=production
 DRINK_POS_PIN=change-this-pin
 DRINK_POS_AGENT_TOKEN=change-this-long-random-token
@@ -225,7 +226,7 @@ Die Skripte lesen `.env`, fuehren `podman pull --policy newer $DRINK_POS_IMAGE` 
 `podman compose up -d --force-recreate` neu und raeumen alte Images auf. Fuer manuelle Updates reicht:
 
 ```bash
-podman pull --policy newer ghcr.io/tostman1/drink-pos:latest
+podman pull --policy newer ghcr.io/tostman1/drink-pos:stable
 podman compose up -d --force-recreate
 ```
 
@@ -296,7 +297,7 @@ genutzt werden kann. Kurzmanuals:
 
 Siehe `.env.example` fuer die wichtigsten Variablen:
 
-- `DRINK_POS_IMAGE`: Container-Image, z. B. `ghcr.io/tostman1/drink-pos:latest`
+- `DRINK_POS_IMAGE`: Container-Image, z. B. `ghcr.io/tostman1/drink-pos:stable`
 - `DRINK_POS_ENV`: `development` oder `production`
 - `DRINK_POS_PIN`: Start-PIN beim ersten DB-Start; ersetzt ausserdem eine bestehende Default-PIN `1234`
 - `DRINK_POS_DB`: SQLite-Dateipfad

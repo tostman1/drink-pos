@@ -2,7 +2,7 @@ services:
   drink-pos:
     # Fertiges App-Image aus GitHub Container Registry.
     # Kann in .env mit DRINK_POS_IMAGE=... ueberschrieben werden.
-    image: "${DRINK_POS_IMAGE:-ghcr.io/tostman1/drink-pos:latest}"
+    image: "${DRINK_POS_IMAGE:-ghcr.io/tostman1/drink-pos:stable}"
     # Compose kennt kein "newer" wie `podman pull --policy newer`.
     # `always` prueft beim Start die Registry; unveraenderte Images bleiben gecacht.
     pull_policy: always
@@ -41,7 +41,7 @@ services:
 
   drink-pos-backup:
     # Gleiches Image, aber anderer Startbefehl fuer den Backup-Scheduler.
-    image: "${DRINK_POS_IMAGE:-ghcr.io/tostman1/drink-pos:latest}"
+    image: "${DRINK_POS_IMAGE:-ghcr.io/tostman1/drink-pos:stable}"
     # Siehe Kommentar beim App-Service.
     pull_policy: always
     container_name: drink-pos-backup
