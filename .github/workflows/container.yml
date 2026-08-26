@@ -59,6 +59,28 @@ jobs:
             type=ref,event=tag
             type=sha,prefix=sha-
 
+      - name: Collect build metadata
+        id: build_meta
+        shell: bash
+        run: |
+          short_sha="${GITHUB_SHA::7}"
+          ref_name="${GITHUB_REF_NAME}"
+          if [[ "$GITHUB_REF" == "refs/heads/main" ]]; then
+            channel="stable"
+            tags="stable,latest,main,sha-${short_sha}"
+          elif [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            channel="$ref_name"
+            tags="${ref_name},sha-${short_sha}"
+          else
+            channel="$ref_name"
+            tags="${ref_name},sha-${short_sha}"
+          fi
+          {
+            echo "ref=${ref_name}"
+            echo "channel=${channel}"
+            echo "tags=${tags}"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build and push image
         uses: docker/build-push-action@v6
         with:
@@ -68,5 +90,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             BUILD_COMMIT=${{ github.sha }}
+            BUILD_REF=${{ steps.build_meta.outputs.ref }}
+            BUILD_CHANNEL=${{ steps.build_meta.outputs.channel }}
+            BUILD_TAGS=${{ steps.build_meta.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

@@ -114,6 +114,9 @@
     tbody tr:last-child td { border-bottom:0; }
     .right { text-align:right; white-space:nowrap; }
     .pill { display:inline-block; padding:4px 8px; border-radius:999px; background:#eef2ff; font-weight:750; font-size:12px; }
+    .build-info { display:grid; gap:6px; margin-top:8px; line-height:1.35; }
+    .build-info-row { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+    .build-info-code { font-family:ui-monospace,SFMono-Regular,Consolas,monospace; word-break:break-all; background:#f8fafc; color:#0f172a; border:1px solid var(--border); border-radius:8px; padding:3px 6px; font-size:12px; }
     .sync-line { position:fixed; right:12px; bottom:12px; z-index:35; display:flex; align-items:center; gap:calc(8px * var(--sync-status-scale,1)); max-width:calc(100vw - 24px); padding:calc(8px * var(--sync-status-scale,1)) calc(12px * var(--sync-status-scale,1)); background:#ecfdf5; color:#065f46; border:1px solid #bbf7d0; border-radius:999px; font-size:calc(13px * var(--sync-status-scale,1)); font-weight:850; line-height:1.25; box-shadow:0 8px 28px rgba(0,0,0,.18); }
     .sync-line.offline { background:#fee2e2; color:#991b1b; border-color:#fecaca; }
     .sync-line.syncing { background:#fffbeb; color:#92400e; border-color:#fde68a; }
@@ -613,7 +616,7 @@
           <span class="muted">PIN wird im SQLite-Setting gespeichert.</span>
         </div>
         <div class="muted" id="settingsInfo" style="margin-top:12px"></div>
-        <div class="muted" id="buildVersionInfo" style="margin-top:6px"></div>
+        <div class="muted build-info" id="buildVersionInfo"></div>
       </section>
 
       <section id="messagesSection" class="card section">
@@ -1784,6 +1787,30 @@
       }
     }
 
+    function renderBuildVersionInfo(build = {}) {
+      const buildInfo = document.getElementById('buildVersionInfo');
+      if (!buildInfo) return;
+      const commit = build.commit || 'local-dev';
+      const shortCommit = build.short_commit || commit.slice(0, 7);
+      const channel = build.channel || '';
+      const ref = build.ref || '';
+      const runtimeImageRef = build.runtime_image_ref || '';
+      const runtimeLabel = build.runtime_image_label || '';
+      const tags = Array.isArray(build.tags) ? build.tags : [];
+      const label = runtimeLabel || channel || (tags.length ? tags.join(', ') : 'nicht gesetzt');
+      const tagsHtml = tags.length
+        ? tags.map(tag => `<span class="pill">${escapeHtml(tag)}</span>`).join(' ')
+        : '<span class="build-info-code">keine Build-Tags gesetzt</span>';
+      buildInfo.innerHTML = `
+        <div class="build-info-row"><strong>Build</strong><span class="pill">${escapeHtml(shortCommit)}</span></div>
+        <div class="build-info-row"><span>Git Hash:</span><span class="build-info-code">${escapeHtml(commit)}</span></div>
+        <div class="build-info-row"><span>Label/Channel:</span><span class="build-info-code">${escapeHtml(label)}</span></div>
+        <div class="build-info-row"><span>Runtime-Image:</span><span class="build-info-code">${escapeHtml(runtimeImageRef || 'nicht gesetzt')}</span></div>
+        <div class="build-info-row"><span>Git Ref:</span><span class="build-info-code">${escapeHtml(ref || 'nicht gesetzt')}</span></div>
+        <div class="build-info-row"><span>Build-Tags:</span>${tagsHtml}</div>
+      `;
+    }
+
     function renderSettings() {
       upgradeSettingsAccordions();
       const s = overview.settings || {};
@@ -1856,9 +1883,7 @@
       renderAppearancePreview();
       const dbName = (s.database && s.database.path) ? s.database.path.split('/').pop() : 'Standard';
       const dbSource = (s.database && s.database.source === 'DRINK_POS_DB') ? 'manuell gesetzt' : 'automatisch';
-      const buildCommit = (s.build && s.build.commit) ? s.build.commit : 'local-dev';
-      const buildInfo = document.getElementById('buildVersionInfo');
-      if (buildInfo) buildInfo.textContent = `Container build commit: ${buildCommit}`;
+      renderBuildVersionInfo(s.build || {});
       document.getElementById('settingsInfo').textContent = `Umgebung: ${s.environment || 'development'} · Datenbank: ${dbName} (${dbSource}) · Währung: EUR`;
     }
 

@@ -298,6 +298,8 @@ genutzt werden kann. Kurzmanuals:
 Siehe `.env.example` fuer die wichtigsten Variablen:
 
 - `DRINK_POS_IMAGE`: Container-Image, z. B. `ghcr.io/tostman1/drink-pos:stable`
+- `DRINK_POS_IMAGE_REF`: Laufzeit-Anzeige fuer das gestartete Image im Adminbereich;
+  die Compose-Dateien setzen diesen Wert automatisch aus `DRINK_POS_IMAGE`
 - `DRINK_POS_ENV`: `development` oder `production`
 - `DRINK_POS_PIN`: Start-PIN beim ersten DB-Start; ersetzt ausserdem eine bestehende Default-PIN `1234`
 - `DRINK_POS_DB`: SQLite-Dateipfad
