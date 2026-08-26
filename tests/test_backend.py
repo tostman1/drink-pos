@@ -578,6 +578,111 @@ class BackendFlowTests(unittest.TestCase):
         self.assertEqual(cashup["status"], "ok")
         self.assertFalse(self.main.kassa_person(other["id"])["lines"])
 
+    def test_paid_round_after_person_payment_does_not_deduct_that_person_again_at_cashup(self):
+        self.configure_test_card_payments()
+        people = self.main.list_people()
+        config = self.main.config()
+        item = next(item for item in config["user_items"] if item["name"] != "1 Runde")
+        open_round_payer = people[0]
+        card_round_payer = people[1]
+        consumer = people[2]
+
+        self.main.create_round_request(self.main.RoundRequestIn(person_id=open_round_payer["id"], quantity=1))
+        self.main.create_round_request(self.main.RoundRequestIn(person_id=card_round_payer["id"], quantity=1))
+        for _ in range(3):
+            self.main.add_drink(self.main.AddDrinkRequest(person_id=consumer["id"], item_id=item["id"]))
+
+        consumer_preview = self.main.kassa_person(consumer["id"])
+        self.assertEqual(consumer_preview["round_deduction_items"], 2)
+        self.assertEqual(consumer_preview["payable_items"], 1)
+
+        paid_consumer = self.main.kassa_pay(
+            self.main.KassaPayRequest(
+                pin=PIN,
+                person_id=consumer["id"],
+                expected_revision=consumer_preview["revision"],
+            )
+        )
+        self.assertEqual(paid_consumer["status"], "paid")
+        self.assertEqual(paid_consumer["round_deduction_items"], 2)
+
+        card_preview = self.main.self_pay_person(card_round_payer["id"])
+        paid_round = self.main.self_pay(
+            self.main.SelfPayRequest(
+                person_id=card_round_payer["id"],
+                expected_revision=card_preview["revision"],
+                client_payment_id="round-payer-card-after-consumer-payment",
+            )
+        )
+        self.assertEqual(paid_round["status"], "paid")
+
+        self.main.add_drink(self.main.AddDrinkRequest(person_id=consumer["id"], item_id=item["id"]))
+
+        cashup_preview = self.main.admin_cashup_preview(self.main.CashupRequest(pin=PIN))
+        self.assertEqual(cashup_preview["auto_rounds"]["rounds_count"], 2)
+        self.assertEqual(cashup_preview["auto_rounds"]["deducted_items"], 0)
+        self.assertFalse(
+            any(int(item["person_id"]) == int(consumer["id"]) for item in cashup_preview["auto_rounds"]["deductions"])
+        )
+        self.assertEqual(
+            [round_item["payer_person_id"] for round_item in cashup_preview["auto_rounds"]["rounds"]],
+            [open_round_payer["id"], card_round_payer["id"]],
+        )
+
+        cashup = self.main.admin_cashup(self.main.CashupRequest(pin=PIN))
+        self.assertEqual(cashup["status"], "ok")
+        with self.main.get_conn() as conn:
+            deducted_count = conn.execute(
+                """
+                SELECT COALESCE(SUM(ABS(quantity)), 0) AS q
+                FROM transaction_items
+                WHERE person_id = ? AND kind = 'ROUND_DEDUCTED'
+                """,
+                (consumer["id"],),
+            ).fetchone()["q"]
+        self.assertEqual(int(deducted_count), 2)
+
+    def test_cashup_with_only_already_paid_rounds_closes_round_units(self):
+        self.configure_test_card_payments()
+        people = self.main.list_people()
+        config = self.main.config()
+        item = next(item for item in config["user_items"] if item["name"] != "1 Runde")
+        round_payer = people[0]
+        consumer = people[1]
+
+        self.main.create_round_request(self.main.RoundRequestIn(person_id=round_payer["id"], quantity=1))
+        round_preview = self.main.self_pay_person(round_payer["id"])
+        paid_round = self.main.self_pay(
+            self.main.SelfPayRequest(
+                person_id=round_payer["id"],
+                expected_revision=round_preview["revision"],
+                client_payment_id="paid-round-only-before-cashup",
+            )
+        )
+        self.assertEqual(paid_round["status"], "paid")
+
+        preview = self.main.admin_cashup_preview(self.main.CashupRequest(pin=PIN))
+        self.assertEqual(preview["gross_items"], 0)
+        self.assertEqual(preview["auto_rounds"]["rounds_count"], 1)
+        self.assertEqual(preview["auto_rounds"]["already_paid_total_eur"], preview["auto_rounds"]["charged_total_eur"])
+
+        cashup = self.main.admin_cashup(self.main.CashupRequest(pin=PIN))
+        self.assertEqual(cashup["status"], "ok")
+        with self.main.get_conn() as conn:
+            open_paid_units = conn.execute(
+                "SELECT COUNT(*) AS c FROM paid_round_units WHERE event_open = 1"
+            ).fetchone()["c"]
+            cashup_count = conn.execute(
+                "SELECT COUNT(*) AS c FROM transactions WHERE type = 'CASHUP'"
+            ).fetchone()["c"]
+        self.assertEqual(int(open_paid_units), 0)
+        self.assertEqual(int(cashup_count), 1)
+
+        self.main.add_drink(self.main.AddDrinkRequest(person_id=consumer["id"], item_id=item["id"]))
+        next_preview = self.main.admin_cashup_preview(self.main.CashupRequest(pin=PIN))
+        self.assertEqual(next_preview["auto_rounds"]["rounds_count"], 0)
+        self.assertEqual(next_preview["auto_rounds"]["deducted_items"], 0)
+
     def test_payments_are_blocked_when_round_deductions_clear_balance(self):
         self.configure_test_card_payments()
         people = self.main.list_people()

@@ -2217,6 +2217,22 @@
       return html;
     }
 
+    function roundUnitsTableHtml(rounds) {
+      if (!rounds || !rounds.length) return '<div class="muted">Keine Einträge.</div>';
+      const displayRounds = [...rounds].sort((a, b) => {
+        const nameDiff = String(a.payer_name || '').localeCompare(String(b.payer_name || ''), 'de', { sensitivity: 'base' });
+        if (nameDiff !== 0) return nameDiff;
+        return Number(a.round_index || 0) - Number(b.round_index || 0);
+      });
+      let html = '<div class="action-list"><table><thead><tr><th>Name</th><th>Status</th><th class="right">Preis</th></tr></thead><tbody>';
+      for (const round of displayRounds) {
+        const status = round.already_paid ? 'bereits bezahlt' : 'beim Kassensturz offen';
+        html += `<tr><td>${escapeHtml(round.payer_name || '')}</td><td>${escapeHtml(status)}</td><td class="right">${money(round.round_price_eur || 0)}</td></tr>`;
+      }
+      html += '</tbody></table></div>';
+      return html;
+    }
+
     function cardPaymentLinesWithExtras(lines, breakdown) {
       const paymentLines = [...(lines || [])];
       paymentLines.push({
@@ -2663,12 +2679,14 @@
       }
       const chargesHtml = `
         <h3>Bestätigte Runden</h3>
-        ${lineTableHtml(autoRounds.charges || [], true)}
-        <div class="action-total"><span>${autoRounds.rounds_count} Runde(n) werden bezahlt</span><span>${money(autoRounds.charged_total_eur || 0)}</span></div>
+        ${roundUnitsTableHtml(autoRounds.rounds || [])}
+        <div class="action-total"><span>${autoRounds.rounds_count} Runde(n) gesamt</span><span>${money(autoRounds.charged_total_eur || 0)}</span></div>
+        <div class="muted">Bereits bezahlt: ${money(autoRounds.already_paid_total_eur || 0)} · Beim Kassensturz offen: ${money(autoRounds.open_charge_total_eur || 0)}</div>
+        ${(autoRounds.charges || []).length ? `<h3>Beim Kassensturz offen</h3>${lineTableHtml(autoRounds.charges || [], true)}` : '<div class="muted">Alle Runden sind bereits bezahlt.</div>'}
       `;
       const deductionsHtml = `
         <h3>Automatischer Rundenabzug</h3>
-        ${(autoRounds.deductions || []).length ? lineTableHtml(autoRounds.deductions || [], true, { sort: 'person' }) : '<div class="muted">Keine normalen Getränke zum Abziehen gefunden. Die Runden bleiben trotzdem als Betrag offen.</div>'}
+        ${(autoRounds.deductions || []).length ? lineTableHtml(autoRounds.deductions || [], true, { sort: 'person' }) : '<div class="muted">Keine weiteren normalen Getränke zum Abziehen gefunden.</div>'}
         <div class="action-total"><span>${autoRounds.deducted_items || 0} Striche werden abgezogen</span><span>${money(autoRounds.deducted_vk_eur || 0)}</span></div>
         <div class="muted">EK abgezogen: ${money(autoRounds.deducted_purchase_eur || 0)} · Ergebnis gegen EK: ${money(autoRounds.profit_vs_purchase_eur || 0)} · Ergebnis gegen VK: ${money(autoRounds.profit_vs_retail_eur || 0)}</div>
       `;
@@ -2687,7 +2705,8 @@
       if (!adminMode || !adminPin) { showStatus('Bitte zuerst Admin-Modus aktivieren.'); return; }
       try {
         const preview = await apiPost('/api/admin/cashup-preview', { pin: adminPin });
-        if (Number(preview.gross_items ?? preview.closed_items ?? 0) === 0) { showStatus('Keine Striche für den Kassensturz vorhanden.'); return; }
+        const autoRounds = preview.auto_rounds || {};
+        if (Number(preview.gross_items ?? preview.closed_items ?? 0) === 0 && Number(autoRounds.rounds_count || 0) === 0) { showStatus('Keine Striche für den Kassensturz vorhanden.'); return; }
         const body = `
           <div class="muted">Die aktuelle Strichliste wird geschlossen. Die offenen Rechnungen bleiben unverändert.</div>
           ${lineTableHtml(preview.details || [], true)}

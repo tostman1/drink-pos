@@ -881,6 +881,29 @@ def current_event_round_units(conn: sqlite3.Connection) -> list[dict]:
     return units
 
 
+def current_event_start_transaction_id(conn: sqlite3.Connection) -> int:
+    row = conn.execute(
+        "SELECT COALESCE(MAX(id), 0) AS id FROM transactions WHERE type = 'CASHUP'"
+    ).fetchone()
+    return int(row["id"] or 0)
+
+
+def current_event_round_deduction_counts(conn: sqlite3.Connection) -> dict[int, int]:
+    last_cashup_id = current_event_start_transaction_id(conn)
+    rows = conn.execute(
+        """
+        SELECT person_id, COALESCE(SUM(ABS(quantity)), 0) AS quantity
+        FROM transaction_items
+        WHERE kind = 'ROUND_DEDUCTED'
+          AND person_id IS NOT NULL
+          AND transaction_id > ?
+        GROUP BY person_id
+        """,
+        (last_cashup_id,),
+    ).fetchall()
+    return {int(row["person_id"]): int(row["quantity"] or 0) for row in rows}
+
+
 def current_event_rounds_revision(conn: sqlite3.Connection) -> str:
     parts = []
     for unit in current_event_round_units(conn):
@@ -900,6 +923,7 @@ def payment_revision(conn: sqlite3.Connection, lines: list[sqlite3.Row], pending
 def empty_person_round_deduction_plan(rounds_count: int = 0) -> dict:
     return {
         "rounds_count": int(rounds_count or 0),
+        "already_deducted_items": 0,
         "deducted_items": 0,
         "deducted_vk_eur": 0.0,
         "deducted_purchase_eur": 0.0,
@@ -911,6 +935,10 @@ def build_person_round_deduction_plan(conn: sqlite3.Connection, person_id: int) 
     round_units = current_event_round_units(conn)
     if not round_units:
         return empty_person_round_deduction_plan()
+    already_deducted = min(
+        len(round_units),
+        max(0, current_event_round_deduction_counts(conn).get(int(person_id), 0)),
+    )
 
     drink_rows = conn.execute(
         """
@@ -942,7 +970,7 @@ def build_person_round_deduction_plan(conn: sqlite3.Connection, person_id: int) 
         for row in drink_rows
     }
     deductions = []
-    for round_unit in round_units:
+    for round_unit in round_units[already_deducted:]:
         chosen = None
         for row in drink_rows:
             if remaining.get(int(row["id"]), 0) > 0:
@@ -975,6 +1003,7 @@ def build_person_round_deduction_plan(conn: sqlite3.Connection, person_id: int) 
     deducted_purchase = rounded_money(sum(float(item["purchase_total_eur"]) for item in deductions))
     return {
         "rounds_count": len(round_units),
+        "already_deducted_items": already_deducted,
         "deducted_items": len(deductions),
         "deducted_vk_eur": deducted_vk,
         "deducted_purchase_eur": deducted_purchase,
@@ -3551,6 +3580,9 @@ def empty_auto_round_plan() -> dict:
     return {
         "rounds_count": 0,
         "charged_total_eur": 0.0,
+        "open_charge_total_eur": 0.0,
+        "already_paid_total_eur": 0.0,
+        "already_deducted_by_person": {},
         "deducted_items": 0,
         "deducted_vk_eur": 0.0,
         "deducted_purchase_eur": 0.0,
@@ -3566,6 +3598,11 @@ def build_auto_round_plan(conn: sqlite3.Connection) -> dict:
     round_units = current_event_round_units(conn)
     if not round_units:
         return empty_auto_round_plan()
+    round_count = len(round_units)
+    already_deducted_by_person = {
+        person_id: min(round_count, max(0, count))
+        for person_id, count in current_event_round_deduction_counts(conn).items()
+    }
 
     charge_groups: dict[tuple, dict] = {}
     for round_unit in round_units:
@@ -3628,8 +3665,11 @@ def build_auto_round_plan(conn: sqlite3.Connection) -> dict:
         remaining[int(row["id"])] = available
 
     all_deductions = []
-    for round_unit in round_units:
+    assigned_by_person = dict(already_deducted_by_person)
+    for round_index, round_unit in enumerate(round_units, start=1):
         for person_id in people_order:
+            if assigned_by_person.get(person_id, 0) >= round_index:
+                continue
             chosen = None
             for line in lines_by_person[person_id]:
                 if remaining.get(int(line["id"]), 0) > 0:
@@ -3657,6 +3697,7 @@ def build_auto_round_plan(conn: sqlite3.Connection) -> dict:
             }
             round_unit["deductions"].append(deduction)
             all_deductions.append(deduction)
+            assigned_by_person[person_id] = assigned_by_person.get(person_id, 0) + 1
 
     for round_unit in round_units:
         deducted_vk = round(sum(float(item["subtotal_eur"]) for item in round_unit["deductions"]), 2)
@@ -3668,11 +3709,16 @@ def build_auto_round_plan(conn: sqlite3.Connection) -> dict:
         round_unit["profit_vs_retail_eur"] = round(float(round_unit["round_price_eur"]) - deducted_vk, 2)
 
     charged_total = round(sum(float(item["round_price_eur"]) for item in round_units), 2)
+    open_charge_total = round(sum(float(item["subtotal_eur"]) for item in charge_groups.values()), 2)
+    already_paid_total = round(charged_total - open_charge_total, 2)
     deducted_vk = round(sum(float(item["subtotal_eur"]) for item in all_deductions), 2)
     deducted_purchase = round(sum(float(item["purchase_total_eur"]) for item in all_deductions), 2)
     return {
         "rounds_count": len(round_units),
         "charged_total_eur": charged_total,
+        "open_charge_total_eur": open_charge_total,
+        "already_paid_total_eur": already_paid_total,
+        "already_deducted_by_person": already_deducted_by_person,
         "deducted_items": len(all_deductions),
         "deducted_vk_eur": deducted_vk,
         "deducted_purchase_eur": deducted_purchase,
@@ -3817,7 +3863,7 @@ def admin_cashup(req: CashupRequest):
         auto_rounds = data.get("auto_rounds", {})
         if data["gross_lines"] or int(auto_rounds.get("rounds_count", 0) or 0) > 0:
             apply_auto_round_deductions(conn, auto_rounds)
-        if data["closed_lines"]:
+        if data["closed_lines"] or int(auto_rounds.get("rounds_count", 0) or 0) > 0:
             log_transaction(
                 conn,
                 None,
@@ -3825,6 +3871,7 @@ def admin_cashup(req: CashupRequest):
                 data["total"],
                 f"Kassensturz: {data['closed_items']} Striche auf offene Rechnungen übertragen; Summe {eur_text(data['total'])}",
             )
+        if data["closed_lines"]:
             conn.execute("UPDATE order_lines SET event_open = 0, updated_at = ? WHERE quantity > 0 AND event_open = 1", (now_text(),))
         conn.commit()
         return {"status": "ok", **data}
