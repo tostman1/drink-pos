@@ -25,5 +25,6 @@ source comments.
 - QR-code read-only overview for members.
 - Receipt/PDF export after payment.
 - Admin member detail history: when opening a member in admin mode, show a
-  descending chronological history since the last payment, with the last payment
-  marker always as the final row when it exists.
+  descending chronological history since the last payment, including
+  consumption, round deductions, and delete/correction entries. The last
+  payment marker should always be the final row when it exists.

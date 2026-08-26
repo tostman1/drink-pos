@@ -19,7 +19,8 @@ services:
 
     environment:
       TZ: "${TZ:-Europe/Zurich}"
-      DRINK_POS_PIN: "${DRINK_POS_PIN:-1423}"
+      # In Produktion zwingend in .env auf einen eigenen Wert setzen.
+      DRINK_POS_PIN: "${DRINK_POS_PIN:-change-this-pin}"
       DRINK_POS_ENV: "${DRINK_POS_ENV:-production}"
       DRINK_POS_IMAGE_REF: "${DRINK_POS_IMAGE:-ghcr.io/tostman1/drink-pos:stable}"
       # Leer lassen entspricht der alten Logik:
@@ -56,7 +57,8 @@ services:
 
     environment:
       TZ: "${TZ:-Europe/Zurich}"
-      DRINK_POS_PIN: "${DRINK_POS_PIN:-1423}"
+      # Muss zum App-Service passen.
+      DRINK_POS_PIN: "${DRINK_POS_PIN:-change-this-pin}"
       DRINK_POS_ENV: "${DRINK_POS_ENV:-production}"
       DRINK_POS_IMAGE_REF: "${DRINK_POS_IMAGE:-ghcr.io/tostman1/drink-pos:stable}"
       DRINK_POS_DB: "${DRINK_POS_DB:-}"

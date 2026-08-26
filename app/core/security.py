@@ -14,9 +14,16 @@ except ImportError:
 
 
 DEFAULT_ADMIN_PIN = "1234"
+INSECURE_PRODUCTION_PINS = {
+    DEFAULT_ADMIN_PIN,
+    "change-this-pin",
+    "changeme",
+    "change-me",
+}
 DEFAULT_PIN_PRODUCTION_ERROR = (
-    "Standard-PIN 1234 ist in Produktion gesperrt. Bitte DRINK_POS_PIN setzen "
-    "oder die PIN in einer lokalen Entwicklungsumgebung ändern."
+    "Unsichere Standard-PIN ist in Produktion gesperrt. Bitte DRINK_POS_PIN "
+    "auf einen eigenen Wert setzen oder die PIN in einer lokalen "
+    "Entwicklungsumgebung ändern."
 )
 
 
@@ -40,6 +47,10 @@ def configured_admin_pin(conn: sqlite3.Connection, env_pin: str | None = None) -
     return get_setting(conn, "admin_pin", fallback) or fallback
 
 
+def is_insecure_admin_pin(pin: str | None) -> bool:
+    return (pin or "").strip().lower() in INSECURE_PRODUCTION_PINS
+
+
 def ensure_admin_login_allowed(
     conn: sqlite3.Connection,
     *,
@@ -49,7 +60,7 @@ def ensure_admin_login_allowed(
     """Block the default PIN in production."""
 
     active_production = is_production_env() if production is None else production
-    if active_production and configured_admin_pin(conn, env_pin) == DEFAULT_ADMIN_PIN:
+    if active_production and is_insecure_admin_pin(configured_admin_pin(conn, env_pin)):
         raise HTTPException(status_code=403, detail=DEFAULT_PIN_PRODUCTION_ERROR)
 
 
@@ -64,7 +75,7 @@ def require_pin(
 
     active_production = is_production_env() if production is None else production
     configured = configured_admin_pin(conn, env_pin)
-    if active_production and configured == DEFAULT_ADMIN_PIN:
+    if active_production and is_insecure_admin_pin(configured):
         raise HTTPException(status_code=403, detail=DEFAULT_PIN_PRODUCTION_ERROR)
     if pin != configured:
         raise HTTPException(status_code=403, detail="Falsche PIN")

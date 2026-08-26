@@ -292,6 +292,10 @@ def configured_admin_pin(conn: sqlite3.Connection) -> str:
     return security_service.configured_admin_pin(conn, ENV_PIN_CODE)
 
 
+def insecure_admin_pin_configured(conn: sqlite3.Connection) -> bool:
+    return security_service.is_insecure_admin_pin(configured_admin_pin(conn))
+
+
 def ensure_admin_login_allowed(conn: sqlite3.Connection) -> None:
     """Compatibility wrapper for the admin PIN security service."""
 
@@ -3551,7 +3555,7 @@ def admin_login(req: PinRequest, request: Request):
             "build": build_info(),
             "production": is_production(),
             "debug_enabled": not is_production(),
-            "pin_default_warning": (get_setting(conn, "admin_pin", ENV_PIN_CODE) == "1234"),
+            "pin_default_warning": insecure_admin_pin_configured(conn),
         }
 
 
@@ -4089,7 +4093,7 @@ def admin_overview(req: PinRequest):
                 "production": is_production(),
                 "environment": APP_ENV,
                 "debug_enabled": not is_production(),
-                "pin_default_warning": (get_setting(conn, "admin_pin", ENV_PIN_CODE) == "1234"),
+                "pin_default_warning": insecure_admin_pin_configured(conn),
             },
             "action_types": get_action_types(conn),
             "member_messages": get_admin_member_messages(conn),

@@ -2623,7 +2623,7 @@
       try {
         const data = await apiPost('/api/admin-login', { pin });
         adminMode = true; adminPin = pin; sessionStorage.setItem('drinkPosAdminPin', pin); debugEnabled = data.debug_enabled !== false; environment = data.environment || environment; updateAdminUi(); updateDialogInfo(); showStatus('Admin-Modus aktiv');
-        if (data.pin_default_warning) showStatus('Hinweis: Standard-PIN 1234 ist noch aktiv');
+        if (data.pin_default_warning) showStatus('Hinweis: Unsichere Standard-PIN ist noch aktiv');
       } catch (err) { alert(err.message); }
     }
 

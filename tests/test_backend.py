@@ -1077,6 +1077,22 @@ class BackendFlowTests(unittest.TestCase):
         finally:
             self.main.APP_ENV = original_env
 
+    def test_production_blocks_placeholder_pin_login(self):
+        original_env = self.main.APP_ENV
+        self.main.APP_ENV = "production"
+        placeholder_pin = "change-this-pin"
+        try:
+            with self.main.get_conn() as conn:
+                self.main.set_setting(conn, "admin_pin", placeholder_pin)
+                with self.assertRaises(HTTPException) as ctx:
+                    self.main.ensure_admin_login_allowed(conn)
+                self.assertEqual(ctx.exception.status_code, 403)
+                with self.assertRaises(HTTPException) as direct_ctx:
+                    self.main.require_pin(conn, placeholder_pin)
+                self.assertEqual(direct_ctx.exception.status_code, 403)
+        finally:
+            self.main.APP_ENV = original_env
+
     def test_env_pin_replaces_existing_default_pin(self):
         original_env = self.main.APP_ENV
         original_pin = self.main.ENV_PIN_CODE

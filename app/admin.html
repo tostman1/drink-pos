@@ -1662,8 +1662,8 @@
       const w = document.getElementById('globalWarning');
       const s = overview.settings || {};
       const notes = [];
-      if (s.pin_default_warning && s.production) notes.push('Wichtig: Die Standard-PIN 1234 ist in Produktion gesperrt. Setze vor produktivem Zugriff eine eigene PIN.');
-      else if (s.pin_default_warning) notes.push('Hinweis: Die Standard-PIN 1234 ist noch aktiv.');
+      if (s.pin_default_warning && s.production) notes.push('Wichtig: Unsichere Standard-PINs sind in Produktion gesperrt. Setze vor produktivem Zugriff eine eigene PIN.');
+      else if (s.pin_default_warning) notes.push('Hinweis: Eine unsichere Standard-PIN ist noch aktiv.');
       if (!s.production) notes.push('Entwicklungsmodus ist aktiv; Testdaten sind erlaubt.');
       w.innerHTML = notes.map(escapeHtml).join('<br>');
       w.style.display = notes.length ? 'block' : 'none';
@@ -1688,7 +1688,7 @@
         <div class="metric-card">
           <div class="metric-label">Modus</div>
           <div class="metric-value">${escapeHtml(envLabel)}</div>
-          <div class="metric-note">${s.pin_default_warning ? 'Standard-PIN aktiv' : 'PIN geändert'}</div>
+          <div class="metric-note">${s.pin_default_warning ? 'Unsichere PIN aktiv' : 'PIN geändert'}</div>
         </div>`;
       box.innerHTML = `
         <div class="metric-card">
