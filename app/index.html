@@ -121,6 +121,14 @@
     .member-history-row.round-payment .member-history-qty { color:#92400e; }
     .member-history-row.payment { background:#f8fafc; }
     .member-history-row.payment .member-history-qty { color:#475569; }
+    .round-summary-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:10px 0; }
+    .round-summary-chip { padding:9px 10px; background:#f8fafc; border:1px solid var(--border); border-radius:10px; }
+    .round-summary-chip strong { display:block; font-size:17px; line-height:1.1; color:#111827; }
+    .round-summary-chip span { display:block; margin-top:2px; color:var(--muted); font-size:12px; font-weight:800; line-height:1.2; }
+    .round-status { display:inline-flex; align-items:center; min-height:24px; padding:3px 7px; border-radius:999px; font-size:12px; font-weight:900; line-height:1; white-space:nowrap; }
+    .round-status.paid { color:#166534; background:#dcfce7; border:1px solid #bbf7d0; }
+    .round-status.open { color:#92400e; background:#fffbeb; border:1px solid #fde68a; }
+    .round-integrity-warning { margin:8px 0; padding:9px 10px; border-radius:10px; color:#991b1b; background:#fef2f2; border:1px solid #fecaca; font-size:13px; font-weight:850; line-height:1.3; }
     .round-celebration-panel { position:relative; overflow:hidden; display:flex; gap:10px; align-items:center; justify-content:space-between; background:linear-gradient(135deg,#fff7ed 0%,#fffbeb 58%,#f8fafc 100%); border-color:#fde68a; box-shadow:0 6px 16px rgba(245,158,11,.08); padding:10px 12px; }
     .round-celebration-panel::after { content:''; position:absolute; right:-36px; top:-56px; width:130px; height:130px; border-radius:999px; background:radial-gradient(circle,rgba(251,191,36,.2) 0%,rgba(251,191,36,.08) 50%,transparent 74%); pointer-events:none; }
     .round-copy { position:relative; z-index:1; flex:1 1 auto; display:flex; gap:9px; align-items:center; min-width:0; }
@@ -193,7 +201,7 @@
     .muted { color:var(--muted); font-size:13px; line-height:1.35; }
     select { font:inherit; padding:8px; border-radius:10px; border:1px solid var(--border); }
     .decision-buttons { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-    @media (max-width:640px) { dialog { width:calc(100% - 18px); max-height:calc(100dvh - 18px); } .dialog-content { padding:14px; max-height:calc(100dvh - 18px); } .dialog-content h2 { font-size:25px; } .drink-feedback { left:132px; right:14px; font-size:13px; } .drink-buttons { grid-template-columns:1fr; } .drink-buttons button { min-height:64px; grid-template-columns:32px minmax(0,1fr); gap:2px 9px; } .drink-button-plus { width:32px; height:32px; } .round-celebration-panel { flex-direction:column; align-items:stretch; gap:9px; } .round-mark { width:32px; height:32px; } .round-mark::before { width:11px; height:11px; left:7px; top:8px; } .round-mark::after { width:13px; height:13px; right:6px; top:11px; } .round-pay-btn { width:100%; justify-self:stretch; min-width:0; max-width:none; } }
+    @media (max-width:640px) { dialog { width:calc(100% - 18px); max-height:calc(100dvh - 18px); } .dialog-content { padding:14px; max-height:calc(100dvh - 18px); } .dialog-content h2 { font-size:25px; } .drink-feedback { left:132px; right:14px; font-size:13px; } .drink-buttons { grid-template-columns:1fr; } .drink-buttons button { min-height:64px; grid-template-columns:32px minmax(0,1fr); gap:2px 9px; } .drink-button-plus { width:32px; height:32px; } .round-summary-grid { grid-template-columns:1fr; } .round-celebration-panel { flex-direction:column; align-items:stretch; gap:9px; } .round-mark { width:32px; height:32px; } .round-mark::before { width:11px; height:11px; left:7px; top:8px; } .round-mark::after { width:13px; height:13px; right:6px; top:11px; } .round-pay-btn { width:100%; justify-self:stretch; min-width:0; max-width:none; } }
     @media (prefers-reduced-motion:reduce) { .drink-buttons button, .drink-feedback { transition:none; } .drink-buttons button.is-writing::before, .drink-buttons button.drink-written, .drink-buttons button.drink-written::after, .drink-feedback.feedback-pop, .confetti-piece, .payment-visual-status.waiting .payment-status-icon { animation:none; } }
     .approve-btn { background:var(--green); }
     .reject-btn { background:var(--red-bg); color:var(--red); }
@@ -2329,17 +2337,79 @@
       return html;
     }
 
-    function roundUnitsTableHtml(rounds) {
-      if (!rounds || !rounds.length) return '<div class="muted">Keine Einträge.</div>';
-      const displayRounds = [...rounds].sort((a, b) => {
+    function roundUnitGroupsForDisplay(rounds) {
+      const groups = new Map();
+      for (const round of rounds || []) {
+        const paid = Boolean(round.already_paid);
+        const price = Number(round.round_price_eur || 0);
+        const key = `${round.payer_person_id ?? ''}|${round.payer_name || ''}|${paid ? 1 : 0}|${price.toFixed(2)}`;
+        if (!groups.has(key)) {
+          groups.set(key, {
+            payer_name: round.payer_name || '',
+            already_paid: paid,
+            quantity: 0,
+            unit_price_eur: price,
+            subtotal_eur: 0,
+            first_index: Number(round.round_index || 0),
+          });
+        }
+        const group = groups.get(key);
+        group.quantity += 1;
+        group.subtotal_eur = Number((group.quantity * price).toFixed(2));
+        group.first_index = Math.min(group.first_index || Number(round.round_index || 0), Number(round.round_index || 0));
+      }
+      return Array.from(groups.values()).sort((a, b) => {
+        if (a.already_paid !== b.already_paid) return a.already_paid ? 1 : -1;
         const nameDiff = String(a.payer_name || '').localeCompare(String(b.payer_name || ''), 'de', { sensitivity: 'base' });
         if (nameDiff !== 0) return nameDiff;
-        return Number(a.round_index || 0) - Number(b.round_index || 0);
+        return Number(a.first_index || 0) - Number(b.first_index || 0);
       });
-      let html = '<div class="action-list"><table><thead><tr><th>Name</th><th>Status</th><th class="right">Preis</th></tr></thead><tbody>';
+    }
+
+    function cashupRoundCounts(autoRounds) {
+      const numberOr = (value, fallback = 0) => {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : fallback;
+      };
+      const rounds = autoRounds?.rounds || [];
+      const listed = rounds.length;
+      const total = numberOr(autoRounds?.rounds_count, listed);
+      const paid = numberOr(autoRounds?.already_paid_rounds_count, rounds.filter(round => round.already_paid).length);
+      const open = numberOr(autoRounds?.open_rounds_count, Math.max(0, total - paid));
+      const chargeUnits = (autoRounds?.charges || []).reduce((sum, item) => sum + numberOr(item.quantity), 0);
+      return { total, paid, open, listed, chargeUnits };
+    }
+
+    function cashupRoundSummaryHtml(autoRounds) {
+      const counts = cashupRoundCounts(autoRounds);
+      return `
+        <div class="round-summary-grid">
+          <div class="round-summary-chip"><strong>${counts.total}</strong><span>Runden gesamt</span></div>
+          <div class="round-summary-chip"><strong>${counts.paid}</strong><span>bereits bezahlt</span></div>
+          <div class="round-summary-chip"><strong>${counts.open}</strong><span>noch offen</span></div>
+        </div>
+        <div class="muted">Gesamt: ${money(autoRounds.charged_total_eur || 0)} · Bereits bezahlt: ${money(autoRounds.already_paid_total_eur || 0)} · Noch offen: ${money(autoRounds.open_charge_total_eur || 0)}</div>
+      `;
+    }
+
+    function cashupRoundIntegrityWarningHtml(autoRounds) {
+      const counts = cashupRoundCounts(autoRounds);
+      const problems = [];
+      if (counts.total !== counts.listed) problems.push(`${counts.total} gezählt, ${counts.listed} gelistet`);
+      if (counts.total !== counts.paid + counts.open) problems.push('bezahlt/offen passt nicht zur Gesamtsumme');
+      if (counts.open !== counts.chargeUnits) problems.push(`${counts.open} offen, ${counts.chargeUnits} in offener Zahlungsliste`);
+      if (!problems.length) return '';
+      return `<div class="round-integrity-warning">Rundenanzeige prüfen: ${escapeHtml(problems.join(' · '))}</div>`;
+    }
+
+    function roundUnitsTableHtml(rounds) {
+      if (!rounds || !rounds.length) return '<div class="muted">Keine Einträge.</div>';
+      const displayRounds = roundUnitGroupsForDisplay(rounds);
+      let html = '<div class="action-list"><table><thead><tr><th>Name</th><th class="right">Runden</th><th>Status</th><th class="right">Betrag</th></tr></thead><tbody>';
       for (const round of displayRounds) {
-        const status = round.already_paid ? 'bereits bezahlt' : 'beim Kassensturz offen';
-        html += `<tr><td>${escapeHtml(round.payer_name || '')}</td><td>${escapeHtml(status)}</td><td class="right">${money(round.round_price_eur || 0)}</td></tr>`;
+        const statusClass = round.already_paid ? 'paid' : 'open';
+        const status = round.already_paid ? 'bereits bezahlt' : 'noch offen';
+        html += `<tr><td>${escapeHtml(round.payer_name || '')}</td><td class="right">${Number(round.quantity || 0)}</td><td><span class="round-status ${statusClass}">${escapeHtml(status)}</span></td><td class="right">${money(round.subtotal_eur || 0)}</td></tr>`;
       }
       html += '</tbody></table></div>';
       return html;
@@ -2789,12 +2859,12 @@
           <div class="action-total"><span>${preview.closed_items} Striche · ${closedPositions} Positionen</span><span>${money(preview.total)}</span></div>
         `;
       }
-      const chargesHtml = `
+      const roundsHtml = `
         <h3>Bestätigte Runden</h3>
+        ${cashupRoundIntegrityWarningHtml(autoRounds)}
+        ${cashupRoundSummaryHtml(autoRounds)}
         ${roundUnitsTableHtml(autoRounds.rounds || [])}
-        <div class="action-total"><span>${autoRounds.rounds_count} Runde(n) gesamt</span><span>${money(autoRounds.charged_total_eur || 0)}</span></div>
-        <div class="muted">Bereits bezahlt: ${money(autoRounds.already_paid_total_eur || 0)} · Beim Kassensturz offen: ${money(autoRounds.open_charge_total_eur || 0)}</div>
-        ${(autoRounds.charges || []).length ? `<h3>Beim Kassensturz offen</h3>${lineTableHtml(autoRounds.charges || [], true)}` : '<div class="muted">Alle Runden sind bereits bezahlt.</div>'}
+        ${(autoRounds.charges || []).length ? `<h3>Noch offene Rundenzahlungen</h3>${lineTableHtml(autoRounds.charges || [], true)}` : '<div class="muted">Alle Runden sind bereits bezahlt.</div>'}
       `;
       const deductionsHtml = `
         <h3>Automatischer Rundenabzug</h3>
@@ -2804,7 +2874,7 @@
       `;
       return `
         <div class="muted">Bestätigte Runden werden zuerst automatisch von der aktuellen Strichliste abgezogen. Danach wird die Strichliste geschlossen; die offenen Rechnungen bleiben bestehen.</div>
-        ${chargesHtml}
+        ${roundsHtml}
         ${deductionsHtml}
         <h3>Nach dem Rundenabzug</h3>
         ${lineTableHtml(preview.details || [], true)}

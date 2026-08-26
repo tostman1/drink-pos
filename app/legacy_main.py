@@ -3630,6 +3630,8 @@ def cashup_detail_from_row(row: sqlite3.Row, quantity: int | None = None) -> dic
 def empty_auto_round_plan() -> dict:
     return {
         "rounds_count": 0,
+        "open_rounds_count": 0,
+        "already_paid_rounds_count": 0,
         "charged_total_eur": 0.0,
         "open_charge_total_eur": 0.0,
         "already_paid_total_eur": 0.0,
@@ -3650,6 +3652,8 @@ def build_auto_round_plan(conn: sqlite3.Connection) -> dict:
     if not round_units:
         return empty_auto_round_plan()
     round_count = len(round_units)
+    already_paid_rounds_count = sum(1 for item in round_units if bool(item.get("already_paid")))
+    open_rounds_count = round_count - already_paid_rounds_count
     already_deducted_by_person = {
         person_id: min(round_count, max(0, count))
         for person_id, count in current_event_round_deduction_counts(conn).items()
@@ -3766,6 +3770,8 @@ def build_auto_round_plan(conn: sqlite3.Connection) -> dict:
     deducted_purchase = round(sum(float(item["purchase_total_eur"]) for item in all_deductions), 2)
     return {
         "rounds_count": len(round_units),
+        "open_rounds_count": open_rounds_count,
+        "already_paid_rounds_count": already_paid_rounds_count,
         "charged_total_eur": charged_total,
         "open_charge_total_eur": open_charge_total,
         "already_paid_total_eur": already_paid_total,

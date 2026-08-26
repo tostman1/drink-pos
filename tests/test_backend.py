@@ -620,6 +620,8 @@ class BackendFlowTests(unittest.TestCase):
 
         cashup_preview = self.main.admin_cashup_preview(self.main.CashupRequest(pin=PIN))
         self.assertEqual(cashup_preview["auto_rounds"]["rounds_count"], 2)
+        self.assertEqual(cashup_preview["auto_rounds"]["open_rounds_count"], 1)
+        self.assertEqual(cashup_preview["auto_rounds"]["already_paid_rounds_count"], 1)
         self.assertEqual(cashup_preview["auto_rounds"]["deducted_items"], 0)
         self.assertEqual(
             [charge["person_id"] for charge in cashup_preview["auto_rounds"]["charges"]],
@@ -672,6 +674,8 @@ class BackendFlowTests(unittest.TestCase):
         preview = self.main.admin_cashup_preview(self.main.CashupRequest(pin=PIN))
         self.assertEqual(preview["gross_items"], 0)
         self.assertEqual(preview["auto_rounds"]["rounds_count"], 1)
+        self.assertEqual(preview["auto_rounds"]["open_rounds_count"], 0)
+        self.assertEqual(preview["auto_rounds"]["already_paid_rounds_count"], 1)
         self.assertEqual(preview["auto_rounds"]["already_paid_total_eur"], preview["auto_rounds"]["charged_total_eur"])
 
         cashup = self.main.admin_cashup(self.main.CashupRequest(pin=PIN))
