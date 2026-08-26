@@ -36,6 +36,7 @@ try:
         AdminMemberMessageCreate,
         AdminPersonCreate,
         AdminPersonDelete,
+        AdminPersonHistoryRequest,
         AdminPersonUpdate,
         AdminRoundRequestDecision,
         AgentBookDrinkRequest,
@@ -77,6 +78,7 @@ except ImportError:
         AdminMemberMessageCreate,
         AdminPersonCreate,
         AdminPersonDelete,
+        AdminPersonHistoryRequest,
         AdminPersonUpdate,
         AdminRoundRequestDecision,
         AgentBookDrinkRequest,
@@ -1200,7 +1202,12 @@ def kassa_history_timestamp_labels(timestamp: str | None) -> tuple[str, str, str
         return date_label, time_label, f"{date_label}, {time_label}".rstrip(", ")
 
 
-def make_kassa_person_history(conn: sqlite3.Connection, person_id: int, limit: int = 200) -> list[dict]:
+def make_kassa_person_history(
+    conn: sqlite3.Connection,
+    person_id: int,
+    limit: int = 200,
+    include_corrections: bool = False,
+) -> list[dict]:
     def history_key(row: sqlite3.Row | dict) -> tuple[object, str, str]:
         return (
             row_get(row, "item_id"),
@@ -1224,6 +1231,27 @@ def make_kassa_person_history(conn: sqlite3.Connection, person_id: int, limit: i
             "short_label": row["item_short_label_snapshot"],
             "quantity": quantity,
             "quantity_label": f"{quantity:+d}x",
+        }
+
+    def correction_history_entry(row: sqlite3.Row) -> dict:
+        approved = row["status"] == "APPROVED"
+        date_label, time_label, timestamp_label = kassa_history_timestamp_labels(row["decided_at"])
+        quantity = int(row["quantity_to_remove"] or 0)
+        return {
+            "id": int(row["id"]),
+            "transaction_id": None,
+            "type": "CHANGE_APPROVED" if approved else "CHANGE_REJECTED",
+            "type_label": "Korrektur gelöscht" if approved else "Korrektur abgelehnt",
+            "direction": "correction" if approved else "correction_rejected",
+            "timestamp": row["decided_at"],
+            "date_label": date_label,
+            "time_label": time_label,
+            "timestamp_label": timestamp_label,
+            "product": row["item_name_snapshot"],
+            "short_label": row["item_short_label_snapshot"],
+            "reason": row["reason"] or "",
+            "quantity": -abs(quantity) if approved else 0,
+            "quantity_label": f"-{abs(quantity)}x" if approved else "abgelehnt",
         }
 
     last_payment = conn.execute(
@@ -1267,6 +1295,8 @@ def make_kassa_person_history(conn: sqlite3.Connection, person_id: int, limit: i
         SELECT
             cr.id,
             cr.decided_at,
+            cr.status,
+            cr.reason,
             cr.quantity_to_remove,
             ol.item_id,
             ol.item_name_snapshot,
@@ -1274,7 +1304,7 @@ def make_kassa_person_history(conn: sqlite3.Connection, person_id: int, limit: i
         FROM change_requests cr
         JOIN order_lines ol ON ol.id = cr.order_line_id
         WHERE cr.person_id = ?
-          AND cr.status = 'APPROVED'
+          AND cr.status IN ('APPROVED', 'REJECTED')
           AND cr.decided_at IS NOT NULL
           {correction_where}
         ORDER BY cr.decided_at DESC, cr.id DESC
@@ -1288,7 +1318,7 @@ def make_kassa_person_history(conn: sqlite3.Connection, person_id: int, limit: i
             "remaining": int(row["quantity_to_remove"] or 0),
         }
         for row in correction_rows
-        if int(row["quantity_to_remove"] or 0) > 0
+        if row["status"] == "APPROVED" and int(row["quantity_to_remove"] or 0) > 0
     ]
 
     history = []
@@ -1328,6 +1358,9 @@ def make_kassa_person_history(conn: sqlite3.Connection, person_id: int, limit: i
             type_label = "Konsum"
             direction = "consume"
         history.append(history_entry(row, quantity, type_label, direction))
+    if include_corrections:
+        history.extend(correction_history_entry(row) for row in correction_rows)
+    history.sort(key=lambda entry: (str(entry.get("timestamp") or ""), int(entry.get("id") or 0)), reverse=True)
     if last_payment:
         date_label, time_label, timestamp_label = kassa_history_timestamp_labels(last_payment["timestamp"])
         history.append(
@@ -2554,6 +2587,20 @@ def kassa_person_history(person_id: int, limit: int = 200):
             "id": int(person["id"]),
             "name": name,
             "history": make_kassa_person_history(conn, int(person["id"]), limit),
+            **get_sync_state(conn),
+        }
+
+
+@app.post("/api/admin/person/history")
+def admin_person_history(req: AdminPersonHistoryRequest):
+    with get_conn() as conn:
+        require_pin(conn, req.pin)
+        person = get_person(conn, req.person_id, allow_archived=True)
+        name = display_name(person["first_name"], person["last_name"]) or person["name"]
+        return {
+            "id": int(person["id"]),
+            "name": name,
+            "history": make_kassa_person_history(conn, int(person["id"]), req.limit, include_corrections=True),
             **get_sync_state(conn),
         }
 

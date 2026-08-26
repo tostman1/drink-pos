@@ -108,6 +108,11 @@ class AdminPersonDelete(PinRequest, PositiveIdModel):
     person_id: int
 
 
+class AdminPersonHistoryRequest(PinRequest, PositiveIdModel):
+    person_id: int
+    limit: int = 200
+
+
 class AdminMemberMessageCreate(PinRequest):
     title: str | None = None
     message: str

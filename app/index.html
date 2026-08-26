@@ -109,6 +109,18 @@
     @keyframes confettiBurst { 0% { opacity:0; transform:translate(-50%,0) scale(.75) rotate(0deg); } 12% { opacity:1; } 42% { opacity:1; transform:translate(calc(-50% + var(--confetti-x,0px)), var(--confetti-y,-260px)) scale(1) rotate(var(--confetti-rot,180deg)); } 100% { opacity:0; transform:translate(calc(-50% + var(--confetti-fall-x,var(--confetti-x,0px))), var(--confetti-fall-y,60px)) scale(.96) rotate(calc(var(--confetti-rot,180deg) + 220deg)); } }
     .panel { background:#f9fafb; border:1px solid var(--border); border-radius:16px; padding:12px; margin:12px 0; }
     .panel h3 { margin:0 0 10px; font-size:17px; }
+    .member-history-box { display:grid; gap:0; max-height:30vh; overflow:auto; border-top:1px solid var(--border); }
+    .member-history-row { display:grid; grid-template-columns:78px minmax(0,1fr) auto; gap:9px; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); }
+    .member-history-time { color:var(--muted); font-size:12px; font-weight:800; line-height:1.2; }
+    .member-history-main { min-width:0; }
+    .member-history-main strong { display:block; overflow-wrap:anywhere; font-size:14px; line-height:1.2; }
+    .member-history-type { display:block; color:var(--muted); font-size:12px; line-height:1.25; }
+    .member-history-qty { justify-self:end; white-space:nowrap; font-weight:950; color:#111827; }
+    .member-history-row.consume .member-history-qty { color:#166534; }
+    .member-history-row.deduction .member-history-qty, .member-history-row.correction .member-history-qty { color:#b91c1c; }
+    .member-history-row.round-payment .member-history-qty { color:#92400e; }
+    .member-history-row.payment { background:#f8fafc; }
+    .member-history-row.payment .member-history-qty { color:#475569; }
     .round-celebration-panel { position:relative; overflow:hidden; display:flex; gap:10px; align-items:center; justify-content:space-between; background:linear-gradient(135deg,#fff7ed 0%,#fffbeb 58%,#f8fafc 100%); border-color:#fde68a; box-shadow:0 6px 16px rgba(245,158,11,.08); padding:10px 12px; }
     .round-celebration-panel::after { content:''; position:absolute; right:-36px; top:-56px; width:130px; height:130px; border-radius:999px; background:radial-gradient(circle,rgba(251,191,36,.2) 0%,rgba(251,191,36,.08) 50%,transparent 74%); pointer-events:none; }
     .round-copy { position:relative; z-index:1; flex:1 1 auto; display:flex; gap:9px; align-items:center; min-width:0; }
@@ -241,6 +253,11 @@
         <div id="billBox"></div>
       </div>
 
+      <div class="panel compact-panel" id="adminHistoryPanel" style="display:none">
+        <h3>Verlauf seit letzter Zahlung</h3>
+        <div id="adminHistoryBox" class="member-history-box"><div class="muted">Noch nicht geladen.</div></div>
+      </div>
+
       <div class="panel" id="addPanel">
         <h3>Hinzufügen</h3>
         <div class="drink-feedback" id="drinkFeedbackTop" aria-live="polite"></div>
@@ -368,6 +385,8 @@
     let activeSelfPayment = null;
     let cardPaymentPreviewDetail = null;
     let cardPaymentSelectedRoundingMode = null;
+    let currentPersonHistoryRequest = 0;
+    let currentPersonHistoryKey = '';
     let celebrationAudioCtx = null;
     let drinkFeedbackRecentName = '';
     let drinkFeedbackRecentCount = 0;
@@ -800,7 +819,7 @@
         throw err;
       }
       const data = await res.json();
-      markSyncSuccess();
+      markSyncSuccess(data);
       return data;
     }
 
@@ -1384,6 +1403,8 @@
       pendingDecisions = {};
       deleteRequestMenuOpen = false;
       deleteRequestSelections = {};
+      currentPersonHistoryRequest += 1;
+      currentPersonHistoryKey = '';
       updateDialogInfo();
       const dialog = document.getElementById('personDialog');
       dialog.showModal();
@@ -1399,6 +1420,8 @@
       currentPerson = null;
       deleteRequestMenuOpen = false;
       deleteRequestSelections = {};
+      currentPersonHistoryRequest += 1;
+      currentPersonHistoryKey = '';
       loadPeople(true);
     }
 
@@ -1884,6 +1907,7 @@
       dialogTotal.style.display = showPersonPopupTotal ? 'block' : 'none';
       updatePaymentChoiceButtons();
       document.getElementById('billPanel').style.display = adminMode ? 'block' : 'none';
+      document.getElementById('adminHistoryPanel').style.display = adminMode ? 'block' : 'none';
       document.getElementById('roundRequestPanel').style.display = adminMode ? 'none' : 'block';
       document.getElementById('userEditPanel').style.display = (!adminMode && enableDeleteRequests) ? 'block' : 'none';
       document.getElementById('adminEditPanel').style.display = adminMode ? 'block' : 'none';
@@ -1895,6 +1919,7 @@
       renderAdminAdjustments();
       renderDrinkButtons();
       renderCardPaymentPanel();
+      loadAdminPersonHistory();
     }
 
     function cardProviderLabel() {
@@ -1916,6 +1941,93 @@
       }
       html += '</tbody></table>';
       box.innerHTML = html;
+    }
+
+    function adminHistoryCacheKey(person) {
+      const lines = (person?.lines || [])
+        .map(line => `${line.line_id || line.id}:${line.quantity}:${line.pending_remove || 0}`)
+        .join('|');
+      const pending = (person?.pending_requests || [])
+        .map(request => `${request.id}:${request.decision || request.status || ''}`)
+        .join('|');
+      return `${person?.id || ''}:${lastServerRevision}:${person?.total || 0}:${person?.round_deduction_items || 0}:${lines}:${pending}`;
+    }
+
+    function formatAdminHistoryTimestamp(entry) {
+      const raw = String(entry?.timestamp || '');
+      if (raw.length >= 16 && raw[4] === '-' && raw[7] === '-') {
+        const day = String(Number(raw.slice(8, 10)));
+        const month = String(Number(raw.slice(5, 7)));
+        const year = raw.slice(2, 4);
+        return `${day}.${month}.${year}, ${raw.slice(11, 16)} Uhr`;
+      }
+      return entry?.timestamp_label ? `${entry.timestamp_label} Uhr` : '';
+    }
+
+    function adminHistoryRowClass(entry) {
+      const direction = String(entry?.direction || '').replace(/_/g, '-');
+      if (['consume', 'deduction', 'correction', 'payment'].includes(direction)) return direction;
+      if (direction === 'round-payment') return direction;
+      return 'neutral';
+    }
+
+    function renderAdminPersonHistory(entries) {
+      const box = document.getElementById('adminHistoryBox');
+      if (!box) return;
+      if (!entries || !entries.length) {
+        box.dataset.state = 'loaded';
+        box.innerHTML = '<div class="muted">Seit der letzten Zahlung keine Einträge.</div>';
+        return;
+      }
+      box.dataset.state = 'loaded';
+      box.innerHTML = entries.map(entry => {
+        const product = entry.product || entry.short_label || 'Eintrag';
+        const labelParts = [entry.type_label || ''];
+        if (entry.short_label && entry.short_label !== product) labelParts.push(entry.short_label);
+        if (entry.reason) labelParts.push(entry.reason);
+        const label = labelParts.filter(Boolean).join(' · ');
+        const timestamp = formatAdminHistoryTimestamp(entry);
+        return `
+          <div class="member-history-row ${adminHistoryRowClass(entry)}">
+            <div class="member-history-time">${escapeHtml(timestamp)}</div>
+            <div class="member-history-main">
+              <strong>${escapeHtml(product)}</strong>
+              <span class="member-history-type">${escapeHtml(label)}</span>
+            </div>
+            <div class="member-history-qty">${escapeHtml(entry.quantity_label || '')}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function loadAdminPersonHistory() {
+      const panel = document.getElementById('adminHistoryPanel');
+      const box = document.getElementById('adminHistoryBox');
+      if (!panel || !box) return;
+      if (!adminMode || !adminPin || !currentPerson) {
+        panel.style.display = 'none';
+        currentPersonHistoryKey = '';
+        box.dataset.state = 'idle';
+        box.innerHTML = '<div class="muted">Noch nicht geladen.</div>';
+        return;
+      }
+      panel.style.display = 'block';
+      const key = adminHistoryCacheKey(currentPerson);
+      if (currentPersonHistoryKey === key && box.dataset.state === 'loaded') return;
+      currentPersonHistoryKey = key;
+      const personId = Number(currentPerson.id);
+      const requestId = ++currentPersonHistoryRequest;
+      box.dataset.state = 'loading';
+      box.innerHTML = '<div class="muted">Verlauf wird geladen…</div>';
+      try {
+        const data = await apiPost('/api/admin/person/history', { pin: adminPin, person_id: personId, limit: 200 });
+        if (requestId !== currentPersonHistoryRequest || !currentPerson || Number(currentPerson.id) !== personId || !adminMode) return;
+        renderAdminPersonHistory(data.history || []);
+      } catch (err) {
+        if (requestId !== currentPersonHistoryRequest) return;
+        box.dataset.state = 'error';
+        box.innerHTML = `<div class="muted">${escapeHtml(err.message || 'Verlauf konnte nicht geladen werden.')}</div>`;
+      }
     }
 
     function deleteSelectionTotal() {

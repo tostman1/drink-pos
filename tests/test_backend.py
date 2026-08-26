@@ -621,12 +621,20 @@ class BackendFlowTests(unittest.TestCase):
         cashup_preview = self.main.admin_cashup_preview(self.main.CashupRequest(pin=PIN))
         self.assertEqual(cashup_preview["auto_rounds"]["rounds_count"], 2)
         self.assertEqual(cashup_preview["auto_rounds"]["deducted_items"], 0)
+        self.assertEqual(
+            [charge["person_id"] for charge in cashup_preview["auto_rounds"]["charges"]],
+            [open_round_payer["id"]],
+        )
         self.assertFalse(
             any(int(item["person_id"]) == int(consumer["id"]) for item in cashup_preview["auto_rounds"]["deductions"])
         )
         self.assertEqual(
             [round_item["payer_person_id"] for round_item in cashup_preview["auto_rounds"]["rounds"]],
             [open_round_payer["id"], card_round_payer["id"]],
+        )
+        self.assertEqual(
+            [round_item["already_paid"] for round_item in cashup_preview["auto_rounds"]["rounds"]],
+            [False, True],
         )
 
         cashup = self.main.admin_cashup(self.main.CashupRequest(pin=PIN))
@@ -862,6 +870,44 @@ class BackendFlowTests(unittest.TestCase):
         history = self.main.kassa_person_history(person["id"])
         consume_entries = [entry for entry in history["history"] if entry["type"] == "CONSUME"]
         self.assertEqual(sum(entry["quantity"] for entry in consume_entries), 1)
+
+    def test_admin_person_history_shows_corrections_and_allows_archived_person(self):
+        person, item = self.first_person_and_item()
+
+        self.main.add_drink(self.main.AddDrinkRequest(person_id=person["id"], item_id=item["id"]))
+        self.main.add_drink(self.main.AddDrinkRequest(person_id=person["id"], item_id=item["id"]))
+        preview = self.main.kassa_person(person["id"])
+        line_id = preview["lines"][0]["line_ids"][0]
+
+        self.main.create_edit_request(
+            self.main.EditRequestIn(
+                person_id=person["id"],
+                line_quantities={str(line_id): 1},
+                reason="Falsch geklickt",
+            )
+        )
+        with self.main.get_conn() as conn:
+            pending = self.main.get_pending_requests_for_person(conn, person["id"])
+            request_id = pending[0]["id"]
+        self.main.admin_decide_change_request(
+            self.main.AdminChangeRequestDecision(pin=PIN, request_id=request_id, decision="APPROVED")
+        )
+        self.main.admin_delete_person(self.main.AdminPersonDelete(pin=PIN, person_id=person["id"]))
+
+        history = self.main.admin_person_history(
+            self.main.AdminPersonHistoryRequest(pin=PIN, person_id=person["id"])
+        )
+        entries = history["history"]
+        consume_entries = [entry for entry in entries if entry["type"] == "CONSUME"]
+        correction = next(entry for entry in entries if entry["type"] == "CHANGE_APPROVED")
+
+        self.assertEqual(sum(entry["quantity"] for entry in consume_entries), 1)
+        self.assertEqual(correction["type_label"], "Korrektur gelöscht")
+        self.assertEqual(correction["direction"], "correction")
+        self.assertEqual(correction["quantity"], -1)
+        self.assertEqual(correction["quantity_label"], "-1x")
+        self.assertEqual(correction["product"], item["name"])
+        self.assertEqual(correction["reason"], "Falsch geklickt")
 
     def test_kassa_person_history_shows_paid_round_as_orange_row_kind(self):
         person, _ = self.first_person_and_item()
