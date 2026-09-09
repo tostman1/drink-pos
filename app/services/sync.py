@@ -23,6 +23,8 @@ def get_sync_state(conn: sqlite3.Connection) -> dict[str, Any]:
         ("round_requests", "requested_at"),
         ("round_requests", "decided_at"),
         ("round_events", "timestamp"),
+        ("event_sessions", "updated_at"),
+        ("event_lines", "updated_at"),
     ]
     timestamps: list[str] = []
     for table, column in timestamp_checks:

@@ -45,7 +45,14 @@ try:
         CashupRequest,
         ClientEventRequest,
         EditRequestIn,
+        EventAddDrinkRequest,
+        EventEndPreviewRequest,
+        EventEndRequest,
+        EventStartRequest,
+        InvoiceSettingsUpdateRequest,
         KassaPayRequest,
+        MailSettingsUpdateRequest,
+        MailTestRequest,
         MemberMessageAckRequest,
         PayRequest,
         PinRequest,
@@ -65,6 +72,7 @@ try:
         pair_reader as sumup_pair_reader,
         poll_checkout_status as sumup_poll_checkout_status,
         reader_status as sumup_reader_status,
+        terminate_reader_checkout as sumup_terminate_reader_checkout,
     )
 except ImportError:
     from models.requests import (
@@ -87,7 +95,14 @@ except ImportError:
         CashupRequest,
         ClientEventRequest,
         EditRequestIn,
+        EventAddDrinkRequest,
+        EventEndPreviewRequest,
+        EventEndRequest,
+        EventStartRequest,
+        InvoiceSettingsUpdateRequest,
         KassaPayRequest,
+        MailSettingsUpdateRequest,
+        MailTestRequest,
         MemberMessageAckRequest,
         PayRequest,
         PinRequest,
@@ -107,12 +122,14 @@ except ImportError:
         pair_reader as sumup_pair_reader,
         poll_checkout_status as sumup_poll_checkout_status,
         reader_status as sumup_reader_status,
+        terminate_reader_checkout as sumup_terminate_reader_checkout,
     )
 
 try:
     from .core.build import build_info
     from .core import security as security_service
     from .db import schema as schema_service
+    from .services import events as event_service
     from .services import messages as message_service
     from .services.statistics import log_transaction, log_transaction_item
     from .services.sync import get_sync_state
@@ -137,6 +154,7 @@ except ImportError:
     from core.build import build_info
     import core.security as security_service
     import db.schema as schema_service
+    from services import events as event_service
     from services import messages as message_service
     from services.statistics import log_transaction, log_transaction_item
     from services.sync import get_sync_state
@@ -2015,6 +2033,10 @@ def poll_sumup_payment(cfg: SumUpConfig, provider_checkout_id: str) -> dict:
     return sumup_poll_checkout_status(cfg, provider_checkout_id, cfg.timeout_seconds)
 
 
+def terminate_sumup_checkout(cfg: SumUpConfig) -> dict:
+    return sumup_terminate_reader_checkout(cfg)
+
+
 def create_test_card_checkout(session_id: int) -> dict:
     provider_checkout_id = f"test-card-checkout-{session_id}"
     return {
@@ -2463,6 +2485,7 @@ def config():
     with get_conn() as conn:
         items = get_items(conn, include_archived=False)
         user_items = [item for item in items if item["can_user_add"]]
+        active_event = event_service.event_payload(conn)
         return {
             "currency": "EUR",
             "app_name": get_setting(conn, "app_name", "Drink POS") or "Drink POS",
@@ -2484,6 +2507,7 @@ def config():
             **public_self_payment_settings(sumup_payment_settings(conn)),
             "items": items,
             "user_items": user_items,
+            "active_event": active_event,
             # Backward-compatible name for old frontend shape.
             "drinks": user_items,
         }
@@ -2532,6 +2556,32 @@ def list_people():
                 }
             )
         return result
+
+
+@app.get("/api/event/active")
+def event_active():
+    with get_conn() as conn:
+        return {"event": event_service.event_payload(conn), **get_sync_state(conn)}
+
+
+@app.post("/api/event/add-drink")
+def event_add_drink(req: EventAddDrinkRequest):
+    with get_conn() as conn:
+        try:
+            result = event_service.add_event_item(conn, req.item_id, req.quantity)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        event = result.get("event") or {}
+        line = result.get("line") or {}
+        log_transaction(
+            conn,
+            None,
+            "EVENT_ITEM_ADDED",
+            float(line.get("subtotal_eur", 0) or 0),
+            f"Veranstaltung {event.get('name', '')}: +{int(req.quantity or 1)}x {line.get('item', '')}",
+        )
+        conn.commit()
+        return {**result, **get_sync_state(conn)}
 
 
 @app.get("/api/kassa/people")
@@ -2694,6 +2744,9 @@ def self_pay_cancel_payment(client_payment_id: str):
     normalized_id = normalize_client_operation_id(client_payment_id)
     if not normalized_id:
         raise HTTPException(status_code=400, detail="Zahlungs-ID fehlt")
+    terminate_cfg: SumUpConfig | None = None
+    terminate_session_id: int | None = None
+    terminate_person_id: int | None = None
     with get_conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         session = self_payment_session_by_client_id(conn, normalized_id)
@@ -2701,23 +2754,51 @@ def self_pay_cancel_payment(client_payment_id: str):
             raise HTTPException(status_code=404, detail="Zahlungsvorgang nicht gefunden")
         status = str(session["status"] or "").upper()
         if status in {"CREATED", "SENT_TO_READER", "PENDING"}:
+            session_id = int(session["id"])
+            person_id = int(session["person_id"])
+            provider = str(session["provider"] or "sumup").strip().lower() if "provider" in session.keys() else "sumup"
+            provider_checkout_id = (
+                str(session["provider_checkout_id"] or "").strip() if "provider_checkout_id" in session.keys() else ""
+            )
+            cancel_message = "Zahlung manuell in der Kassa abgebrochen."
+            if provider == "sumup" and provider_checkout_id:
+                try:
+                    terminate_cfg = sumup_config_from_settings(sumup_payment_settings(conn))
+                    terminate_session_id = session_id
+                    terminate_person_id = person_id
+                    cancel_message = "Zahlung manuell in der Kassa abgebrochen; Abbruch am SumUp Solo angefordert."
+                except HTTPException:
+                    terminate_cfg = None
             mark_self_payment_session(
                 conn,
-                int(session["id"]),
+                session_id,
                 "CANCELLED",
-                error="Zahlung manuell in der Kassa abgebrochen.",
+                error=cancel_message,
             )
             log_transaction(
                 conn,
-                int(session["person_id"]),
+                person_id,
                 "SUMUP_PAYMENT_CANCELLED",
                 0,
-                f"SumUp-Zahlung manuell abgebrochen. Session #{int(session['id'])}",
+                f"SumUp-Zahlung manuell abgebrochen. Session #{session_id}",
             )
-            session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (int(session["id"]),)).fetchone()
+            session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
         payload = self_payment_status_payload(conn, session)
         conn.commit()
-        return payload
+    if terminate_cfg is not None and terminate_session_id is not None and terminate_person_id is not None:
+        try:
+            terminate_sumup_checkout(terminate_cfg)
+        except SumUpError as exc:
+            with get_conn() as conn:
+                log_transaction(
+                    conn,
+                    terminate_person_id,
+                    "SUMUP_PAYMENT_ERROR",
+                    0,
+                    f"SumUp-Abbruch unklar Session #{terminate_session_id}: {exc.message[:180]}",
+                )
+                conn.commit()
+    return payload
 
 
 @app.post("/api/self-pay/pay")
@@ -2801,26 +2882,47 @@ def self_pay(req: SelfPayRequest):
         receipt_text = terminal_receipt_text(person_name, session_id)
         conn.commit()
 
+    with get_conn() as conn:
+        session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
+        if session and str(session["status"] or "").upper() == "CANCELLED":
+            payload = self_payment_status_payload(conn, session)
+            conn.commit()
+            return payload
+
     try:
         if provider == "test":
             checkout = create_test_card_checkout(session_id)
         else:
             checkout = create_sumup_checkout(cfg, amount_cents, receipt_text, client_payment_id)
         provider_checkout_id = str(checkout.get("provider_checkout_id") or "").strip()
+        terminate_after_checkout = False
         with get_conn() as conn:
             session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
             if session and str(session["status"] or "").upper() == "CANCELLED":
-                payload = self_payment_status_payload(conn, session)
+                mark_self_payment_session(
+                    conn,
+                    session_id,
+                    "CANCELLED",
+                    result=checkout,
+                    error=session["error"],
+                    provider_checkout_id=provider_checkout_id,
+                )
+                terminate_after_checkout = provider == "sumup" and bool(provider_checkout_id)
                 conn.commit()
-                return payload
-            mark_self_payment_session(
-                conn,
-                session_id,
-                "SENT_TO_READER",
-                result=checkout,
-                provider_checkout_id=provider_checkout_id,
-            )
-            conn.commit()
+            else:
+                mark_self_payment_session(
+                    conn,
+                    session_id,
+                    "SENT_TO_READER",
+                    result=checkout,
+                    provider_checkout_id=provider_checkout_id,
+                )
+                conn.commit()
+        if terminate_after_checkout:
+            try:
+                terminate_sumup_checkout(cfg)
+            except SumUpError:
+                pass
         if provider == "test":
             result = paid_test_card_result(session_id, amount_cents, settings["sumup_currency"], provider_checkout_id)
         else:
@@ -2853,23 +2955,22 @@ def self_pay(req: SelfPayRequest):
             conn.commit()
         raise HTTPException(status_code=502, detail=payload)
 
-    with get_conn() as conn:
-        session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
-        if session and str(session["status"] or "").upper() == "CANCELLED":
-            payload = self_payment_status_payload(conn, session)
-            conn.commit()
-            return payload
-
     provider_status = str(result.get("status") or "unknown").lower()
     if provider_status != "paid":
         with get_conn() as conn:
+            session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
+            if session and str(session["status"] or "").upper() == "CANCELLED":
+                payload = self_payment_status_payload(conn, session)
+                conn.commit()
+                return payload
             session_status = {
                 "failed": "FAILED",
                 "cancelled": "CANCELLED",
                 "timeout": "TIMEOUT",
                 "unknown": "UNKNOWN",
             }.get(provider_status, "UNKNOWN")
-            message = result.get("message") or self_payment_status_payload(conn, conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone())["message"]
+            status_payload = self_payment_status_payload(conn, session) if session else {}
+            message = result.get("message") or status_payload.get("message") or "SumUp-Zahlung nicht abgeschlossen."
             mark_self_payment_session(
                 conn,
                 session_id,
@@ -2898,11 +2999,8 @@ def self_pay(req: SelfPayRequest):
     with get_conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
-        if session and str(session["status"] or "").upper() == "CANCELLED":
-            payload = self_payment_status_payload(conn, session)
-            conn.commit()
-            return payload
-        if not session or session["status"] not in {"CREATED", "SENT_TO_READER", "PENDING"}:
+        session_status = str(session["status"] or "").upper() if session else ""
+        if not session or session_status not in {"CREATED", "SENT_TO_READER", "PENDING", "CANCELLED"}:
             raise HTTPException(status_code=409, detail="Zahlungssession ist nicht mehr aktiv")
         person = get_person(conn, req.person_id, allow_archived=False)
         lines = get_open_lines(conn, req.person_id)
@@ -4126,6 +4224,7 @@ def admin_overview(req: PinRequest):
             "people": people,
             "items": get_items(conn, include_archived=True),
             "drinks": get_items(conn, include_archived=True),
+            "active_event": event_service.event_payload(conn),
             "settings": {
                 "currency": "EUR",
                 "app_name": get_setting(conn, "app_name", "Drink POS") or "Drink POS",
@@ -4143,6 +4242,8 @@ def admin_overview(req: PinRequest):
                 **ui_appearance_settings(conn),
                 **cost_notice_settings(conn),
                 **sumup_payment_settings(conn),
+                **event_service.get_invoice_settings(conn),
+                **event_service.get_mail_settings(conn),
                 "production": is_production(),
                 "environment": APP_ENV,
                 "debug_enabled": not is_production(),
@@ -4151,6 +4252,142 @@ def admin_overview(req: PinRequest):
             "action_types": get_action_types(conn),
             "member_messages": get_admin_member_messages(conn),
         }
+
+
+@app.post("/api/admin/event/start")
+def admin_event_start(req: EventStartRequest):
+    with get_conn() as conn:
+        require_pin(conn, req.pin)
+        try:
+            event = event_service.start_event(conn, req.name)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        log_transaction(conn, None, "EVENT_STARTED", 0, f"Veranstaltung gestartet: {event['name']}")
+        payload = event_service.event_payload(conn, event)
+        conn.commit()
+        return {"status": "ok", "event": payload, **get_sync_state(conn)}
+
+
+@app.post("/api/admin/event/preview-end")
+def admin_event_preview_end(req: EventEndPreviewRequest):
+    with get_conn() as conn:
+        require_pin(conn, req.pin)
+        event = event_service.active_event(conn)
+        if not event:
+            raise HTTPException(status_code=400, detail="Keine laufende Veranstaltung")
+        try:
+            line_discounts = event_service.normalize_line_discounts(req.line_discounts)
+            summary = event_service.build_event_summary(
+                dict(event),
+                event_service.event_lines(conn, int(event["id"])),
+                line_discounts,
+                req.total_discount_percent,
+                now_text(),
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        invoice_settings = event_service.get_invoice_settings(conn)
+        return {
+            "status": "ok",
+            "event": summary,
+            "invoice_options": {"qr_code_available": event_service.invoice_qr_available(invoice_settings)},
+            **get_sync_state(conn),
+        }
+
+
+@app.post("/api/admin/event/end")
+def admin_event_end(req: EventEndRequest):
+    with get_conn() as conn:
+        require_pin(conn, req.pin)
+        event = event_service.active_event(conn)
+        if not event:
+            raise HTTPException(status_code=400, detail="Keine laufende Veranstaltung")
+        try:
+            line_discounts = event_service.normalize_line_discounts(req.line_discounts)
+            result = event_service.close_event(
+                conn,
+                DB_PATH,
+                event,
+                line_discounts=line_discounts,
+                total_discount_percent=req.total_discount_percent,
+                create_invoice=bool(req.create_invoice),
+                email_invoice=bool(req.email_invoice),
+                copy_invoice_to_sender=bool(req.copy_invoice_to_sender),
+                include_invoice_qr=bool(req.include_invoice_qr),
+                external_recipient=bool(req.external_recipient),
+                external_recipient_name=req.external_recipient_name,
+                external_recipient_email=req.external_recipient_email,
+                external_recipient_address=req.external_recipient_address,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        except OSError as exc:
+            raise HTTPException(status_code=500, detail=f"CSV konnte nicht gespeichert werden: {exc}")
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=str(exc))
+        closed = result.get("event") or {}
+        log_transaction(
+            conn,
+            None,
+            "EVENT_CLOSED",
+            float(closed.get("final_total_eur", 0) or 0),
+            f"Veranstaltung beendet: {closed.get('name', '')}; CSV {result.get('artifacts', {}).get('csv_path', '')}",
+        )
+        conn.commit()
+        return {**result, **get_sync_state(conn)}
+
+
+@app.post("/api/admin/invoice-settings/update")
+def admin_invoice_settings_update(req: InvoiceSettingsUpdateRequest):
+    with get_conn() as conn:
+        require_pin(conn, req.pin)
+        if hasattr(req, "model_dump"):
+            values = req.model_dump(exclude={"pin"}, exclude_none=True)
+        else:
+            values = req.dict(exclude={"pin"}, exclude_none=True)
+        try:
+            settings = event_service.update_invoice_settings(conn, values)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        log_transaction(conn, None, "INVOICE_SETTINGS_UPDATED", 0, "Rechnung-/Veranstaltungsmodus Einstellungen gespeichert")
+        conn.commit()
+        return {"status": "ok", "settings": settings, **get_sync_state(conn)}
+
+
+@app.post("/api/admin/mail-settings/update")
+def admin_mail_settings_update(req: MailSettingsUpdateRequest):
+    with get_conn() as conn:
+        require_pin(conn, req.pin)
+        if hasattr(req, "model_dump"):
+            values = req.model_dump(exclude={"pin"}, exclude_none=True)
+        else:
+            values = req.dict(exclude={"pin"}, exclude_none=True)
+        try:
+            settings = event_service.update_mail_settings(conn, values)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        log_transaction(conn, None, "MAIL_SETTINGS_UPDATED", 0, "Mailversand Einstellungen gespeichert")
+        conn.commit()
+        return {"status": "ok", "settings": settings, **get_sync_state(conn)}
+
+
+@app.post("/api/admin/mail-settings/test")
+def admin_mail_settings_test(req: MailTestRequest):
+    with get_conn() as conn:
+        require_pin(conn, req.pin)
+        invoice_settings = event_service.get_invoice_settings(conn)
+        settings = {
+            **invoice_settings,
+            **event_service.get_mail_settings(conn, include_secret=True),
+        }
+        recipient = (req.recipient or invoice_settings.get("invoice_cashier_email") or "").strip()
+        try:
+            event_service.send_test_email(settings, recipient)
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=event_service.mail_exception_message(exc))
+        log_transaction(conn, None, "MAIL_TEST_SENT", 0, f"Testmail gesendet an {recipient}")
+        conn.commit()
+        return {"status": "ok", "settings": event_service.get_mail_settings(conn), **get_sync_state(conn)}
 
 
 @app.post("/api/admin/member-message/create")

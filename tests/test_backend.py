@@ -206,6 +206,31 @@ class BackendFlowTests(unittest.TestCase):
         self.assertEqual(checkout_body["total_amount"]["value"], 250)
         self.assertEqual(checkout_body["affiliate"]["foreign_transaction_id"], "selfpay-test")
 
+    def test_sumup_service_terminates_reader_checkout(self):
+        sumup = importlib.import_module("services.sumup")
+        original_request = sumup._request
+        calls = []
+
+        def fake_request(cfg, method, path, body=None, timeout=15):
+            calls.append((method, path, body, timeout))
+            return {"ok": True}
+
+        sumup._request = fake_request
+        try:
+            cfg = sumup.SumUpConfig(
+                api_base="https://api.sumup.test",
+                api_key="test-api-key",
+                merchant_code="merchant",
+                reader_id="reader",
+                timeout_seconds=30,
+            )
+            result = sumup.terminate_reader_checkout(cfg)
+        finally:
+            sumup._request = original_request
+
+        self.assertEqual(result, {"ok": True})
+        self.assertEqual(calls, [("POST", "/v0.1/merchants/merchant/readers/reader/terminate", None, 20)])
+
     def test_self_payment_with_sumup_closes_open_lines(self):
         self.configure_sumup()
         person, item = self.first_person_and_item()
@@ -266,6 +291,66 @@ class BackendFlowTests(unittest.TestCase):
         history = self.main.kassa_person_history(person["id"])
         self.assertEqual(history["history"][-1]["type"], "PAID_SUMUP")
         self.assertEqual(history["history"][-1]["type_label"], "SumUp-Zahlung")
+
+    def test_cancelled_sumup_session_can_still_book_confirmed_payment(self):
+        self.configure_sumup()
+        person, item = self.first_person_and_item()
+        self.main.add_drink(self.main.AddDrinkRequest(person_id=person["id"], item_id=item["id"]))
+        preview = self.main.self_pay_person(person["id"])
+        create_calls = []
+        terminate_calls = []
+        cancel_payload = {}
+        payment_id = "selfpay-cancel-paid-wins-1"
+        original_create = self.main.create_sumup_checkout
+        original_poll = self.main.poll_sumup_payment
+        original_terminate = self.main.terminate_sumup_checkout
+
+        def fake_create(cfg, amount_cents, receipt_text="", foreign_transaction_id=None):
+            create_calls.append(amount_cents)
+            return {"provider_checkout_id": "sumup-checkout-cancel-race-1", "status": "sent_to_reader"}
+
+        def fake_poll(cfg, provider_checkout_id):
+            cancel_payload.update(self.main.self_pay_cancel_payment(payment_id))
+            return self.paid_sumup_result(create_calls[0], provider_checkout_id)
+
+        def fake_terminate(cfg):
+            terminate_calls.append(cfg.reader_id)
+            return {"ok": True}
+
+        self.main.create_sumup_checkout = fake_create
+        self.main.poll_sumup_payment = fake_poll
+        self.main.terminate_sumup_checkout = fake_terminate
+        try:
+            paid = self.main.self_pay(
+                self.main.SelfPayRequest(
+                    person_id=person["id"],
+                    expected_revision=preview["revision"],
+                    client_payment_id=payment_id,
+                )
+            )
+        finally:
+            self.main.create_sumup_checkout = original_create
+            self.main.poll_sumup_payment = original_poll
+            self.main.terminate_sumup_checkout = original_terminate
+
+        self.assertEqual(cancel_payload["status"], "cancelled")
+        self.assertEqual(terminate_calls, ["test-reader"])
+        self.assertEqual(paid["status"], "paid")
+        self.assertEqual(paid["payment_method"], "SUMUP")
+        self.assertEqual(paid["provider_checkout_id"], "sumup-checkout-cancel-race-1")
+        self.assertFalse(self.main.kassa_person(person["id"])["lines"])
+        payment_status = self.main.self_pay_payment_status(payment_id)
+        self.assertEqual(payment_status["status"], "paid")
+        with self.main.get_conn() as conn:
+            tx_types = [
+                row["type"]
+                for row in conn.execute(
+                    "SELECT type FROM transactions WHERE person_id = ? ORDER BY id",
+                    (person["id"],),
+                ).fetchall()
+            ]
+        self.assertIn("SUMUP_PAYMENT_CANCELLED", tx_types)
+        self.assertIn("PAID_SUMUP", tx_types)
 
     def test_test_environment_card_payment_uses_local_mock_without_sumup(self):
         self.configure_test_card_payments()
@@ -1162,6 +1247,725 @@ class BackendFlowTests(unittest.TestCase):
             self.main.APP_ENV = original_env
             self.main.ENV_PIN_CODE = original_pin
             self.main.ENV_PIN_FROM_ENV = original_from_env
+
+    def start_event_with_two_items(self):
+        item = next(item for item in self.main.config()["user_items"] if item["name"] != "1 Runde")
+        started = self.main.admin_event_start(self.main.EventStartRequest(pin=PIN, name="Musikball Test"))
+        self.assertEqual(started["status"], "ok")
+        self.assertEqual(started["event"]["name"], "Musikball Test")
+        self.assertIsNotNone(self.main.config()["active_event"])
+
+        first = self.main.event_add_drink(self.main.EventAddDrinkRequest(item_id=item["id"]))
+        second = self.main.event_add_drink(self.main.EventAddDrinkRequest(item_id=item["id"]))
+        self.assertEqual(first["status"], "ok")
+        self.assertEqual(second["status"], "ok")
+        event = second["event"]
+        self.assertEqual(event["quantity"], 2)
+        self.assertEqual(event["lines"][0]["quantity"], 2)
+        return item, event
+
+    def test_event_mode_start_add_discount_csv_pdf_and_close(self):
+        self.main.admin_invoice_settings_update(
+            self.main.InvoiceSettingsUpdateRequest(pin=PIN, invoice_iban="AT611904300234573201")
+        )
+        item, event = self.start_event_with_two_items()
+        line_id = str(event["lines"][0]["line_id"])
+        preview = self.main.admin_event_preview_end(
+            self.main.EventEndPreviewRequest(
+                pin=PIN,
+                line_discounts={line_id: "10,00"},
+                total_discount_percent="20,00",
+            )
+        )
+        expected_subtotal = round(float(item["price"]) * 2, 2)
+        expected_line_discount = round(expected_subtotal * 0.10, 2)
+        expected_total_discount = round((expected_subtotal - expected_line_discount) * 0.20, 2)
+        self.assertEqual(preview["event"]["subtotal_eur"], expected_subtotal)
+        self.assertEqual(preview["event"]["lines"][0]["line_discount_percent"], 10.0)
+        self.assertEqual(preview["event"]["line_discount_total_eur"], expected_line_discount)
+        self.assertEqual(preview["event"]["total_discount_percent"], 20.0)
+        self.assertEqual(preview["event"]["total_discount_eur"], expected_total_discount)
+        self.assertEqual(preview["event"]["final_total_eur"], round(expected_subtotal - expected_line_discount - expected_total_discount, 2))
+
+        closed = self.main.admin_event_end(
+            self.main.EventEndRequest(
+                pin=PIN,
+                line_discounts={line_id: "10,00"},
+                total_discount_percent="20,00",
+                create_invoice=True,
+                email_invoice=False,
+            )
+        )
+        self.assertEqual(closed["status"], "ok")
+        self.assertEqual(closed["event"]["line_discount_total_eur"], expected_line_discount)
+        self.assertEqual(closed["event"]["total_discount_eur"], expected_total_discount)
+        self.assertEqual(closed["event"]["final_total_eur"], 3.60)
+        self.assertIsNone(self.main.event_active()["event"])
+
+        csv_path = Path(closed["artifacts"]["csv_path"])
+        pdf_path = Path(closed["artifacts"]["pdf_path"])
+        self.assertTrue(csv_path.exists())
+        self.assertTrue(pdf_path.exists())
+        self.assertTrue(pdf_path.read_bytes().startswith(b"%PDF-"))
+        csv_text = csv_path.read_text(encoding="utf-8-sig")
+        self.assertIn("Musikball Test", csv_text)
+        self.assertIn("Positionsrabatt %", csv_text)
+        self.assertIn("10.00", csv_text)
+        self.assertIn("20.00", csv_text)
+        self.assertIn("3.60", csv_text)
+        pdf_text = pdf_path.read_bytes().decode("latin-1", errors="ignore")
+        self.assertIn("Positionsrabatt 10.00%", pdf_text)
+        self.assertIn("Gesamtrabatt 20.00%", pdf_text)
+        self.assertIn("3.60", pdf_text)
+
+    def test_event_mode_invoice_settings_persist_in_admin_overview(self):
+        saved = self.main.admin_invoice_settings_update(
+            self.main.InvoiceSettingsUpdateRequest(
+                pin=PIN,
+                invoice_cashier_email="kassier@example.org",
+                invoice_recipient="Verein\nz.Hd. Kassier",
+                invoice_sender_name="Wirtschaft",
+                invoice_sender_address="Dorf 1",
+                invoice_number_prefix="EVENT-{YYYY-MM-dd}",
+                invoice_iban="at611904300234573201",
+                invoice_logo_text="MVH",
+                invoice_footer_text="Danke",
+                invoice_place="Altach",
+                invoice_notes="UID frei",
+            )
+        )
+        self.assertEqual(saved["settings"]["invoice_cashier_email"], "kassier@example.org")
+        self.assertEqual(saved["settings"]["invoice_number_prefix"], "EVENT-{YYYY-MM-dd}")
+        overview = self.main.admin_overview(self.main.PinRequest(pin=PIN))
+        self.assertEqual(overview["settings"]["invoice_cashier_email"], "kassier@example.org")
+        self.assertEqual(overview["settings"]["invoice_recipient"], "Verein\nz.Hd. Kassier")
+        self.assertEqual(overview["settings"]["invoice_iban"], "AT61 1904 3002 3457 3201")
+        self.assertEqual(overview["settings"]["invoice_number_prefix"], "EVENT-{YYYY-MM-dd}")
+
+    def test_invoice_number_date_formats_use_closing_date(self):
+        cases = [
+            ("EVENT", "2026-01-01", "EVENT-0042"),
+            ("", "2026-01-01", "EVENT-0042"),
+            ("RE-YYYY-MM-dd", "2026-01-01", "RE-YYYY-MM-dd-0042"),
+            ("EVENT-{YYYY-MM-dd}", "2026-01-01", "EVENT-2026-01-01-0042"),
+            ("RE-{dd.MM.YYYY}", "2028-02-29", "RE-29.02.2028-0042"),
+            ("{YYYYMM}", "2026-09-09", "202609-0042"),
+            ("RE-{YY}/{MM}/{dd}", "2026-01-01", "RE-26/01/01-0042"),
+            ("{YYYY_MM_dd}", "2026-09-09", "2026_09_09-0042"),
+            ("{YYYY-MM-dd}", "2021-01-01", "2021-01-01-0042"),
+        ]
+        for prefix, end_date, expected in cases:
+            with self.subTest(prefix=prefix, end_date=end_date):
+                summary = {"id": 42, "start_time": "2020-12-31 18:00:00", "end_time": f"{end_date} 01:30:00"}
+                actual = self.main.event_service.invoice_number_for_summary(summary, {"invoice_number_prefix": prefix})
+                self.assertEqual(actual, expected)
+
+    def test_invoice_settings_reject_invalid_date_placeholders_without_changing_settings(self):
+        self.main.admin_invoice_settings_update(
+            self.main.InvoiceSettingsUpdateRequest(pin=PIN, invoice_number_prefix="RE-{YYYY}", invoice_sender_name="Original")
+        )
+        for prefix in ("RE-{YYYY-MM-DD}", "RE-{YYYY-mm-dd}", "RE-{YYYY-MMM-dd}", "RE-{YYYY", "RE-YYYY}", "RE-{}", "RE-{{YYYY}}", "RE-{date}"):
+            with self.subTest(prefix=prefix), self.assertRaises(HTTPException) as ctx:
+                self.main.admin_invoice_settings_update(
+                    self.main.InvoiceSettingsUpdateRequest(pin=PIN, invoice_number_prefix=prefix, invoice_sender_name="Changed")
+                )
+            self.assertEqual(ctx.exception.status_code, 400)
+            self.assertIn("Datumsplatzhalter", ctx.exception.detail)
+            self.assertIn("EVENT-{YYYY-MM-dd}", ctx.exception.detail)
+            overview = self.main.admin_overview(self.main.PinRequest(pin=PIN))
+            self.assertEqual(overview["settings"]["invoice_number_prefix"], "RE-{YYYY}")
+            self.assertEqual(overview["settings"]["invoice_sender_name"], "Original")
+
+    def test_event_close_resolves_date_prefix_and_keeps_template_saved(self):
+        self.main.admin_invoice_settings_update(
+            self.main.InvoiceSettingsUpdateRequest(pin=PIN, invoice_number_prefix="RE-{YYYY-MM-dd}")
+        )
+        self.start_event_with_two_items()
+        closed = self.main.admin_event_end(self.main.EventEndRequest(pin=PIN, create_invoice=True))
+        event = closed["event"]
+        expected = f"RE-{event['end_time'][:10]}-{event['id']:04d}"
+        pdf_text = Path(closed["artifacts"]["pdf_path"]).read_bytes().decode("latin-1")
+        self.assertIn(expected, pdf_text)
+        self.assertNotIn("{YYYY-MM-dd}", pdf_text)
+        overview = self.main.admin_overview(self.main.PinRequest(pin=PIN))
+        self.assertEqual(overview["settings"]["invoice_number_prefix"], "RE-{YYYY-MM-dd}")
+
+    def test_invoice_pdf_includes_payment_text_and_sepa_qr_payload(self):
+        summary = {
+            "id": 42,
+            "name": "Musikball Test",
+            "start_time": "2026-01-01 18:00:00",
+            "end_time": "2026-01-01 23:00:00",
+            "lines": [],
+            "subtotal_eur": 123.45,
+            "line_discount_total_eur": 0.0,
+            "total_discount_percent": 0.0,
+            "total_discount_eur": 0.0,
+            "final_total_eur": 123.45,
+        }
+        settings = {
+            **self.main.event_service.INVOICE_SETTING_DEFAULTS,
+            "invoice_sender_name": "MVH Altach Wirtschaft",
+            "invoice_number_prefix": "TEST-{YYYY-MM-dd}",
+            "invoice_iban": "AT61 1904 3002 3457 3201",
+        }
+        path = Path(self.temp_dir.name) / "rechnung.pdf"
+        self.main.event_service.write_simple_invoice_pdf(path, summary, settings, include_qr_code=True)
+        pdf_text = path.read_bytes().decode("latin-1", errors="ignore")
+        self.assertIn("SEPA-QR-Code", pdf_text)
+        self.assertGreater(pdf_text.count(" re f "), 500)
+        self.assertIn("IBAN AT61 1904 3002 3457 3201", pdf_text)
+        self.assertIn("(TEST-2026-01-01-0042)", pdf_text)
+        self.assertIn("Verwendungszweck: Rechnung TEST-2026-01-01-0042", pdf_text)
+        self.assertNotIn("{YYYY-MM-dd}", pdf_text)
+        payload_lines = self.main.event_service.sepa_qr_payload(summary, settings).splitlines()
+        self.assertEqual(payload_lines[:4], ["BCD", "002", "1", "SCT"])
+        self.assertEqual(payload_lines[6], "AT611904300234573201")
+        self.assertEqual(payload_lines[7], "EUR123.45")
+        self.assertEqual(payload_lines[10], "Rechnung TEST-2026-01-01-0042")
+
+    def test_invoice_qr_requires_iban_and_keeps_event_open(self):
+        self.start_event_with_two_items()
+        for options in ({"create_invoice": True}, {"email_invoice": True}):
+            with self.subTest(options=options), self.assertRaises(HTTPException) as ctx:
+                self.main.admin_event_end(self.main.EventEndRequest(pin=PIN, include_invoice_qr=True, **options))
+            self.assertEqual(ctx.exception.status_code, 400)
+            self.assertIn("IBAN", ctx.exception.detail)
+            self.assertIn("Einstellungen speichern", ctx.exception.detail)
+            self.assertIsNotNone(self.main.event_active()["event"])
+            self.assertFalse(list(Path(self.temp_dir.name).rglob("*.pdf")))
+
+    def test_invoice_settings_reject_invalid_iban(self):
+        for iban in ("AT000000000000000000", "AT611904300234573202", "AT61!1904300234573201"):
+            with self.subTest(iban=iban), self.assertRaises(HTTPException) as ctx:
+                self.main.admin_invoice_settings_update(
+                    self.main.InvoiceSettingsUpdateRequest(pin=PIN, invoice_iban=iban)
+                )
+            self.assertEqual(ctx.exception.status_code, 400)
+            self.assertIn("IBAN", ctx.exception.detail)
+
+    def test_invoice_fails_explicitly_when_qr_dependency_is_missing(self):
+        self.main.admin_invoice_settings_update(
+            self.main.InvoiceSettingsUpdateRequest(pin=PIN, invoice_iban="AT611904300234573201")
+        )
+        self.start_event_with_two_items()
+        original = self.main.event_service.qrcode
+        self.main.event_service.qrcode = None
+        try:
+            with self.assertRaises(HTTPException) as ctx:
+                self.main.admin_event_end(self.main.EventEndRequest(pin=PIN, create_invoice=True, include_invoice_qr=True))
+            self.assertEqual(ctx.exception.status_code, 500)
+            self.assertIn("QR-Code-Bibliothek fehlt", ctx.exception.detail)
+            self.assertIsNotNone(self.main.event_active()["event"])
+            self.assertFalse(list(Path(self.temp_dir.name).rglob("*.pdf")))
+        finally:
+            self.main.event_service.qrcode = original
+
+    def test_invoice_without_iban_or_qr_dependency_can_close_event(self):
+        self.start_event_with_two_items()
+        original = self.main.event_service.qrcode
+        self.main.event_service.qrcode = None
+        try:
+            closed = self.main.admin_event_end(self.main.EventEndRequest(pin=PIN, create_invoice=True))
+        finally:
+            self.main.event_service.qrcode = original
+        text = Path(closed["artifacts"]["pdf_path"]).read_bytes().decode("latin-1")
+        self.assertIn("Rechnungsbetrag", text)
+        self.assertNotIn("SEPA-QR-Code", text)
+        self.assertNotIn("IBAN", text)
+        self.assertFalse(closed["artifacts"]["mail_sent"])
+        self.assertIsNone(self.main.event_active()["event"])
+
+    def test_invoice_qr_preview_checks_saved_iban(self):
+        self.start_event_with_two_items()
+        for iban, available in (("", False), ("AT611904300234573202", False), ("AT611904300234573201", True)):
+            with self.subTest(iban=iban):
+                with self.main.get_conn() as conn:
+                    self.main.set_setting(conn, "invoice_iban", iban)
+                    conn.commit()
+                preview = self.main.admin_event_preview_end(self.main.EventEndPreviewRequest(pin=PIN))
+                self.assertEqual(preview["invoice_options"]["qr_code_available"], available)
+
+    def test_invoice_valid_iban_does_not_force_qr(self):
+        self.start_event_with_two_items()
+        self.main.admin_invoice_settings_update(
+            self.main.InvoiceSettingsUpdateRequest(pin=PIN, invoice_iban="AT611904300234573201")
+        )
+        closed = self.main.admin_event_end(self.main.EventEndRequest(pin=PIN, create_invoice=True))
+        text = Path(closed["artifacts"]["pdf_path"]).read_bytes().decode("latin-1")
+        self.assertIn("IBAN AT61 1904 3002 3457 3201", text)
+        self.assertNotIn("SEPA-QR-Code", text)
+
+    def test_invoice_qr_selection_creates_pdf(self):
+        self.start_event_with_two_items()
+        self.main.admin_invoice_settings_update(
+            self.main.InvoiceSettingsUpdateRequest(pin=PIN, invoice_iban="AT611904300234573201")
+        )
+        closed = self.main.admin_event_end(self.main.EventEndRequest(pin=PIN, include_invoice_qr=True))
+        text = Path(closed["artifacts"]["pdf_path"]).read_bytes().decode("latin-1")
+        self.assertIn("SEPA-QR-Code", text)
+        self.assertGreater(text.count(" re f "), 500)
+
+    def test_mail_settings_persist_sanitized_and_preserve_password(self):
+        saved = self.main.admin_mail_settings_update(
+            self.main.MailSettingsUpdateRequest(
+                pin=PIN,
+                mail_smtp_provider="ionos",
+                mail_smtp_host="smtp.ionos.com",
+                mail_smtp_port="587",
+                mail_smtp_username="kassier@example.org",
+                mail_smtp_password="secret-pass",
+                mail_smtp_encryption="starttls",
+            )
+        )
+        self.assertEqual(saved["settings"]["mail_smtp_host"], "smtp.ionos.com")
+        self.assertEqual(saved["settings"]["mail_smtp_from"], "kassier@example.org")
+        self.assertTrue(saved["settings"]["mail_smtp_password_set"])
+        self.assertNotIn("mail_smtp_password", saved["settings"])
+
+        overview = self.main.admin_overview(self.main.PinRequest(pin=PIN))
+        self.assertTrue(overview["settings"]["mail_smtp_password_set"])
+        self.assertNotIn("mail_smtp_password", overview["settings"])
+
+        self.main.admin_mail_settings_update(
+            self.main.MailSettingsUpdateRequest(pin=PIN, mail_smtp_host="smtp2.ionos.com")
+        )
+        with self.main.get_conn() as conn:
+            settings = self.main.event_service.get_mail_settings(conn, include_secret=True)
+        self.assertEqual(settings["mail_smtp_password"], "secret-pass")
+        self.assertEqual(settings["mail_smtp_host"], "smtp2.ionos.com")
+        self.assertEqual(settings["mail_smtp_from"], "kassier@example.org")
+
+    def test_mail_settings_accept_world4you_provider(self):
+        saved = self.main.admin_mail_settings_update(
+            self.main.MailSettingsUpdateRequest(
+                pin=PIN,
+                mail_smtp_provider="world4you",
+                mail_smtp_host="smtp.world4you.com",
+                mail_smtp_port="587",
+                mail_smtp_username="verein@example.org",
+                mail_smtp_password="secret-pass",
+                mail_smtp_encryption="starttls",
+            )
+        )
+        self.assertEqual(saved["settings"]["mail_smtp_provider"], "world4you")
+        self.assertEqual(saved["settings"]["mail_smtp_host"], "smtp.world4you.com")
+        self.assertEqual(saved["settings"]["mail_smtp_port"], "587")
+        self.assertEqual(saved["settings"]["mail_smtp_encryption"], "starttls")
+        self.assertEqual(saved["settings"]["mail_smtp_from"], "verein@example.org")
+
+    def test_mail_test_sends_with_starttls_settings(self):
+        calls = []
+        original_smtp = self.main.event_service.smtplib.SMTP
+
+        class FakeSMTP:
+            def __init__(self, host, port, timeout=None):
+                calls.append(("connect", host, port, timeout))
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def starttls(self):
+                calls.append(("starttls",))
+
+            def login(self, username, password):
+                calls.append(("login", username, password))
+
+            def send_message(self, message):
+                calls.append(("send", message["To"], message["From"], message["Subject"]))
+
+        self.main.event_service.smtplib.SMTP = FakeSMTP
+        try:
+            self.main.admin_mail_settings_update(
+                self.main.MailSettingsUpdateRequest(
+                    pin=PIN,
+                    mail_smtp_host="smtp.ionos.com",
+                    mail_smtp_port="587",
+                    mail_smtp_username="kassier@example.org",
+                    mail_smtp_password="secret-pass",
+                    mail_smtp_encryption="starttls",
+                )
+            )
+            result = self.main.admin_mail_settings_test(
+                self.main.MailTestRequest(pin=PIN, recipient="test@example.org")
+            )
+        finally:
+            self.main.event_service.smtplib.SMTP = original_smtp
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(calls[0][:3], ("connect", "smtp.ionos.com", 587))
+        self.assertIn(("starttls",), calls)
+        self.assertIn(("login", "kassier@example.org", "secret-pass"), calls)
+        self.assertIn(("send", "test@example.org", "kassier@example.org", "Drink POS Testmail"), calls)
+
+    def test_mail_test_reports_authentication_error(self):
+        original_smtp = self.main.event_service.smtplib.SMTP
+        auth_error = self.main.event_service.smtplib.SMTPAuthenticationError
+
+        class FakeSMTP:
+            def __init__(self, host, port, timeout=None):
+                pass
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def starttls(self):
+                pass
+
+            def login(self, username, password):
+                raise auth_error(535, b"Authentication credentials invalid")
+
+            def send_message(self, message):
+                raise AssertionError("send_message should not run after failed login")
+
+        self.main.event_service.smtplib.SMTP = FakeSMTP
+        try:
+            self.main.admin_mail_settings_update(
+                self.main.MailSettingsUpdateRequest(
+                    pin=PIN,
+                    mail_smtp_host="smtp.ionos.com",
+                    mail_smtp_port="587",
+                    mail_smtp_username="kassier@example.org",
+                    mail_smtp_password="wrong-pass",
+                    mail_smtp_encryption="starttls",
+                )
+            )
+            with self.assertRaises(HTTPException) as ctx:
+                self.main.admin_mail_settings_test(
+                    self.main.MailTestRequest(pin=PIN, recipient="test@example.org")
+                )
+        finally:
+            self.main.event_service.smtplib.SMTP = original_smtp
+        self.assertEqual(ctx.exception.status_code, 502)
+        self.assertIn("SMTP-Login fehlgeschlagen", ctx.exception.detail)
+        self.assertIn("Benutzername oder Passwort", ctx.exception.detail)
+
+    def test_mail_test_sends_with_ssl_settings(self):
+        calls = []
+        original_smtp_ssl = self.main.event_service.smtplib.SMTP_SSL
+
+        class FakeSMTPSSL:
+            def __init__(self, host, port, timeout=None):
+                calls.append(("ssl-connect", host, port, timeout))
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def login(self, username, password):
+                calls.append(("login", username, password))
+
+            def send_message(self, message):
+                calls.append(("send", message["To"], message["From"], message["Subject"]))
+
+        self.main.event_service.smtplib.SMTP_SSL = FakeSMTPSSL
+        try:
+            self.main.admin_mail_settings_update(
+                self.main.MailSettingsUpdateRequest(
+                    pin=PIN,
+                    mail_smtp_provider="magenta",
+                    mail_smtp_host="mail.mymagenta.business",
+                    mail_smtp_port="465",
+                    mail_smtp_username="kassier@example.org",
+                    mail_smtp_password="secret-pass",
+                    mail_smtp_encryption="ssl",
+                )
+            )
+            result = self.main.admin_mail_settings_test(
+                self.main.MailTestRequest(pin=PIN, recipient="test@example.org")
+            )
+        finally:
+            self.main.event_service.smtplib.SMTP_SSL = original_smtp_ssl
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(calls[0][:3], ("ssl-connect", "mail.mymagenta.business", 465))
+        self.assertIn(("login", "kassier@example.org", "secret-pass"), calls)
+        self.assertIn(("send", "test@example.org", "kassier@example.org", "Drink POS Testmail"), calls)
+
+    def test_event_end_requires_csv_before_closing(self):
+        self.start_event_with_two_items()
+        original = self.main.event_service.save_event_csv
+
+        def fail_csv(db_path, event, summary):
+            raise OSError("disk full")
+
+        self.main.event_service.save_event_csv = fail_csv
+        try:
+            with self.assertRaises(HTTPException) as ctx:
+                self.main.admin_event_end(self.main.EventEndRequest(pin=PIN))
+            self.assertEqual(ctx.exception.status_code, 500)
+            self.assertIn("CSV konnte nicht gespeichert", ctx.exception.detail)
+            self.assertIsNotNone(self.main.event_active()["event"])
+        finally:
+            self.main.event_service.save_event_csv = original
+
+    def test_event_end_keeps_event_open_when_pdf_fails_after_csv(self):
+        _, event = self.start_event_with_two_items()
+        line_id = str(event["lines"][0]["line_id"])
+        original_pdf = self.main.event_service.generate_event_invoice_pdf
+
+        def fail_pdf(db_path, event, summary, settings, include_qr_code=False):
+            raise RuntimeError("pdf boom")
+
+        self.main.event_service.generate_event_invoice_pdf = fail_pdf
+        try:
+            with self.assertRaises(HTTPException) as ctx:
+                self.main.admin_event_end(
+                    self.main.EventEndRequest(pin=PIN, line_discounts={line_id: "0"}, create_invoice=True)
+                )
+            self.assertEqual(ctx.exception.status_code, 500)
+            self.assertIn("pdf boom", ctx.exception.detail)
+            self.assertIsNotNone(self.main.event_active()["event"])
+            csv_dir = Path(self.temp_dir.name) / "events"
+            self.assertTrue(any(csv_dir.glob("*.csv")))
+        finally:
+            self.main.event_service.generate_event_invoice_pdf = original_pdf
+
+    def test_event_end_orders_csv_pdf_mail_and_mail_forces_invoice(self):
+        self.start_event_with_two_items()
+        calls = []
+        original_csv = self.main.event_service.save_event_csv
+        original_pdf = self.main.event_service.generate_event_invoice_pdf
+        original_mail = self.main.event_service.send_event_invoice_email
+
+        def fake_csv(db_path, event, summary):
+            calls.append("csv")
+            path = Path(self.temp_dir.name) / "events" / "ordered.csv"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("csv", encoding="utf-8")
+            return str(path)
+
+        def fake_pdf(db_path, event, summary, settings, include_qr_code=False):
+            calls.append("pdf")
+            self.assertEqual(calls, ["csv", "pdf"])
+            path = Path(self.temp_dir.name) / "events" / "ordered.pdf"
+            path.write_bytes(b"%PDF-1.4\n%test")
+            return str(path)
+
+        def fake_mail(pdf_path, summary, settings, copy_to_sender=False, send_to_cashier=True, recipient=None):
+            calls.append("mail")
+            self.assertEqual(calls, ["csv", "pdf", "mail"])
+            self.assertTrue(str(pdf_path).endswith(".pdf"))
+            self.assertTrue(copy_to_sender)
+            self.assertTrue(send_to_cashier)
+            self.assertIsNone(recipient)
+            return True
+
+        self.main.event_service.save_event_csv = fake_csv
+        self.main.event_service.generate_event_invoice_pdf = fake_pdf
+        self.main.event_service.send_event_invoice_email = fake_mail
+        try:
+            closed = self.main.admin_event_end(
+                self.main.EventEndRequest(pin=PIN, create_invoice=False, email_invoice=True, copy_invoice_to_sender=True)
+            )
+        finally:
+            self.main.event_service.save_event_csv = original_csv
+            self.main.event_service.generate_event_invoice_pdf = original_pdf
+            self.main.event_service.send_event_invoice_email = original_mail
+        self.assertEqual(calls, ["csv", "pdf", "mail"])
+        self.assertTrue(closed["event"]["invoice_created"])
+        self.assertTrue(closed["event"]["invoice_mail_sent"])
+        self.assertTrue(closed["artifacts"]["mail_copy_sent"])
+        self.assertIsNone(self.main.event_active()["event"])
+
+    def test_event_invoice_mail_copy_uses_smtp_sender_as_bcc(self):
+        calls = []
+        original_smtp = self.main.event_service.smtplib.SMTP
+
+        class FakeSMTP:
+            def __init__(self, host, port, timeout=None):
+                calls.append(("connect", host, port))
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def starttls(self):
+                calls.append(("starttls",))
+
+            def login(self, username, password):
+                calls.append(("login", username, password))
+
+            def send_message(self, message):
+                calls.append(("send", message["To"], message["From"], message["Bcc"]))
+
+        pdf_path = Path(self.temp_dir.name) / "rechnung.pdf"
+        pdf_path.write_bytes(b"%PDF-1.4\n%test")
+        settings = {
+            "invoice_cashier_email": "kassier@example.org",
+            "mail_smtp_host": "smtp.example.org",
+            "mail_smtp_port": "587",
+            "mail_smtp_username": "absender@example.org",
+            "mail_smtp_password": "secret-pass",
+            "mail_smtp_encryption": "starttls",
+        }
+        self.main.event_service.smtplib.SMTP = FakeSMTP
+        try:
+            copied = self.main.event_service.send_event_invoice_email(
+                str(pdf_path),
+                {"name": "Musikball Test"},
+                settings,
+                copy_to_sender=True,
+            )
+        finally:
+            self.main.event_service.smtplib.SMTP = original_smtp
+        self.assertTrue(copied)
+        self.assertIn(("send", "kassier@example.org", "absender@example.org", "absender@example.org"), calls)
+
+    def test_invoice_mail_recipient_options_are_independent(self):
+        self.main.admin_mail_settings_update(self.main.MailSettingsUpdateRequest(
+            pin=PIN, mail_smtp_host="smtp.example.org", mail_smtp_username="absender@example.org",
+        ))
+        original = self.main.event_service.send_smtp_message
+        calls = []
+
+        def fake_send(settings, recipient, subject, body, attachments=None, cc=None, bcc=None):
+            self.assertEqual(len(attachments), 1)
+            self.assertTrue(attachments[0].read_bytes().startswith(b"%PDF-"))
+            calls.append((recipient, bcc))
+
+        self.main.event_service.send_smtp_message = fake_send
+        try:
+            for cashier, sender, expected in (
+                (False, True, ("absender@example.org", [])),
+                (True, False, ("kassier@example.org", [])),
+                (True, True, ("kassier@example.org", ["absender@example.org"])),
+            ):
+                with self.subTest(cashier=cashier, sender=sender):
+                    self.main.admin_invoice_settings_update(self.main.InvoiceSettingsUpdateRequest(
+                        pin=PIN, invoice_cashier_email="kassier@example.org" if cashier else "",
+                    ))
+                    self.start_event_with_two_items()
+                    closed = self.main.admin_event_end(self.main.EventEndRequest(
+                        pin=PIN, email_invoice=cashier, copy_invoice_to_sender=sender,
+                    ))
+                    self.assertEqual(calls[-1], expected)
+                    self.assertTrue(closed["artifacts"]["mail_sent"])
+                    self.assertEqual(closed["artifacts"]["mail_copy_sent"], sender)
+                    with self.main.get_conn() as conn:
+                        row = conn.execute("SELECT invoice_mail_to FROM event_sessions WHERE id = ?", (closed["event"]["id"],)).fetchone()
+                    self.assertEqual(row["invoice_mail_to"], ", ".join([expected[0], *expected[1]]))
+        finally:
+            self.main.event_service.send_smtp_message = original
+
+    def test_external_invoice_recipient_replaces_cashier_and_mail_target(self):
+        self.main.admin_mail_settings_update(self.main.MailSettingsUpdateRequest(
+            pin=PIN, mail_smtp_host="smtp.example.org", mail_smtp_username="absender@example.org",
+        ))
+        self.main.admin_invoice_settings_update(self.main.InvoiceSettingsUpdateRequest(
+            pin=PIN, invoice_cashier_email="kassier@example.org", invoice_recipient="Verein\nz.Hd. Kassier",
+        ))
+        original = self.main.event_service.send_smtp_message
+        calls = []
+
+        def fake_send(settings, recipient, subject, body, attachments=None, cc=None, bcc=None):
+            calls.append((recipient, bcc))
+            pdf_text = attachments[0].read_bytes().decode("latin-1", errors="ignore")
+            self.assertIn("Max Mustermann GmbH", pdf_text)
+            self.assertIn("Hauptstrasse 1", pdf_text)
+            self.assertNotIn("z.Hd. Kassier", pdf_text)
+
+        self.main.event_service.send_smtp_message = fake_send
+        try:
+            self.start_event_with_two_items()
+            closed = self.main.admin_event_end(self.main.EventEndRequest(
+                pin=PIN,
+                email_invoice=True,
+                copy_invoice_to_sender=True,
+                external_recipient=True,
+                external_recipient_name="Max Mustermann GmbH",
+                external_recipient_email="extern@example.org",
+                external_recipient_address="Hauptstrasse 1\n6844 Altach",
+            ))
+        finally:
+            self.main.event_service.send_smtp_message = original
+        self.assertEqual(calls, [("extern@example.org", ["absender@example.org"])])
+        self.assertEqual(closed["artifacts"]["mail_copy_sent"], True)
+        with self.main.get_conn() as conn:
+            row = conn.execute("SELECT invoice_mail_to FROM event_sessions WHERE id = ?", (closed["event"]["id"],)).fetchone()
+        self.assertEqual(row["invoice_mail_to"], "extern@example.org, absender@example.org")
+
+    def test_external_invoice_can_be_created_without_mail_and_rejects_missing_fields(self):
+        self.start_event_with_two_items()
+        with self.assertRaises(HTTPException) as ctx:
+            self.main.admin_event_end(self.main.EventEndRequest(
+                pin=PIN, create_invoice=True, external_recipient=True,
+            ))
+        self.assertEqual(ctx.exception.status_code, 400)
+        self.assertIn("Name/Firma", ctx.exception.detail)
+        self.assertIsNotNone(self.main.event_active()["event"])
+
+        closed = self.main.admin_event_end(self.main.EventEndRequest(
+            pin=PIN,
+            create_invoice=True,
+            external_recipient=True,
+            external_recipient_name="Externer Kunde",
+            external_recipient_address="Kundenweg 4\n6800 Feldkirch",
+        ))
+        pdf_text = Path(closed["artifacts"]["pdf_path"]).read_bytes().decode("latin-1", errors="ignore")
+        self.assertIn("Externer Kunde", pdf_text)
+        self.assertIn("Kundenweg 4", pdf_text)
+        self.assertNotIn("z.Hd. Kassier", pdf_text)
+        self.assertFalse(closed["artifacts"]["mail_sent"])
+
+    def test_external_invoice_copy_only_goes_to_sender(self):
+        self.main.admin_mail_settings_update(self.main.MailSettingsUpdateRequest(
+            pin=PIN, mail_smtp_host="smtp.example.org", mail_smtp_username="absender@example.org",
+        ))
+        original = self.main.event_service.send_smtp_message
+        calls = []
+
+        def fake_send(settings, recipient, subject, body, attachments=None, cc=None, bcc=None):
+            calls.append((recipient, bcc))
+
+        self.main.event_service.send_smtp_message = fake_send
+        try:
+            self.start_event_with_two_items()
+            self.main.admin_event_end(self.main.EventEndRequest(
+                pin=PIN,
+                copy_invoice_to_sender=True,
+                external_recipient=True,
+                external_recipient_name="Externer Kunde",
+                external_recipient_email="extern@example.org",
+            ))
+        finally:
+            self.main.event_service.send_smtp_message = original
+        self.assertEqual(calls, [("absender@example.org", [])])
+
+    def test_external_invoice_mail_requires_external_email(self):
+        self.start_event_with_two_items()
+        with self.assertRaises(HTTPException) as ctx:
+            self.main.admin_event_end(self.main.EventEndRequest(
+                pin=PIN,
+                email_invoice=True,
+                external_recipient=True,
+                external_recipient_name="Externer Kunde",
+            ))
+        self.assertEqual(ctx.exception.status_code, 400)
+        self.assertIn("E-Mail-Adresse", ctx.exception.detail)
+        self.assertIsNotNone(self.main.event_active()["event"])
+
+    def test_event_frontend_checkbox_dependency_and_return_to_standard(self):
+        html = (ROOT / "app" / "index.html").read_text(encoding="utf-8")
+        self.assertIn("function syncEventInvoiceOptions()", html)
+        self.assertIn("createInvoice.checked = true", html)
+        self.assertIn("createInvoice.disabled = true", html)
+        self.assertIn("createInvoice.disabled = false", html)
+        self.assertIn("eventCopyInvoiceToSender", html)
+        self.assertIn("copy_invoice_to_sender", html)
+        self.assertIn("eventExternalRecipient", html)
+        self.assertIn("external_recipient_email", html)
+        self.assertIn("Rechnung per Mail an externen Empfänger senden", html)
+        self.assertIn("activeEvent = null", html)
+        self.assertIn("standardModeView", html)
 
 
 if __name__ == "__main__":

@@ -387,6 +387,46 @@ def init_db():
             """
         )
 
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS event_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                start_time TEXT NOT NULL,
+                end_time TEXT,
+                status TEXT NOT NULL DEFAULT 'ACTIVE',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                csv_path TEXT,
+                pdf_path TEXT,
+                invoice_created INTEGER NOT NULL DEFAULT 0,
+                invoice_mail_sent INTEGER NOT NULL DEFAULT 0,
+                invoice_mail_to TEXT,
+                total_eur REAL NOT NULL DEFAULT 0,
+                discount_total_eur REAL NOT NULL DEFAULT 0
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS event_lines (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id INTEGER NOT NULL,
+                item_id INTEGER,
+                item_name_snapshot TEXT NOT NULL,
+                item_short_label_snapshot TEXT NOT NULL,
+                quantity INTEGER NOT NULL DEFAULT 0,
+                unit_price_eur REAL NOT NULL,
+                unit_purchase_price_eur REAL NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY(event_id) REFERENCES event_sessions(id),
+                FOREIGN KEY(item_id) REFERENCES items(id)
+            )
+            """
+        )
+
         migrate_people(conn)
         ensure_default_people(conn)
         migrate_items(conn)
@@ -422,6 +462,8 @@ def ensure_indexes(conn: sqlite3.Connection):
         "CREATE INDEX IF NOT EXISTS idx_self_payment_sessions_provider_checkout ON self_payment_sessions(provider, provider_checkout_id)",
         "CREATE INDEX IF NOT EXISTS idx_paid_round_units_event ON paid_round_units(event_open, created_at)",
         "CREATE INDEX IF NOT EXISTS idx_paid_round_units_source ON paid_round_units(source_order_line_id)",
+        "CREATE INDEX IF NOT EXISTS idx_event_sessions_status ON event_sessions(status, updated_at)",
+        "CREATE INDEX IF NOT EXISTS idx_event_lines_event ON event_lines(event_id, item_id, unit_price_eur)",
     ]
     for sql in indexes:
         conn.execute(sql)
@@ -764,4 +806,31 @@ def ensure_settings(conn: sqlite3.Connection):
         set_setting(conn, "member_messages_show_in_popup", "1")
     if get_setting(conn, "self_payment_enabled") is None:
         set_setting(conn, "self_payment_enabled", "0")
+    invoice_defaults = {
+        "invoice_cashier_email": "",
+        "invoice_recipient": "Musikverein Harmonie Altach\nz.Hd. Kassier",
+        "invoice_sender_name": "MVH Altach Wirtschaft",
+        "invoice_sender_address": "",
+        "invoice_number_prefix": "EVENT",
+        "invoice_iban": "",
+        "invoice_logo_text": "MVH",
+        "invoice_footer_text": "Uf a feines Beisammensein: zum Wohle!",
+        "invoice_place": "Altach",
+        "invoice_notes": "",
+    }
+    for key, value in invoice_defaults.items():
+        if get_setting(conn, key) is None:
+            set_setting(conn, key, value)
+    mail_defaults = {
+        "mail_smtp_provider": "custom",
+        "mail_smtp_host": "",
+        "mail_smtp_port": "",
+        "mail_smtp_username": "",
+        "mail_smtp_password": "",
+        "mail_smtp_from": "",
+        "mail_smtp_encryption": "",
+    }
+    for key, value in mail_defaults.items():
+        if get_setting(conn, key) is None:
+            set_setting(conn, key, value)
 

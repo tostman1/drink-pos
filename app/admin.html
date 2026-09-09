@@ -23,7 +23,7 @@
     a { color:white; text-decoration:none; background:#374151; padding:10px 12px; border-radius:12px; }
     button { border:0; border-radius:12px; padding:10px 13px; background:var(--border); cursor:pointer; font-weight:750; }
     button:disabled { opacity:.45; cursor:not-allowed; }
-    input, select { font:inherit; padding:10px 12px; border:1px solid var(--border); border-radius:10px; min-width:0; width:100%; }
+    input, select, textarea { font:inherit; padding:10px 12px; border:1px solid var(--border); border-radius:10px; min-width:0; width:100%; }
     main { padding:14px; display:grid; gap:14px; padding-bottom:80px; }
     .card { background:var(--card); border-radius:16px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,.07); }
     #adminDashboard { margin-bottom:16px; }
@@ -37,6 +37,9 @@
     .person-add { grid-template-columns:1fr 1fr 140px; margin-bottom:12px; }
     .item-add { grid-template-columns:1.3fr .7fr 120px 120px 110px 110px 120px; margin-bottom:12px; }
     .settings-grid { grid-template-columns:220px 220px 160px; max-width:700px; }
+    .invoice-settings-grid { grid-template-columns:minmax(220px,320px) minmax(260px,1fr); max-width:900px; }
+    .invoice-settings-grid label { display:grid; gap:5px; font-weight:850; }
+    .invoice-settings-grid textarea { min-height:86px; resize:vertical; }
     .row { display:grid; gap:8px; align-items:center; padding:8px 0; border-top:1px solid var(--border); }
     .person-row { grid-template-columns:1fr 1fr 95px 95px 110px 110px; }
     .item-row { grid-template-columns:1.2fr .55fr 105px 105px 80px 95px 95px 105px 105px; }
@@ -226,7 +229,7 @@
     .sound-preset-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(88px,1fr)); gap:7px; }
     .sound-preset-grid button { padding:8px 9px; font-size:13px; background:#f8fafc; border:1px solid #cbd5e1; }
     .sound-preset-grid button.active { background:#dbeafe; border-color:#60a5fa; color:#1e3a8a; }
-    @media (max-width:1000px) { .row,.person-row,.item-row,.person-add,.item-add,.filters,.settings-grid,.report-grid,.appearance-grid,.list-tools,.stats-toolbar-top,.stats-controls,.stats-summary,.stats-layout,.stats-table-tools { grid-template-columns:1fr; } .list-tools label { white-space:normal; } table { font-size:13px; } }
+    @media (max-width:1000px) { .row,.person-row,.item-row,.person-add,.item-add,.filters,.settings-grid,.invoice-settings-grid,.report-grid,.appearance-grid,.list-tools,.stats-toolbar-top,.stats-controls,.stats-summary,.stats-layout,.stats-table-tools { grid-template-columns:1fr; } .list-tools label { white-space:normal; } table { font-size:13px; } }
   </style>
 </head>
 <body>
@@ -263,6 +266,7 @@
         <button id="tabSettings" onclick="showTab('settings')">Einstellungen</button>
         <button id="tabMessages" onclick="showTab('messages')">Nachrichten</button>
         <button id="tabAppearance" onclick="showTab('appearance')">Darstellung</button>
+        <button id="tabEventSettings" onclick="showTab('eventSettings')">Rechnung / Veranstaltung</button>
         <button id="tabStats" onclick="showTab('stats')">Statistik</button>
         <button id="tabHistory" onclick="showTab('history')">Verlauf & Export</button>
       </div>
@@ -650,6 +654,88 @@
         <div id="appearanceMount"></div>
       </section>
 
+      <section id="eventSettingsSection" class="card section">
+        <h2>Rechnung / Veranstaltungsmodus Einstellungen</h2>
+        <div id="activeEventAdminInfo" class="warning" style="display:none"></div>
+        <div class="grid invoice-settings-grid">
+          <label>Kassier-Mailadresse
+            <input id="invoiceCashierEmail" type="email" placeholder="kassier@example.org">
+          </label>
+          <label>Logo-Text
+            <input id="invoiceLogoText" placeholder="z. B. MVH">
+          </label>
+          <label>Rechnungsempfänger / Adressat
+            <textarea id="invoiceRecipient" placeholder="Name und Adresse"></textarea>
+          </label>
+          <label>Absenderanschrift auf Rechnung
+            <textarea id="invoiceSenderAddress" placeholder="Adresse des Absenders"></textarea>
+          </label>
+          <label>Absendername
+            <input id="invoiceSenderName" placeholder="z. B. MVH Altach Wirtschaft">
+          </label>
+          <label>Ort
+            <input id="invoicePlace" placeholder="z. B. Altach">
+          </label>
+          <label>Rechnungsnummer-Präfix
+            <input id="invoiceNumberPrefix" maxlength="180" placeholder="EVENT-{YYYY-MM-dd}" title="Datum beim Rechnungsabschluss: YYYY = Jahr, YY = Jahr zweistellig, MM = Monat, dd = Tag. Beispiele: EVENT-{YYYY-MM-dd}, RE-{dd.MM.YYYY}, {YYYYMM}. Die laufende Nummer wird angehängt.">
+          </label>
+          <label>IBAN für SEPA-Überweisung
+            <input id="invoiceIban" placeholder="AT00 0000 0000 0000 0000">
+          </label>
+          <label>Fußzeilentext
+            <textarea id="invoiceFooterText" placeholder="Text für die Fußzeile"></textarea>
+          </label>
+          <label>Weitere Rechnungsdaten
+            <textarea id="invoiceNotes" placeholder="UID oder interne Hinweise"></textarea>
+          </label>
+          <div>
+            <button class="save" type="button" onclick="saveInvoiceSettings()">Einstellungen speichern</button>
+          </div>
+        </div>
+        <h3>Mailversand</h3>
+        <div class="grid invoice-settings-grid">
+          <label>Anbieter
+            <select id="mailSmtpProvider" onchange="applyMailProviderPreset()">
+              <option value="custom">Benutzerdefiniert</option>
+              <option value="ionos">IONOS</option>
+              <option value="magenta">Magenta Business</option>
+              <option value="world4you">World4You</option>
+            </select>
+          </label>
+          <label>Verschlüsselung
+            <select id="mailSmtpEncryption">
+              <option value="starttls">STARTTLS</option>
+              <option value="ssl">SSL/TLS</option>
+              <option value="none">Keine</option>
+            </select>
+          </label>
+          <label>SMTP-Server
+            <input id="mailSmtpHost" placeholder="smtp.example.org">
+          </label>
+          <label>Port
+            <input id="mailSmtpPort" inputmode="numeric" placeholder="587">
+          </label>
+          <label>Benutzername
+            <input id="mailSmtpUsername" autocomplete="username" placeholder="mail@example.org">
+          </label>
+          <label>Passwort
+            <input id="mailSmtpPassword" type="password" autocomplete="new-password" placeholder="leer lassen = behalten">
+          </label>
+          <label>Test-Empfänger
+            <input id="mailTestRecipient" type="email" placeholder="kassier@example.org">
+          </label>
+          <label style="font-weight:700">
+            <span id="mailSmtpPasswordState" class="muted">Passwort nicht gespeichert</span>
+            <span><input id="mailSmtpClearPassword" type="checkbox" style="width:auto"> Gespeichertes Passwort löschen</span>
+          </label>
+          <div>
+            <button class="save" type="button" onclick="saveMailSettings()">Mail-Einstellungen speichern</button>
+            <button type="button" onclick="sendMailTest()">Testmail senden</button>
+            <div class="muted" id="mailSettingsInfo" style="margin-top:8px"></div>
+          </div>
+        </div>
+      </section>
+
       <section id="statsSection" class="section stat-page">
         <div class="stats-toolbar">
           <div class="stats-toolbar-top">
@@ -897,6 +983,11 @@
       payment_reminder_show_in_popup: true,
       member_messages_show_on_overview: true,
       member_messages_show_in_popup: true
+    };
+    const MAIL_PROVIDER_PRESETS = {
+      ionos: { host: 'smtp.ionos.com', port: '587', encryption: 'starttls' },
+      magenta: { host: 'mail.mymagenta.business', port: '465', encryption: 'ssl' },
+      world4you: { host: 'smtp.world4you.com', port: '587', encryption: 'starttls' },
     };
 
     function numberComma(value, minimumFractionDigits = 2, maximumFractionDigits = minimumFractionDigits) {
@@ -1298,6 +1389,9 @@
         PERSON_CREATED: 'Name angelegt', PERSON_UPDATED: 'Name geändert', PERSON_DELETED: 'Name gelöscht',
         ITEM_CREATED: 'Artikel angelegt', ITEM_UPDATED: 'Artikel geändert', ITEM_DELETED: 'Artikel gelöscht',
         DRINK_CREATED: 'Artikel angelegt', DRINK_UPDATED: 'Artikel geändert', SETTINGS_UPDATED: 'Einstellungen',
+        EVENT_STARTED: 'Veranstaltung gestartet', EVENT_ITEM_ADDED: 'Veranstaltungsgetränk',
+        EVENT_CLOSED: 'Veranstaltung beendet', INVOICE_SETTINGS_UPDATED: 'Rechnungseinstellungen',
+        MAIL_SETTINGS_UPDATED: 'Mail-Einstellungen', MAIL_TEST_SENT: 'Testmail gesendet',
         MEMBER_MESSAGE_CREATED: 'Mitgliedernachricht angelegt',
         MEMBER_MESSAGE_ARCHIVED: 'Mitgliedernachricht archiviert',
         MEMBER_MESSAGE_ACK: 'Mitgliedernachricht bestätigt',
@@ -1333,7 +1427,7 @@
     }
 
     function showTab(name) {
-      for (const t of ['people','items','settings','messages','appearance','stats','history']) {
+      for (const t of ['people','items','settings','messages','appearance','eventSettings','stats','history']) {
         document.getElementById(`${t}Section`).classList.toggle('active', t === name);
         document.getElementById(`tab${t[0].toUpperCase()+t.slice(1)}`).classList.toggle('active', t === name);
       }
@@ -1343,7 +1437,7 @@
 
     async function loadOverview() {
       overview = await apiFetch('/api/admin/overview', {pin: adminPin});
-      renderWarnings(); renderDashboard(); renderPeople(); renderItems(); renderSettings(); renderTypeFilter(overview.action_types || []);
+      renderWarnings(); renderDashboard(); renderPeople(); renderItems(); renderSettings(); renderInvoiceSettings(); renderTypeFilter(overview.action_types || []);
     }
 
     function localDateIso(date = new Date()) {
@@ -1887,6 +1981,123 @@
       document.getElementById('settingsInfo').textContent = `Umgebung: ${s.environment || 'development'} · Datenbank: ${dbName} (${dbSource}) · Währung: EUR`;
     }
 
+    function renderInvoiceSettings() {
+      const s = overview.settings || {};
+      const setValue = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.value = value || '';
+      };
+      setValue('invoiceCashierEmail', s.invoice_cashier_email);
+      setValue('invoiceRecipient', s.invoice_recipient);
+      setValue('invoiceSenderName', s.invoice_sender_name);
+      setValue('invoiceSenderAddress', s.invoice_sender_address);
+      setValue('invoiceNumberPrefix', s.invoice_number_prefix || 'EVENT');
+      setValue('invoiceIban', s.invoice_iban);
+      setValue('invoiceLogoText', s.invoice_logo_text || 'MVH');
+      setValue('invoiceFooterText', s.invoice_footer_text);
+      setValue('invoicePlace', s.invoice_place || 'Altach');
+      setValue('invoiceNotes', s.invoice_notes);
+      setValue('mailSmtpProvider', s.mail_smtp_provider || 'custom');
+      setValue('mailSmtpHost', s.mail_smtp_host);
+      setValue('mailSmtpPort', s.mail_smtp_port || '587');
+      setValue('mailSmtpUsername', s.mail_smtp_username);
+      setValue('mailSmtpEncryption', s.mail_smtp_encryption || 'starttls');
+      setValue('mailSmtpPassword', '');
+      setValue('mailTestRecipient', s.invoice_cashier_email);
+      const clearPassword = document.getElementById('mailSmtpClearPassword');
+      if (clearPassword) clearPassword.checked = false;
+      const passwordState = document.getElementById('mailSmtpPasswordState');
+      if (passwordState) passwordState.textContent = s.mail_smtp_password_set ? 'Passwort gespeichert' : 'Passwort nicht gespeichert';
+      const mailInfo = document.getElementById('mailSettingsInfo');
+      if (mailInfo) {
+        mailInfo.textContent = s.mail_smtp_configured
+          ? `Aktiv: ${s.mail_smtp_host || ''}:${s.mail_smtp_port || ''} · ${s.mail_smtp_encryption || 'starttls'}`
+          : 'Mailversand ist noch nicht konfiguriert.';
+      }
+      const info = document.getElementById('activeEventAdminInfo');
+      const event = overview.active_event;
+      if (info) {
+        if (event) {
+          info.style.display = 'block';
+          info.textContent = `Laufende Veranstaltung: ${event.name || ''} · ${Number(event.quantity || 0)} Striche · ${money(event.subtotal_eur || 0)}`;
+        } else {
+          info.style.display = 'none';
+          info.textContent = '';
+        }
+      }
+    }
+
+    function applyMailProviderPreset() {
+      const provider = document.getElementById('mailSmtpProvider')?.value || 'custom';
+      const preset = MAIL_PROVIDER_PRESETS[provider];
+      if (!preset) return;
+      const setValue = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.value = value || '';
+      };
+      setValue('mailSmtpHost', preset.host);
+      setValue('mailSmtpPort', preset.port);
+      setValue('mailSmtpEncryption', preset.encryption);
+    }
+
+    async function saveInvoiceSettings() {
+      const payload = {
+        pin: adminPin,
+        invoice_cashier_email: document.getElementById('invoiceCashierEmail')?.value.trim() || '',
+        invoice_recipient: document.getElementById('invoiceRecipient')?.value.trim() || '',
+        invoice_sender_name: document.getElementById('invoiceSenderName')?.value.trim() || '',
+        invoice_sender_address: document.getElementById('invoiceSenderAddress')?.value.trim() || '',
+        invoice_number_prefix: document.getElementById('invoiceNumberPrefix')?.value.trim() || 'EVENT',
+        invoice_iban: document.getElementById('invoiceIban')?.value.trim() || '',
+        invoice_logo_text: document.getElementById('invoiceLogoText')?.value.trim() || 'MVH',
+        invoice_footer_text: document.getElementById('invoiceFooterText')?.value.trim() || '',
+        invoice_place: document.getElementById('invoicePlace')?.value.trim() || '',
+        invoice_notes: document.getElementById('invoiceNotes')?.value.trim() || '',
+      };
+      try {
+        await apiFetch('/api/admin/invoice-settings/update', payload);
+        showStatus('Rechnungseinstellungen gespeichert');
+        await loadOverview();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function saveMailSettings() {
+      const passwordInput = document.getElementById('mailSmtpPassword');
+      const payload = {
+        pin: adminPin,
+        mail_smtp_provider: document.getElementById('mailSmtpProvider')?.value || 'custom',
+        mail_smtp_host: document.getElementById('mailSmtpHost')?.value.trim() || '',
+        mail_smtp_port: document.getElementById('mailSmtpPort')?.value.trim() || '',
+        mail_smtp_username: document.getElementById('mailSmtpUsername')?.value.trim() || '',
+        mail_smtp_encryption: document.getElementById('mailSmtpEncryption')?.value || 'starttls',
+        mail_smtp_clear_password: document.getElementById('mailSmtpClearPassword')?.checked || false,
+      };
+      if (passwordInput && passwordInput.value) payload.mail_smtp_password = passwordInput.value;
+      try {
+        await apiFetch('/api/admin/mail-settings/update', payload);
+        showStatus('Mail-Einstellungen gespeichert');
+        await loadOverview();
+        return true;
+      } catch (err) {
+        alert(err.message);
+        return false;
+      }
+    }
+
+    async function sendMailTest() {
+      const recipient = document.getElementById('mailTestRecipient')?.value.trim() || document.getElementById('invoiceCashierEmail')?.value.trim() || '';
+      try {
+        const saved = await saveMailSettings();
+        if (!saved) return;
+        await apiFetch('/api/admin/mail-settings/test', { pin: adminPin, recipient });
+        showStatus('Testmail gesendet');
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
     function renderMemberMessagePeople() {
       const box = document.getElementById('memberMessagePeople');
       if (!box) return;
@@ -1964,7 +2175,7 @@
     }
 
     function preferredHistoryTypes() {
-      return ['CONSUME','PAID_CASH','PAID_SUMUP','PAID','SUMUP_PAYMENT_FAILED','SUMUP_PAYMENT_CANCELLED','SUMUP_PAYMENT_TIMEOUT','SUMUP_PAYMENT_UNKNOWN','SUMUP_PAYMENT_ERROR','SUMUP_PAYMENT_MISMATCH','SUMUP_PAYMENT_STALE','CASHUP','ROUND_DEDUCTED','ROUND_REQUEST','ROUND_REQUEST_APPROVED','ROUND_REQUEST_REJECTED','ADMIN_ADJUSTMENT','CHANGE_REQUEST','CHANGE_APPROVED','CHANGE_REJECTED','PERSON_CREATED','PERSON_UPDATED','PERSON_DELETED','ITEM_CREATED','ITEM_UPDATED','ITEM_DELETED','SETTINGS_UPDATED','MEMBER_MESSAGE_CREATED','MEMBER_MESSAGE_ARCHIVED','MEMBER_MESSAGE_ACK','CONNECTION_LOST','CONNECTION_RESTORED','SYNC_COMPLETED','DEBUG_TEST_DATA'];
+      return ['CONSUME','PAID_CASH','PAID_SUMUP','PAID','SUMUP_PAYMENT_FAILED','SUMUP_PAYMENT_CANCELLED','SUMUP_PAYMENT_TIMEOUT','SUMUP_PAYMENT_UNKNOWN','SUMUP_PAYMENT_ERROR','SUMUP_PAYMENT_MISMATCH','SUMUP_PAYMENT_STALE','CASHUP','ROUND_DEDUCTED','ROUND_REQUEST','ROUND_REQUEST_APPROVED','ROUND_REQUEST_REJECTED','EVENT_STARTED','EVENT_ITEM_ADDED','EVENT_CLOSED','INVOICE_SETTINGS_UPDATED','MAIL_SETTINGS_UPDATED','MAIL_TEST_SENT','ADMIN_ADJUSTMENT','CHANGE_REQUEST','CHANGE_APPROVED','CHANGE_REJECTED','PERSON_CREATED','PERSON_UPDATED','PERSON_DELETED','ITEM_CREATED','ITEM_UPDATED','ITEM_DELETED','SETTINGS_UPDATED','MEMBER_MESSAGE_CREATED','MEMBER_MESSAGE_ARCHIVED','MEMBER_MESSAGE_ACK','CONNECTION_LOST','CONNECTION_RESTORED','SYNC_COMPLETED','DEBUG_TEST_DATA'];
     }
 
     function currentRenderedTypeSet() {
