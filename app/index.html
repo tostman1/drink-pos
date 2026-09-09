@@ -30,6 +30,29 @@
     .toolbar input { width:100%; font-size:17px; padding:12px 14px; border-radius:12px; border:1px solid var(--border); }
     .columns { display:grid; grid-template-columns:1fr 1fr; gap:var(--person-card-gap); padding:12px; padding-bottom:80px; }
     .column { display:grid; gap:var(--person-card-gap); align-content:start; }
+    .event-mode-view { display:grid; gap:14px; padding:12px; padding-bottom:86px; }
+    .event-mode-head { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap; background:#fff; border:1px solid var(--border); border-radius:16px; padding:14px; box-shadow:0 2px 8px rgba(0,0,0,.07); }
+    .event-mode-title { min-width:0; }
+    .event-mode-title strong { display:block; font-size:24px; line-height:1.1; color:#0f172a; overflow-wrap:anywhere; }
+    .event-mode-title span { display:block; margin-top:4px; color:var(--muted); font-size:13px; font-weight:750; }
+    .event-mode-total { text-align:right; font-size:19px; font-weight:950; color:#111827; }
+    .event-drink-grid { display:grid; gap:12px; align-items:stretch; }
+    .event-drink-tile { min-height:238px; display:grid; grid-template-rows:auto 1fr auto; gap:12px; padding:16px; border:1px solid #cbd5e1; border-radius:16px; background:#fff; box-shadow:0 3px 12px rgba(15,23,42,.08); }
+    .event-drink-name { font-size:clamp(22px, 2.4vw, 34px); line-height:1.05; font-weight:950; color:#0f172a; overflow-wrap:anywhere; }
+    .event-tally { display:flex; align-items:center; justify-content:center; min-height:88px; padding:8px; border-radius:14px; background:#f8fafc; border:1px solid #e2e8f0; overflow:hidden; }
+    .event-tally .tally-marks { flex-wrap:wrap; justify-content:center; gap:8px; }
+    .event-tally-empty { color:#64748b; font-size:15px; font-weight:850; }
+    .event-add-button { min-height:64px; width:100%; font-size:26px; border-radius:14px; background:#fbbf24; color:#111827; font-weight:950; border:1px solid #f59e0b; box-shadow:0 5px 14px rgba(245,158,11,.16); }
+    .event-add-button.is-writing { cursor:wait; filter:brightness(.96); }
+    .event-end-table input { min-width:90px; max-width:130px; text-align:right; }
+    .event-end-options { display:grid; gap:8px; margin-top:12px; }
+    .event-end-options label { display:flex; align-items:center; gap:8px; font-weight:850; }
+    .event-end-options input[type="checkbox"] { width:auto; }
+    .event-external-fields { display:grid; gap:8px; padding:10px 12px; border:1px solid #cbd5e1; border-radius:12px; background:#f8fafc; }
+    .event-external-fields[hidden] { display:none; }
+    .event-external-fields .stacked-field { display:grid; gap:4px; align-items:stretch; font-size:13px; }
+    .event-external-fields input, .event-external-fields textarea { width:100%; min-width:0; padding:9px 10px; border:1px solid #cbd5e1; border-radius:8px; font:inherit; background:#fff; }
+    .event-external-fields textarea { resize:vertical; min-height:58px; }
     .person-row { background:var(--person-card-bg); border-radius:12px; padding:11px 13px; box-shadow:0 2px 8px rgba(0,0,0,.08); border:var(--person-card-border-width) solid var(--person-card-border-color); min-height:74px; }
     .person-row.has-open { box-shadow:0 4px 14px rgba(37,99,235,.16); }
     .row-main { display:grid; grid-template-columns:minmax(140px,1fr) minmax(150px,1.3fr) auto; gap:12px; align-items:center; }
@@ -216,7 +239,9 @@
     .sync-text { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .sync-refresh { font-size:calc(13px * var(--sync-status-scale,1)); padding:calc(5px * var(--sync-status-scale,1)) calc(9px * var(--sync-status-scale,1)); border-radius:999px; background:rgba(255,255,255,.62); color:inherit; }
     .status { position:fixed; left:12px; right:12px; bottom:76px; background:var(--dark); color:white; padding:12px 16px; border-radius:14px; font-size:16px; display:none; z-index:20; box-shadow:0 8px 30px rgba(0,0,0,.25); }
+    @media (max-width:900px) { .event-drink-grid { grid-template-columns:repeat(2,minmax(0,1fr)) !important; } }
     @media (max-width:780px) { .columns { grid-template-columns:1fr; } .row-main { grid-template-columns:1fr auto; } .summary { grid-column:1 / -1; justify-content:flex-start; white-space:normal; } .summary-text { white-space:normal; } .event-summary { justify-content:flex-start; } }
+    @media (max-width:620px) { .event-drink-grid { grid-template-columns:1fr !important; } .event-mode-head { align-items:flex-start; } .event-mode-total { text-align:left; } .event-drink-tile { min-height:220px; } }
     @media (max-width:520px) { header { align-items:flex-start; } header h1 { font-size:18px; } button { font-size:14px; padding:9px 10px; } .name { font-size:14px; } .total { font-size:13px; } .drink-feedback { left:108px; right:10px; font-size:13px; padding:5px 10px; } table { font-size:12.5px; } }
   </style>
 </head>
@@ -226,6 +251,7 @@
     <div class="header-buttons">
       <button id="adminButton" class="admin-btn" onclick="toggleAdmin()">🔐 Admin</button>
       <button id="orgButton" class="admin-btn" style="display:none" onclick="openAdminPage()">⚙ Organisation</button>
+      <button id="eventModeButton" class="admin-btn" style="display:none" onclick="handleEventModeAdminAction()">🎪 Veranstaltungsmodus starten</button>
       <button id="roundButton" class="admin-btn" style="display:none" onclick="deductRound()">🎁 Runde abziehen</button>
       <button id="cashupButton" class="admin-btn" style="display:none" onclick="cashupEvent()">🧾 Kassensturz</button>
       <button id="debugButton" class="admin-btn" style="display:none" onclick="addTestData()">🧪 Test</button>
@@ -244,9 +270,20 @@
     <input id="searchInput" type="search" placeholder="Name suchen..." oninput="renderPeople()">
   </div>
 
-  <main class="columns">
+  <main id="standardModeView" class="columns">
     <section class="column" id="leftColumn"></section>
     <section class="column" id="rightColumn"></section>
+  </main>
+
+  <main id="eventModeView" class="event-mode-view" style="display:none">
+    <section class="event-mode-head">
+      <div class="event-mode-title">
+        <strong id="eventModeName">Veranstaltung</strong>
+        <span id="eventModeMeta">bereit</span>
+      </div>
+      <div class="event-mode-total" id="eventModeTotal">€ 0,00</div>
+    </section>
+    <section id="eventDrinkGrid" class="event-drink-grid"></section>
   </main>
 
   <dialog id="personDialog" onclick="if (event.target === this) closeDialog()">
@@ -330,6 +367,8 @@
     let items = [];
     let userItems = [];
     let people = [];
+    let activeEvent = null;
+    let eventAddBusy = false;
     let currentPerson = null;
     let adminMode = false;
     let adminPin = sessionStorage.getItem('drinkPosAdminPin') || null;
@@ -430,6 +469,19 @@
     }
     function money(value) { return `€ ${numberComma(value, 2, 2)}`; }
     function decimalText(value, digits = 2) { return numberComma(value, digits, digits); }
+    function parseDecimalInput(value) {
+      const raw = String(value ?? '').trim().replace(/[€%]/g, '').replace(/\s/g, '');
+      if (!raw) return NaN;
+      let normalized = raw;
+      if (normalized.includes(',') && normalized.includes('.')) {
+        normalized = normalized.lastIndexOf(',') > normalized.lastIndexOf('.')
+          ? normalized.replace(/\./g, '').replace(',', '.')
+          : normalized.replace(/,/g, '');
+      } else {
+        normalized = normalized.replace(',', '.');
+      }
+      return Number(normalized);
+    }
     function centsFromEur(value) { return Math.max(0, Math.round(Number(value || 0) * 100)); }
     function eurFromCents(cents) { return Number(cents || 0) / 100; }
     function formatMessageTemplate(text, values = {}) {
@@ -575,7 +627,8 @@
 
     function formatSyncTime(value) {
       if (!value) return 'nie';
-      const d = new Date(value);
+      const normalized = typeof value === 'string' ? value.replace(' ', 'T') : value;
+      const d = new Date(normalized);
       if (Number.isNaN(d.getTime())) return 'nie';
       return d.toLocaleString('de-CH', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' });
     }
@@ -854,7 +907,7 @@
         throw err;
       }
       const data = await res.json();
-      markSyncSuccess();
+      markSyncSuccess(data);
       return data;
     }
 
@@ -897,6 +950,7 @@
     function applyConfig(cfg) {
       items = cfg.items || [];
       userItems = cfg.user_items || cfg.drinks || [];
+      activeEvent = cfg.active_event || null;
       debugEnabled = cfg.debug_enabled !== false;
       environment = cfg.environment || 'development';
       showTotalOnOverview = cfg.show_total_on_overview !== false;
@@ -952,8 +1006,10 @@
       document.title = appName;
       const title = document.getElementById('appTitle'); if (title) title.textContent = appName;
       updateAdminUi();
+      updateModeVisibility();
       renderDrinkButtons();
       renderPeople();
+      renderEventMode();
     }
 
     async function loadConfig() {
@@ -1255,6 +1311,317 @@
         const seedBase = stableSeedForTally(p, l, idx);
         return `<span class="tally-item"><span class="tally-name" style="${tallyLabelStyle()}">${escapeHtml(l.short_label || l.name)}</span><span class="tally-marks">${tallyHtml(l.quantity, seedBase)}</span></span>`;
       }).join('');
+    }
+
+    function updateModeVisibility() {
+      const eventActive = Boolean(activeEvent);
+      const toolbar = document.querySelector('.toolbar');
+      const standard = document.getElementById('standardModeView');
+      const eventView = document.getElementById('eventModeView');
+      if (toolbar) toolbar.style.display = eventActive ? 'none' : 'flex';
+      if (standard) standard.style.display = eventActive ? 'none' : 'grid';
+      if (eventView) eventView.style.display = eventActive ? 'grid' : 'none';
+      const title = document.getElementById('appTitle');
+      if (title) title.textContent = eventActive ? activeEvent.name : appName;
+    }
+
+    function eventLineForItem(itemId) {
+      return (activeEvent?.lines || []).find(line => Number(line.item_id) === Number(itemId));
+    }
+
+    function eventTallyGroupStyle() {
+      const scale = 2.2;
+      return `width:${(33 * scale).toFixed(1)}px;height:${(24 * scale).toFixed(1)}px;gap:${Math.max(2, 2 * scale).toFixed(1)}px;`;
+    }
+
+    function eventTallyMarkStyle(groupIndex, markIndex, seedBase = 0) {
+      const rough = roughnessFactor();
+      const scale = 2.2;
+      const seed = seedBase + (groupIndex + 1) * 19 + (markIndex + 1) * 37;
+      const height = (18 + ((tallyNoise(seed) - 0.5) * 12 * rough)) * scale;
+      const rotate = (tallyNoise(seed + 3.17) - 0.5) * (2 + 28 * rough);
+      const translateY = (tallyNoise(seed + 6.31) - 0.5) * (1 + 5 * rough) * scale;
+      const width = (2 + ((tallyNoise(seed + 9.91) - 0.5) * 1.2 * rough)) * Math.sqrt(scale);
+      return `height:${height.toFixed(1)}px;width:${Math.max(3, width).toFixed(2)}px;transform:rotate(${rotate.toFixed(1)}deg) translateY(${translateY.toFixed(1)}px);`;
+    }
+
+    function eventTallySlashStyle(groupIndex, seedBase = 0) {
+      const rough = roughnessFactor();
+      const scale = 2.2;
+      const seed = seedBase + (groupIndex + 1) * 43;
+      const angle = -30 + (tallyNoise(seed) - 0.5) * (4 + 34 * rough);
+      const top = (10 + (tallyNoise(seed + 2) - 0.5) * (1 + 4 * rough)) * scale;
+      const left = (-1 + (tallyNoise(seed + 4) - 0.5) * (0.5 + 3 * rough)) * scale;
+      const width = (31 + (tallyNoise(seed + 6) - 0.5) * (1 + 6 * rough)) * scale;
+      const height = (2 + (tallyNoise(seed + 8) - 0.5) * (0.2 + 1.6 * rough)) * Math.sqrt(scale);
+      return `left:${left.toFixed(1)}px;top:${top.toFixed(1)}px;width:${width.toFixed(1)}px;height:${Math.max(2.8, height).toFixed(2)}px;transform:rotate(${angle.toFixed(1)}deg);`;
+    }
+
+    function eventTallyHtml(quantity, seedBase = 0) {
+      let n = Math.max(0, Number(quantity || 0));
+      if (n <= 0) return '<span class="event-tally-empty">Noch keine Striche</span>';
+      let html = '<span class="tally-marks">';
+      let groupIndex = 0;
+      while (n >= 5) {
+        html += `<span class="tally-group tally-five" style="${eventTallyGroupStyle()}">`;
+        for (let i = 0; i < 4; i++) html += `<span class="tally-mark" style="${eventTallyMarkStyle(groupIndex, i, seedBase)}"></span>`;
+        html += `<span class="tally-slash" style="${eventTallySlashStyle(groupIndex, seedBase)}"></span></span>`;
+        n -= 5;
+        groupIndex += 1;
+      }
+      if (n > 0) {
+        html += `<span class="tally-group" style="${eventTallyGroupStyle()}">`;
+        for (let i = 0; i < n; i++) html += `<span class="tally-mark" style="${eventTallyMarkStyle(groupIndex, i, seedBase)}"></span>`;
+        html += '</span>';
+      }
+      return `${html}</span>`;
+    }
+
+    function eventTotal(event = activeEvent) {
+      return (event?.lines || []).reduce((sum, line) => sum + Number(line.subtotal_eur || 0), 0);
+    }
+
+    function renderEventMode() {
+      updateModeVisibility();
+      const grid = document.getElementById('eventDrinkGrid');
+      if (!grid) return;
+      if (!activeEvent) {
+        grid.innerHTML = '';
+        return;
+      }
+      const title = document.getElementById('eventModeName');
+      const meta = document.getElementById('eventModeMeta');
+      const total = document.getElementById('eventModeTotal');
+      const addable = (userItems || []).filter(item => item.can_user_add !== false && !item.admin_only && item.active !== false && !item.archived);
+      if (title) title.textContent = activeEvent.name || 'Veranstaltung';
+      if (meta) meta.textContent = `Gestartet: ${formatSyncTime(activeEvent.start_time)} · ${Number(activeEvent.quantity || 0)} Striche`;
+      if (total) total.textContent = money(eventTotal(activeEvent));
+      grid.style.gridTemplateColumns = `repeat(${Math.min(3, Math.max(1, addable.length))}, minmax(0, 1fr))`;
+      if (!addable.length) {
+        grid.innerHTML = '<div class="muted">Keine aktiven Getränke vorhanden.</div>';
+        return;
+      }
+      grid.innerHTML = addable.map((item, idx) => {
+        const line = eventLineForItem(item.id);
+        const qty = Number(line?.quantity || 0);
+        const seedBase = Number(item.id || 0) * 71 + (idx + 1) * 113;
+        return `
+          <article class="event-drink-tile">
+            <div class="event-drink-name">${escapeHtml(item.name)}</div>
+            <div class="event-tally">${eventTallyHtml(qty, seedBase)}</div>
+            <button class="event-add-button" type="button" data-event-item-id="${Number(item.id)}" onclick="addEventDrink(${Number(item.id)})">+1</button>
+          </article>
+        `;
+      }).join('');
+    }
+
+    async function refreshActiveEvent() {
+      const data = await apiGet('/api/event/active');
+      activeEvent = data.event || null;
+      renderEventMode();
+      return activeEvent;
+    }
+
+    async function addEventDrink(itemId) {
+      if (eventAddBusy) return;
+      const item = (userItems || []).find(entry => Number(entry.id) === Number(itemId));
+      const btn = document.querySelector(`[data-event-item-id="${Number(itemId)}"]`);
+      eventAddBusy = true;
+      if (btn) btn.classList.add('is-writing');
+      try {
+        const data = await apiPost('/api/event/add-drink', { item_id: Number(itemId), quantity: 1 });
+        activeEvent = data.event || activeEvent;
+        renderEventMode();
+        showStatus(`${item?.name || 'Getränk'} gebucht`);
+        playBookingTone(item?.name || '');
+      } catch (err) {
+        showStatus(err.message || 'Getränk konnte nicht gebucht werden');
+        await refreshActiveEvent().catch(() => null);
+      } finally {
+        eventAddBusy = false;
+        if (btn) btn.classList.remove('is-writing');
+      }
+    }
+
+    function handleEventModeAdminAction() {
+      if (activeEvent) openEndEventDialog();
+      else openStartEventDialog();
+    }
+
+    function openStartEventDialog() {
+      if (!adminMode || !adminPin) { showStatus('Bitte zuerst Admin-Modus aktivieren.'); return; }
+      const body = `
+        <div class="muted">Name der Veranstaltung eingeben. Danach wechselt die Kassenansicht automatisch in den Veranstaltungsmodus.</div>
+        <div class="panel"><input id="eventStartName" placeholder="z. B. Musikball"></div>
+      `;
+      openActionDialog('Veranstaltungsmodus starten', body, 'Veranstaltung starten', 'save', async () => {
+        const name = document.getElementById('eventStartName')?.value.trim();
+        if (!name) { showStatus('Bitte Veranstaltungsname eingeben'); return false; }
+        const data = await apiPost('/api/admin/event/start', { pin: adminPin, name });
+        activeEvent = data.event;
+        adminMode = false;
+        adminPin = null;
+        sessionStorage.removeItem('drinkPosAdminPin');
+        updateAdminUi();
+        renderEventMode();
+        showStatus('Veranstaltungsmodus gestartet');
+      });
+    }
+
+    function eventEndDialogHtml(event, invoiceOptions = {}) {
+      const lines = event?.lines || [];
+      const rows = lines.map(line => `
+        <tr data-event-end-line data-line-id="${Number(line.line_id || line.id)}" data-subtotal="${Number(line.subtotal_eur || 0)}">
+          <td>${escapeHtml(line.item || line.name || '')}</td>
+          <td class="right">${Number(line.quantity || 0)}</td>
+          <td class="right">${money(line.unit_price_eur || line.price || 0)}</td>
+          <td class="right">${money(line.subtotal_eur || 0)}</td>
+          <td class="right"><input type="text" inputmode="decimal" data-decimal-input data-decimal-digits="2" value="0,00" oninput="renderEventEndTotals()"></td>
+          <td class="right" data-event-line-total>${money(line.subtotal_eur || 0)}</td>
+        </tr>
+      `).join('');
+      return `
+        <div class="muted">Rabatte werden in Prozent angegeben. CSV wird immer gespeichert; PDF und Mail sind optional.</div>
+        <div class="action-list event-end-table">
+          <table>
+            <thead><tr><th>Artikel</th><th class="right">Menge</th><th class="right">Preis</th><th class="right">Summe</th><th class="right">Rabatt %</th><th class="right">Nach Rabatt</th></tr></thead>
+            <tbody>${rows || '<tr><td colspan="6">Keine Getränke gebucht.</td></tr>'}</tbody>
+          </table>
+        </div>
+        <div class="grid" style="grid-template-columns:1fr 150px; gap:8px; align-items:center; margin-top:12px">
+          <label for="eventTotalDiscount"><strong>Gesamtrabatt %</strong></label>
+          <input id="eventTotalDiscount" type="text" inputmode="decimal" data-decimal-input data-decimal-digits="2" value="0,00" oninput="renderEventEndTotals()">
+        </div>
+        <div class="action-total"><span>Zwischensumme</span><span id="eventEndSubtotal">${money(event.subtotal_eur || eventTotal(event))}</span></div>
+        <div class="action-total"><span>Rabatte gesamt</span><span id="eventEndDiscounts">- ${money(0)}</span></div>
+        <div class="action-total"><span>Endsumme</span><span id="eventEndFinal">${money(event.final_total_eur || eventTotal(event))}</span></div>
+        <div class="event-end-options">
+          <label><input id="eventCreateInvoice" type="checkbox" onchange="syncEventInvoiceOptions()"> Rechnung anlegen</label>
+          <label><input id="eventExternalRecipient" type="checkbox" onchange="syncEventInvoiceOptions()"> Externer Empfänger</label>
+          <div id="eventExternalRecipientFields" class="event-external-fields" hidden>
+            <label class="stacked-field"><span>Name / Firma *</span><input id="eventExternalRecipientName" type="text" maxlength="180" autocomplete="name" placeholder="z. B. Max Mustermann GmbH"></label>
+            <label class="stacked-field"><span>E-Mail-Adresse (für Mailversand)</span><input id="eventExternalRecipientEmail" type="email" maxlength="240" autocomplete="email" placeholder="rechnung@example.org"></label>
+            <label class="stacked-field"><span>Anschrift auf der Rechnung</span><textarea id="eventExternalRecipientAddress" rows="2" maxlength="900" placeholder="Straße, PLZ Ort"></textarea></label>
+          </div>
+          <label><input id="eventEmailInvoice" type="checkbox" onchange="syncEventInvoiceOptions()"> <span id="eventEmailInvoiceLabel">Rechnung per Mail an Kassier senden</span></label>
+          <label><input id="eventCopyInvoiceToSender" type="checkbox" onchange="syncEventInvoiceOptions()"> Rechnung per Mail an mich (Absenderadresse)</label>
+          <label title="${invoiceOptions.qr_code_available ? '' : 'Keine gültige IBAN in den Rechnungseinstellungen gespeichert'}"><input id="eventInvoiceQr" type="checkbox" ${invoiceOptions.qr_code_available ? '' : 'disabled'} onchange="syncEventInvoiceOptions()"> SEPA-QR-Code auf Rechnung</label>
+        </div>
+      `;
+    }
+
+    function renderEventEndTotals() {
+      let subtotal = 0;
+      let lineDiscountTotal = 0;
+      document.querySelectorAll('[data-event-end-line]').forEach(row => {
+        const rawSubtotal = Number(row.dataset.subtotal || 0);
+        const input = row.querySelector('input');
+        const parsed = parseDecimalInput(input?.value || '0');
+        const percent = Math.max(0, Math.min(Number.isFinite(parsed) ? parsed : 0, 100));
+        const discount = rawSubtotal * percent / 100;
+        subtotal += rawSubtotal;
+        lineDiscountTotal += discount;
+        const totalCell = row.querySelector('[data-event-line-total]');
+        if (totalCell) totalCell.textContent = money(rawSubtotal - discount);
+      });
+      const totalDiscountInput = document.getElementById('eventTotalDiscount');
+      const parsedTotalDiscount = parseDecimalInput(totalDiscountInput?.value || '0');
+      const afterLineDiscounts = Math.max(0, subtotal - lineDiscountTotal);
+      const totalPercent = Math.max(0, Math.min(Number.isFinite(parsedTotalDiscount) ? parsedTotalDiscount : 0, 100));
+      const totalDiscount = afterLineDiscounts * totalPercent / 100;
+      document.getElementById('eventEndSubtotal').textContent = money(subtotal);
+      document.getElementById('eventEndDiscounts').textContent = `- ${money(lineDiscountTotal + totalDiscount)}`;
+      document.getElementById('eventEndFinal').textContent = money(afterLineDiscounts - totalDiscount);
+    }
+
+    function syncEventInvoiceOptions() {
+      const createInvoice = document.getElementById('eventCreateInvoice');
+      const emailInvoice = document.getElementById('eventEmailInvoice');
+      const copyInvoice = document.getElementById('eventCopyInvoiceToSender');
+      const invoiceQr = document.getElementById('eventInvoiceQr');
+      const externalRecipient = document.getElementById('eventExternalRecipient');
+      const externalFields = document.getElementById('eventExternalRecipientFields');
+      const emailLabel = document.getElementById('eventEmailInvoiceLabel');
+      if (!createInvoice || !emailInvoice) return;
+      const isExternal = Boolean(externalRecipient?.checked);
+      if (externalFields) externalFields.hidden = !isExternal;
+      if (emailLabel) emailLabel.textContent = isExternal
+        ? 'Rechnung per Mail an externen Empfänger senden'
+        : 'Rechnung per Mail an Kassier senden';
+      if (isExternal || emailInvoice.checked || copyInvoice?.checked || invoiceQr?.checked) {
+        createInvoice.checked = true;
+        createInvoice.disabled = true;
+      } else {
+        createInvoice.disabled = false;
+      }
+    }
+
+    function collectEventEndDiscounts() {
+      const line_discounts = {};
+      document.querySelectorAll('[data-event-end-line]').forEach(row => {
+        const lineId = row.dataset.lineId;
+        const input = row.querySelector('input');
+        const parsed = parseDecimalInput(input?.value || '0');
+        line_discounts[lineId] = Math.max(0, Math.min(Number.isFinite(parsed) ? parsed : 0, 100));
+      });
+      const totalParsed = parseDecimalInput(document.getElementById('eventTotalDiscount')?.value || '0');
+      return {
+        line_discounts,
+        total_discount_percent: Math.max(0, Math.min(Number.isFinite(totalParsed) ? totalParsed : 0, 100)),
+      };
+    }
+
+    async function openEndEventDialog() {
+      if (!adminMode || !adminPin) { showStatus('Bitte zuerst Admin-Modus aktivieren.'); return; }
+      try {
+        const preview = await apiPost('/api/admin/event/preview-end', { pin: adminPin, line_discounts: {}, total_discount_percent: 0 });
+        activeEvent = preview.event || activeEvent;
+        openActionDialog('Veranstaltung beenden', eventEndDialogHtml(activeEvent, preview.invoice_options), 'Veranstaltung beenden', 'danger', async () => {
+          const discounts = collectEventEndDiscounts();
+          const create_invoice = document.getElementById('eventCreateInvoice')?.checked || false;
+          const email_invoice = document.getElementById('eventEmailInvoice')?.checked || false;
+          const copy_invoice_to_sender = document.getElementById('eventCopyInvoiceToSender')?.checked || false;
+          const external_recipient = document.getElementById('eventExternalRecipient')?.checked || false;
+          const external_recipient_name = document.getElementById('eventExternalRecipientName')?.value.trim() || '';
+          const external_recipient_email = document.getElementById('eventExternalRecipientEmail')?.value.trim() || '';
+          const external_recipient_address = document.getElementById('eventExternalRecipientAddress')?.value.trim() || '';
+          const qrInput = document.getElementById('eventInvoiceQr');
+          const include_invoice_qr = Boolean(qrInput?.checked && !qrInput.disabled);
+          if (external_recipient && !external_recipient_name) {
+            throw new Error('Bitte Name/Firma des externen Empfängers eingeben.');
+          }
+          if (external_recipient && email_invoice && !external_recipient_email) {
+            throw new Error('Bitte E-Mail-Adresse des externen Empfängers eingeben.');
+          }
+          const data = await apiPost('/api/admin/event/end', {
+            pin: adminPin,
+            ...discounts,
+            create_invoice,
+            email_invoice,
+            copy_invoice_to_sender,
+            include_invoice_qr,
+            external_recipient,
+            external_recipient_name,
+            external_recipient_email,
+            external_recipient_address
+          }, 20000);
+          activeEvent = null;
+          adminMode = false;
+          adminPin = null;
+          sessionStorage.removeItem('drinkPosAdminPin');
+          updateAdminUi();
+          await loadConfig();
+          await loadPeople(true);
+          const pdfText = data.artifacts?.pdf_path ? ' · PDF erstellt' : '';
+          const mailText = data.artifacts?.mail_sent ? ' · Mail gesendet' : '';
+          const copyText = data.artifacts?.mail_copy_sent ? ' · Mail an Absender gesendet' : '';
+          showStatus(`Veranstaltung beendet · CSV gespeichert${pdfText}${mailText}${copyText}`);
+        }, { keepOpenOnConfirm: false });
+        renderEventEndTotals();
+        syncEventInvoiceOptions();
+      } catch (err) {
+        showStatus(err.message || 'Abschluss konnte nicht vorbereitet werden');
+      }
     }
 
     function pendingSummary(requests) {
@@ -2814,12 +3181,18 @@
       document.getElementById('roundButton').style.display = 'none';
       document.getElementById('cashupButton').style.display = adminMode ? 'inline-block' : 'none';
       document.getElementById('orgButton').style.display = adminMode ? 'inline-block' : 'none';
+      const eventButton = document.getElementById('eventModeButton');
+      if (eventButton) {
+        eventButton.style.display = adminMode ? 'inline-block' : 'none';
+        eventButton.textContent = activeEvent ? '🎪 Veranstaltung beenden' : '🎪 Veranstaltungsmodus starten';
+      }
       document.getElementById('debugButton').style.display = adminMode && debugEnabled ? 'inline-block' : 'none';
       const devBanner = document.getElementById('devModeBanner');
       if (devBanner) devBanner.style.display = adminMode && debugEnabled ? 'block' : 'none';
       if (adminMode) { adminButton.textContent = '🔓 Admin aktiv'; adminButton.classList.add('admin-on'); } else { adminButton.textContent = '🔐 Admin'; adminButton.classList.remove('admin-on'); }
       renderDrinkButtons();
       renderPeople();
+      renderEventMode();
     }
 
     function openAdminPage() { window.location.href = '/admin'; }

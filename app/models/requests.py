@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -225,6 +225,59 @@ class StatisticsRequest(PinRequest):
     date_from: str | None = None
     date_to: str | None = None
     include_admin_items: bool = False
+
+
+class EventStartRequest(PinRequest):
+    name: str
+
+
+class EventAddDrinkRequest(PositiveIdModel):
+    item_id: int
+    quantity: int = 1
+
+
+class EventEndPreviewRequest(PinRequest):
+    line_discounts: dict[str, Any] = Field(default_factory=dict)
+    total_discount_percent: Any = 0
+
+
+class EventEndRequest(EventEndPreviewRequest):
+    create_invoice: bool = False
+    email_invoice: bool = False
+    copy_invoice_to_sender: bool = False
+    include_invoice_qr: bool = False
+    external_recipient: bool = False
+    external_recipient_name: str | None = None
+    external_recipient_email: str | None = None
+    external_recipient_address: str | None = None
+
+
+class InvoiceSettingsUpdateRequest(PinRequest):
+    invoice_cashier_email: str | None = None
+    invoice_recipient: str | None = None
+    invoice_sender_name: str | None = None
+    invoice_sender_address: str | None = None
+    invoice_number_prefix: str | None = None
+    invoice_iban: str | None = None
+    invoice_logo_text: str | None = None
+    invoice_footer_text: str | None = None
+    invoice_place: str | None = None
+    invoice_notes: str | None = None
+
+
+class MailSettingsUpdateRequest(PinRequest):
+    mail_smtp_provider: str | None = None
+    mail_smtp_host: str | None = None
+    mail_smtp_port: str | None = None
+    mail_smtp_username: str | None = None
+    mail_smtp_password: str | None = None
+    mail_smtp_from: str | None = None
+    mail_smtp_encryption: str | None = None
+    mail_smtp_clear_password: bool = False
+
+
+class MailTestRequest(PinRequest):
+    recipient: str | None = None
 
 
 class AgentBookDrinkRequest(PositiveIdModel):

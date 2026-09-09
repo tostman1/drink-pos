@@ -20,6 +20,23 @@ Interne Kassa: http://127.0.0.1:8088/kassa
 
 Mitglieder-Selbstzahlung: http://127.0.0.1:8088/self-pay
 
+## Rechnungsnummer mit Datum
+
+Unter **Admin > Rechnung / Veranstaltung > Rechnungsnummer-Praefix** sind
+Datumsplatzhalter moeglich: `YYYY` (Jahr), `YY` (Jahr zweistellig), `MM` (Monat)
+und `dd` (Tag), jeweils innerhalb von `{...}`. Beispiele fuer den 09.09.2026
+und die Veranstaltungsnummer 42:
+
+- `EVENT-{YYYY-MM-dd}` ergibt `EVENT-2026-09-09-0042`.
+- `RE-{dd.MM.YYYY}` ergibt `RE-09.09.2026-0042`.
+- `{YYYYMM}` ergibt `202609-0042`.
+
+Verwendet wird das Abschlussdatum der Veranstaltung (Rechnungsdatum in der
+Server-Zeitzone). Das Muster bleibt in den Einstellungen gespeichert. Ohne
+Platzhalter bleibt das bisherige Verhalten erhalten, z. B. `EVENT-0042`.
+Die Nummer bleibt an die Veranstaltung gebunden und wird nicht zum Jahreswechsel
+zurueckgesetzt. PDF und SEPA-Verwendungszweck verwenden dieselbe Rechnungsnummer.
+
 ## GitHub + GHCR
 
 Das Repository ist fuer GitHub Container Registry vorbereitet. Der Workflow
@@ -172,8 +189,10 @@ Server keine zweite SumUp-Zahlung, sondern liefert den gespeicherten Status zur�
 Die Listenansicht und die separate Testseite speichern eine laufende Zahlung lokal im Browser und fragen nach Reload oder
 Netzunterbruch `/api/self-pay/payment/{client_payment_id}` ab. Solange der Status `created`,
 `sent_to_reader` oder `pending` ist, bleibt die Zahlung gesperrt. Nur bei eindeutig
-erfolgreichem SumUp-Status wird lokal `PAID_SUMUP` gebucht. Bei Timeout, Fehler, Abbruch oder
-unklarem Status bleiben die Posten offen und müssen geprüft werden.
+erfolgreichem SumUp-Status wird lokal `PAID_SUMUP` gebucht. Ein manueller Abbruch fordert auch
+den Abbruch am SumUp Solo an; falls SumUp trotzdem noch einen erfolgreichen Status liefert,
+gewinnt dieser und die Posten werden bezahlt. Bei Timeout, Fehler, Abbruch ohne erfolgreichen
+SumUp-Status oder unklarem Status bleiben die Posten offen und müssen geprüft werden.
 
 ## Podman-Instanz starten
 

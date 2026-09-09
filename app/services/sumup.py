@@ -115,6 +115,11 @@ def reader_status(cfg: SumUpConfig) -> dict:
     return _request(cfg, "GET", path, timeout=min(15, max(5, cfg.timeout_seconds)))
 
 
+def terminate_reader_checkout(cfg: SumUpConfig) -> dict:
+    path = f"/v0.1/merchants/{urllib.parse.quote(cfg.merchant_code)}/readers/{urllib.parse.quote(cfg.reader_id)}/terminate"
+    return _request(cfg, "POST", path, timeout=min(20, max(5, cfg.timeout_seconds)))
+
+
 def create_reader_checkout(
     cfg: SumUpConfig,
     amount_cents: int,

@@ -36,4 +36,4 @@ startet die SumUp-Zahlung mit Gebühr und optionalem Aufrunden.
 
 Eine Zahlung legt lokal eine `self_payment_sessions`-Zeile an. Doppelklicks oder wiederholte Requests mit derselben `client_payment_id` verwenden diese bestehende Session und starten keine zweite SumUp-Zahlung.
 
-Nur ein eindeutig erfolgreicher SumUp-Status führt zu `PAID_SUMUP` und setzt die offenen Posten in einer SQLite-Transaktion auf bezahlt. Bei Fehler, Abbruch, Timeout oder unklarem Status bleiben die Posten offen.
+Nur ein eindeutig erfolgreicher SumUp-Status führt zu `PAID_SUMUP` und setzt die offenen Posten in einer SQLite-Transaktion auf bezahlt. Ein manueller Abbruch fordert auch den Abbruch am SumUp Solo an. Falls SumUp trotzdem noch Erfolg meldet, wird die Zahlung nachträglich als bezahlt verbucht. Bei Fehler, Abbruch ohne erfolgreichen SumUp-Status, Timeout oder unklarem Status bleiben die Posten offen.
