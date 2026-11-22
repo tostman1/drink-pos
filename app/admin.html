@@ -722,7 +722,7 @@
             <input id="mailSmtpPassword" type="password" autocomplete="new-password" placeholder="leer lassen = behalten">
           </label>
           <label>Test-Empfänger
-            <input id="mailTestRecipient" type="email" placeholder="kassier@example.org">
+            <input id="mailTestRecipient" type="email" maxlength="240" placeholder="test@example.org" oninput="mailTestRecipientDirty = true">
           </label>
           <label style="font-weight:700">
             <span id="mailSmtpPasswordState" class="muted">Passwort nicht gespeichert</span>
@@ -913,6 +913,7 @@
   <script>
     let adminPin = sessionStorage.getItem('drinkPosAdminPin') || '';
     let overview = {people: [], items: [], settings: {}, action_types: []};
+    let mailTestRecipientDirty = false;
     let debugEnabled = true;
     let environment = 'development';
     let syncStatusVisible = true;
@@ -1389,7 +1390,8 @@
         PERSON_CREATED: 'Name angelegt', PERSON_UPDATED: 'Name geändert', PERSON_DELETED: 'Name gelöscht',
         ITEM_CREATED: 'Artikel angelegt', ITEM_UPDATED: 'Artikel geändert', ITEM_DELETED: 'Artikel gelöscht',
         DRINK_CREATED: 'Artikel angelegt', DRINK_UPDATED: 'Artikel geändert', SETTINGS_UPDATED: 'Einstellungen',
-        EVENT_STARTED: 'Veranstaltung gestartet', EVENT_ITEM_ADDED: 'Veranstaltungsgetränk',
+        EVENT_STARTED: 'Veranstaltung gestartet', EVENT_ITEM_ADDED: 'Veranstaltungsgetränk hinzugefügt',
+        EVENT_ITEM_REMOVED: 'Veranstaltungsgetränk abgezogen',
         EVENT_CLOSED: 'Veranstaltung beendet', INVOICE_SETTINGS_UPDATED: 'Rechnungseinstellungen',
         MAIL_SETTINGS_UPDATED: 'Mail-Einstellungen', MAIL_TEST_SENT: 'Testmail gesendet',
         MEMBER_MESSAGE_CREATED: 'Mitgliedernachricht angelegt',
@@ -2003,7 +2005,7 @@
       setValue('mailSmtpUsername', s.mail_smtp_username);
       setValue('mailSmtpEncryption', s.mail_smtp_encryption || 'starttls');
       setValue('mailSmtpPassword', '');
-      setValue('mailTestRecipient', s.invoice_cashier_email);
+      if (!mailTestRecipientDirty) setValue('mailTestRecipient', s.mail_test_recipient);
       const clearPassword = document.getElementById('mailSmtpClearPassword');
       if (clearPassword) clearPassword.checked = false;
       const passwordState = document.getElementById('mailSmtpPasswordState');
@@ -2067,6 +2069,7 @@
       const passwordInput = document.getElementById('mailSmtpPassword');
       const payload = {
         pin: adminPin,
+        mail_test_recipient: document.getElementById('mailTestRecipient')?.value.trim() || '',
         mail_smtp_provider: document.getElementById('mailSmtpProvider')?.value || 'custom',
         mail_smtp_host: document.getElementById('mailSmtpHost')?.value.trim() || '',
         mail_smtp_port: document.getElementById('mailSmtpPort')?.value.trim() || '',
@@ -2077,6 +2080,9 @@
       if (passwordInput && passwordInput.value) payload.mail_smtp_password = passwordInput.value;
       try {
         await apiFetch('/api/admin/mail-settings/update', payload);
+        if (document.getElementById('mailTestRecipient')?.value.trim() === payload.mail_test_recipient) {
+          mailTestRecipientDirty = false;
+        }
         showStatus('Mail-Einstellungen gespeichert');
         await loadOverview();
         return true;
@@ -2087,8 +2093,9 @@
     }
 
     async function sendMailTest() {
-      const recipient = document.getElementById('mailTestRecipient')?.value.trim() || document.getElementById('invoiceCashierEmail')?.value.trim() || '';
+      const recipient = document.getElementById('mailTestRecipient')?.value.trim() || '';
       try {
+        if (!recipient) throw new Error('Test-Empfänger fehlt');
         const saved = await saveMailSettings();
         if (!saved) return;
         await apiFetch('/api/admin/mail-settings/test', { pin: adminPin, recipient });
@@ -2175,7 +2182,7 @@
     }
 
     function preferredHistoryTypes() {
-      return ['CONSUME','PAID_CASH','PAID_SUMUP','PAID','SUMUP_PAYMENT_FAILED','SUMUP_PAYMENT_CANCELLED','SUMUP_PAYMENT_TIMEOUT','SUMUP_PAYMENT_UNKNOWN','SUMUP_PAYMENT_ERROR','SUMUP_PAYMENT_MISMATCH','SUMUP_PAYMENT_STALE','CASHUP','ROUND_DEDUCTED','ROUND_REQUEST','ROUND_REQUEST_APPROVED','ROUND_REQUEST_REJECTED','EVENT_STARTED','EVENT_ITEM_ADDED','EVENT_CLOSED','INVOICE_SETTINGS_UPDATED','MAIL_SETTINGS_UPDATED','MAIL_TEST_SENT','ADMIN_ADJUSTMENT','CHANGE_REQUEST','CHANGE_APPROVED','CHANGE_REJECTED','PERSON_CREATED','PERSON_UPDATED','PERSON_DELETED','ITEM_CREATED','ITEM_UPDATED','ITEM_DELETED','SETTINGS_UPDATED','MEMBER_MESSAGE_CREATED','MEMBER_MESSAGE_ARCHIVED','MEMBER_MESSAGE_ACK','CONNECTION_LOST','CONNECTION_RESTORED','SYNC_COMPLETED','DEBUG_TEST_DATA'];
+      return ['CONSUME','PAID_CASH','PAID_SUMUP','PAID','SUMUP_PAYMENT_FAILED','SUMUP_PAYMENT_CANCELLED','SUMUP_PAYMENT_TIMEOUT','SUMUP_PAYMENT_UNKNOWN','SUMUP_PAYMENT_ERROR','SUMUP_PAYMENT_MISMATCH','SUMUP_PAYMENT_STALE','CASHUP','ROUND_DEDUCTED','ROUND_REQUEST','ROUND_REQUEST_APPROVED','ROUND_REQUEST_REJECTED','EVENT_STARTED','EVENT_ITEM_ADDED','EVENT_ITEM_REMOVED','EVENT_CLOSED','INVOICE_SETTINGS_UPDATED','MAIL_SETTINGS_UPDATED','MAIL_TEST_SENT','ADMIN_ADJUSTMENT','CHANGE_REQUEST','CHANGE_APPROVED','CHANGE_REJECTED','PERSON_CREATED','PERSON_UPDATED','PERSON_DELETED','ITEM_CREATED','ITEM_UPDATED','ITEM_DELETED','SETTINGS_UPDATED','MEMBER_MESSAGE_CREATED','MEMBER_MESSAGE_ARCHIVED','MEMBER_MESSAGE_ACK','CONNECTION_LOST','CONNECTION_RESTORED','SYNC_COMPLETED','DEBUG_TEST_DATA'];
     }
 
     function currentRenderedTypeSet() {

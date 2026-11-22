@@ -234,6 +234,12 @@ class EventStartRequest(PinRequest):
 class EventAddDrinkRequest(PositiveIdModel):
     item_id: int
     quantity: int = 1
+    event_id: int | None = None
+
+
+class EventRemoveDrinkRequest(PositiveIdModel):
+    item_id: int
+    event_id: int | None = None
 
 
 class EventEndPreviewRequest(PinRequest):
@@ -266,6 +272,7 @@ class InvoiceSettingsUpdateRequest(PinRequest):
 
 
 class MailSettingsUpdateRequest(PinRequest):
+    mail_test_recipient: str | None = None
     mail_smtp_provider: str | None = None
     mail_smtp_host: str | None = None
     mail_smtp_port: str | None = None

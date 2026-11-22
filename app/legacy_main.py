@@ -46,6 +46,7 @@ try:
         ClientEventRequest,
         EditRequestIn,
         EventAddDrinkRequest,
+        EventRemoveDrinkRequest,
         EventEndPreviewRequest,
         EventEndRequest,
         EventStartRequest,
@@ -96,6 +97,7 @@ except ImportError:
         ClientEventRequest,
         EditRequestIn,
         EventAddDrinkRequest,
+        EventRemoveDrinkRequest,
         EventEndPreviewRequest,
         EventEndRequest,
         EventStartRequest,
@@ -2567,8 +2569,9 @@ def event_active():
 @app.post("/api/event/add-drink")
 def event_add_drink(req: EventAddDrinkRequest):
     with get_conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
         try:
-            result = event_service.add_event_item(conn, req.item_id, req.quantity)
+            result = event_service.add_event_item(conn, req.item_id, req.quantity, expected_event_id=req.event_id)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
         event = result.get("event") or {}
@@ -2577,8 +2580,29 @@ def event_add_drink(req: EventAddDrinkRequest):
             conn,
             None,
             "EVENT_ITEM_ADDED",
-            float(line.get("subtotal_eur", 0) or 0),
-            f"Veranstaltung {event.get('name', '')}: +{int(req.quantity or 1)}x {line.get('item', '')}",
+            float(line["unit_price_eur"]) * req.quantity,
+            f"Veranstaltung #{event['id']} {event['name']}: +{req.quantity}x {line['item']} (Artikel #{req.item_id})",
+        )
+        conn.commit()
+        return {**result, **get_sync_state(conn)}
+
+
+@app.post("/api/event/remove-drink")
+def event_remove_drink(req: EventRemoveDrinkRequest):
+    with get_conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            result = event_service.remove_event_item(conn, req.item_id, expected_event_id=req.event_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        event = result["event"]
+        line = result["line"]
+        log_transaction(
+            conn,
+            None,
+            "EVENT_ITEM_REMOVED",
+            -float(line["unit_price_eur"]),
+            f"Veranstaltung #{event['id']} {event['name']}: -1x {line['item']} (Artikel #{req.item_id})",
         )
         conn.commit()
         return {**result, **get_sync_state(conn)}
@@ -4380,9 +4404,11 @@ def admin_mail_settings_test(req: MailTestRequest):
             **invoice_settings,
             **event_service.get_mail_settings(conn, include_secret=True),
         }
-        recipient = (req.recipient or invoice_settings.get("invoice_cashier_email") or "").strip()
+        recipient = (req.recipient if req.recipient is not None else settings["mail_test_recipient"]).strip()
         try:
             event_service.send_test_email(settings, recipient)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
         except Exception as exc:
             raise HTTPException(status_code=502, detail=event_service.mail_exception_message(exc))
         log_transaction(conn, None, "MAIL_TEST_SENT", 0, f"Testmail gesendet an {recipient}")
