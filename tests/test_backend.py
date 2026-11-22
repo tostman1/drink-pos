@@ -380,7 +380,9 @@ class BackendFlowTests(unittest.TestCase):
         self.assertEqual(paid["currency"], "EUR")
         self.assertFalse(self.main.kassa_person(person["id"])["lines"])
         with self.main.get_conn() as conn:
-            session = conn.execute("SELECT provider FROM self_payment_sessions WHERE client_payment_id = ?", ("selfpay-test-mode-1",)).fetchone()
+            session = conn.execute(
+                "SELECT provider FROM self_payment_sessions WHERE client_payment_id = ?", ("selfpay-test-mode-1",)
+            ).fetchone()
             self.assertEqual(session["provider"], "test")
 
     def test_production_does_not_enable_test_card_provider(self):
@@ -587,10 +589,12 @@ class BackendFlowTests(unittest.TestCase):
         try:
             for status in ("timeout", "unknown"):
                 with self.subTest(status=status):
-                    self.main.create_sumup_checkout = lambda cfg, amount_cents, receipt_text="", foreign_transaction_id=None, status=status: {
-                        "provider_checkout_id": f"sumup-checkout-{status}",
-                        "status": "sent_to_reader",
-                    }
+                    self.main.create_sumup_checkout = (
+                        lambda cfg, amount_cents, receipt_text="", foreign_transaction_id=None, status=status: {
+                            "provider_checkout_id": f"sumup-checkout-{status}",
+                            "status": "sent_to_reader",
+                        }
+                    )
                     self.main.poll_sumup_payment = lambda cfg, provider_checkout_id, status=status: {
                         "status": status,
                         "provider_checkout_id": provider_checkout_id,
@@ -770,9 +774,7 @@ class BackendFlowTests(unittest.TestCase):
             open_paid_units = conn.execute(
                 "SELECT COUNT(*) AS c FROM paid_round_units WHERE event_open = 1"
             ).fetchone()["c"]
-            cashup_count = conn.execute(
-                "SELECT COUNT(*) AS c FROM transactions WHERE type = 'CASHUP'"
-            ).fetchone()["c"]
+            cashup_count = conn.execute("SELECT COUNT(*) AS c FROM transactions WHERE type = 'CASHUP'").fetchone()["c"]
         self.assertEqual(int(open_paid_units), 0)
         self.assertEqual(int(cashup_count), 1)
 
@@ -984,9 +986,7 @@ class BackendFlowTests(unittest.TestCase):
         )
         self.main.admin_delete_person(self.main.AdminPersonDelete(pin=PIN, person_id=person["id"]))
 
-        history = self.main.admin_person_history(
-            self.main.AdminPersonHistoryRequest(pin=PIN, person_id=person["id"])
-        )
+        history = self.main.admin_person_history(self.main.AdminPersonHistoryRequest(pin=PIN, person_id=person["id"]))
         entries = history["history"]
         consume_entries = [entry for entry in entries if entry["type"] == "CONSUME"]
         correction = next(entry for entry in entries if entry["type"] == "CHANGE_APPROVED")
@@ -1267,11 +1267,15 @@ class BackendFlowTests(unittest.TestCase):
 
     def test_event_plus_and_minus_are_logged_without_admin_pin(self):
         item, event = self.start_event_with_two_items()
-        removed = self.main.event_remove_drink(self.main.EventRemoveDrinkRequest(item_id=item["id"], event_id=event["id"]))
+        removed = self.main.event_remove_drink(
+            self.main.EventRemoveDrinkRequest(item_id=item["id"], event_id=event["id"])
+        )
         self.assertEqual(removed["event"]["quantity"], 1)
         self.assertEqual(removed["event"]["subtotal_eur"], item["price"])
         with self.main.get_conn() as conn:
-            logs = conn.execute("SELECT * FROM transactions WHERE type IN ('EVENT_ITEM_ADDED', 'EVENT_ITEM_REMOVED') ORDER BY id").fetchall()
+            logs = conn.execute(
+                "SELECT * FROM transactions WHERE type IN ('EVENT_ITEM_ADDED', 'EVENT_ITEM_REMOVED') ORDER BY id"
+            ).fetchall()
         self.assertEqual([row["type"] for row in logs], ["EVENT_ITEM_ADDED", "EVENT_ITEM_ADDED", "EVENT_ITEM_REMOVED"])
         self.assertEqual([row["total"] for row in logs], [item["price"], item["price"], -item["price"]])
         for row in logs:
@@ -1293,8 +1297,15 @@ class BackendFlowTests(unittest.TestCase):
             self.main.event_remove_drink(request)
         self.assertEqual(ctx.exception.status_code, 400)
         with self.main.get_conn() as conn:
-            self.assertEqual(conn.execute("SELECT quantity FROM event_lines WHERE event_id = ?", (event["id"],)).fetchone()["quantity"], 0)
-            self.assertEqual(conn.execute("SELECT COUNT(*) FROM transactions WHERE type = 'EVENT_ITEM_REMOVED'").fetchone()[0], 2)
+            self.assertEqual(
+                conn.execute("SELECT quantity FROM event_lines WHERE event_id = ?", (event["id"],)).fetchone()[
+                    "quantity"
+                ],
+                0,
+            )
+            self.assertEqual(
+                conn.execute("SELECT COUNT(*) FROM transactions WHERE type = 'EVENT_ITEM_REMOVED'").fetchone()[0], 2
+            )
         added = self.main.event_add_drink(self.main.EventAddDrinkRequest(item_id=item["id"]))
         self.assertEqual(added["event"]["quantity"], 1)
 
@@ -1345,7 +1356,9 @@ class BackendFlowTests(unittest.TestCase):
         self.assertEqual(sorted(outcomes), [200, 400])
         self.assertEqual(self.main.event_active()["event"]["quantity"], 0)
         with self.main.get_conn() as conn:
-            self.assertEqual(conn.execute("SELECT COUNT(*) FROM transactions WHERE type = 'EVENT_ITEM_REMOVED'").fetchone()[0], 2)
+            self.assertEqual(
+                conn.execute("SELECT COUNT(*) FROM transactions WHERE type = 'EVENT_ITEM_REMOVED'").fetchone()[0], 2
+            )
 
     def test_event_mark_changes_roll_back_when_audit_log_fails(self):
         item, _ = self.start_event_with_two_items()
@@ -1387,7 +1400,10 @@ class BackendFlowTests(unittest.TestCase):
         self.assertEqual(preview["event"]["line_discount_total_eur"], expected_line_discount)
         self.assertEqual(preview["event"]["total_discount_percent"], 20.0)
         self.assertEqual(preview["event"]["total_discount_eur"], expected_total_discount)
-        self.assertEqual(preview["event"]["final_total_eur"], round(expected_subtotal - expected_line_discount - expected_total_discount, 2))
+        self.assertEqual(
+            preview["event"]["final_total_eur"],
+            round(expected_subtotal - expected_line_discount - expected_total_discount, 2),
+        )
 
         closed = self.main.admin_event_end(
             self.main.EventEndRequest(
@@ -1464,12 +1480,25 @@ class BackendFlowTests(unittest.TestCase):
 
     def test_invoice_settings_reject_invalid_date_placeholders_without_changing_settings(self):
         self.main.admin_invoice_settings_update(
-            self.main.InvoiceSettingsUpdateRequest(pin=PIN, invoice_number_prefix="RE-{YYYY}", invoice_sender_name="Original")
+            self.main.InvoiceSettingsUpdateRequest(
+                pin=PIN, invoice_number_prefix="RE-{YYYY}", invoice_sender_name="Original"
+            )
         )
-        for prefix in ("RE-{YYYY-MM-DD}", "RE-{YYYY-mm-dd}", "RE-{YYYY-MMM-dd}", "RE-{YYYY", "RE-YYYY}", "RE-{}", "RE-{{YYYY}}", "RE-{date}"):
+        for prefix in (
+            "RE-{YYYY-MM-DD}",
+            "RE-{YYYY-mm-dd}",
+            "RE-{YYYY-MMM-dd}",
+            "RE-{YYYY",
+            "RE-YYYY}",
+            "RE-{}",
+            "RE-{{YYYY}}",
+            "RE-{date}",
+        ):
             with self.subTest(prefix=prefix), self.assertRaises(HTTPException) as ctx:
                 self.main.admin_invoice_settings_update(
-                    self.main.InvoiceSettingsUpdateRequest(pin=PIN, invoice_number_prefix=prefix, invoice_sender_name="Changed")
+                    self.main.InvoiceSettingsUpdateRequest(
+                        pin=PIN, invoice_number_prefix=prefix, invoice_sender_name="Changed"
+                    )
                 )
             self.assertEqual(ctx.exception.status_code, 400)
             self.assertIn("Datumsplatzhalter", ctx.exception.detail)
@@ -1555,7 +1584,9 @@ class BackendFlowTests(unittest.TestCase):
         self.main.event_service.qrcode = None
         try:
             with self.assertRaises(HTTPException) as ctx:
-                self.main.admin_event_end(self.main.EventEndRequest(pin=PIN, create_invoice=True, include_invoice_qr=True))
+                self.main.admin_event_end(
+                    self.main.EventEndRequest(pin=PIN, create_invoice=True, include_invoice_qr=True)
+                )
             self.assertEqual(ctx.exception.status_code, 500)
             self.assertIn("QR-Code-Bibliothek fehlt", ctx.exception.detail)
             self.assertIsNotNone(self.main.event_active()["event"])
@@ -1662,17 +1693,28 @@ class BackendFlowTests(unittest.TestCase):
         self.assertEqual(overview["settings"]["invoice_cashier_email"], "new-cashier@example.org")
 
     def test_mail_test_recipient_validation_preserves_saved_value(self):
-        self.main.admin_mail_settings_update(self.main.MailSettingsUpdateRequest(pin=PIN, mail_test_recipient="tester@example.org"))
-        for recipient in ("not-an-email", "one@example.org two@example.org", "a@example.org\r\nBcc: b@example.org", "x" * 240 + "@example.org"):
+        self.main.admin_mail_settings_update(
+            self.main.MailSettingsUpdateRequest(pin=PIN, mail_test_recipient="tester@example.org")
+        )
+        for recipient in (
+            "not-an-email",
+            "one@example.org two@example.org",
+            "a@example.org\r\nBcc: b@example.org",
+            "x" * 240 + "@example.org",
+        ):
             with self.subTest(recipient=recipient), self.assertRaises(HTTPException) as ctx:
-                self.main.admin_mail_settings_update(self.main.MailSettingsUpdateRequest(pin=PIN, mail_test_recipient=recipient))
+                self.main.admin_mail_settings_update(
+                    self.main.MailSettingsUpdateRequest(pin=PIN, mail_test_recipient=recipient)
+                )
             self.assertEqual(ctx.exception.status_code, 400)
             self.assertIn("Test-Empf", ctx.exception.detail)
             overview = self.main.admin_overview(self.main.PinRequest(pin=PIN))
             self.assertEqual(overview["settings"]["mail_test_recipient"], "tester@example.org")
 
     def test_mail_test_uses_saved_or_explicit_recipient_never_cashier(self):
-        self.main.admin_invoice_settings_update(self.main.InvoiceSettingsUpdateRequest(pin=PIN, invoice_cashier_email="cashier@example.org"))
+        self.main.admin_invoice_settings_update(
+            self.main.InvoiceSettingsUpdateRequest(pin=PIN, invoice_cashier_email="cashier@example.org")
+        )
         calls = []
         original_send = self.main.event_service.send_smtp_message
 
@@ -1686,7 +1728,9 @@ class BackendFlowTests(unittest.TestCase):
             self.assertEqual(ctx.exception.status_code, 400)
             self.assertIn("fehlt", ctx.exception.detail)
             self.assertEqual(calls, [])
-            self.main.admin_mail_settings_update(self.main.MailSettingsUpdateRequest(pin=PIN, mail_test_recipient="tester@example.org"))
+            self.main.admin_mail_settings_update(
+                self.main.MailSettingsUpdateRequest(pin=PIN, mail_test_recipient="tester@example.org")
+            )
             self.main.admin_mail_settings_test(self.main.MailTestRequest(pin=PIN))
             self.main.admin_mail_settings_test(self.main.MailTestRequest(pin=PIN, recipient="other@example.org"))
             self.assertEqual(calls, ["tester@example.org", "other@example.org"])
@@ -1800,9 +1844,7 @@ class BackendFlowTests(unittest.TestCase):
                 )
             )
             with self.assertRaises(HTTPException) as ctx:
-                self.main.admin_mail_settings_test(
-                    self.main.MailTestRequest(pin=PIN, recipient="test@example.org")
-                )
+                self.main.admin_mail_settings_test(self.main.MailTestRequest(pin=PIN, recipient="test@example.org"))
         finally:
             self.main.event_service.smtplib.SMTP = original_smtp
         self.assertEqual(ctx.exception.status_code, 502)
@@ -1926,7 +1968,9 @@ class BackendFlowTests(unittest.TestCase):
         self.main.event_service.send_event_invoice_email = fake_mail
         try:
             closed = self.main.admin_event_end(
-                self.main.EventEndRequest(pin=PIN, create_invoice=False, email_invoice=True, copy_invoice_to_sender=True)
+                self.main.EventEndRequest(
+                    pin=PIN, create_invoice=False, email_invoice=True, copy_invoice_to_sender=True
+                )
             )
         finally:
             self.main.event_service.save_event_csv = original_csv
@@ -1985,9 +2029,13 @@ class BackendFlowTests(unittest.TestCase):
         self.assertIn(("send", "kassier@example.org", "absender@example.org", "absender@example.org"), calls)
 
     def test_invoice_mail_recipient_options_are_independent(self):
-        self.main.admin_mail_settings_update(self.main.MailSettingsUpdateRequest(
-            pin=PIN, mail_smtp_host="smtp.example.org", mail_smtp_username="absender@example.org",
-        ))
+        self.main.admin_mail_settings_update(
+            self.main.MailSettingsUpdateRequest(
+                pin=PIN,
+                mail_smtp_host="smtp.example.org",
+                mail_smtp_username="absender@example.org",
+            )
+        )
         original = self.main.event_service.send_smtp_message
         calls = []
 
@@ -2004,29 +2052,46 @@ class BackendFlowTests(unittest.TestCase):
                 (True, True, ("kassier@example.org", ["absender@example.org"])),
             ):
                 with self.subTest(cashier=cashier, sender=sender):
-                    self.main.admin_invoice_settings_update(self.main.InvoiceSettingsUpdateRequest(
-                        pin=PIN, invoice_cashier_email="kassier@example.org" if cashier else "",
-                    ))
+                    self.main.admin_invoice_settings_update(
+                        self.main.InvoiceSettingsUpdateRequest(
+                            pin=PIN,
+                            invoice_cashier_email="kassier@example.org" if cashier else "",
+                        )
+                    )
                     self.start_event_with_two_items()
-                    closed = self.main.admin_event_end(self.main.EventEndRequest(
-                        pin=PIN, email_invoice=cashier, copy_invoice_to_sender=sender,
-                    ))
+                    closed = self.main.admin_event_end(
+                        self.main.EventEndRequest(
+                            pin=PIN,
+                            email_invoice=cashier,
+                            copy_invoice_to_sender=sender,
+                        )
+                    )
                     self.assertEqual(calls[-1], expected)
                     self.assertTrue(closed["artifacts"]["mail_sent"])
                     self.assertEqual(closed["artifacts"]["mail_copy_sent"], sender)
                     with self.main.get_conn() as conn:
-                        row = conn.execute("SELECT invoice_mail_to FROM event_sessions WHERE id = ?", (closed["event"]["id"],)).fetchone()
+                        row = conn.execute(
+                            "SELECT invoice_mail_to FROM event_sessions WHERE id = ?", (closed["event"]["id"],)
+                        ).fetchone()
                     self.assertEqual(row["invoice_mail_to"], ", ".join([expected[0], *expected[1]]))
         finally:
             self.main.event_service.send_smtp_message = original
 
     def test_external_invoice_recipient_replaces_cashier_and_mail_target(self):
-        self.main.admin_mail_settings_update(self.main.MailSettingsUpdateRequest(
-            pin=PIN, mail_smtp_host="smtp.example.org", mail_smtp_username="absender@example.org",
-        ))
-        self.main.admin_invoice_settings_update(self.main.InvoiceSettingsUpdateRequest(
-            pin=PIN, invoice_cashier_email="kassier@example.org", invoice_recipient="Verein\nz.Hd. Kassier",
-        ))
+        self.main.admin_mail_settings_update(
+            self.main.MailSettingsUpdateRequest(
+                pin=PIN,
+                mail_smtp_host="smtp.example.org",
+                mail_smtp_username="absender@example.org",
+            )
+        )
+        self.main.admin_invoice_settings_update(
+            self.main.InvoiceSettingsUpdateRequest(
+                pin=PIN,
+                invoice_cashier_email="kassier@example.org",
+                invoice_recipient="Verein\nz.Hd. Kassier",
+            )
+        )
         original = self.main.event_service.send_smtp_message
         calls = []
 
@@ -2040,40 +2105,50 @@ class BackendFlowTests(unittest.TestCase):
         self.main.event_service.send_smtp_message = fake_send
         try:
             self.start_event_with_two_items()
-            closed = self.main.admin_event_end(self.main.EventEndRequest(
-                pin=PIN,
-                email_invoice=True,
-                copy_invoice_to_sender=True,
-                external_recipient=True,
-                external_recipient_name="Max Mustermann GmbH",
-                external_recipient_email="extern@example.org",
-                external_recipient_address="Hauptstrasse 1\n6844 Altach",
-            ))
+            closed = self.main.admin_event_end(
+                self.main.EventEndRequest(
+                    pin=PIN,
+                    email_invoice=True,
+                    copy_invoice_to_sender=True,
+                    external_recipient=True,
+                    external_recipient_name="Max Mustermann GmbH",
+                    external_recipient_email="extern@example.org",
+                    external_recipient_address="Hauptstrasse 1\n6844 Altach",
+                )
+            )
         finally:
             self.main.event_service.send_smtp_message = original
         self.assertEqual(calls, [("extern@example.org", ["absender@example.org"])])
         self.assertEqual(closed["artifacts"]["mail_copy_sent"], True)
         with self.main.get_conn() as conn:
-            row = conn.execute("SELECT invoice_mail_to FROM event_sessions WHERE id = ?", (closed["event"]["id"],)).fetchone()
+            row = conn.execute(
+                "SELECT invoice_mail_to FROM event_sessions WHERE id = ?", (closed["event"]["id"],)
+            ).fetchone()
         self.assertEqual(row["invoice_mail_to"], "extern@example.org, absender@example.org")
 
     def test_external_invoice_can_be_created_without_mail_and_rejects_missing_fields(self):
         self.start_event_with_two_items()
         with self.assertRaises(HTTPException) as ctx:
-            self.main.admin_event_end(self.main.EventEndRequest(
-                pin=PIN, create_invoice=True, external_recipient=True,
-            ))
+            self.main.admin_event_end(
+                self.main.EventEndRequest(
+                    pin=PIN,
+                    create_invoice=True,
+                    external_recipient=True,
+                )
+            )
         self.assertEqual(ctx.exception.status_code, 400)
         self.assertIn("Name/Firma", ctx.exception.detail)
         self.assertIsNotNone(self.main.event_active()["event"])
 
-        closed = self.main.admin_event_end(self.main.EventEndRequest(
-            pin=PIN,
-            create_invoice=True,
-            external_recipient=True,
-            external_recipient_name="Externer Kunde",
-            external_recipient_address="Kundenweg 4\n6800 Feldkirch",
-        ))
+        closed = self.main.admin_event_end(
+            self.main.EventEndRequest(
+                pin=PIN,
+                create_invoice=True,
+                external_recipient=True,
+                external_recipient_name="Externer Kunde",
+                external_recipient_address="Kundenweg 4\n6800 Feldkirch",
+            )
+        )
         pdf_text = Path(closed["artifacts"]["pdf_path"]).read_bytes().decode("latin-1", errors="ignore")
         self.assertIn("Externer Kunde", pdf_text)
         self.assertIn("Kundenweg 4", pdf_text)
@@ -2081,9 +2156,13 @@ class BackendFlowTests(unittest.TestCase):
         self.assertFalse(closed["artifacts"]["mail_sent"])
 
     def test_external_invoice_copy_only_goes_to_sender(self):
-        self.main.admin_mail_settings_update(self.main.MailSettingsUpdateRequest(
-            pin=PIN, mail_smtp_host="smtp.example.org", mail_smtp_username="absender@example.org",
-        ))
+        self.main.admin_mail_settings_update(
+            self.main.MailSettingsUpdateRequest(
+                pin=PIN,
+                mail_smtp_host="smtp.example.org",
+                mail_smtp_username="absender@example.org",
+            )
+        )
         original = self.main.event_service.send_smtp_message
         calls = []
 
@@ -2093,13 +2172,15 @@ class BackendFlowTests(unittest.TestCase):
         self.main.event_service.send_smtp_message = fake_send
         try:
             self.start_event_with_two_items()
-            self.main.admin_event_end(self.main.EventEndRequest(
-                pin=PIN,
-                copy_invoice_to_sender=True,
-                external_recipient=True,
-                external_recipient_name="Externer Kunde",
-                external_recipient_email="extern@example.org",
-            ))
+            self.main.admin_event_end(
+                self.main.EventEndRequest(
+                    pin=PIN,
+                    copy_invoice_to_sender=True,
+                    external_recipient=True,
+                    external_recipient_name="Externer Kunde",
+                    external_recipient_email="extern@example.org",
+                )
+            )
         finally:
             self.main.event_service.send_smtp_message = original
         self.assertEqual(calls, [("absender@example.org", [])])
@@ -2107,12 +2188,14 @@ class BackendFlowTests(unittest.TestCase):
     def test_external_invoice_mail_requires_external_email(self):
         self.start_event_with_two_items()
         with self.assertRaises(HTTPException) as ctx:
-            self.main.admin_event_end(self.main.EventEndRequest(
-                pin=PIN,
-                email_invoice=True,
-                external_recipient=True,
-                external_recipient_name="Externer Kunde",
-            ))
+            self.main.admin_event_end(
+                self.main.EventEndRequest(
+                    pin=PIN,
+                    email_invoice=True,
+                    external_recipient=True,
+                    external_recipient_name="Externer Kunde",
+                )
+            )
         self.assertEqual(ctx.exception.status_code, 400)
         self.assertIn("E-Mail-Adresse", ctx.exception.detail)
         self.assertIsNotNone(self.main.event_active()["event"])
