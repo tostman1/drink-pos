@@ -822,6 +822,7 @@ def ensure_settings(conn: sqlite3.Connection):
         if get_setting(conn, key) is None:
             set_setting(conn, key, value)
     mail_defaults = {
+        "mail_test_recipient": "",
         "mail_smtp_provider": "custom",
         "mail_smtp_host": "",
         "mail_smtp_port": "",
