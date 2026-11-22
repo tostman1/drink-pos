@@ -48,6 +48,11 @@ Die FastAPI/OpenAPI-Beschreibung ist unter `/openapi.json` verfuegbar.
 | `POST` | `/api/agent/book-drink` | Normales Benutzergetraenk buchen |
 | `POST` | `/api/agent/round-request` | Rundenanfrage fuer eine Person erstellen |
 
+Hinweis: Der historische Name `round-request` bezeichnet heute eine sofort
+bestaetigte Runde. Sie wird als `APPROVED` protokolliert und direkt auf die offene
+Rechnung gebucht; eine Admin-Genehmigung ist nicht mehr erforderlich. Das ist
+kein Bar-/Kartenzahlungsabschluss. Nur bei ausdruecklichem Auftrag ausfuehren.
+
 ## Limits
 
 - `book-drink`: `quantity` muss zwischen `1` und `50` liegen.

@@ -1,3 +1,8 @@
+# Historical accumulated product documentation, not executable configuration.
+# For current runtime/requirements/safe verification see ARCHITECTURE.md,
+# REQUIREMENTS.md, docs/PROCESS.md and docs/HANDOFF.md. Some snapshots below are stale
+# (app mounts, cache versions, optional events/restore, agent rounds).
+# Production reset/delete/deploy instructions are NOT authorized by this task.
 project:
   name: "Drink POS / Getränkeliste"
   language: "de"

@@ -1,0 +1,76 @@
+# Reconstructed Drink-POS requirements
+
+## Baseline and confidence
+
+This catalog reconstructs the application at verified main `fb08128`, plus the
+PR #1 at `250a4e6`, now owner-merged into main `052c2bb`. It is not an imported product spec or a
+claim that stakeholders approved every legacy behavior. Stable IDs and test/manual
+references live in [`docs/requirements.json`](docs/requirements.json). `observed-main`
+means implemented behavior with cited evidence, not complete end-to-end coverage.
+`handoff-integrated` means preserved handoff behavior now included in main.
+`engineering` means owner-requested
+foundation controls. Any future business change needs an explicit decision.
+
+## Actors and boundaries
+
+- Members book ordinary drinks against people, confirm a round, request a
+  correction, acknowledge messages, and start supported self-payment.
+- Cashiers use the normal list or internal `/kassa` to inspect and settle debt.
+- Admins use PIN-protected actions for master data, settings, corrections,
+  payments/cashup, reporting, named-event close/invoices/mail.
+- API operating agents have a narrow token-protected REST surface, not general
+  admin access. Development agents follow root `AGENTS.md`; these are different roles.
+- Deployment operators manage private-network hosting and backups. That is not
+  authorization for a coding agent to deploy or inspect production state.
+
+Local/private-network touch PWA; EUR; German presentation. No SaaS tenancy,
+public-internet exposure, full offline POS, new roles/auth stack, ORM or SPA
+framework is required by this foundation.
+
+## Domain distinctions
+
+Open debt includes positive `order_lines` regardless of `event_open`. Cashup
+closes the current member tally, applies eligible round deductions, and does not
+forgive remaining debt. The system item `1 Runde` is charged immediately by the
+current round-confirmation route despite its historical request name.
+Named event mode is a separate aggregate bill (`event_sessions`/`event_lines`),
+with discounts, required CSV and optional PDF/SEPA QR/email on close. It is not the
+member `event_open` flag, and event closure is not a card-payment confirmation.
+
+Preserve consumption-time name/price/purchase-price/admin snapshots, archival
+identity, additive audit corrections, offline booking IDs, payment IDs, revisions,
+and server-calculated fees/rounding. An uncertain payment leaves debt open.
+PR #1 adds audited aggregate event corrections/stale-event protection and a saved
+SMTP test recipient independent from the cashier. Its owner merge does not close
+manual verification. Round confirmation is a **confirmed API contract** but also
+a potential authorization/business-rule risk: a token-authorized operating agent
+can immediately incur debt. Foundation corrects documentation and adds HTTP
+coverage, not approval requirements or a new authorization scheme; see DECISIONS.md.
+
+## Evidence conflicts and gaps
+
+| Historical claim | Observed reality / treatment |
+| --- | --- |
+| `main.py` is a single large app; extracted layers are complete | Main is a bootstrap/alias; served handlers remain legacy; prototype modules differ |
+| No exports/restore/sync/OpenAPI/audit/tests | These exist; inventory current implementation rather than execute old review claims |
+| Explicit events are a future optional feature | Named events/invoices are already on main; PR #1 adds corrections |
+| Agent round request does not charge | Current route immediately books/approves a round; operating-agent docs corrected |
+| Mount `./app:/app` | Current production templates mount only persistent `./data`; image owns code |
+| Historical cache v88/v90, reset-by-deleting production DB | Historical snapshots, not instructions; main v106, PR #1 v108; production deletion out of scope |
+| Test counts/coverage percentages in old review | Measured takeover: previous main 87 tests, handoff 96; no coverage percentage measured |
+
+Known gaps: no target-device automation/E2E suite; SMTP and SumUp tests are mocks;
+prototype services are not safe replacement contracts; startup lifecycle is
+deprecated; runtime config/schema state remains global. Browser usability,
+installed-PWA upgrades, authorized integrations, and synthetic recovery rehearsal
+are tracked manual checks, not claimed successes. Optional SSE/MCP/UI polish and
+mail OAuth/IMAP ideas remain in existing TODO docs, not promoted to requirements.
+
+## Classification rules
+
+**Confirmed behavior** has direct served-code and test evidence; it may still be
+a risk, not the ideal product rule. **Inferred requirements** (private-network
+intent, operator usability) are supported by documentation but not fresh stakeholder
+sign-off. **Proposed improvements** live only in IMPLEMENTATION_PLAN.md; they do
+not authorize runtime changes. **Unresolved decisions** live in DECISIONS.md.
+Stable DP IDs and exact evidence stay in the catalog, not parallel duplicated lists.

@@ -105,7 +105,10 @@ Content-Type: application/json
 Rules:
 
 - Quantity must be `1` to `20`.
-- This creates a request; it does not approve or charge a round.
+- Despite the historical endpoint name, the current route immediately approves
+  the confirmation and books `1 Runde` on the person's open bill. Call only when
+  the human explicitly asks to pay a round; do not describe it as a harmless
+  pending request or an already-settled cash/card payment.
 
 ## Not Allowed
 
