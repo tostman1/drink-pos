@@ -219,7 +219,9 @@ ROUND_ITEM_NAME = "1 Runde"
 ROUND_ITEM_SHORT = "Runde"
 DEFAULT_ROUND_PRICE_EUR = "10.00"
 DEFAULT_COST_WARNING_TEMPLATE = "Offen: {betrag}. Unteres Limit {unteres_limit} erreicht."
-DEFAULT_PAYMENT_REMINDER_TEMPLATE = "Offen: {betrag}. Oberes Limit {oberes_limit} erreicht. Bitte bei Gelegenheit bezahlen."
+DEFAULT_PAYMENT_REMINDER_TEMPLATE = (
+    "Offen: {betrag}. Oberes Limit {oberes_limit} erreicht. Bitte bei Gelegenheit bezahlen."
+)
 SYSTEM_ITEM_NAMES = {ROUND_ITEM_NAME}
 PAID_TRANSACTION_TYPES = ("PAID_CASH", "PAID_SUMUP")
 PAID_TRANSACTION_KINDS = ("PAID_CASH", "PAID_SUMUP")
@@ -255,6 +257,7 @@ def client_booking_timestamp(client_time: str | None) -> str | None:
         return None
     return parsed.strftime("%Y-%m-%d %H:%M:%S")
 
+
 DEFAULT_NAMES = [
     "Demo Person 01",
     "Demo Person 02",
@@ -276,6 +279,7 @@ app = FastAPI(title="Drink POS")
 # ---------------------------------------------------------------------------
 # General helpers
 # ---------------------------------------------------------------------------
+
 
 def is_production() -> bool:
     return APP_ENV in {"prod", "production"}
@@ -385,6 +389,7 @@ def parse_decimal_value(value, field_name: str = "Wert") -> float:
 # Database setup + migration from prototype tables
 # ---------------------------------------------------------------------------
 
+
 def _configure_schema_runtime() -> None:
     schema_service.configure_runtime(DB_PATH, ENV_PIN_CODE, ENV_PIN_FROM_ENV, get_conn)
 
@@ -451,6 +456,7 @@ def startup():
 # ---------------------------------------------------------------------------
 # Query helpers
 # ---------------------------------------------------------------------------
+
 
 def get_person(conn: sqlite3.Connection, person_id: int, allow_archived: bool = True):
     sql = "SELECT * FROM people WHERE id = ?"
@@ -530,7 +536,7 @@ def get_open_lines(conn: sqlite3.Connection, person_id: int | None = None):
             ), 0) AS pending_remove
         FROM order_lines ol
         LEFT JOIN items i ON i.id = ol.item_id
-        WHERE {' AND '.join(where)}
+        WHERE {" AND ".join(where)}
         ORDER BY COALESCE(i.sort_order, 9999) ASC, ol.consumed_date ASC, ol.created_at ASC, ol.id ASC
         """,
         params,
@@ -544,7 +550,9 @@ def serialize_open_line(row: sqlite3.Row) -> dict:
     pending = int(row["pending_remove"] or 0)
     current_name = row["current_item_name"] or row["item_name_snapshot"]
     current_short = row["current_item_short_label"] or row["item_short_label_snapshot"]
-    admin_only = bool(row["current_admin_only"] if row["current_admin_only"] is not None else row["admin_only_snapshot"])
+    admin_only = bool(
+        row["current_admin_only"] if row["current_admin_only"] is not None else row["admin_only_snapshot"]
+    )
     snapshot_name = row["item_name_snapshot"]
     snapshot_short = row["item_short_label_snapshot"]
     renamed = current_name != snapshot_name or current_short != snapshot_short
@@ -562,7 +570,9 @@ def serialize_open_line(row: sqlite3.Row) -> dict:
         "quantity": qty,
         "price": round(price, 2),
         "unit_price_eur": round(price, 2),
-        "unit_purchase_price_eur": round(float(row["unit_purchase_price_eur"] if "unit_purchase_price_eur" in row.keys() else 0), 2),
+        "unit_purchase_price_eur": round(
+            float(row["unit_purchase_price_eur"] if "unit_purchase_price_eur" in row.keys() else 0), 2
+        ),
         "subtotal": round(qty * price, 2),
         "pending_remove": pending,
         "available_for_request": max(0, qty - pending),
@@ -779,7 +789,13 @@ def archive_member_message_if_completed(conn: sqlite3.Connection, message_id: in
         """,
         (now_text(), message_id),
     )
-    log_transaction(conn, None, "MEMBER_MESSAGE_ARCHIVED", 0, f"Nachricht automatisch archiviert: #{message_id} {row['title'] or ''}".strip())
+    log_transaction(
+        conn,
+        None,
+        "MEMBER_MESSAGE_ARCHIVED",
+        0,
+        f"Nachricht automatisch archiviert: #{message_id} {row['title'] or ''}".strip(),
+    )
     return True
 
 
@@ -908,9 +924,7 @@ def current_event_round_units(conn: sqlite3.Connection) -> list[dict]:
 
 
 def current_event_start_transaction_id(conn: sqlite3.Connection) -> int:
-    row = conn.execute(
-        "SELECT COALESCE(MAX(id), 0) AS id FROM transactions WHERE type = 'CASHUP'"
-    ).fetchone()
+    row = conn.execute("SELECT COALESCE(MAX(id), 0) AS id FROM transactions WHERE type = 'CASHUP'").fetchone()
     return int(row["id"] or 0)
 
 
@@ -934,9 +948,7 @@ def current_event_rounds_revision(conn: sqlite3.Connection) -> str:
     parts = []
     for unit in current_event_round_units(conn):
         source_id = unit["paid_round_unit_id"] if unit["source"] == "paid_unit" else unit["order_line_id"]
-        parts.append(
-            f"{unit['source']}:{source_id}:{unit['payer_person_id']}:{unit['round_price_eur']}"
-        )
+        parts.append(f"{unit['source']}:{source_id}:{unit['payer_person_id']}:{unit['round_price_eur']}")
     raw = "|".join(parts)
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:24]
 
@@ -991,10 +1003,7 @@ def build_person_round_deduction_plan(conn: sqlite3.Connection, person_id: int) 
         """,
         (person_id, ROUND_ITEM_NAME, ROUND_ITEM_NAME),
     ).fetchall()
-    remaining = {
-        int(row["id"]): max(0, int(row["quantity"]) - int(row["pending_remove"] or 0))
-        for row in drink_rows
-    }
+    remaining = {int(row["id"]): max(0, int(row["quantity"]) - int(row["pending_remove"] or 0)) for row in drink_rows}
     deductions = []
     for round_unit in round_units[already_deducted:]:
         chosen = None
@@ -1006,7 +1015,9 @@ def build_person_round_deduction_plan(conn: sqlite3.Connection, person_id: int) 
             continue
         remaining[int(chosen["id"])] -= 1
         price = rounded_money(float(chosen["unit_price_eur"] or 0))
-        purchase = rounded_money(float(chosen["unit_purchase_price_eur"] if "unit_purchase_price_eur" in chosen.keys() else 0))
+        purchase = rounded_money(
+            float(chosen["unit_purchase_price_eur"] if "unit_purchase_price_eur" in chosen.keys() else 0)
+        )
         deductions.append(
             {
                 "round_index": round_unit["round_index"],
@@ -1033,7 +1044,10 @@ def build_person_round_deduction_plan(conn: sqlite3.Connection, person_id: int) 
         "deducted_items": len(deductions),
         "deducted_vk_eur": deducted_vk,
         "deducted_purchase_eur": deducted_purchase,
-        "deductions": sorted(deductions, key=lambda item: (float(item["unit_price_eur"]), str(item["item"]).lower(), int(item["line_id"]))),
+        "deductions": sorted(
+            deductions,
+            key=lambda item: (float(item["unit_price_eur"]), str(item["item"]).lower(), int(item["line_id"])),
+        ),
     }
 
 
@@ -1110,13 +1124,20 @@ def validate_round_deductions_are_current(conn: sqlite3.Connection, deductions: 
             raise HTTPException(status_code=409, detail="Rundenabzug nicht mehr aktuell: Posten wurde bereits entfernt")
         available = max(0, int(row["quantity"] or 0) - int(row["pending_remove"] or 0))
         if not bool(row["event_open"]):
-            raise HTTPException(status_code=409, detail="Rundenabzug nicht mehr aktuell: Posten wurde bereits beim Kassensturz geschlossen")
+            raise HTTPException(
+                status_code=409,
+                detail="Rundenabzug nicht mehr aktuell: Posten wurde bereits beim Kassensturz geschlossen",
+            )
         if is_round_order_line(row) or bool(row["admin_only_snapshot"]):
             raise HTTPException(status_code=409, detail="Rundenabzug darf nur normale offene Getraenke entfernen")
         if available < needed:
             raise HTTPException(status_code=409, detail="Rundenabzug nicht mehr aktuell: Posten wurde bereits entfernt")
-        if row["item_name_snapshot"] != item["item"] or rounded_money(float(row["unit_price_eur"] or 0)) != rounded_money(float(item["unit_price_eur"] or 0)):
-            raise HTTPException(status_code=409, detail="Rundenabzug nicht mehr aktuell: Artikelstand hat sich geaendert")
+        if row["item_name_snapshot"] != item["item"] or rounded_money(
+            float(row["unit_price_eur"] or 0)
+        ) != rounded_money(float(item["unit_price_eur"] or 0)):
+            raise HTTPException(
+                status_code=409, detail="Rundenabzug nicht mehr aktuell: Artikelstand hat sich geaendert"
+            )
 
 
 def apply_person_round_deductions(
@@ -1144,13 +1165,20 @@ def apply_person_round_deductions(
         _, actual = remove_from_order_line(conn, int(item["line_id"]), 1, allow_session_id=allow_session_id)
         if actual != 1:
             raise HTTPException(status_code=409, detail="Rundenabzug konnte nicht konsistent ausgefuehrt werden")
-        log_transaction_item(conn, tx_id, int(item["person_id"]), {
-            "item_id": item["item_id"],
-            "item_name_snapshot": item["item"],
-            "item_short_label_snapshot": item["short_label"],
-            "unit_price_eur": item["unit_price_eur"],
-            "unit_purchase_price_eur": item["unit_purchase_price_eur"],
-        }, -1, "ROUND_DEDUCTED")
+        log_transaction_item(
+            conn,
+            tx_id,
+            int(item["person_id"]),
+            {
+                "item_id": item["item_id"],
+                "item_name_snapshot": item["item"],
+                "item_short_label_snapshot": item["short_label"],
+                "unit_price_eur": item["unit_price_eur"],
+                "unit_purchase_price_eur": item["unit_purchase_price_eur"],
+            },
+            -1,
+            "ROUND_DEDUCTED",
+        )
     conn.execute(
         """
         INSERT INTO round_events (
@@ -1434,7 +1462,12 @@ def kassa_person_payload(conn: sqlite3.Connection, person: sqlite3.Row, lines: l
 def make_counts(lines: list[sqlite3.Row]) -> dict[str, int]:
     counts: dict[str, int] = {}
     for line in lines:
-        label = line["current_item_short_label"] or line["item_short_label_snapshot"] or line["current_item_name"] or line["item_name_snapshot"]
+        label = (
+            line["current_item_short_label"]
+            or line["item_short_label_snapshot"]
+            or line["current_item_name"]
+            or line["item_name_snapshot"]
+        )
         counts[label] = counts.get(label, 0) + int(line["quantity"])
         if line["item_id"] is not None:
             counts[str(line["item_id"])] = counts.get(str(line["item_id"]), 0) + int(line["quantity"])
@@ -1450,12 +1483,21 @@ def make_summary_lines(lines: list[sqlite3.Row]) -> list[dict]:
     """
     grouped: dict[object, dict] = {}
     for line in lines:
-        key = ("item", int(line["item_id"])) if line["item_id"] is not None else (
-            "snapshot",
-            line["item_name_snapshot"],
-            line["item_short_label_snapshot"],
+        key = (
+            ("item", int(line["item_id"]))
+            if line["item_id"] is not None
+            else (
+                "snapshot",
+                line["item_name_snapshot"],
+                line["item_short_label_snapshot"],
+            )
         )
-        label = line["current_item_short_label"] or line["item_short_label_snapshot"] or line["current_item_name"] or line["item_name_snapshot"]
+        label = (
+            line["current_item_short_label"]
+            or line["item_short_label_snapshot"]
+            or line["current_item_name"]
+            or line["item_name_snapshot"]
+        )
         name = line["current_item_name"] or line["item_name_snapshot"]
         sort_order = int(line["current_sort_order"] if line["current_sort_order"] is not None else 9999)
         if key not in grouped:
@@ -1471,7 +1513,10 @@ def make_summary_lines(lines: list[sqlite3.Row]) -> list[dict]:
         grouped[key]["name"] = name
         grouped[key]["short_label"] = label
         grouped[key]["sort_order"] = min(grouped[key]["sort_order"], sort_order)
-    return sorted(grouped.values(), key=lambda item: (item["sort_order"], str(item["short_label"]).lower(), str(item["name"]).lower()))
+    return sorted(
+        grouped.values(),
+        key=lambda item: (item["sort_order"], str(item["short_label"]).lower(), str(item["name"]).lower()),
+    )
 
 
 def make_event_summary_lines(lines: list[sqlite3.Row]) -> list[dict]:
@@ -1605,22 +1650,36 @@ def ui_appearance_settings(conn: sqlite3.Connection) -> dict:
         "enable_delete_requests": setting_bool(conn, "enable_delete_requests", "1"),
         "show_person_popup_total": setting_bool(conn, "show_person_popup_total", "1"),
         "app_background_color": normalize_hex_color(get_setting(conn, "app_background_color", "#f3f4f6"), "#f3f4f6"),
-        "person_card_background_color": normalize_hex_color(get_setting(conn, "person_card_background_color", "#ffffff"), "#ffffff"),
-        "person_card_border_color": normalize_hex_color(get_setting(conn, "person_card_border_color", "#bfdbfe"), "#bfdbfe"),
+        "person_card_background_color": normalize_hex_color(
+            get_setting(conn, "person_card_background_color", "#ffffff"), "#ffffff"
+        ),
+        "person_card_border_color": normalize_hex_color(
+            get_setting(conn, "person_card_border_color", "#bfdbfe"), "#bfdbfe"
+        ),
         "person_card_border_width_px": max(0, min(8, int(get_setting(conn, "person_card_border_width_px", "2") or 2))),
         "person_card_gap_px": max(4, min(32, int(get_setting(conn, "person_card_gap_px", "10") or 10))),
         "drink_feedback_enabled": setting_bool(conn, "drink_feedback_enabled", "1"),
         "drink_feedback_style": feedback_style,
-        "drink_feedback_duration_ms": max(500, min(3000, int(get_setting(conn, "drink_feedback_duration_ms", "1400") or 1400))),
-        "drink_feedback_animation_intensity_percent": max(0, min(200, int(get_setting(conn, "drink_feedback_animation_intensity_percent", "100") or 100))),
+        "drink_feedback_duration_ms": max(
+            500, min(3000, int(get_setting(conn, "drink_feedback_duration_ms", "1400") or 1400))
+        ),
+        "drink_feedback_animation_intensity_percent": max(
+            0, min(200, int(get_setting(conn, "drink_feedback_animation_intensity_percent", "100") or 100))
+        ),
         "drink_feedback_position": feedback_position,
         "drink_booking_sound_enabled": setting_bool(conn, "drink_booking_sound_enabled", "1"),
         "drink_booking_sound_preset": booking_sound_preset,
         "drink_celebration_mode": celebration_mode,
         "drink_celebration_condition_round": setting_bool(conn, "drink_celebration_condition_round", "1"),
         "drink_celebration_condition_debt": setting_bool(conn, "drink_celebration_condition_debt", "1"),
-        "drink_celebration_debt_threshold_eur": rounded_money(parse_decimal_value(get_setting(conn, "drink_celebration_debt_threshold_eur", "50.00") or "50.00", "Grenzwert")),
-        "drink_celebration_confetti_intensity_percent": max(0, min(200, int(get_setting(conn, "drink_celebration_confetti_intensity_percent", "100") or 100))),
+        "drink_celebration_debt_threshold_eur": rounded_money(
+            parse_decimal_value(
+                get_setting(conn, "drink_celebration_debt_threshold_eur", "50.00") or "50.00", "Grenzwert"
+            )
+        ),
+        "drink_celebration_confetti_intensity_percent": max(
+            0, min(200, int(get_setting(conn, "drink_celebration_confetti_intensity_percent", "100") or 100))
+        ),
         "drink_celebration_sound_enabled": setting_bool(conn, "drink_celebration_sound_enabled", "1"),
     }
 
@@ -1630,7 +1689,9 @@ def cost_notice_settings(conn: sqlite3.Connection) -> dict:
         parse_decimal_value(get_setting(conn, "cost_warning_threshold_eur", "30.00") or "30.00", "Kostenwarnung")
     )
     reminder_threshold = rounded_money(
-        parse_decimal_value(get_setting(conn, "payment_reminder_threshold_eur", "50.00") or "50.00", "Zahlungserinnerung")
+        parse_decimal_value(
+            get_setting(conn, "payment_reminder_threshold_eur", "50.00") or "50.00", "Zahlungserinnerung"
+        )
     )
     return {
         "cost_warning_enabled": setting_bool(conn, "cost_warning_enabled", "1"),
@@ -1753,7 +1814,9 @@ def sumup_config_from_settings(settings: dict, require_reader: bool = True) -> S
     if missing:
         missing_text = ", ".join(missing)
         action = "Reader koppeln" if not require_reader else "Self-Checkout starten"
-        raise HTTPException(status_code=503, detail=f"SumUp ist für {action} nicht vollständig konfiguriert: {missing_text}")
+        raise HTTPException(
+            status_code=503, detail=f"SumUp ist für {action} nicht vollständig konfiguriert: {missing_text}"
+        )
     if require_reader and not settings.get("sumup_configured"):
         missing = ", ".join(settings.get("sumup_missing") or [])
         raise HTTPException(status_code=503, detail=f"SumUp ist nicht vollständig konfiguriert: {missing}")
@@ -1855,10 +1918,16 @@ def cents_to_eur(cents: int) -> float:
 def card_payment_breakdown(base_total_eur: float, rounding_mode: str | None = "none") -> dict:
     normalized_mode = normalize_card_rounding_mode(rounding_mode)
     base_amount_cents = eur_cents(base_total_eur)
-    card_fee_cents = 0 if base_amount_cents <= 0 else max(CARD_PAYMENT_MIN_FEE_CENTS, (base_amount_cents * CARD_PAYMENT_FEE_RATE_PERCENT + 99) // 100)
+    card_fee_cents = (
+        0
+        if base_amount_cents <= 0
+        else max(CARD_PAYMENT_MIN_FEE_CENTS, (base_amount_cents * CARD_PAYMENT_FEE_RATE_PERCENT + 99) // 100)
+    )
     subtotal_cents = base_amount_cents + card_fee_cents
     step_cents = CARD_PAYMENT_ROUNDING_STEPS[normalized_mode]
-    rounded_total_cents = subtotal_cents if step_cents <= 1 else ((subtotal_cents + step_cents - 1) // step_cents) * step_cents
+    rounded_total_cents = (
+        subtotal_cents if step_cents <= 1 else ((subtotal_cents + step_cents - 1) // step_cents) * step_cents
+    )
     rounding_adjustment_cents = rounded_total_cents - subtotal_cents
     return {
         "base_amount_cents": base_amount_cents,
@@ -1890,7 +1959,9 @@ def mark_self_payment_session(
     transaction_id: int | None = None,
     provider_checkout_id: str | None = None,
 ):
-    completed_at = now_text() if status.upper() in {"PAID", "FAILED", "CANCELLED", "TIMEOUT", "UNKNOWN", "EXPIRED"} else None
+    completed_at = (
+        now_text() if status.upper() in {"PAID", "FAILED", "CANCELLED", "TIMEOUT", "UNKNOWN", "EXPIRED"} else None
+    )
     conn.execute(
         """
         UPDATE self_payment_sessions
@@ -1957,14 +2028,22 @@ def self_payment_status_payload(conn: sqlite3.Connection, session, duplicate: bo
         "Test-Kartenzahlung" if is_test_payment else "SumUp-Zahlung",
     )
     message_by_status = {
-        "CREATED": message_text("payment_status_created", "{payment_label} wird vorbereitet.", payment_label=payment_label),
-        "SENT_TO_READER": message_text("payment_status_sent_to_reader", "Zahlung eingeleitet, bitte Bezahlterminal beachten."),
+        "CREATED": message_text(
+            "payment_status_created", "{payment_label} wird vorbereitet.", payment_label=payment_label
+        ),
+        "SENT_TO_READER": message_text(
+            "payment_status_sent_to_reader", "Zahlung eingeleitet, bitte Bezahlterminal beachten."
+        ),
         "PENDING": message_text("payment_status_pending", "Zahlung laeuft. Bitte warten."),
         "PAID": message_text("payment_status_paid", "Zahlung abgeschlossen."),
         "FAILED": session["error"] or message_text("payment_status_failed", "Zahlung fehlgeschlagen."),
         "CANCELLED": session["error"] or message_text("payment_status_cancelled", "Zahlung abgebrochen."),
-        "TIMEOUT": session["error"] or message_text("payment_status_timeout", "Bezahlsession ist abgelaufen. Offene Posten bleiben bestehen."),
-        "UNKNOWN": session["error"] or message_text("payment_status_unknown", "Status ist unklar. Bitte Zahlung pruefen; offene Posten bleiben bestehen."),
+        "TIMEOUT": session["error"]
+        or message_text("payment_status_timeout", "Bezahlsession ist abgelaufen. Offene Posten bleiben bestehen."),
+        "UNKNOWN": session["error"]
+        or message_text(
+            "payment_status_unknown", "Status ist unklar. Bitte Zahlung pruefen; offene Posten bleiben bestehen."
+        ),
         "EXPIRED": session["error"] or message_text("payment_status_expired", "Bezahlsession ist abgelaufen."),
     }
     public_status = {
@@ -1981,7 +2060,9 @@ def self_payment_status_payload(conn: sqlite3.Connection, session, duplicate: bo
     amount_cents = int(session["amount_cents"] or 0)
     base_amount_cents = int(session["base_amount_cents"] or 0) if "base_amount_cents" in session.keys() else 0
     card_fee_cents = int(session["card_fee_cents"] or 0) if "card_fee_cents" in session.keys() else 0
-    rounding_adjustment_cents = int(session["rounding_adjustment_cents"] or 0) if "rounding_adjustment_cents" in session.keys() else 0
+    rounding_adjustment_cents = (
+        int(session["rounding_adjustment_cents"] or 0) if "rounding_adjustment_cents" in session.keys() else 0
+    )
     if base_amount_cents <= 0:
         base_amount_cents = max(0, amount_cents - card_fee_cents - rounding_adjustment_cents)
     fallback_payment_message = message_by_status.get(
@@ -2124,11 +2205,7 @@ def admin_rate_key(request: Request) -> str:
 def check_admin_login_rate_limit(request: Request) -> None:
     key = admin_rate_key(request)
     now_ts = datetime.now().timestamp()
-    attempts = [
-        ts
-        for ts in ADMIN_LOGIN_ATTEMPTS.get(key, [])
-        if now_ts - ts < ADMIN_LOGIN_RATE_WINDOW_SECONDS
-    ]
+    attempts = [ts for ts in ADMIN_LOGIN_ATTEMPTS.get(key, []) if now_ts - ts < ADMIN_LOGIN_RATE_WINDOW_SECONDS]
     if len(attempts) >= ADMIN_LOGIN_RATE_LIMIT:
         ADMIN_LOGIN_ATTEMPTS[key] = attempts
         raise HTTPException(status_code=429, detail="Zu viele Loginversuche. Bitte kurz warten.")
@@ -2144,6 +2221,7 @@ def clear_admin_login_rate_limit(request: Request) -> None:
 # Static pages + public APIs
 # ---------------------------------------------------------------------------
 
+
 @app.get("/health")
 def health():
     with get_conn() as conn:
@@ -2154,6 +2232,7 @@ def health():
             "people": conn.execute("SELECT COUNT(*) AS c FROM people WHERE archived_at IS NULL").fetchone()["c"],
             "items": conn.execute("SELECT COUNT(*) AS c FROM items WHERE archived_at IS NULL").fetchone()["c"],
         }
+
 
 @app.get("/api/sync-status")
 def sync_status():
@@ -2178,7 +2257,9 @@ def agent_state_payload(conn: sqlite3.Connection) -> dict:
     total_open_eur = 0.0
     total_open_items = 0
     pending_total = 0
-    for row in sorted(people_rows, key=lambda r: normalize_for_sort(display_name(r["first_name"], r["last_name"]) or r["name"])):
+    for row in sorted(
+        people_rows, key=lambda r: normalize_for_sort(display_name(r["first_name"], r["last_name"]) or r["name"])
+    ):
         lines = get_open_lines(conn, int(row["id"]))
         pending = get_pending_requests_for_person(conn, int(row["id"]))
         total = person_total_from_lines(lines)
@@ -2283,7 +2364,12 @@ def agent_book_drink(req: AgentBookDrinkRequest, request: Request):
                 (client_operation_id,),
             ).fetchone()
             if existing_operation:
-                return {"status": "ok", "duplicate": True, "transaction_id": existing_operation["transaction_id"], **get_sync_state(conn)}
+                return {
+                    "status": "ok",
+                    "duplicate": True,
+                    "transaction_id": existing_operation["transaction_id"],
+                    **get_sync_state(conn),
+                }
             try:
                 conn.execute(
                     """
@@ -2304,7 +2390,12 @@ def agent_book_drink(req: AgentBookDrinkRequest, request: Request):
                     "SELECT transaction_id FROM client_operations WHERE client_operation_id = ?",
                     (client_operation_id,),
                 ).fetchone()
-                return {"status": "ok", "duplicate": True, "transaction_id": existing_operation["transaction_id"] if existing_operation else None, **get_sync_state(conn)}
+                return {
+                    "status": "ok",
+                    "duplicate": True,
+                    "transaction_id": existing_operation["transaction_id"] if existing_operation else None,
+                    **get_sync_state(conn),
+                }
 
         total = rounded_money(quantity * float(item["price_eur"]))
         detail_parts = [f"+{quantity}x {item['name']} via Agent API"]
@@ -2321,14 +2412,24 @@ def agent_book_drink(req: AgentBookDrinkRequest, request: Request):
 
         booking_timestamp = client_booking_timestamp(req.client_time)
         line_id = add_order_line(conn, person["id"], item, quantity, booked_at=booking_timestamp)
-        tx_id = log_transaction(conn, person["id"], "CONSUME", total, " | ".join(detail_parts), timestamp=booking_timestamp)
-        log_transaction_item(conn, tx_id, person["id"], {
-            "item_id": item["id"],
-            "item_name_snapshot": item["name"],
-            "item_short_label_snapshot": item["short_label"],
-            "unit_price_eur": item["price_eur"],
-            "unit_purchase_price_eur": item["purchase_price_eur"] if "purchase_price_eur" in item.keys() else 0,
-        }, quantity, "CONSUME", timestamp=booking_timestamp)
+        tx_id = log_transaction(
+            conn, person["id"], "CONSUME", total, " | ".join(detail_parts), timestamp=booking_timestamp
+        )
+        log_transaction_item(
+            conn,
+            tx_id,
+            person["id"],
+            {
+                "item_id": item["id"],
+                "item_name_snapshot": item["name"],
+                "item_short_label_snapshot": item["short_label"],
+                "unit_price_eur": item["price_eur"],
+                "unit_purchase_price_eur": item["purchase_price_eur"] if "purchase_price_eur" in item.keys() else 0,
+            },
+            quantity,
+            "CONSUME",
+            timestamp=booking_timestamp,
+        )
         if client_operation_id:
             conn.execute(
                 "UPDATE client_operations SET transaction_id = ? WHERE client_operation_id = ?",
@@ -2416,8 +2517,6 @@ def self_pay_page():
     return FileResponse(APP_DIR / "self-pay.html", media_type="text/html; charset=utf-8")
 
 
-
-
 @app.get("/manifest.webmanifest")
 def manifest():
     return FileResponse(APP_DIR / "manifest.webmanifest", media_type="application/manifest+json")
@@ -2446,6 +2545,7 @@ def icon_png():
 @app.get("/icon.svg")
 def icon_svg():
     return FileResponse(APP_DIR / "icon.svg", media_type="image/svg+xml")
+
 
 @app.get("/icon-192.png")
 def icon_192_png():
@@ -2498,9 +2598,14 @@ def config():
             "debug_enabled": not is_production(),
             "show_total_on_overview": setting_bool(conn, "show_total_on_overview", "1"),
             "tally_roughness": max(1, min(10, int(get_setting(conn, "tally_roughness", "4") or 4))),
-            "overview_name_size_px": max(12.0, min(28.0, float(get_setting(conn, "overview_name_size_px", "15.5") or 15.5))),
-            "overview_summary_size_percent": max(70, min(180, int(get_setting(conn, "overview_summary_size_percent", "100") or 100))),
-            "show_summary_label_on_overview": get_setting(conn, "show_summary_label_on_overview", "1") in {"1", "true", "True", True},
+            "overview_name_size_px": max(
+                12.0, min(28.0, float(get_setting(conn, "overview_name_size_px", "15.5") or 15.5))
+            ),
+            "overview_summary_size_percent": max(
+                70, min(180, int(get_setting(conn, "overview_summary_size_percent", "100") or 100))
+            ),
+            "show_summary_label_on_overview": get_setting(conn, "show_summary_label_on_overview", "1")
+            in {"1", "true", "True", True},
             "overview_summary_label_text": get_setting(conn, "overview_summary_label_text", "Gesamt:") or "Gesamt:",
             "tally_size_percent": max(60, min(180, int(get_setting(conn, "tally_size_percent", "100") or 100))),
             **sync_status_settings(conn),
@@ -2526,7 +2631,9 @@ def list_people():
             ORDER BY last_name COLLATE NOCASE ASC, first_name COLLATE NOCASE ASC, name COLLATE NOCASE ASC
             """
         ).fetchall()
-        people = sorted(people, key=lambda r: normalize_for_sort(display_name(r["first_name"], r["last_name"]) or r["name"]))
+        people = sorted(
+            people, key=lambda r: normalize_for_sort(display_name(r["first_name"], r["last_name"]) or r["name"])
+        )
         result = []
         for person in people:
             lines = get_open_lines(conn, person["id"])
@@ -2626,7 +2733,9 @@ def kassa_people():
             """
         ).fetchall()
         people = []
-        for row in sorted(rows, key=lambda r: normalize_for_sort(display_name(r["first_name"], r["last_name"]) or r["name"])):
+        for row in sorted(
+            rows, key=lambda r: normalize_for_sort(display_name(r["first_name"], r["last_name"]) or r["name"])
+        ):
             lines = get_open_lines(conn, int(row["id"]))
             payload = kassa_person_payload(conn, row, lines)
             people.append(
@@ -2682,7 +2791,10 @@ def admin_person_history(req: AdminPersonHistoryRequest):
 def require_self_payment_available(conn: sqlite3.Connection) -> dict:
     settings = sumup_payment_settings(conn)
     if not settings["self_payment_enabled"]:
-        raise HTTPException(status_code=403, detail="Self-Checkout ist deaktiviert. PAYMENT_PROVIDER=sumup setzen; im Testmodus ist PAYMENT_PROVIDER=test möglich.")
+        raise HTTPException(
+            status_code=403,
+            detail="Self-Checkout ist deaktiviert. PAYMENT_PROVIDER=sumup setzen; im Testmodus ist PAYMENT_PROVIDER=test möglich.",
+        )
     if not settings["sumup_configured"]:
         missing = ", ".join(settings.get("sumup_missing") or [])
         raise HTTPException(status_code=503, detail=f"SumUp ist nicht vollständig konfiguriert: {missing}")
@@ -2841,7 +2953,9 @@ def self_pay(req: SelfPayRequest):
         existing_session = self_payment_session_by_client_id(conn, client_payment_id)
         if existing_session:
             if int(existing_session["person_id"]) != int(person["id"]):
-                raise HTTPException(status_code=409, detail="Diese Zahlungs-ID wurde bereits für eine andere Person verwendet")
+                raise HTTPException(
+                    status_code=409, detail="Diese Zahlungs-ID wurde bereits für eine andere Person verwendet"
+                )
             payload = self_payment_status_payload(conn, existing_session, duplicate=True)
             conn.commit()
             return payload
@@ -2960,7 +3074,13 @@ def self_pay(req: SelfPayRequest):
                 conn.commit()
                 return payload
             mark_self_payment_session(conn, session_id, session_status, result=exc.raw_response, error=exc.message)
-            log_transaction(conn, req.person_id, "SUMUP_PAYMENT_ERROR", 0, f"SumUp-Zahlung Fehler Session #{session_id}: {exc.message[:180]}")
+            log_transaction(
+                conn,
+                req.person_id,
+                "SUMUP_PAYMENT_ERROR",
+                0,
+                f"SumUp-Zahlung Fehler Session #{session_id}: {exc.message[:180]}",
+            )
             session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
             payload = self_payment_status_payload(conn, session) if session else {"message": str(exc)}
             conn.commit()
@@ -2973,7 +3093,13 @@ def self_pay(req: SelfPayRequest):
                 conn.commit()
                 return payload
             mark_self_payment_session(conn, session_id, "UNKNOWN", error=str(exc))
-            log_transaction(conn, req.person_id, "SUMUP_PAYMENT_ERROR", 0, f"SumUp-Zahlung unklar Session #{session_id}: {str(exc)[:180]}")
+            log_transaction(
+                conn,
+                req.person_id,
+                "SUMUP_PAYMENT_ERROR",
+                0,
+                f"SumUp-Zahlung unklar Session #{session_id}: {str(exc)[:180]}",
+            )
             session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
             payload = self_payment_status_payload(conn, session) if session else {"message": str(exc)}
             conn.commit()
@@ -3003,7 +3129,13 @@ def self_pay(req: SelfPayRequest):
                 error=str(message),
                 provider_checkout_id=result.get("provider_checkout_id"),
             )
-            log_transaction(conn, req.person_id, f"SUMUP_PAYMENT_{session_status}", 0, f"SumUp-Zahlung {session_status.lower()} Session #{session_id}")
+            log_transaction(
+                conn,
+                req.person_id,
+                f"SUMUP_PAYMENT_{session_status}",
+                0,
+                f"SumUp-Zahlung {session_status.lower()} Session #{session_id}",
+            )
             session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
             payload = self_payment_status_payload(conn, session) if session else {"status": provider_status}
             conn.commit()
@@ -3011,10 +3143,25 @@ def self_pay(req: SelfPayRequest):
 
     result_amount = result.get("amount_cents")
     result_currency = str(result.get("currency") or settings["sumup_currency"]).upper()
-    if (result_amount is not None and int(result_amount) != amount_cents) or result_currency != str(settings["sumup_currency"]).upper():
+    if (result_amount is not None and int(result_amount) != amount_cents) or result_currency != str(
+        settings["sumup_currency"]
+    ).upper():
         with get_conn() as conn:
-            mark_self_payment_session(conn, session_id, "UNKNOWN", result=result, error="SumUp-Betrag oder Währung passt nicht zur Rechnung", provider_checkout_id=result.get("provider_checkout_id"))
-            log_transaction(conn, req.person_id, "SUMUP_PAYMENT_MISMATCH", total, f"SumUp erfolgreich, aber Betrag/Währung abweichend. Session #{session_id}")
+            mark_self_payment_session(
+                conn,
+                session_id,
+                "UNKNOWN",
+                result=result,
+                error="SumUp-Betrag oder Währung passt nicht zur Rechnung",
+                provider_checkout_id=result.get("provider_checkout_id"),
+            )
+            log_transaction(
+                conn,
+                req.person_id,
+                "SUMUP_PAYMENT_MISMATCH",
+                total,
+                f"SumUp erfolgreich, aber Betrag/Währung abweichend. Session #{session_id}",
+            )
             session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
             payload = self_payment_status_payload(conn, session) if session else {"status": "unknown"}
             conn.commit()
@@ -3032,8 +3179,21 @@ def self_pay(req: SelfPayRequest):
         current_revision = payment_revision(conn, lines, len(pending))
         current_payload = kassa_person_payload(conn, person, lines)
         if current_revision != session["revision"] or pending:
-            mark_self_payment_session(conn, session_id, "UNKNOWN", result=result, error="Rechnung hat sich nach SumUp-Freigabe geändert", provider_checkout_id=result.get("provider_checkout_id"))
-            log_transaction(conn, req.person_id, "SUMUP_PAYMENT_STALE", float(session["amount_eur"]), f"SumUp erfolgreich, aber Rechnung geändert. Session #{session_id}")
+            mark_self_payment_session(
+                conn,
+                session_id,
+                "UNKNOWN",
+                result=result,
+                error="Rechnung hat sich nach SumUp-Freigabe geändert",
+                provider_checkout_id=result.get("provider_checkout_id"),
+            )
+            log_transaction(
+                conn,
+                req.person_id,
+                "SUMUP_PAYMENT_STALE",
+                float(session["amount_eur"]),
+                f"SumUp erfolgreich, aber Rechnung geändert. Session #{session_id}",
+            )
             stale_session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
             payload = self_payment_status_payload(conn, stale_session) if stale_session else {"status": "unknown"}
             payload["current"] = current_payload
@@ -3045,27 +3205,40 @@ def self_pay(req: SelfPayRequest):
 
         provider_label = "Test-Kartenzahlung" if provider == "test" else "SumUp-Zahlung"
         round_plan = build_person_round_deduction_plan(conn, req.person_id)
-        apply_person_round_deductions(conn, req.person_id, round_plan, f"Bei {provider_label}", allow_session_id=session_id)
+        apply_person_round_deductions(
+            conn, req.person_id, round_plan, f"Bei {provider_label}", allow_session_id=session_id
+        )
         lines = get_open_lines(conn, req.person_id)
         grouped_details = make_payment_detail_lines(lines)
         details = [
-            f"{int(line['quantity'])}x {line['item']} zu {eur_text(line['unit_price_eur'])}"
-            for line in grouped_details
+            f"{int(line['quantity'])}x {line['item']} zu {eur_text(line['unit_price_eur'])}" for line in grouped_details
         ]
         if int(round_plan.get("deducted_items", 0) or 0) > 0:
-            details.append(f"Rundenabzug -{int(round_plan['deducted_items'])} Striche ({eur_text(round_plan['deducted_vk_eur'])})")
+            details.append(
+                f"Rundenabzug -{int(round_plan['deducted_items'])} Striche ({eur_text(round_plan['deducted_vk_eur'])})"
+            )
         card_fee_cents = int(session["card_fee_cents"] or 0) if "card_fee_cents" in session.keys() else 0
-        rounding_adjustment_cents = int(session["rounding_adjustment_cents"] or 0) if "rounding_adjustment_cents" in session.keys() else 0
+        rounding_adjustment_cents = (
+            int(session["rounding_adjustment_cents"] or 0) if "rounding_adjustment_cents" in session.keys() else 0
+        )
         rounding_mode = session["rounding_mode"] if "rounding_mode" in session.keys() else "none"
         if card_fee_cents > 0:
             details.append(f"Kartenzahlung +3 % {eur_text(cents_to_eur(card_fee_cents))}")
         if rounding_adjustment_cents > 0:
-            details.append(f"Aufrundung {card_rounding_label(rounding_mode)} {eur_text(cents_to_eur(rounding_adjustment_cents))}")
+            details.append(
+                f"Aufrundung {card_rounding_label(rounding_mode)} {eur_text(cents_to_eur(rounding_adjustment_cents))}"
+            )
         person_name = display_name(person["first_name"], person["last_name"]) or person["name"]
         reference = payment_result_reference(result)
         reference_text = f"; Ref {reference}" if reference else ""
         payment_text = "Test-Kartenzahlung bezahlt" if provider == "test" else "SumUp bezahlt"
-        tx_id = log_transaction(conn, req.person_id, "PAID_SUMUP", float(session["amount_eur"]), f"{payment_text} von {person_name}{reference_text}: " + ", ".join(details))
+        tx_id = log_transaction(
+            conn,
+            req.person_id,
+            "PAID_SUMUP",
+            float(session["amount_eur"]),
+            f"{payment_text} von {person_name}{reference_text}: " + ", ".join(details),
+        )
         preserve_paid_round_units(conn, person, lines, tx_id)
         for line in lines:
             log_transaction_item(conn, tx_id, req.person_id, line, int(line["quantity"]), "PAID_SUMUP")
@@ -3076,7 +3249,14 @@ def self_pay(req: SelfPayRequest):
                 f"UPDATE order_lines SET quantity = 0, updated_at = ? WHERE id IN ({placeholders})",
                 [now_text(), *line_ids],
             )
-        mark_self_payment_session(conn, session_id, "PAID", result=result, transaction_id=tx_id, provider_checkout_id=result.get("provider_checkout_id"))
+        mark_self_payment_session(
+            conn,
+            session_id,
+            "PAID",
+            result=result,
+            transaction_id=tx_id,
+            provider_checkout_id=result.get("provider_checkout_id"),
+        )
         paid_session = conn.execute("SELECT * FROM self_payment_sessions WHERE id = ?", (session_id,)).fetchone()
         payload = self_payment_status_payload(conn, paid_session)
         payload["paid_items"] = sum(int(line["quantity"] or 0) for line in lines)
@@ -3144,7 +3324,12 @@ def add_drink(req: AddDrinkRequest):
                 (client_operation_id,),
             ).fetchone()
             if existing_operation:
-                return {"status": "ok", "duplicate": True, "transaction_id": existing_operation["transaction_id"], **get_sync_state(conn)}
+                return {
+                    "status": "ok",
+                    "duplicate": True,
+                    "transaction_id": existing_operation["transaction_id"],
+                    **get_sync_state(conn),
+                }
             try:
                 conn.execute(
                     """
@@ -3165,7 +3350,12 @@ def add_drink(req: AddDrinkRequest):
                     "SELECT transaction_id FROM client_operations WHERE client_operation_id = ?",
                     (client_operation_id,),
                 ).fetchone()
-                return {"status": "ok", "duplicate": True, "transaction_id": existing_operation["transaction_id"] if existing_operation else None, **get_sync_state(conn)}
+                return {
+                    "status": "ok",
+                    "duplicate": True,
+                    "transaction_id": existing_operation["transaction_id"] if existing_operation else None,
+                    **get_sync_state(conn),
+                }
 
         booking_timestamp = client_booking_timestamp(req.client_time) if req.offline_queued else None
         add_order_line(conn, person["id"], item, 1, booked_at=booking_timestamp)
@@ -3186,13 +3376,21 @@ def add_drink(req: AddDrinkRequest):
             " · ".join(detail_parts),
             timestamp=booking_timestamp,
         )
-        log_transaction_item(conn, tx_id, person["id"], {
-            "item_id": item["id"],
-            "item_name_snapshot": item["name"],
-            "item_short_label_snapshot": item["short_label"],
-            "unit_price_eur": item["price_eur"],
-            "unit_purchase_price_eur": item["purchase_price_eur"] if "purchase_price_eur" in item.keys() else 0,
-        }, 1, "CONSUME", timestamp=booking_timestamp)
+        log_transaction_item(
+            conn,
+            tx_id,
+            person["id"],
+            {
+                "item_id": item["id"],
+                "item_name_snapshot": item["name"],
+                "item_short_label_snapshot": item["short_label"],
+                "unit_price_eur": item["price_eur"],
+                "unit_purchase_price_eur": item["purchase_price_eur"] if "purchase_price_eur" in item.keys() else 0,
+            },
+            1,
+            "CONSUME",
+            timestamp=booking_timestamp,
+        )
         if client_operation_id:
             conn.execute(
                 "UPDATE client_operations SET transaction_id = ? WHERE client_operation_id = ?",
@@ -3261,7 +3459,9 @@ def create_edit_request(req: EditRequestIn):
             if not line:
                 raise HTTPException(status_code=400, detail="Offener Posten nicht gefunden")
             if bool(line["admin_only_snapshot"]) and not is_system_item_name(line["item_name_snapshot"]):
-                raise HTTPException(status_code=400, detail=f"{line['item_name_snapshot']} darf nur vom Admin korrigiert werden")
+                raise HTTPException(
+                    status_code=400, detail=f"{line['item_name_snapshot']} darf nur vom Admin korrigiert werden"
+                )
             available = max(0, int(line["quantity"]) - int(line["pending_remove"] or 0))
             if qty_to_remove < 1 or qty_to_remove > available:
                 raise HTTPException(status_code=400, detail=f"Ungültige Menge für {line['item_name_snapshot']}")
@@ -3290,7 +3490,9 @@ def create_round_request(req: RoundRequestIn):
         item = conn.execute("SELECT * FROM items WHERE name = ? AND archived_at IS NULL", (ROUND_ITEM_NAME,)).fetchone()
         if not item:
             ensure_round_item(conn)
-            item = conn.execute("SELECT * FROM items WHERE name = ? AND archived_at IS NULL", (ROUND_ITEM_NAME,)).fetchone()
+            item = conn.execute(
+                "SELECT * FROM items WHERE name = ? AND archived_at IS NULL", (ROUND_ITEM_NAME,)
+            ).fetchone()
         if not item:
             raise HTTPException(status_code=400, detail="Rundenartikel nicht gefunden")
         add_order_line(conn, person["id"], item, qty)
@@ -3302,13 +3504,20 @@ def create_round_request(req: RoundRequestIn):
             total,
             f"Runde selbst bestätigt: +{qty}x {ROUND_ITEM_NAME}",
         )
-        log_transaction_item(conn, tx_id, person["id"], {
-            "item_id": item["id"],
-            "item_name_snapshot": item["name"],
-            "item_short_label_snapshot": item["short_label"],
-            "unit_price_eur": item["price_eur"],
-            "unit_purchase_price_eur": 0,
-        }, qty, "ROUND_REQUEST_APPROVED")
+        log_transaction_item(
+            conn,
+            tx_id,
+            person["id"],
+            {
+                "item_id": item["id"],
+                "item_name_snapshot": item["name"],
+                "item_short_label_snapshot": item["short_label"],
+                "unit_price_eur": item["price_eur"],
+                "unit_purchase_price_eur": 0,
+            },
+            qty,
+            "ROUND_REQUEST_APPROVED",
+        )
         conn.execute(
             """
             INSERT INTO round_requests (person_id, item_id, quantity, reason, status, requested_at, decided_at)
@@ -3323,6 +3532,7 @@ def create_round_request(req: RoundRequestIn):
 # ---------------------------------------------------------------------------
 # Payment, admin adjustments, rounds
 # ---------------------------------------------------------------------------
+
 
 def resolve_pending_for_payment(conn: sqlite3.Connection, req: PayRequest):
     pending = get_pending_requests_for_person(conn, req.person_id)
@@ -3345,9 +3555,13 @@ def resolve_pending_for_payment(conn: sqlite3.Connection, req: PayRequest):
         raise HTTPException(status_code=400, detail="Unbekannte Änderungswünsche ausgewählt")
     overlap = approve_ids & reject_ids
     if overlap:
-        raise HTTPException(status_code=400, detail="Ein Änderungswunsch kann nicht gleichzeitig bestätigt und abgelehnt werden")
+        raise HTTPException(
+            status_code=400, detail="Ein Änderungswunsch kann nicht gleichzeitig bestätigt und abgelehnt werden"
+        )
     if (approve_ids | reject_ids) != pending_ids:
-        raise HTTPException(status_code=400, detail="Alle Änderungswünsche müssen vor dem Bezahlen bestätigt oder abgelehnt werden")
+        raise HTTPException(
+            status_code=400, detail="Alle Änderungswünsche müssen vor dem Bezahlen bestätigt oder abgelehnt werden"
+        )
 
     handled = []
     for item in pending:
@@ -3421,7 +3635,9 @@ def decide_single_change_request(conn: sqlite3.Connection, request_id: int, deci
 
     if decision_norm == "APPROVED":
         if int(row["current_quantity"]) < qty:
-            raise HTTPException(status_code=400, detail="Der offene Posten ist nicht mehr in ausreichender Menge vorhanden")
+            raise HTTPException(
+                status_code=400, detail="Der offene Posten ist nicht mehr in ausreichender Menge vorhanden"
+            )
         line, actual = remove_from_order_line(conn, int(row["order_line_id"]), qty)
         conn.execute(
             "UPDATE change_requests SET status = 'APPROVED', decided_at = ? WHERE id = ?",
@@ -3491,7 +3707,9 @@ def admin_decide_round_request(req: AdminRoundRequestDecision):
         if row["status"] != "PENDING":
             raise HTTPException(status_code=400, detail="Rundenanfrage ist bereits abgeschlossen")
 
-        item = conn.execute("SELECT * FROM items WHERE id = ?", (row["item_id"],)).fetchone() if row["item_id"] else None
+        item = (
+            conn.execute("SELECT * FROM items WHERE id = ?", (row["item_id"],)).fetchone() if row["item_id"] else None
+        )
         if not item:
             ensure_round_item(conn)
             item = conn.execute("SELECT * FROM items WHERE name = ?", (ROUND_ITEM_NAME,)).fetchone()
@@ -3501,20 +3719,47 @@ def admin_decide_round_request(req: AdminRoundRequestDecision):
         if decision_norm == "APPROVED":
             add_order_line(conn, int(row["person_id"]), item, qty)
             total = qty * float(item["price_eur"])
-            tx_id = log_transaction(conn, int(row["person_id"]), "ROUND_REQUEST_APPROVED", total, f"Rundenanfrage bestätigt: +{qty}x {ROUND_ITEM_NAME} für {person_name}")
-            log_transaction_item(conn, tx_id, int(row["person_id"]), {
-                "item_id": item["id"],
-                "item_name_snapshot": item["name"],
-                "item_short_label_snapshot": item["short_label"],
-                "unit_price_eur": item["price_eur"],
-                "unit_purchase_price_eur": 0,
-            }, qty, "ROUND_REQUEST_APPROVED")
+            tx_id = log_transaction(
+                conn,
+                int(row["person_id"]),
+                "ROUND_REQUEST_APPROVED",
+                total,
+                f"Rundenanfrage bestätigt: +{qty}x {ROUND_ITEM_NAME} für {person_name}",
+            )
+            log_transaction_item(
+                conn,
+                tx_id,
+                int(row["person_id"]),
+                {
+                    "item_id": item["id"],
+                    "item_name_snapshot": item["name"],
+                    "item_short_label_snapshot": item["short_label"],
+                    "unit_price_eur": item["price_eur"],
+                    "unit_purchase_price_eur": 0,
+                },
+                qty,
+                "ROUND_REQUEST_APPROVED",
+            )
         else:
-            log_transaction(conn, int(row["person_id"]), "ROUND_REQUEST_REJECTED", 0, f"Rundenanfrage abgelehnt: +{qty}x {ROUND_ITEM_NAME} für {person_name}")
+            log_transaction(
+                conn,
+                int(row["person_id"]),
+                "ROUND_REQUEST_REJECTED",
+                0,
+                f"Rundenanfrage abgelehnt: +{qty}x {ROUND_ITEM_NAME} für {person_name}",
+            )
 
-        conn.execute("UPDATE round_requests SET status = ?, decided_at = ? WHERE id = ?", (decision_norm, now_text(), req.request_id))
+        conn.execute(
+            "UPDATE round_requests SET status = ?, decided_at = ? WHERE id = ?",
+            (decision_norm, now_text(), req.request_id),
+        )
         conn.commit()
-        return {"status": "ok", "request_id": req.request_id, "decision": decision_norm, "person_id": int(row["person_id"])}
+        return {
+            "status": "ok",
+            "request_id": req.request_id,
+            "decision": decision_norm,
+            "person_id": int(row["person_id"]),
+        }
 
 
 @app.post("/api/pay")
@@ -3524,7 +3769,9 @@ def pay(req: PayRequest):
         person = get_person(conn, req.person_id, allow_archived=True)
         ensure_no_active_self_payment(conn, int(person["id"]))
         handled = resolve_pending_for_payment(conn, req)
-        round_pending = conn.execute("SELECT COUNT(*) AS c FROM round_requests WHERE person_id = ? AND status = 'PENDING'", (req.person_id,)).fetchone()["c"]
+        round_pending = conn.execute(
+            "SELECT COUNT(*) AS c FROM round_requests WHERE person_id = ? AND status = 'PENDING'", (req.person_id,)
+        ).fetchone()["c"]
         if round_pending:
             raise HTTPException(status_code=400, detail="Bitte zuerst alle Rundenanfragen mit ✓ oder ✕ abschließen")
 
@@ -3548,12 +3795,16 @@ def pay(req: PayRequest):
             )
 
         if int(round_plan.get("deducted_items", 0) or 0) > 0:
-            details.append(f"Rundenabzug -{int(round_plan['deducted_items'])} Striche ({eur_text(round_plan['deducted_vk_eur'])})")
+            details.append(
+                f"Rundenabzug -{int(round_plan['deducted_items'])} Striche ({eur_text(round_plan['deducted_vk_eur'])})"
+            )
         if not details:
             details.append("durch Rundenabzug ausgeglichen")
 
         person_name = display_name(person["first_name"], person["last_name"]) or person["name"]
-        tx_id = log_transaction(conn, req.person_id, "PAID_CASH", total, f"Bar bezahlt von {person_name}: " + ", ".join(details))
+        tx_id = log_transaction(
+            conn, req.person_id, "PAID_CASH", total, f"Bar bezahlt von {person_name}: " + ", ".join(details)
+        )
         preserve_paid_round_units(conn, person, lines, tx_id)
         for line in lines:
             log_transaction_item(conn, tx_id, req.person_id, line, int(line["quantity"]), "PAID_CASH")
@@ -3615,16 +3866,19 @@ def kassa_pay(req: KassaPayRequest):
         total = person_total_from_lines(lines)
         grouped_details = make_payment_detail_lines(lines)
         details = [
-            f"{int(line['quantity'])}x {line['item']} à {eur_text(line['unit_price_eur'])}"
-            for line in grouped_details
+            f"{int(line['quantity'])}x {line['item']} à {eur_text(line['unit_price_eur'])}" for line in grouped_details
         ]
         if int(round_plan.get("deducted_items", 0) or 0) > 0:
-            details.append(f"Rundenabzug -{int(round_plan['deducted_items'])} Striche ({eur_text(round_plan['deducted_vk_eur'])})")
+            details.append(
+                f"Rundenabzug -{int(round_plan['deducted_items'])} Striche ({eur_text(round_plan['deducted_vk_eur'])})"
+            )
         if not details:
             details.append("durch Rundenabzug ausgeglichen")
 
         person_name = display_name(person["first_name"], person["last_name"]) or person["name"]
-        tx_id = log_transaction(conn, req.person_id, "PAID_CASH", total, f"Kassa bezahlt von {person_name}: " + ", ".join(details))
+        tx_id = log_transaction(
+            conn, req.person_id, "PAID_CASH", total, f"Kassa bezahlt von {person_name}: " + ", ".join(details)
+        )
         preserve_paid_round_units(conn, person, lines, tx_id)
         for line in lines:
             log_transaction_item(conn, tx_id, req.person_id, line, int(line["quantity"]), "PAID_CASH")
@@ -3664,13 +3918,20 @@ def admin_adjust_drink(req: AdminAdjustItemRequest):
             total = delta * float(item["price_eur"])
             details = f"Admin: +{delta}x {item['name']} à {eur_text(item['price_eur'])}"
             tx_id = log_transaction(conn, person["id"], "ADMIN_ADJUSTMENT", total, details)
-            log_transaction_item(conn, tx_id, person["id"], {
-                "item_id": item["id"],
-                "item_name_snapshot": item["name"],
-                "item_short_label_snapshot": item["short_label"],
-                "unit_price_eur": item["price_eur"],
-                "unit_purchase_price_eur": item["purchase_price_eur"] if "purchase_price_eur" in item.keys() else 0,
-            }, delta, "CONSUME")
+            log_transaction_item(
+                conn,
+                tx_id,
+                person["id"],
+                {
+                    "item_id": item["id"],
+                    "item_name_snapshot": item["name"],
+                    "item_short_label_snapshot": item["short_label"],
+                    "unit_price_eur": item["price_eur"],
+                    "unit_purchase_price_eur": item["purchase_price_eur"] if "purchase_price_eur" in item.keys() else 0,
+                },
+                delta,
+                "CONSUME",
+            )
         else:
             to_remove = abs(delta)
             removed_qty = 0
@@ -3699,7 +3960,9 @@ def admin_adjust_drink(req: AdminAdjustItemRequest):
                 removed_parts.append(f"-{actual}x {line['item_name_snapshot']} à {eur_text(line['unit_price_eur'])}")
             if removed_qty == 0:
                 raise HTTPException(status_code=400, detail="Dieser Artikel ist bei dieser Person nicht offen")
-            log_transaction(conn, person["id"], "ADMIN_ADJUSTMENT", -removed_total, "Admin: " + ", ".join(removed_parts))
+            log_transaction(
+                conn, person["id"], "ADMIN_ADJUSTMENT", -removed_total, "Admin: " + ", ".join(removed_parts)
+            )
 
         conn.commit()
         lines = get_open_lines(conn, person["id"])
@@ -3856,7 +4119,9 @@ def build_auto_round_plan(conn: sqlite3.Connection) -> dict:
                 continue
             remaining[int(chosen["id"])] -= 1
             price = round(float(chosen["unit_price_eur"]), 2)
-            purchase = round(float(chosen["unit_purchase_price_eur"] if "unit_purchase_price_eur" in chosen.keys() else 0), 2)
+            purchase = round(
+                float(chosen["unit_purchase_price_eur"] if "unit_purchase_price_eur" in chosen.keys() else 0), 2
+            )
             deduction = {
                 "round_index": round_unit["round_index"],
                 "payer_name": round_unit["payer_name"],
@@ -3938,13 +4203,20 @@ def apply_auto_round_deductions(conn: sqlite3.Connection, plan: dict):
             _, actual = remove_from_order_line(conn, int(item["line_id"]), 1)
             if actual != 1:
                 raise HTTPException(status_code=409, detail="Rundenabzug konnte nicht konsistent ausgeführt werden")
-            log_transaction_item(conn, tx_id, int(item["person_id"]), {
-                "item_id": item["item_id"],
-                "item_name_snapshot": item["item"],
-                "item_short_label_snapshot": item["short_label"],
-                "unit_price_eur": item["unit_price_eur"],
-                "unit_purchase_price_eur": item["unit_purchase_price_eur"],
-            }, -1, "ROUND_DEDUCTED")
+            log_transaction_item(
+                conn,
+                tx_id,
+                int(item["person_id"]),
+                {
+                    "item_id": item["item_id"],
+                    "item_name_snapshot": item["item"],
+                    "item_short_label_snapshot": item["short_label"],
+                    "unit_price_eur": item["unit_price_eur"],
+                    "unit_purchase_price_eur": item["unit_purchase_price_eur"],
+                },
+                -1,
+                "ROUND_DEDUCTED",
+            )
         conn.execute(
             """
             INSERT INTO round_events (
@@ -4003,7 +4275,11 @@ def calculate_cashup_preview(conn: sqlite3.Connection):
     for item in auto_rounds.get("deductions", []):
         line_id = int(item["line_id"])
         remaining_by_line[line_id] = max(0, remaining_by_line.get(line_id, 0) - 1)
-    details = [cashup_detail_from_row(row, remaining_by_line[int(row["id"])]) for row in rows if remaining_by_line[int(row["id"])] > 0]
+    details = [
+        cashup_detail_from_row(row, remaining_by_line[int(row["id"])])
+        for row in rows
+        if remaining_by_line[int(row["id"])] > 0
+    ]
     count_lines = len(details)
     count_items = sum(int(row["quantity"]) for row in details)
     total = round(sum(float(row["subtotal_eur"]) for row in details), 2)
@@ -4051,7 +4327,10 @@ def admin_cashup(req: CashupRequest):
                 f"Kassensturz: {data['closed_items']} Striche auf offene Rechnungen übertragen; Summe {eur_text(data['total'])}",
             )
         if data["closed_lines"]:
-            conn.execute("UPDATE order_lines SET event_open = 0, updated_at = ? WHERE quantity > 0 AND event_open = 1", (now_text(),))
+            conn.execute(
+                "UPDATE order_lines SET event_open = 0, updated_at = ? WHERE quantity > 0 AND event_open = 1",
+                (now_text(),),
+            )
         conn.commit()
         return {"status": "ok", **data}
 
@@ -4074,7 +4353,9 @@ def calculate_round_preview(conn: sqlite3.Connection):
         WHERE active = 1 AND archived_at IS NULL
         """
     ).fetchall()
-    people = sorted(people, key=lambda r: normalize_for_sort(display_name(r["first_name"], r["last_name"]) or r["name"]))
+    people = sorted(
+        people, key=lambda r: normalize_for_sort(display_name(r["first_name"], r["last_name"]) or r["name"])
+    )
 
     for person in people:
         rows = conn.execute(
@@ -4115,7 +4396,9 @@ def deduct_round_preview(req: PinRequest):
     with get_conn() as conn:
         require_pin(conn, req.pin)
         removed, total = calculate_round_preview(conn)
-        round_price = float(get_setting(conn, "round_item_price_eur", DEFAULT_ROUND_PRICE_EUR) or DEFAULT_ROUND_PRICE_EUR)
+        round_price = float(
+            get_setting(conn, "round_item_price_eur", DEFAULT_ROUND_PRICE_EUR) or DEFAULT_ROUND_PRICE_EUR
+        )
         deducted_purchase = round(sum(float(item.get("purchase_price", 0)) for item in removed), 2)
         return {
             "status": "preview",
@@ -4136,7 +4419,9 @@ def deduct_round(req: PinRequest):
         require_pin(conn, req.pin)
         ensure_no_active_self_payments(conn)
         removed, total = calculate_round_preview(conn)
-        round_price = float(get_setting(conn, "round_item_price_eur", DEFAULT_ROUND_PRICE_EUR) or DEFAULT_ROUND_PRICE_EUR)
+        round_price = float(
+            get_setting(conn, "round_item_price_eur", DEFAULT_ROUND_PRICE_EUR) or DEFAULT_ROUND_PRICE_EUR
+        )
         deducted_vk = round(float(total), 2)
         deducted_purchase = round(sum(float(item.get("purchase_price", 0)) for item in removed), 2)
         profit_vs_purchase = round(round_price - deducted_purchase, 2)
@@ -4173,7 +4458,16 @@ def deduct_round(req: PinRequest):
                     profit_vs_purchase_eur, profit_vs_retail_eur, details
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (tx_id, now_text(), round_price, deducted_vk, deducted_purchase, profit_vs_purchase, profit_vs_retail, details_main),
+                (
+                    tx_id,
+                    now_text(),
+                    round_price,
+                    deducted_vk,
+                    deducted_purchase,
+                    profit_vs_purchase,
+                    profit_vs_retail,
+                    details_main,
+                ),
             )
         conn.commit()
         return {
@@ -4191,6 +4485,7 @@ def deduct_round(req: PinRequest):
 # ---------------------------------------------------------------------------
 # Debug/test data
 # ---------------------------------------------------------------------------
+
 
 @app.post("/api/debug/add-test-data")
 def debug_add_test_data(req: PinRequest):
@@ -4223,13 +4518,18 @@ def debug_add_test_data(req: PinRequest):
 # Admin APIs
 # ---------------------------------------------------------------------------
 
+
 @app.post("/api/admin/overview")
 def admin_overview(req: PinRequest):
     with get_conn() as conn:
         require_pin(conn, req.pin)
-        people_rows = conn.execute("SELECT * FROM people ORDER BY archived_at IS NOT NULL ASC, active DESC, last_name, first_name").fetchall()
+        people_rows = conn.execute(
+            "SELECT * FROM people ORDER BY archived_at IS NOT NULL ASC, active DESC, last_name, first_name"
+        ).fetchall()
         people = []
-        for row in sorted(people_rows, key=lambda r: normalize_for_sort(display_name(r["first_name"], r["last_name"]) or r["name"])):
+        for row in sorted(
+            people_rows, key=lambda r: normalize_for_sort(display_name(r["first_name"], r["last_name"]) or r["name"])
+        ):
             lines = get_open_lines(conn, row["id"])
             people.append(
                 {
@@ -4254,11 +4554,17 @@ def admin_overview(req: PinRequest):
                 "app_name": get_setting(conn, "app_name", "Drink POS") or "Drink POS",
                 "database": database_info(),
                 "build": build_info(),
-                "round_item_price_eur": float(get_setting(conn, "round_item_price_eur", DEFAULT_ROUND_PRICE_EUR) or DEFAULT_ROUND_PRICE_EUR),
+                "round_item_price_eur": float(
+                    get_setting(conn, "round_item_price_eur", DEFAULT_ROUND_PRICE_EUR) or DEFAULT_ROUND_PRICE_EUR
+                ),
                 "show_total_on_overview": setting_bool(conn, "show_total_on_overview", "1"),
                 "tally_roughness": max(1, min(10, int(get_setting(conn, "tally_roughness", "4") or 4))),
-                "overview_name_size_px": max(12.0, min(28.0, float(get_setting(conn, "overview_name_size_px", "15.5") or 15.5))),
-                "overview_summary_size_percent": max(70, min(180, int(get_setting(conn, "overview_summary_size_percent", "100") or 100))),
+                "overview_name_size_px": max(
+                    12.0, min(28.0, float(get_setting(conn, "overview_name_size_px", "15.5") or 15.5))
+                ),
+                "overview_summary_size_percent": max(
+                    70, min(180, int(get_setting(conn, "overview_summary_size_percent", "100") or 100))
+                ),
                 "show_summary_label_on_overview": setting_bool(conn, "show_summary_label_on_overview", "1"),
                 "overview_summary_label_text": get_setting(conn, "overview_summary_label_text", "Gesamt:") or "Gesamt:",
                 "tally_size_percent": max(60, min(180, int(get_setting(conn, "tally_size_percent", "100") or 100))),
@@ -4373,7 +4679,9 @@ def admin_invoice_settings_update(req: InvoiceSettingsUpdateRequest):
             settings = event_service.update_invoice_settings(conn, values)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc))
-        log_transaction(conn, None, "INVOICE_SETTINGS_UPDATED", 0, "Rechnung-/Veranstaltungsmodus Einstellungen gespeichert")
+        log_transaction(
+            conn, None, "INVOICE_SETTINGS_UPDATED", 0, "Rechnung-/Veranstaltungsmodus Einstellungen gespeichert"
+        )
         conn.commit()
         return {"status": "ok", "settings": settings, **get_sync_state(conn)}
 
@@ -4458,7 +4766,9 @@ def admin_create_member_message(req: AdminMemberMessageCreate):
             """,
             [(message_id, person_id) for person_id in active_ids],
         )
-        log_transaction(conn, None, "MEMBER_MESSAGE_CREATED", 0, f"Nachricht #{message_id} an {len(active_ids)} Mitglied(er)")
+        log_transaction(
+            conn, None, "MEMBER_MESSAGE_CREATED", 0, f"Nachricht #{message_id} an {len(active_ids)} Mitglied(er)"
+        )
         conn.commit()
     return {"status": "ok", "id": message_id}
 
@@ -4478,7 +4788,13 @@ def admin_archive_member_message(req: AdminMemberMessageArchive):
             """,
             (now_text(), req.message_id),
         )
-        log_transaction(conn, None, "MEMBER_MESSAGE_ARCHIVED", 0, f"Nachricht archiviert: #{req.message_id} {row['title'] or ''}".strip())
+        log_transaction(
+            conn,
+            None,
+            "MEMBER_MESSAGE_ARCHIVED",
+            0,
+            f"Nachricht archiviert: #{req.message_id} {row['title'] or ''}".strip(),
+        )
         conn.commit()
     return {"status": "ok"}
 
@@ -4574,9 +4890,13 @@ def admin_create_drink(req: AdminItemCreate):
         if not name:
             raise HTTPException(status_code=400, detail="Artikelname fehlt")
         if is_system_item_name(name):
-            raise HTTPException(status_code=400, detail="„1 Runde“ wird unter Artikel & Preise verwaltet und ist kein normaler Artikel")
+            raise HTTPException(
+                status_code=400, detail="„1 Runde“ wird unter Artikel & Preise verwaltet und ist kein normaler Artikel"
+            )
         price = parse_decimal_value(req.price, "Preis")
-        purchase_price = parse_decimal_value(req.purchase_price_eur if req.purchase_price_eur is not None else req.purchase_price, "Einkaufspreis")
+        purchase_price = parse_decimal_value(
+            req.purchase_price_eur if req.purchase_price_eur is not None else req.purchase_price, "Einkaufspreis"
+        )
         if price < 0:
             raise HTTPException(status_code=400, detail="Preis darf nicht negativ sein")
         if purchase_price < 0:
@@ -4603,7 +4923,13 @@ def admin_create_drink(req: AdminItemCreate):
             )
         except sqlite3.IntegrityError:
             raise HTTPException(status_code=400, detail="Artikel existiert bereits")
-        log_transaction(conn, None, "ITEM_CREATED", 0, f"Artikel angelegt: {name} VK {eur_text(price)}, EK {eur_text(purchase_price)}")
+        log_transaction(
+            conn,
+            None,
+            "ITEM_CREATED",
+            0,
+            f"Artikel angelegt: {name} VK {eur_text(price)}, EK {eur_text(purchase_price)}",
+        )
         conn.commit()
     return {"status": "ok", "id": cur.lastrowid}
 
@@ -4617,13 +4943,18 @@ def admin_update_drink(req: AdminItemUpdate):
         if not name:
             raise HTTPException(status_code=400, detail="Artikelname fehlt")
         price = parse_decimal_value(req.price, "Preis")
-        purchase_price = parse_decimal_value(req.purchase_price_eur if req.purchase_price_eur is not None else req.purchase_price, "Einkaufspreis")
+        purchase_price = parse_decimal_value(
+            req.purchase_price_eur if req.purchase_price_eur is not None else req.purchase_price, "Einkaufspreis"
+        )
         if price < 0:
             raise HTTPException(status_code=400, detail="Preis darf nicht negativ sein")
         if purchase_price < 0:
             raise HTTPException(status_code=400, detail="Einkaufspreis darf nicht negativ sein")
         if is_system_item_name(item["name"]) or is_system_item_name(name):
-            raise HTTPException(status_code=400, detail="„1 Runde“ wird unter Artikel & Preise verwaltet und kann hier nicht bearbeitet werden")
+            raise HTTPException(
+                status_code=400,
+                detail="„1 Runde“ wird unter Artikel & Preise verwaltet und kann hier nicht bearbeitet werden",
+            )
         try:
             conn.execute(
                 """
@@ -4682,7 +5013,9 @@ def admin_delete_drink(req: AdminItemDelete):
         require_pin(conn, req.pin)
         item = get_item_by_id_or_name(conn, req.item_id, None)
         if is_system_item_name(item["name"]):
-            raise HTTPException(status_code=400, detail="„1 Runde“ wird unter Artikel & Preise verwaltet und kann nicht gelöscht werden")
+            raise HTTPException(
+                status_code=400, detail="„1 Runde“ wird unter Artikel & Preise verwaltet und kann nicht gelöscht werden"
+            )
         open_qty = conn.execute(
             "SELECT COALESCE(SUM(quantity), 0) AS q FROM order_lines WHERE item_id = ? AND quantity > 0",
             (item["id"],),
@@ -4730,10 +5063,18 @@ def admin_update_settings(req: SettingsUpdateRequest):
             details.append(f"Rundenpreis auf {eur_text(price)} gesetzt")
         if req.show_total_on_overview is not None:
             set_setting(conn, "show_total_on_overview", "1" if req.show_total_on_overview else "0")
-            details.append("Gesamtpreis in Standardansicht eingeblendet" if req.show_total_on_overview else "Gesamtpreis in Standardansicht ausgeblendet")
+            details.append(
+                "Gesamtpreis in Standardansicht eingeblendet"
+                if req.show_total_on_overview
+                else "Gesamtpreis in Standardansicht ausgeblendet"
+            )
         if req.show_person_popup_total is not None:
             set_setting(conn, "show_person_popup_total", "1" if req.show_person_popup_total else "0")
-            details.append("Gesamtsumme im Personen-Popup eingeblendet" if req.show_person_popup_total else "Gesamtsumme im Personen-Popup ausgeblendet")
+            details.append(
+                "Gesamtsumme im Personen-Popup eingeblendet"
+                if req.show_person_popup_total
+                else "Gesamtsumme im Personen-Popup ausgeblendet"
+            )
         if req.app_name is not None:
             app_name = req.app_name.strip()
             if not app_name:
@@ -4754,7 +5095,11 @@ def admin_update_settings(req: SettingsUpdateRequest):
             details.append(f"Größe der Gesamtauflistung auf {summary_size}% gesetzt")
         if req.show_summary_label_on_overview is not None:
             set_setting(conn, "show_summary_label_on_overview", "1" if req.show_summary_label_on_overview else "0")
-            details.append("Beschriftung der Gesamtauflistung eingeblendet" if req.show_summary_label_on_overview else "Beschriftung der Gesamtauflistung ausgeblendet")
+            details.append(
+                "Beschriftung der Gesamtauflistung eingeblendet"
+                if req.show_summary_label_on_overview
+                else "Beschriftung der Gesamtauflistung ausgeblendet"
+            )
         if req.overview_summary_label_text is not None:
             summary_label = req.overview_summary_label_text.strip()
             if not summary_label:
@@ -4767,14 +5112,22 @@ def admin_update_settings(req: SettingsUpdateRequest):
             details.append(f"Strichlistengröße auf {tally_size}% gesetzt")
         if req.show_sync_status is not None:
             set_setting(conn, "show_sync_status", "1" if req.show_sync_status else "0")
-            details.append("Sync-/Verbindungsanzeige eingeblendet" if req.show_sync_status else "Sync-/Verbindungsanzeige ausgeblendet")
+            details.append(
+                "Sync-/Verbindungsanzeige eingeblendet"
+                if req.show_sync_status
+                else "Sync-/Verbindungsanzeige ausgeblendet"
+            )
         if req.sync_status_size_percent is not None:
             sync_size = max(70, min(180, int(req.sync_status_size_percent)))
             set_setting(conn, "sync_status_size_percent", str(sync_size))
             details.append(f"Sync-/Verbindungsanzeige auf {sync_size}% gesetzt")
         if req.enable_delete_requests is not None:
             set_setting(conn, "enable_delete_requests", "1" if req.enable_delete_requests else "0")
-            details.append("Löschanfragen für Benutzer aktiviert" if req.enable_delete_requests else "Löschanfragen für Benutzer deaktiviert")
+            details.append(
+                "Löschanfragen für Benutzer aktiviert"
+                if req.enable_delete_requests
+                else "Löschanfragen für Benutzer deaktiviert"
+            )
         if req.app_background_color is not None:
             color = normalize_hex_color(req.app_background_color, "#f3f4f6")
             set_setting(conn, "app_background_color", color)
@@ -4797,7 +5150,9 @@ def admin_update_settings(req: SettingsUpdateRequest):
             details.append(f"Personen-Abstand auf {gap}px gesetzt")
         if req.drink_feedback_enabled is not None:
             set_setting(conn, "drink_feedback_enabled", "1" if req.drink_feedback_enabled else "0")
-            details.append("Buchungsfeedback aktiviert" if req.drink_feedback_enabled else "Buchungsfeedback deaktiviert")
+            details.append(
+                "Buchungsfeedback aktiviert" if req.drink_feedback_enabled else "Buchungsfeedback deaktiviert"
+            )
         if req.drink_feedback_style is not None:
             style = req.drink_feedback_style.strip().lower()
             if style not in {"subtle", "normal", "strong"}:
@@ -4837,13 +5192,25 @@ def admin_update_settings(req: SettingsUpdateRequest):
             mode_label = {"always": "immer", "condition": "nur bei Bedingungen", "never": "nie"}[mode]
             details.append(f"Feiereffekt auf {mode_label} gesetzt")
         if req.drink_celebration_condition_round is not None:
-            set_setting(conn, "drink_celebration_condition_round", "1" if req.drink_celebration_condition_round else "0")
-            details.append("Feiereffekt bei Runden aktiviert" if req.drink_celebration_condition_round else "Feiereffekt bei Runden deaktiviert")
+            set_setting(
+                conn, "drink_celebration_condition_round", "1" if req.drink_celebration_condition_round else "0"
+            )
+            details.append(
+                "Feiereffekt bei Runden aktiviert"
+                if req.drink_celebration_condition_round
+                else "Feiereffekt bei Runden deaktiviert"
+            )
         if req.drink_celebration_condition_debt is not None:
             set_setting(conn, "drink_celebration_condition_debt", "1" if req.drink_celebration_condition_debt else "0")
-            details.append("Feiereffekt bei Grenzwert aktiviert" if req.drink_celebration_condition_debt else "Feiereffekt bei Grenzwert deaktiviert")
+            details.append(
+                "Feiereffekt bei Grenzwert aktiviert"
+                if req.drink_celebration_condition_debt
+                else "Feiereffekt bei Grenzwert deaktiviert"
+            )
         if req.drink_celebration_debt_threshold_eur is not None:
-            threshold = max(0.0, min(9999.0, parse_decimal_value(req.drink_celebration_debt_threshold_eur, "Feedback-Grenzwert")))
+            threshold = max(
+                0.0, min(9999.0, parse_decimal_value(req.drink_celebration_debt_threshold_eur, "Feedback-Grenzwert"))
+            )
             set_setting(conn, "drink_celebration_debt_threshold_eur", f"{threshold:.2f}")
             details.append(f"Feiereffekt-Grenzwert auf {eur_text(threshold)} gesetzt")
         if req.drink_celebration_confetti_intensity_percent is not None:
@@ -4852,7 +5219,9 @@ def admin_update_settings(req: SettingsUpdateRequest):
             details.append(f"Konfetti-Intensität auf {intensity}% gesetzt")
         if req.drink_celebration_sound_enabled is not None:
             set_setting(conn, "drink_celebration_sound_enabled", "1" if req.drink_celebration_sound_enabled else "0")
-            details.append("Feierlicher Ton aktiviert" if req.drink_celebration_sound_enabled else "Feierlicher Ton deaktiviert")
+            details.append(
+                "Feierlicher Ton aktiviert" if req.drink_celebration_sound_enabled else "Feierlicher Ton deaktiviert"
+            )
         if req.cost_warning_enabled is not None:
             set_setting(conn, "cost_warning_enabled", "1" if req.cost_warning_enabled else "0")
             details.append("Kostenwarnung aktiviert" if req.cost_warning_enabled else "Kostenwarnung deaktiviert")
@@ -4866,15 +5235,27 @@ def admin_update_settings(req: SettingsUpdateRequest):
             details.append("Text der Kostenwarnung gespeichert")
         if req.cost_warning_show_on_overview is not None:
             set_setting(conn, "cost_warning_show_on_overview", "1" if req.cost_warning_show_on_overview else "0")
-            details.append("Kostenwarnung in Standardansicht angezeigt" if req.cost_warning_show_on_overview else "Kostenwarnung in Standardansicht ausgeblendet")
+            details.append(
+                "Kostenwarnung in Standardansicht angezeigt"
+                if req.cost_warning_show_on_overview
+                else "Kostenwarnung in Standardansicht ausgeblendet"
+            )
         if req.cost_warning_show_in_popup is not None:
             set_setting(conn, "cost_warning_show_in_popup", "1" if req.cost_warning_show_in_popup else "0")
-            details.append("Kostenwarnung im Personen-Popup angezeigt" if req.cost_warning_show_in_popup else "Kostenwarnung im Personen-Popup ausgeblendet")
+            details.append(
+                "Kostenwarnung im Personen-Popup angezeigt"
+                if req.cost_warning_show_in_popup
+                else "Kostenwarnung im Personen-Popup ausgeblendet"
+            )
         if req.payment_reminder_enabled is not None:
             set_setting(conn, "payment_reminder_enabled", "1" if req.payment_reminder_enabled else "0")
-            details.append("Zahlungserinnerung aktiviert" if req.payment_reminder_enabled else "Zahlungserinnerung deaktiviert")
+            details.append(
+                "Zahlungserinnerung aktiviert" if req.payment_reminder_enabled else "Zahlungserinnerung deaktiviert"
+            )
         if req.payment_reminder_threshold_eur is not None:
-            threshold = max(0.0, min(9999.0, parse_decimal_value(req.payment_reminder_threshold_eur, "Zahlungserinnerung")))
+            threshold = max(
+                0.0, min(9999.0, parse_decimal_value(req.payment_reminder_threshold_eur, "Zahlungserinnerung"))
+            )
             set_setting(conn, "payment_reminder_threshold_eur", f"{threshold:.2f}")
             details.append(f"Zahlungserinnerung ab {eur_text(threshold)}")
         if req.payment_reminder_template is not None:
@@ -4882,23 +5263,49 @@ def admin_update_settings(req: SettingsUpdateRequest):
             set_setting(conn, "payment_reminder_template", template)
             details.append("Text der Zahlungserinnerung gespeichert")
         if req.payment_reminder_show_on_overview is not None:
-            set_setting(conn, "payment_reminder_show_on_overview", "1" if req.payment_reminder_show_on_overview else "0")
-            details.append("Zahlungserinnerung in Standardansicht angezeigt" if req.payment_reminder_show_on_overview else "Zahlungserinnerung in Standardansicht ausgeblendet")
+            set_setting(
+                conn, "payment_reminder_show_on_overview", "1" if req.payment_reminder_show_on_overview else "0"
+            )
+            details.append(
+                "Zahlungserinnerung in Standardansicht angezeigt"
+                if req.payment_reminder_show_on_overview
+                else "Zahlungserinnerung in Standardansicht ausgeblendet"
+            )
         if req.payment_reminder_show_in_popup is not None:
             set_setting(conn, "payment_reminder_show_in_popup", "1" if req.payment_reminder_show_in_popup else "0")
-            details.append("Zahlungserinnerung im Personen-Popup angezeigt" if req.payment_reminder_show_in_popup else "Zahlungserinnerung im Personen-Popup ausgeblendet")
+            details.append(
+                "Zahlungserinnerung im Personen-Popup angezeigt"
+                if req.payment_reminder_show_in_popup
+                else "Zahlungserinnerung im Personen-Popup ausgeblendet"
+            )
         if req.cost_notice_show_on_overview is not None:
             set_setting(conn, "cost_notice_show_on_overview", "1" if req.cost_notice_show_on_overview else "0")
-            details.append("Kostenhinweise in Standardansicht angezeigt" if req.cost_notice_show_on_overview else "Kostenhinweise in Standardansicht ausgeblendet")
+            details.append(
+                "Kostenhinweise in Standardansicht angezeigt"
+                if req.cost_notice_show_on_overview
+                else "Kostenhinweise in Standardansicht ausgeblendet"
+            )
         if req.cost_notice_show_in_popup is not None:
             set_setting(conn, "cost_notice_show_in_popup", "1" if req.cost_notice_show_in_popup else "0")
-            details.append("Kostenhinweise im Personen-Popup angezeigt" if req.cost_notice_show_in_popup else "Kostenhinweise im Personen-Popup ausgeblendet")
+            details.append(
+                "Kostenhinweise im Personen-Popup angezeigt"
+                if req.cost_notice_show_in_popup
+                else "Kostenhinweise im Personen-Popup ausgeblendet"
+            )
         if req.member_messages_show_on_overview is not None:
             set_setting(conn, "member_messages_show_on_overview", "1" if req.member_messages_show_on_overview else "0")
-            details.append("Mitgliedernachrichten in Standardansicht angezeigt" if req.member_messages_show_on_overview else "Mitgliedernachrichten in Standardansicht ausgeblendet")
+            details.append(
+                "Mitgliedernachrichten in Standardansicht angezeigt"
+                if req.member_messages_show_on_overview
+                else "Mitgliedernachrichten in Standardansicht ausgeblendet"
+            )
         if req.member_messages_show_in_popup is not None:
             set_setting(conn, "member_messages_show_in_popup", "1" if req.member_messages_show_in_popup else "0")
-            details.append("Mitgliedernachrichten im Personen-Popup angezeigt" if req.member_messages_show_in_popup else "Mitgliedernachrichten im Personen-Popup ausgeblendet")
+            details.append(
+                "Mitgliedernachrichten im Personen-Popup angezeigt"
+                if req.member_messages_show_in_popup
+                else "Mitgliedernachrichten im Personen-Popup ausgeblendet"
+            )
         if not details:
             raise HTTPException(status_code=400, detail="Keine Einstellung geändert")
         log_transaction(conn, None, "SETTINGS_UPDATED", 0, "; ".join(details))
@@ -4909,6 +5316,7 @@ def admin_update_settings(req: SettingsUpdateRequest):
 # ---------------------------------------------------------------------------
 # History + CSV exports
 # ---------------------------------------------------------------------------
+
 
 @app.post("/api/admin/transactions/filter")
 def admin_transactions_filter(req: TransactionFilterRequest):
@@ -4939,7 +5347,9 @@ def admin_transactions_filter(req: TransactionFilterRequest):
             params.append(req.action_type)
 
         if req.excluded_action_types:
-            excluded_types = [str(t).strip() for t in req.excluded_action_types if str(t).strip() and str(t).strip() != "ALL"]
+            excluded_types = [
+                str(t).strip() for t in req.excluded_action_types if str(t).strip() and str(t).strip() != "ALL"
+            ]
             if excluded_types:
                 placeholders = ",".join(["?"] * len(excluded_types))
                 where.append(f"t.type NOT IN ({placeholders})")
@@ -5076,17 +5486,19 @@ def build_report_rows(conn: sqlite3.Connection, req: ReportRequest) -> tuple[lis
             qty = int(r["quantity"])
             cost = qty * float(r["unit_purchase_price_eur"] if "unit_purchase_price_eur" in r.keys() else 0)
             vk = qty * float(r["unit_price_eur"])
-            raw.append({
-                "date": date_value,
-                "person": r["person_name"],
-                "item": r["item_name_snapshot"],
-                "short_label": r["item_short_label_snapshot"],
-                "quantity": qty,
-                "revenue_eur": 0,
-                "cost_eur": cost,
-                "profit_eur": -cost,
-                "vk_value_eur": vk,
-            })
+            raw.append(
+                {
+                    "date": date_value,
+                    "person": r["person_name"],
+                    "item": r["item_name_snapshot"],
+                    "short_label": r["item_short_label_snapshot"],
+                    "quantity": qty,
+                    "revenue_eur": 0,
+                    "cost_eur": cost,
+                    "profit_eur": -cost,
+                    "vk_value_eur": vk,
+                }
+            )
     elif report_type == "rounds":
         rows = conn.execute(
             """
@@ -5096,17 +5508,35 @@ def build_report_rows(conn: sqlite3.Connection, req: ReportRequest) -> tuple[lis
             ORDER BY timestamp ASC, id ASC
             """
         ).fetchall()
-        headers = ["id", "date", "timestamp", "round_price_eur", "deducted_ek_eur", "deducted_vk_eur", "gewinn_ek_zu_rundenpreis_eur", "gewinn_verlust_vk_zu_rundenpreis_eur", "details"]
+        headers = [
+            "id",
+            "date",
+            "timestamp",
+            "round_price_eur",
+            "deducted_ek_eur",
+            "deducted_vk_eur",
+            "gewinn_ek_zu_rundenpreis_eur",
+            "gewinn_verlust_vk_zu_rundenpreis_eur",
+            "details",
+        ]
         out = []
         for r in rows:
             date_value = str(r["timestamp"])[:10]
             if not date_in_range(date_value, req.date_from, req.date_to):
                 continue
-            out.append([
-                r["id"], date_value, r["timestamp"], decimal_comma(r['round_price_eur']),
-                decimal_comma(r['deducted_purchase_eur']), decimal_comma(r['deducted_vk_eur']),
-                decimal_comma(r['profit_vs_purchase_eur']), decimal_comma(r['profit_vs_retail_eur']), normalize_decimal_text(r["details"]),
-            ])
+            out.append(
+                [
+                    r["id"],
+                    date_value,
+                    r["timestamp"],
+                    decimal_comma(r["round_price_eur"]),
+                    decimal_comma(r["deducted_purchase_eur"]),
+                    decimal_comma(r["deducted_vk_eur"]),
+                    decimal_comma(r["profit_vs_purchase_eur"]),
+                    decimal_comma(r["profit_vs_retail_eur"]),
+                    normalize_decimal_text(r["details"]),
+                ]
+            )
         return headers, out
     else:
         if report_type == "consumption":
@@ -5136,51 +5566,30 @@ def build_report_rows(conn: sqlite3.Connection, req: ReportRequest) -> tuple[lis
             if not date_in_range(date_value, req.date_from, req.date_to):
                 continue
             kind = r["kind"]
-            if report_type == "consumption" and (bool(r["current_admin_only"]) or is_system_item_name(r["item_name_snapshot"])):
+            if report_type == "consumption" and (
+                bool(r["current_admin_only"]) or is_system_item_name(r["item_name_snapshot"])
+            ):
                 continue
             qty = int(r["quantity"])
             total = float(r["total_eur"])
             purchase_total = float(r["purchase_total_eur"] if "purchase_total_eur" in r.keys() else 0)
             if report_type == "consumption":
-                raw.append({
-                    "date": date_value,
-                    "person": r["person_name"],
-                    "item": r["item_name_snapshot"],
-                    "short_label": r["item_short_label_snapshot"],
-                    "quantity": qty,
-                    "revenue_eur": 0,
-                    "cost_eur": purchase_total,
-                    "profit_eur": -purchase_total,
-                    "vk_value_eur": total,
-                })
-            elif report_type == "revenue":
-                raw.append({
-                    "date": date_value,
-                    "person": r["person_name"],
-                    "item": r["item_name_snapshot"],
-                    "short_label": r["item_short_label_snapshot"],
-                    "quantity": qty,
-                    "revenue_eur": total,
-                    "cost_eur": purchase_total,
-                    "profit_eur": total - purchase_total,
-                    "vk_value_eur": total,
-                })
-            else:  # profit
-                if kind == "ROUND_DEDUCTED":
-                    cost = abs(purchase_total)
-                    raw.append({
+                raw.append(
+                    {
                         "date": date_value,
                         "person": r["person_name"],
                         "item": r["item_name_snapshot"],
                         "short_label": r["item_short_label_snapshot"],
                         "quantity": qty,
                         "revenue_eur": 0,
-                        "cost_eur": cost,
-                        "profit_eur": -cost,
-                        "vk_value_eur": abs(total),
-                    })
-                else:
-                    raw.append({
+                        "cost_eur": purchase_total,
+                        "profit_eur": -purchase_total,
+                        "vk_value_eur": total,
+                    }
+                )
+            elif report_type == "revenue":
+                raw.append(
+                    {
                         "date": date_value,
                         "person": r["person_name"],
                         "item": r["item_name_snapshot"],
@@ -5190,14 +5599,47 @@ def build_report_rows(conn: sqlite3.Connection, req: ReportRequest) -> tuple[lis
                         "cost_eur": purchase_total,
                         "profit_eur": total - purchase_total,
                         "vk_value_eur": total,
-                    })
+                    }
+                )
+            else:  # profit
+                if kind == "ROUND_DEDUCTED":
+                    cost = abs(purchase_total)
+                    raw.append(
+                        {
+                            "date": date_value,
+                            "person": r["person_name"],
+                            "item": r["item_name_snapshot"],
+                            "short_label": r["item_short_label_snapshot"],
+                            "quantity": qty,
+                            "revenue_eur": 0,
+                            "cost_eur": cost,
+                            "profit_eur": -cost,
+                            "vk_value_eur": abs(total),
+                        }
+                    )
+                else:
+                    raw.append(
+                        {
+                            "date": date_value,
+                            "person": r["person_name"],
+                            "item": r["item_name_snapshot"],
+                            "short_label": r["item_short_label_snapshot"],
+                            "quantity": qty,
+                            "revenue_eur": total,
+                            "cost_eur": purchase_total,
+                            "profit_eur": total - purchase_total,
+                            "vk_value_eur": total,
+                        }
+                    )
 
     grouped: dict[tuple, dict] = {}
     for row in raw:
         key = tuple(row.get(col, "") for col in group_cols)
         if key not in grouped:
             grouped[key] = {col: row.get(col, "") for col in group_cols}
-            grouped[key].update({"quantity": 0, "revenue_eur": 0.0, "cost_eur": 0.0, "profit_eur": 0.0, "vk_value_eur": 0.0})
+            grouped[key].update(
+                {"quantity": 0, "revenue_eur": 0.0, "cost_eur": 0.0, "profit_eur": 0.0, "vk_value_eur": 0.0}
+            )
         add_metric_row(grouped[key], row)
 
     headers = group_cols + ["quantity", "vk_value_eur", "revenue_eur", "cost_eur", "profit_eur"]
@@ -5207,10 +5649,10 @@ def build_report_rows(conn: sqlite3.Connection, req: ReportRequest) -> tuple[lis
             [row.get(col, "") for col in group_cols]
             + [
                 int(row["quantity"]),
-                decimal_comma(row['vk_value_eur']),
-                decimal_comma(row['revenue_eur']),
-                decimal_comma(row['cost_eur']),
-                decimal_comma(row['profit_eur']),
+                decimal_comma(row["vk_value_eur"]),
+                decimal_comma(row["revenue_eur"]),
+                decimal_comma(row["cost_eur"]),
+                decimal_comma(row["profit_eur"]),
             ]
         )
     if not group_cols:
@@ -5393,7 +5835,10 @@ def admin_statistics(req: StatisticsRequest):
                 profit = float(row["profit_eur"] or (revenue - cost))
                 vk_value = revenue
             date_value = str(row["timestamp"])[:10]
-            day = finance_by_date.setdefault(date_value, {"date": date_value, "revenue_eur": 0.0, "cost_eur": 0.0, "profit_eur": 0.0, "vk_value_eur": 0.0})
+            day = finance_by_date.setdefault(
+                date_value,
+                {"date": date_value, "revenue_eur": 0.0, "cost_eur": 0.0, "profit_eur": 0.0, "vk_value_eur": 0.0},
+            )
             day["revenue_eur"] += revenue
             day["cost_eur"] += cost
             day["profit_eur"] += profit
@@ -5482,15 +5927,28 @@ def admin_statistics(req: StatisticsRequest):
             requests["round"][row["status"]] = int(row["c"])
         requests["pending_total"] = int(requests["delete"].get("PENDING", 0)) + int(requests["round"].get("PENDING", 0))
         item_details = [
-            {**item, "vk_value_eur": rounded_money(item["vk_value_eur"]), "cost_eur": rounded_money(item["cost_eur"]), "profit_eur": rounded_money(item["profit_eur"])}
-            for item in sorted(top_items.values(), key=lambda r: (-int(r["quantity"]), -float(r["vk_value_eur"]), str(r["item"]).lower()))
+            {
+                **item,
+                "vk_value_eur": rounded_money(item["vk_value_eur"]),
+                "cost_eur": rounded_money(item["cost_eur"]),
+                "profit_eur": rounded_money(item["profit_eur"]),
+            }
+            for item in sorted(
+                top_items.values(),
+                key=lambda r: (-int(r["quantity"]), -float(r["vk_value_eur"]), str(r["item"]).lower()),
+            )
         ]
 
         return {
             "period": {**period, "include_admin_items": include_admin_items},
             "kpis": {key: rounded_money(value) if key.endswith("_eur") else int(value) for key, value in kpis.items()},
-            "open": {key: rounded_money(value) if key.endswith("_eur") else int(value) for key, value in open_summary.items()},
-            "event": {key: rounded_money(value) if key.endswith("_eur") else int(value) for key, value in event_summary.items()},
+            "open": {
+                key: rounded_money(value) if key.endswith("_eur") else int(value) for key, value in open_summary.items()
+            },
+            "event": {
+                key: rounded_money(value) if key.endswith("_eur") else int(value)
+                for key, value in event_summary.items()
+            },
             "top_items": item_details[:8],
             "item_details": item_details,
             "open_people": [
@@ -5500,7 +5958,9 @@ def admin_statistics(req: StatisticsRequest):
                     "open_cost_eur": rounded_money(person["open_cost_eur"]),
                     "open_profit_eur": rounded_money(person["open_profit_eur"]),
                 }
-                for person in sorted(open_people.values(), key=lambda r: (-float(r["open_total_eur"]), str(r["person"]).lower()))[:12]
+                for person in sorted(
+                    open_people.values(), key=lambda r: (-float(r["open_total_eur"]), str(r["person"]).lower())
+                )[:12]
             ],
             "finance_by_date": [
                 {
@@ -5512,7 +5972,9 @@ def admin_statistics(req: StatisticsRequest):
                 }
                 for row in sorted(finance_by_date.values(), key=lambda r: r["date"])
             ],
-            "rounds": {key: rounded_money(value) if key.endswith("_eur") else int(value) for key, value in rounds.items()},
+            "rounds": {
+                key: rounded_money(value) if key.endswith("_eur") else int(value) for key, value in rounds.items()
+            },
             "requests": requests,
         }
 
@@ -5550,7 +6012,17 @@ def export_transactions(req: PinRequest):
         return csv_response(
             "transactions.csv",
             ["id", "timestamp", "type", "person", "total_eur", "details"],
-            [[r["id"], r["timestamp"], r["type"], r["name"], decimal_comma(r['total']), normalize_decimal_text(r["details"])] for r in rows],
+            [
+                [
+                    r["id"],
+                    r["timestamp"],
+                    r["type"],
+                    r["name"],
+                    decimal_comma(r["total"]),
+                    normalize_decimal_text(r["details"]),
+                ]
+                for r in rows
+            ],
         )
 
 
@@ -5564,14 +6036,18 @@ def export_open_balances(req: PinRequest):
             lines = get_open_lines(conn, person["id"])
             if not lines:
                 continue
-            out.append([
-                person["id"],
-                display_name(person["first_name"], person["last_name"]) or person["name"],
-                "yes" if person["archived_at"] else "no",
-                sum(int(line["quantity"]) for line in lines),
-                decimal_comma(person_total_from_lines(lines)),
-            ])
-        return csv_response("open_balances.csv", ["person_id", "person", "archived", "open_items", "open_total_eur"], out)
+            out.append(
+                [
+                    person["id"],
+                    display_name(person["first_name"], person["last_name"]) or person["name"],
+                    "yes" if person["archived_at"] else "no",
+                    sum(int(line["quantity"]) for line in lines),
+                    decimal_comma(person_total_from_lines(lines)),
+                ]
+            )
+        return csv_response(
+            "open_balances.csv", ["person_id", "person", "archived", "open_items", "open_total_eur"], out
+        )
 
 
 @app.post("/api/admin/export/open-lines")
@@ -5589,7 +6065,20 @@ def export_open_lines(req: PinRequest):
         ).fetchall()
         return csv_response(
             "open_lines.csv",
-            ["line_id", "person", "item", "short_label", "quantity", "unit_price_eur", "unit_purchase_price_eur", "subtotal_eur", "purchase_total_eur", "potential_profit_eur", "consumed_date", "admin_only"],
+            [
+                "line_id",
+                "person",
+                "item",
+                "short_label",
+                "quantity",
+                "unit_price_eur",
+                "unit_purchase_price_eur",
+                "subtotal_eur",
+                "purchase_total_eur",
+                "potential_profit_eur",
+                "consumed_date",
+                "admin_only",
+            ],
             [
                 [
                     r["id"],
@@ -5597,11 +6086,20 @@ def export_open_lines(req: PinRequest):
                     r["item_name_snapshot"],
                     r["item_short_label_snapshot"],
                     r["quantity"],
-                    decimal_comma(r['unit_price_eur']),
-                    decimal_comma(r['unit_purchase_price_eur'] if 'unit_purchase_price_eur' in r.keys() else 0),
-                    decimal_comma(int(r['quantity']) * float(r['unit_price_eur'])),
-                    decimal_comma(int(r['quantity']) * float(r['unit_purchase_price_eur'] if 'unit_purchase_price_eur' in r.keys() else 0)),
-                    decimal_comma(int(r['quantity']) * (float(r['unit_price_eur']) - float(r['unit_purchase_price_eur'] if 'unit_purchase_price_eur' in r.keys() else 0))),
+                    decimal_comma(r["unit_price_eur"]),
+                    decimal_comma(r["unit_purchase_price_eur"] if "unit_purchase_price_eur" in r.keys() else 0),
+                    decimal_comma(int(r["quantity"]) * float(r["unit_price_eur"])),
+                    decimal_comma(
+                        int(r["quantity"])
+                        * float(r["unit_purchase_price_eur"] if "unit_purchase_price_eur" in r.keys() else 0)
+                    ),
+                    decimal_comma(
+                        int(r["quantity"])
+                        * (
+                            float(r["unit_price_eur"])
+                            - float(r["unit_purchase_price_eur"] if "unit_purchase_price_eur" in r.keys() else 0)
+                        )
+                    ),
                     r["consumed_date"],
                     "yes" if r["admin_only_snapshot"] else "no",
                 ]
@@ -5651,18 +6149,28 @@ def export_item_summary(req: PinRequest):
         rows = sorted(rows, key=lambda r: (r["kind"], r["item_name_snapshot"], float(r["unit_price_eur"])))
         return csv_response(
             "item_summary.csv",
-            ["status", "item", "short_label", "unit_price_eur", "unit_purchase_price_eur", "quantity", "total_eur", "purchase_total_eur", "profit_eur"],
+            [
+                "status",
+                "item",
+                "short_label",
+                "unit_price_eur",
+                "unit_purchase_price_eur",
+                "quantity",
+                "total_eur",
+                "purchase_total_eur",
+                "profit_eur",
+            ],
             [
                 [
                     r["kind"],
                     r["item_name_snapshot"],
                     r["item_short_label_snapshot"],
-                    decimal_comma(r['unit_price_eur']),
-                    decimal_comma(r['unit_purchase_price_eur']),
+                    decimal_comma(r["unit_price_eur"]),
+                    decimal_comma(r["unit_purchase_price_eur"]),
                     r["qty"],
-                    decimal_comma(r['total']),
-                    decimal_comma(r['purchase_total']),
-                    decimal_comma(r['profit_total']),
+                    decimal_comma(r["total"]),
+                    decimal_comma(r["purchase_total"]),
+                    decimal_comma(r["profit_total"]),
                 ]
                 for r in rows
             ],
