@@ -474,7 +474,6 @@ def migrate_people(conn: sqlite3.Connection):
     for row in rows:
         first = row["first_name"] or ""
         last = row["last_name"] or ""
-        created = row["created_at"]
         if not first and not last:
             first, last = split_name(row["name"])
         name = display_name(first, last) or row["name"]
