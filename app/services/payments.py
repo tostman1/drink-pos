@@ -78,7 +78,9 @@ def card_payment_breakdown(base_total: float, rounding_mode: str | None = "none"
     card_fee_cents = card_payment_fee_cents(base_amount_cents)
     subtotal_cents = base_amount_cents + card_fee_cents
     step_cents = CARD_PAYMENT_ROUNDING_STEPS[normalized_mode]
-    rounded_total_cents = subtotal_cents if step_cents <= 1 else ((subtotal_cents + step_cents - 1) // step_cents) * step_cents
+    rounded_total_cents = (
+        subtotal_cents if step_cents <= 1 else ((subtotal_cents + step_cents - 1) // step_cents) * step_cents
+    )
     rounding_adjustment_cents = rounded_total_cents - subtotal_cents
     return CardPaymentBreakdown(
         base_amount_cents=base_amount_cents,
@@ -125,7 +127,9 @@ def process_cash_payment(conn: sqlite3.Connection, person_id: int) -> PaymentRes
         "UPDATE order_lines SET quantity = 0, updated_at = ? WHERE person_id = ? AND quantity > 0 AND event_open = 1",
         (now, person_id),
     )
-    return PaymentResult("paid", person_id, total, sum(int(line["quantity"] or 0) for line in lines), int(cur.lastrowid))
+    return PaymentResult(
+        "paid", person_id, total, sum(int(line["quantity"] or 0) for line in lines), int(cur.lastrowid)
+    )
 
 
 def mark_self_payment_session(

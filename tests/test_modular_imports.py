@@ -5,34 +5,34 @@ import unittest
 class ModularImportTests(unittest.TestCase):
     def test_new_modular_packages_import(self):
         modules = [
-            'app.application',
-            'app.config',
-            'app.core.build',
-            'app.core.security',
-            'app.db.connection',
-            'app.db.init',
-            'app.db.schema',
-            'app.models.requests',
-            'app.models.responses',
-            'app.utils.formatting',
-            'app.utils.parsing',
-            'app.utils.helpers',
-            'app.utils.validation',
-            'app.services.people',
-            'app.services.items',
-            'app.services.orders',
-            'app.services.payments',
-            'app.services.messages',
-            'app.services.statistics',
-            'app.services.rounds',
-            'app.services.sync',
-            'app.routes.public',
-            'app.routes.payment',
-            'app.routes.admin',
-            'app.routes.agent',
-            'app.routes.debug',
-            'app.routes.registry',
-            'app.restore_database',
+            "app.application",
+            "app.config",
+            "app.core.build",
+            "app.core.security",
+            "app.db.connection",
+            "app.db.init",
+            "app.db.schema",
+            "app.models.requests",
+            "app.models.responses",
+            "app.utils.formatting",
+            "app.utils.parsing",
+            "app.utils.helpers",
+            "app.utils.validation",
+            "app.services.people",
+            "app.services.items",
+            "app.services.orders",
+            "app.services.payments",
+            "app.services.messages",
+            "app.services.statistics",
+            "app.services.rounds",
+            "app.services.sync",
+            "app.routes.public",
+            "app.routes.payment",
+            "app.routes.admin",
+            "app.routes.agent",
+            "app.routes.debug",
+            "app.routes.registry",
+            "app.restore_database",
         ]
 
         for module in modules:
@@ -46,12 +46,7 @@ class ModularImportTests(unittest.TestCase):
         app, legacy = application.create_app("app")
         registry = app.state.route_registry
         legacy_paths = {route.path for route in legacy_api_routes(legacy.legacy_app)}
-        mounted_paths = {
-            path
-            for category, paths in registry.items()
-            if category != "total"
-            for path in paths
-        }
+        mounted_paths = {path for category, paths in registry.items() if category != "total" for path in paths}
 
         self.assertEqual(registry["total"], len(legacy_paths))
         self.assertEqual(mounted_paths, legacy_paths)
@@ -68,5 +63,5 @@ class ModularImportTests(unittest.TestCase):
         self.assertIsNot(main.app, main.legacy_app)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

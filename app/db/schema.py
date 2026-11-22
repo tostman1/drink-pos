@@ -788,11 +788,15 @@ def ensure_settings(conn: sqlite3.Connection):
     if get_setting(conn, "payment_reminder_template") is None:
         set_setting(conn, "payment_reminder_template", DEFAULT_PAYMENT_REMINDER_TEMPLATE)
     if get_setting(conn, "cost_warning_show_on_overview") is None:
-        set_setting(conn, "cost_warning_show_on_overview", get_setting(conn, "cost_notice_show_on_overview", "1") or "1")
+        set_setting(
+            conn, "cost_warning_show_on_overview", get_setting(conn, "cost_notice_show_on_overview", "1") or "1"
+        )
     if get_setting(conn, "cost_warning_show_in_popup") is None:
         set_setting(conn, "cost_warning_show_in_popup", get_setting(conn, "cost_notice_show_in_popup", "1") or "1")
     if get_setting(conn, "payment_reminder_show_on_overview") is None:
-        set_setting(conn, "payment_reminder_show_on_overview", get_setting(conn, "cost_notice_show_on_overview", "1") or "1")
+        set_setting(
+            conn, "payment_reminder_show_on_overview", get_setting(conn, "cost_notice_show_on_overview", "1") or "1"
+        )
     if get_setting(conn, "payment_reminder_show_in_popup") is None:
         set_setting(conn, "payment_reminder_show_in_popup", get_setting(conn, "cost_notice_show_in_popup", "1") or "1")
     if get_setting(conn, "cost_notice_show_on_overview") is None:
@@ -833,4 +837,3 @@ def ensure_settings(conn: sqlite3.Connection):
     for key, value in mail_defaults.items():
         if get_setting(conn, key) is None:
             set_setting(conn, key, value)
-

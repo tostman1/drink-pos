@@ -116,7 +116,9 @@ def reader_status(cfg: SumUpConfig) -> dict:
 
 
 def terminate_reader_checkout(cfg: SumUpConfig) -> dict:
-    path = f"/v0.1/merchants/{urllib.parse.quote(cfg.merchant_code)}/readers/{urllib.parse.quote(cfg.reader_id)}/terminate"
+    path = (
+        f"/v0.1/merchants/{urllib.parse.quote(cfg.merchant_code)}/readers/{urllib.parse.quote(cfg.reader_id)}/terminate"
+    )
     return _request(cfg, "POST", path, timeout=min(20, max(5, cfg.timeout_seconds)))
 
 
@@ -132,12 +134,16 @@ def create_reader_checkout(
     status_response = reader_status(cfg)
     status = _response_data(status_response)
     if str(status.get("status") or "").upper() == "OFFLINE":
-        raise SumUpError("reader_offline", "SumUp Solo ist offline oder nicht erreichbar.", raw_response=status_response)
+        raise SumUpError(
+            "reader_offline", "SumUp Solo ist offline oder nicht erreichbar.", raw_response=status_response
+        )
     state = str(status.get("state") or "IDLE").upper()
     if state and state != "IDLE":
         raise SumUpError("reader_busy", f"SumUp Solo ist beschaeftigt ({state}).", raw_response=status_response)
 
-    path = f"/v0.1/merchants/{urllib.parse.quote(cfg.merchant_code)}/readers/{urllib.parse.quote(cfg.reader_id)}/checkout"
+    path = (
+        f"/v0.1/merchants/{urllib.parse.quote(cfg.merchant_code)}/readers/{urllib.parse.quote(cfg.reader_id)}/checkout"
+    )
     payload: dict[str, object] = {
         "total_amount": {
             "currency": cfg.currency,
@@ -206,7 +212,11 @@ def poll_checkout_status(cfg: SumUpConfig, client_transaction_id: str, timeout_s
             if status in {"FAILED", "FAILURE", "UNSUCCESSFUL"}:
                 return {"status": "failed", "provider_checkout_id": client_transaction_id, "raw_response": transaction}
             if status in {"CANCELLED", "CANCELED"}:
-                return {"status": "cancelled", "provider_checkout_id": client_transaction_id, "raw_response": transaction}
+                return {
+                    "status": "cancelled",
+                    "provider_checkout_id": client_transaction_id,
+                    "raw_response": transaction,
+                }
         time.sleep(2)
 
     return {

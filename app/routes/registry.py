@@ -51,19 +51,16 @@ def route_category(path: str) -> str:
         return "agent"
     if path.startswith("/api/admin") or path.startswith("/api/debug") or path == "/api/transactions":
         return "admin"
-    if (
-        path.startswith("/api/self-pay")
-        or path in {
-            "/api/pay",
-            "/api/kassa/pay",
-            "/api/add-drink",
-            "/api/edit-request",
-            "/api/round-request",
-            "/api/deduct-round",
-            "/api/deduct-round-preview",
-            "/api/member-message/ack",
-        }
-    ):
+    if path.startswith("/api/self-pay") or path in {
+        "/api/pay",
+        "/api/kassa/pay",
+        "/api/add-drink",
+        "/api/edit-request",
+        "/api/round-request",
+        "/api/deduct-round",
+        "/api/deduct-round-preview",
+        "/api/member-message/ack",
+    }:
         return "payment"
     if (
         path == "/"
