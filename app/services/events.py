@@ -43,6 +43,7 @@ INVOICE_SETTING_DEFAULTS = {
 }
 
 MAIL_SETTING_DEFAULTS = {
+    "mail_test_recipient": "",
     "mail_smtp_provider": "custom",
     "mail_smtp_host": "",
     "mail_smtp_port": "",
@@ -219,6 +220,7 @@ def get_mail_settings(conn: sqlite3.Connection, include_secret: bool = False) ->
     raw = {key: str(get_setting(conn, key, default) or "") for key, default in MAIL_SETTING_DEFAULTS.items()}
     username = raw["mail_smtp_username"] or env["mail_smtp_username"]
     settings = {
+        "mail_test_recipient": raw["mail_test_recipient"],
         "mail_smtp_provider": raw["mail_smtp_provider"] or env["mail_smtp_provider"] or "custom",
         "mail_smtp_host": raw["mail_smtp_host"] or env["mail_smtp_host"],
         "mail_smtp_port": raw["mail_smtp_port"] or env["mail_smtp_port"] or "587",
@@ -254,7 +256,20 @@ def normalize_mail_encryption(value: Any) -> str:
     raise ValueError("SMTP-Verschlüsselung ist ungültig")
 
 
+def normalize_test_recipient(value: Any, required: bool = False) -> str:
+    recipient = str(value or "").strip()
+    if not recipient:
+        if required:
+            raise ValueError("Test-Empfänger fehlt")
+        return ""
+    if len(recipient) > 240 or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", recipient):
+        raise ValueError("E-Mail-Adresse des Test-Empfängers ist ungültig")
+    return recipient
+
+
 def update_mail_settings(conn: sqlite3.Connection, values: dict[str, Any]) -> dict[str, Any]:
+    if "mail_test_recipient" in values:
+        values = {**values, "mail_test_recipient": normalize_test_recipient(values["mail_test_recipient"])}
     if "mail_smtp_clear_password" in values and bool(values["mail_smtp_clear_password"]):
         set_setting(conn, "mail_smtp_password", "")
     for key in MAIL_SETTING_DEFAULTS:
@@ -290,10 +305,12 @@ def active_event(conn: sqlite3.Connection) -> sqlite3.Row | None:
     ).fetchone()
 
 
-def require_active_event(conn: sqlite3.Connection) -> sqlite3.Row:
+def require_active_event(conn: sqlite3.Connection, expected_event_id: int | None = None) -> sqlite3.Row:
     event = active_event(conn)
     if not event:
         raise ValueError("Keine laufende Veranstaltung")
+    if expected_event_id is not None and int(event["id"]) != expected_event_id:
+        raise ValueError("Die Veranstaltung hat sich geändert. Bitte die Ansicht aktualisieren.")
     return event
 
 
@@ -372,9 +389,10 @@ def add_event_item(
     item_id: int,
     quantity: int = 1,
     event: sqlite3.Row | None = None,
+    expected_event_id: int | None = None,
 ) -> dict[str, Any]:
-    event = event or require_active_event(conn)
-    qty = int(quantity or 1)
+    event = event or require_active_event(conn, expected_event_id)
+    qty = int(quantity)
     if qty <= 0:
         raise ValueError("Menge muss positiv sein")
     item = conn.execute(
@@ -446,6 +464,33 @@ def add_event_item(
         "line": serialize_event_line(line),
         "event": event_payload(conn, event),
     }
+
+
+def remove_event_item(
+    conn: sqlite3.Connection, item_id: int, expected_event_id: int | None = None
+) -> dict[str, Any]:
+    event = require_active_event(conn, expected_event_id)
+    # Correct the latest positive price snapshot without using today's item price.
+    line = conn.execute(
+        """
+        SELECT * FROM event_lines
+        WHERE event_id = ? AND item_id = ? AND quantity > 0
+        ORDER BY id DESC LIMIT 1
+        """,
+        (int(event["id"]), int(item_id)),
+    ).fetchone()
+    if not line:
+        raise ValueError("Für dieses Getränk sind keine Striche zum Abziehen vorhanden.")
+    now = now_text()
+    changed = conn.execute(
+        "UPDATE event_lines SET quantity = quantity - 1, updated_at = ? WHERE id = ? AND quantity > 0",
+        (now, int(line["id"])),
+    )
+    if changed.rowcount != 1:
+        raise ValueError("Der Strich wurde bereits abgezogen. Bitte die Ansicht aktualisieren.")
+    conn.execute("UPDATE event_sessions SET updated_at = ? WHERE id = ?", (now, int(event["id"])))
+    updated_line = conn.execute("SELECT * FROM event_lines WHERE id = ?", (int(line["id"]),)).fetchone()
+    return {"status": "ok", "line": serialize_event_line(updated_line), "event": event_payload(conn, event)}
 
 
 def normalize_percent(value: Any, field_name: str) -> float:
@@ -1005,9 +1050,7 @@ def send_event_invoice_email(
 
 
 def send_test_email(settings: dict[str, Any], recipient: str) -> None:
-    clean_recipient = str(recipient or "").strip()
-    if not clean_recipient:
-        raise RuntimeError("Test-Empfänger fehlt")
+    clean_recipient = normalize_test_recipient(recipient, required=True)
     send_smtp_message(
         settings,
         clean_recipient,

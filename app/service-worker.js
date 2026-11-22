@@ -1,4 +1,4 @@
-const CACHE_NAME = 'drink-pos-shell-v106';
+const CACHE_NAME = 'drink-pos-shell-v108';
 const NAVIGATION_TIMEOUT_MS = 1800;
 const SHELL_URLS = ['/', '/liste', '/liste/', '/admin', '/kassa', '/kassa/', '/self-pay', '/self-pay/', '/bezahlen', '/bezahlen/', '/manifest.webmanifest', '/kassa.webmanifest', '/self-pay.webmanifest', '/service-worker.js', '/icon.png', '/icon.svg', '/icon-192.png', '/icon-512.png', '/kassa-icon.png', '/kassa-icon.svg', '/kassa-icon-192.png', '/kassa-icon-512.png'];
 const NAVIGATION_FALLBACKS = [

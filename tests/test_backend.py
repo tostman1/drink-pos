@@ -5,6 +5,7 @@ import os
 import sys
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -1264,6 +1265,107 @@ class BackendFlowTests(unittest.TestCase):
         self.assertEqual(event["lines"][0]["quantity"], 2)
         return item, event
 
+    def test_event_plus_and_minus_are_logged_without_admin_pin(self):
+        item, event = self.start_event_with_two_items()
+        removed = self.main.event_remove_drink(self.main.EventRemoveDrinkRequest(item_id=item["id"], event_id=event["id"]))
+        self.assertEqual(removed["event"]["quantity"], 1)
+        self.assertEqual(removed["event"]["subtotal_eur"], item["price"])
+        with self.main.get_conn() as conn:
+            logs = conn.execute("SELECT * FROM transactions WHERE type IN ('EVENT_ITEM_ADDED', 'EVENT_ITEM_REMOVED') ORDER BY id").fetchall()
+        self.assertEqual([row["type"] for row in logs], ["EVENT_ITEM_ADDED", "EVENT_ITEM_ADDED", "EVENT_ITEM_REMOVED"])
+        self.assertEqual([row["total"] for row in logs], [item["price"], item["price"], -item["price"]])
+        for row in logs:
+            self.assertIn(f"Veranstaltung #{event['id']}", row["details"])
+            self.assertIn(item["name"], row["details"])
+            self.assertTrue(row["timestamp"])
+        self.assertIn("+1x", logs[0]["details"])
+        self.assertIn("-1x", logs[-1]["details"])
+
+    def test_event_minus_cannot_make_quantity_negative(self):
+        item, event = self.start_event_with_two_items()
+        request = self.main.EventRemoveDrinkRequest(item_id=item["id"])
+        self.main.event_remove_drink(request)
+        empty = self.main.event_remove_drink(request)
+        self.assertEqual(empty["event"]["quantity"], 0)
+        self.assertEqual(empty["event"]["subtotal_eur"], 0)
+        self.assertEqual(empty["event"]["lines"], [])
+        with self.assertRaises(HTTPException) as ctx:
+            self.main.event_remove_drink(request)
+        self.assertEqual(ctx.exception.status_code, 400)
+        with self.main.get_conn() as conn:
+            self.assertEqual(conn.execute("SELECT quantity FROM event_lines WHERE event_id = ?", (event["id"],)).fetchone()["quantity"], 0)
+            self.assertEqual(conn.execute("SELECT COUNT(*) FROM transactions WHERE type = 'EVENT_ITEM_REMOVED'").fetchone()[0], 2)
+        added = self.main.event_add_drink(self.main.EventAddDrinkRequest(item_id=item["id"]))
+        self.assertEqual(added["event"]["quantity"], 1)
+
+    def test_event_minus_uses_latest_positive_price_snapshot(self):
+        item, _ = self.start_event_with_two_items()
+        old_price = float(item["price"])
+        with self.main.get_conn() as conn:
+            conn.execute("UPDATE items SET price_eur = ? WHERE id = ?", (old_price + 1, item["id"]))
+            conn.commit()
+        self.main.event_add_drink(self.main.EventAddDrinkRequest(item_id=item["id"]))
+        first = self.main.event_remove_drink(self.main.EventRemoveDrinkRequest(item_id=item["id"]))
+        self.assertEqual(first["line"]["unit_price_eur"], old_price + 1)
+        self.assertEqual(first["event"]["quantity"], 2)
+        self.assertEqual(first["event"]["subtotal_eur"], old_price * 2)
+        second = self.main.event_remove_drink(self.main.EventRemoveDrinkRequest(item_id=item["id"]))
+        self.assertEqual(second["line"]["unit_price_eur"], old_price)
+        self.assertEqual(second["event"]["subtotal_eur"], old_price)
+
+    def test_event_changes_reject_stale_or_closed_event(self):
+        item, event = self.start_event_with_two_items()
+        add = self.main.EventAddDrinkRequest(item_id=item["id"], event_id=event["id"])
+        remove = self.main.EventRemoveDrinkRequest(item_id=item["id"], event_id=event["id"])
+        self.main.admin_event_end(self.main.EventEndRequest(pin=PIN))
+        for action, request in ((self.main.event_add_drink, add), (self.main.event_remove_drink, remove)):
+            with self.assertRaises(HTTPException) as ctx:
+                action(request)
+            self.assertEqual(ctx.exception.status_code, 400)
+        self.main.admin_event_start(self.main.EventStartRequest(pin=PIN, name="New event"))
+        for action, request in ((self.main.event_add_drink, add), (self.main.event_remove_drink, remove)):
+            with self.assertRaises(HTTPException) as ctx:
+                action(request)
+            self.assertEqual(ctx.exception.status_code, 400)
+        self.assertEqual(self.main.event_active()["event"]["quantity"], 0)
+
+    def test_event_concurrent_minus_only_removes_last_mark_once(self):
+        item, _ = self.start_event_with_two_items()
+        self.main.event_remove_drink(self.main.EventRemoveDrinkRequest(item_id=item["id"]))
+
+        def remove_one():
+            try:
+                self.main.event_remove_drink(self.main.EventRemoveDrinkRequest(item_id=item["id"]))
+                return 200
+            except HTTPException as exc:
+                return exc.status_code
+
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            outcomes = list(executor.map(lambda _: remove_one(), range(2)))
+        self.assertEqual(sorted(outcomes), [200, 400])
+        self.assertEqual(self.main.event_active()["event"]["quantity"], 0)
+        with self.main.get_conn() as conn:
+            self.assertEqual(conn.execute("SELECT COUNT(*) FROM transactions WHERE type = 'EVENT_ITEM_REMOVED'").fetchone()[0], 2)
+
+    def test_event_mark_changes_roll_back_when_audit_log_fails(self):
+        item, _ = self.start_event_with_two_items()
+        original_log = self.main.log_transaction
+
+        def fail_log(*args, **kwargs):
+            raise RuntimeError("Audit unavailable")
+
+        self.main.log_transaction = fail_log
+        try:
+            for action, request in (
+                (self.main.event_add_drink, self.main.EventAddDrinkRequest(item_id=item["id"])),
+                (self.main.event_remove_drink, self.main.EventRemoveDrinkRequest(item_id=item["id"])),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "Audit unavailable"):
+                    action(request)
+                self.assertEqual(self.main.event_active()["event"]["quantity"], 2)
+        finally:
+            self.main.log_transaction = original_log
+
     def test_event_mode_start_add_discount_csv_pdf_and_close(self):
         self.main.admin_invoice_settings_update(
             self.main.InvoiceSettingsUpdateRequest(pin=PIN, invoice_iban="AT611904300234573201")
@@ -1535,6 +1637,68 @@ class BackendFlowTests(unittest.TestCase):
         self.assertEqual(settings["mail_smtp_password"], "secret-pass")
         self.assertEqual(settings["mail_smtp_host"], "smtp2.ionos.com")
         self.assertEqual(settings["mail_smtp_from"], "kassier@example.org")
+
+    def test_mail_test_recipient_persists_independently_from_cashier(self):
+        self.main.admin_invoice_settings_update(
+            self.main.InvoiceSettingsUpdateRequest(pin=PIN, invoice_cashier_email="cashier@example.org")
+        )
+        saved = self.main.admin_mail_settings_update(
+            self.main.MailSettingsUpdateRequest(pin=PIN, mail_test_recipient="  tester@example.org  ")
+        )
+        self.assertEqual(saved["settings"]["mail_test_recipient"], "tester@example.org")
+        self.main.admin_mail_settings_update(
+            self.main.MailSettingsUpdateRequest(pin=PIN, mail_smtp_provider="world4you")
+        )
+        self.main.admin_invoice_settings_update(
+            self.main.InvoiceSettingsUpdateRequest(pin=PIN, invoice_cashier_email="new-cashier@example.org")
+        )
+        self.main.init_db()
+        overview = self.main.admin_overview(self.main.PinRequest(pin=PIN))
+        self.assertEqual(overview["settings"]["mail_test_recipient"], "tester@example.org")
+        self.assertEqual(overview["settings"]["invoice_cashier_email"], "new-cashier@example.org")
+        self.main.admin_mail_settings_update(self.main.MailSettingsUpdateRequest(pin=PIN, mail_test_recipient=""))
+        overview = self.main.admin_overview(self.main.PinRequest(pin=PIN))
+        self.assertEqual(overview["settings"]["mail_test_recipient"], "")
+        self.assertEqual(overview["settings"]["invoice_cashier_email"], "new-cashier@example.org")
+
+    def test_mail_test_recipient_validation_preserves_saved_value(self):
+        self.main.admin_mail_settings_update(self.main.MailSettingsUpdateRequest(pin=PIN, mail_test_recipient="tester@example.org"))
+        for recipient in ("not-an-email", "one@example.org two@example.org", "a@example.org\r\nBcc: b@example.org", "x" * 240 + "@example.org"):
+            with self.subTest(recipient=recipient), self.assertRaises(HTTPException) as ctx:
+                self.main.admin_mail_settings_update(self.main.MailSettingsUpdateRequest(pin=PIN, mail_test_recipient=recipient))
+            self.assertEqual(ctx.exception.status_code, 400)
+            self.assertIn("Test-Empf", ctx.exception.detail)
+            overview = self.main.admin_overview(self.main.PinRequest(pin=PIN))
+            self.assertEqual(overview["settings"]["mail_test_recipient"], "tester@example.org")
+
+    def test_mail_test_uses_saved_or_explicit_recipient_never_cashier(self):
+        self.main.admin_invoice_settings_update(self.main.InvoiceSettingsUpdateRequest(pin=PIN, invoice_cashier_email="cashier@example.org"))
+        calls = []
+        original_send = self.main.event_service.send_smtp_message
+
+        def fake_send(settings, recipient, *args, **kwargs):
+            calls.append(recipient)
+
+        self.main.event_service.send_smtp_message = fake_send
+        try:
+            with self.assertRaises(HTTPException) as ctx:
+                self.main.admin_mail_settings_test(self.main.MailTestRequest(pin=PIN))
+            self.assertEqual(ctx.exception.status_code, 400)
+            self.assertIn("fehlt", ctx.exception.detail)
+            self.assertEqual(calls, [])
+            self.main.admin_mail_settings_update(self.main.MailSettingsUpdateRequest(pin=PIN, mail_test_recipient="tester@example.org"))
+            self.main.admin_mail_settings_test(self.main.MailTestRequest(pin=PIN))
+            self.main.admin_mail_settings_test(self.main.MailTestRequest(pin=PIN, recipient="other@example.org"))
+            self.assertEqual(calls, ["tester@example.org", "other@example.org"])
+            for recipient in ("", "   ", "invalid"):
+                with self.subTest(recipient=recipient), self.assertRaises(HTTPException) as ctx:
+                    self.main.admin_mail_settings_test(self.main.MailTestRequest(pin=PIN, recipient=recipient))
+                self.assertEqual(ctx.exception.status_code, 400)
+            self.assertEqual(calls, ["tester@example.org", "other@example.org"])
+            overview = self.main.admin_overview(self.main.PinRequest(pin=PIN))
+            self.assertEqual(overview["settings"]["mail_test_recipient"], "tester@example.org")
+        finally:
+            self.main.event_service.send_smtp_message = original_send
 
     def test_mail_settings_accept_world4you_provider(self):
         saved = self.main.admin_mail_settings_update(
