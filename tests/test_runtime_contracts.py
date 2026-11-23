@@ -154,3 +154,20 @@ class RuntimeContractTests(unittest.TestCase):
             self.assertEqual(
                 conn.execute("SELECT COUNT(*) FROM transactions WHERE type = 'PAID_CASH'").fetchone()[0], 0
             )
+
+    def test_http_event_correction_rejects_stale_id_and_rolls_back_audit_failure(self):
+        event = self.post("/api/admin/event/start", {"pin": "1234", "name": "HTTP synthetic event"})["event"]
+        payload = {"item_id": self.item["id"], "event_id": event["id"]}
+        self.post("/api/event/add-drink", payload)
+        stale = self.client.post("/api/event/remove-drink", json={**payload, "event_id": event["id"] + 1})
+        self.assertEqual(stale.status_code, 400)
+        with patch.object(self.legacy, "log_transaction", side_effect=RuntimeError("audit unavailable")):
+            with self.assertRaisesRegex(RuntimeError, "audit unavailable"):
+                self.client.post("/api/event/remove-drink", json=payload)
+        self.assertEqual(self.client.get("/api/event/active").json()["event"]["quantity"], 1)
+        self.post("/api/event/remove-drink", payload)
+        self.assertEqual(self.client.get("/api/event/active").json()["event"]["quantity"], 0)
+        with self.legacy.get_conn() as conn:
+            self.assertEqual(
+                conn.execute("SELECT COUNT(*) FROM transactions WHERE type = 'EVENT_ITEM_REMOVED'").fetchone()[0], 1
+            )

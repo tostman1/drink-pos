@@ -53,7 +53,7 @@ def verify() -> None:
                 with sync_playwright() as playwright:
                     browser = playwright.chromium.launch(headless=True)
                     try:
-                        context = browser.new_context(viewport={"width": 1024, "height": 768})
+                        context = browser.new_context(viewport={"width": 1024, "height": 768}, service_workers="block")
                         errors: list[str] = []
                         page = context.new_page()
                         page.on("pageerror", lambda error: errors.append(str(error)))

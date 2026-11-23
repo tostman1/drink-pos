@@ -18,7 +18,7 @@ def workflow(filename):
 class FoundationContractTests(unittest.TestCase):
     def test_catalog_links_resolve(self):
         count, external = validate_catalog()
-        self.assertEqual((count, external), (20, 9))
+        self.assertEqual((count, external), (20, 0))
         catalog = json.loads((ROOT / "docs/requirements.json").read_text(encoding="utf-8"))
         self.assertEqual([req["id"] for req in catalog["requirements"]], [f"DP-{index:03}" for index in range(1, 21)])
 
@@ -69,3 +69,26 @@ class FoundationContractTests(unittest.TestCase):
         self.assertEqual(len(re.findall(r"^### MV-\d{2} —", text, re.MULTILINE)), 6)
         self.assertIn("scripts/standard_checks.py", text)
         self.assertIn("Mocks are not delivery evidence", text)
+
+    def test_authoritative_documents_exist_without_duplicate_old_paths(self):
+        for filename in (
+            "AGENTS.md",
+            "REQUIREMENTS.md",
+            "ARCHITECTURE.md",
+            "IMPLEMENTATION_PLAN.md",
+            "DECISIONS.md",
+            "docs/PROCESS.md",
+            "docs/PROGRESS.md",
+            "docs/HANDOFF.md",
+            "docs/AUDIT.md",
+        ):
+            self.assertTrue((ROOT / filename).is_file(), filename)
+        for filename in (
+            "PROCESS.md",
+            "PROGRESS.md",
+            "HANDOFF.md",
+            "docs/architecture.md",
+            "docs/requirements.md",
+            "docs/work-packages.md",
+        ):
+            self.assertFalse((ROOT / filename).exists(), filename)

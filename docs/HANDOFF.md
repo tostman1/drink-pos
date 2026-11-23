@@ -56,8 +56,8 @@ See `docs/standard-checks.md` for detailed procedures and catalog IDs.
 
 ## Next safe actions
 
-Finish EF-02/EF-03, commit reviewable increments, integrate verified `052c2bb`
-into this branch, run expanded Standard Checks/combined regressions, push and open
+EF-01/02 changes and safe workflow committed; verified `052c2bb` integrated without
+conflicts or rewriting. Run expanded Standard Checks/combined regressions, push and open
 the separate foundation PR. Verify actual PR CI, record evidence and leave the
 foundation PR unmerged. Owner approval is required before PR merge, real accounts,
 deployment, or publication.

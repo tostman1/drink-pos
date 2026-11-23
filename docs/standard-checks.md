@@ -37,9 +37,11 @@ but is not the full gate and is less isolated from a caller's environment.
    and handlers, module mode where appropriate; JSON script blocks parse as data.
    Not DOM/UI/browser/accessibility verification.
 4. **JSON/manifests and traceability:** valid data, stable IDs, source paths, exact
-   local test methods and manual IDs. PR #1 tests are external evidence, not main
-   tests; optional `--handoff-root` resolves them in a detached checkout but does
-   not replace executing that suite.
+   local test methods and manual IDs. All nine original PR #1 tests now resolve
+   locally after owner main integration. Optional `--handoff-root` supports future
+   explicitly pending external evidence; never substitute it for executing tests.
+   Manifest installability fields/icons must resolve locally; service-worker
+   cache version and shell URLs must correspond to actual served GET routes.
 5. **Regressions:** `python -m unittest discover -s tests -v` including original tests and assembled
    ASGI HTTP/startup/auth/serialization contracts, external services mocked.
    Existing startup deprecation warnings remain visible technical debt.
@@ -52,7 +54,9 @@ but is not the full gate and is less isolated from a caller's environment.
    against a disposable loopback app: member booking, admin login, event add/remove,
    kassa/self-pay render and uncaught page errors. Off-origin browser traffic is
    blocked. This does not close manual iPad/worker/offline/SMTP/SumUp checks.
-   Missing browser installation fails.
+   Service workers are blocked in this focused browser test to prevent caching
+   from masking current source or bypassing off-origin routing; installed-worker
+   behavior is explicitly MV-02. Missing browser installation fails.
 8. **Diff hygiene:** `git diff --check` plus human review of tracked/untracked
    files; no generated state/secrets committed.
 

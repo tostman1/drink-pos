@@ -1,4 +1,4 @@
-"""Validate evidence links without pretending PR #1 tests live on main."""
+"""Resolve requirement evidence, distinguishing integrated and pending tests."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SCOPES = {"observed-main", "pending-pr1", "engineering"}
+SCOPES = {"observed-main", "pending-pr1", "handoff-integrated", "engineering"}
 
 
 def local_path(root: Path, value: str) -> Path:
@@ -77,8 +77,10 @@ def main() -> None:
     parser.add_argument("--handoff-root", type=Path)
     args = parser.parse_args()
     count, external = validate_catalog(handoff_root=args.handoff_root)
-    state = "resolved" if args.handoff_root else "explicit external evidence, not validated against main"
-    print(f"Traceability passed: {count} requirements; {external} PR #1 tests ({state})", flush=True)
+    state = (
+        "resolved" if args.handoff_root else "external only when explicitly pending; integrated tests resolve locally"
+    )
+    print(f"Traceability passed: {count} requirements; {external} external test references ({state})", flush=True)
 
 
 if __name__ == "__main__":

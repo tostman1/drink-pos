@@ -51,7 +51,8 @@ lint/test job passed. No automatic merge or deployment is part of this process.
 `docs/requirements.json` is the machine-readable catalog; `REQUIREMENTS.md`
 provides context and limitations. Each requirement has a stable ID, observable
 statement, source paths, verification test references and/or manual checks, and
-scope. PR #1-only tests are external evidence, not tests on `main`. Validate links
+scope. Original PR #1 tests are now integrated local evidence; they were external
+at takeover and remain preserved. Validate links
 with `python scripts/check_traceability.py`; update references when tests move.
 New unresolved requirements must be marked as such, never given fictitious tests.
 

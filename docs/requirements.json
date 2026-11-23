@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
-  "baseline": "fb0812837694949dc6d228b781f2aa7af2b29d98",
+  "baseline": "052c2bbc54f05f7c7d850feb8ad597a4e4868670",
+  "previous_baseline": "fb0812837694949dc6d228b781f2aa7af2b29d98",
   "handoff": "250a4e6d3e4180b469d4f2a91623b60f2fd1ed72",
   "requirements": [
     {
@@ -95,16 +96,16 @@
       "tests": ["tests/test_modular_imports.py::ModularImportTests.test_runtime_app_mounts_legacy_routes_through_registry", "tests/test_modular_imports.py::ModularImportTests.test_main_exports_modular_runtime_app", "tests/test_build_info.py::BuildInfoTests.test_build_commit_reads_container_environment", "tests/test_runtime_contracts.py::RuntimeContractTests.test_served_routes_enforce_auth_validation_and_safe_config"], "manual": []
     },
     {
-      "id": "DP-016", "scope": "pending-pr1",
+      "id": "DP-016", "scope": "handoff-integrated",
       "statement": "PR #1 event +1/-1 sum price snapshots, enforce zero floor/stale-event protection/atomic signed audit, remove latest positive snapshot, and update PWA shell.",
-      "sources": ["docs/HANDOFF.md", "app/services/events.py", "app/index.html"], "tests": [],
-      "handoff_tests": ["tests/test_backend.py::BackendFlowTests.test_event_plus_and_minus_are_logged_without_admin_pin", "tests/test_backend.py::BackendFlowTests.test_event_minus_cannot_make_quantity_negative", "tests/test_backend.py::BackendFlowTests.test_event_minus_uses_latest_positive_price_snapshot", "tests/test_backend.py::BackendFlowTests.test_event_changes_reject_stale_or_closed_event", "tests/test_backend.py::BackendFlowTests.test_event_concurrent_minus_only_removes_last_mark_once", "tests/test_backend.py::BackendFlowTests.test_event_mark_changes_roll_back_when_audit_log_fails"], "manual": ["MV-01", "MV-02"]
+      "sources": ["docs/HANDOFF.md", "app/services/events.py", "app/index.html"],
+      "tests": ["tests/test_backend.py::BackendFlowTests.test_event_plus_and_minus_are_logged_without_admin_pin", "tests/test_backend.py::BackendFlowTests.test_event_minus_cannot_make_quantity_negative", "tests/test_backend.py::BackendFlowTests.test_event_minus_uses_latest_positive_price_snapshot", "tests/test_backend.py::BackendFlowTests.test_event_changes_reject_stale_or_closed_event", "tests/test_backend.py::BackendFlowTests.test_event_concurrent_minus_only_removes_last_mark_once", "tests/test_backend.py::BackendFlowTests.test_event_mark_changes_roll_back_when_audit_log_fails", "tests/test_runtime_contracts.py::RuntimeContractTests.test_http_event_correction_rejects_stale_id_and_rolls_back_audit_failure"], "manual": ["MV-01", "MV-02"]
     },
     {
-      "id": "DP-017", "scope": "pending-pr1",
+      "id": "DP-017", "scope": "handoff-integrated",
       "statement": "PR #1 saves/validates an independent SMTP test recipient, protects unsaved edits and uses explicit/saved recipient without cashier fallback.",
-      "sources": ["docs/HANDOFF.md", "app/admin.html", "app/services/events.py"], "tests": [],
-      "handoff_tests": ["tests/test_backend.py::BackendFlowTests.test_mail_test_recipient_persists_independently_from_cashier", "tests/test_backend.py::BackendFlowTests.test_mail_test_recipient_validation_preserves_saved_value", "tests/test_backend.py::BackendFlowTests.test_mail_test_uses_saved_or_explicit_recipient_never_cashier"], "manual": ["MV-03"]
+      "sources": ["docs/HANDOFF.md", "app/admin.html", "app/services/events.py"],
+      "tests": ["tests/test_backend.py::BackendFlowTests.test_mail_test_recipient_persists_independently_from_cashier", "tests/test_backend.py::BackendFlowTests.test_mail_test_recipient_validation_preserves_saved_value", "tests/test_backend.py::BackendFlowTests.test_mail_test_uses_saved_or_explicit_recipient_never_cashier"], "manual": ["MV-03"]
     },
     {
       "id": "DP-018", "scope": "engineering",

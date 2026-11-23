@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import json
+import re
 import subprocess
 from html.parser import HTMLParser
 from pathlib import Path
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 JS_TYPES = {"", "module", "text/javascript", "application/javascript", "text/ecmascript", "application/ecmascript"}
@@ -51,6 +54,40 @@ def check_python(paths: list[Path]) -> None:
         compile(path.read_bytes(), str(path), "exec")
 
 
+def check_pwa(root: Path) -> None:
+    app = root / "app"
+    for manifest in app.glob("*.webmanifest"):
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+        if data.get("display") != "standalone" or not data.get("start_url") or not data.get("icons"):
+            raise ValueError(f"Incomplete installable manifest: {manifest}")
+        for icon in data["icons"]:
+            url = urlsplit(icon["src"])
+            asset = (app / url.path.lstrip("/")).resolve()
+            if url.scheme or url.netloc or not asset.is_relative_to(app.resolve()) or not asset.is_file():
+                raise ValueError(f"Missing/non-local manifest icon: {manifest}: {icon['src']}")
+    worker = (app / "service-worker.js").read_text(encoding="utf-8")
+    if not re.search(r"const CACHE_NAME = ['\"]drink-pos-shell-v\d+['\"]", worker):
+        raise ValueError("Service-worker shell cache version missing")
+    match = re.search(r"const SHELL_URLS = (\[.*?\]);", worker, re.DOTALL)
+    if not match:
+        raise ValueError("Service-worker shell URL catalog missing")
+    shell_urls = ast.literal_eval(match.group(1))
+    tree = ast.parse((app / "legacy_main.py").read_text(encoding="utf-8"))
+    served = {
+        decorator.args[0].value
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef)
+        for decorator in node.decorator_list
+        if isinstance(decorator, ast.Call)
+        and isinstance(decorator.func, ast.Attribute)
+        and decorator.func.attr == "get"
+        and decorator.args
+        and isinstance(decorator.args[0], ast.Constant)
+    }
+    if set(shell_urls) - served:
+        raise ValueError(f"Service worker caches unserved paths: {set(shell_urls) - served}")
+
+
 def check_js(node: str, source: str, module: bool, label: str) -> None:
     command = [node, "--check", f"--input-type={'module' if module else 'commonjs'}"]
     result = subprocess.run(command, input=source, text=True, encoding="utf-8", capture_output=True, check=False)
@@ -86,6 +123,7 @@ def check_app(root: Path, node: str) -> None:
     for path in sorted((root / "app").rglob("*")):
         if path.suffix in {".json", ".webmanifest"}:
             json.loads(path.read_text(encoding="utf-8"))
+    check_pwa(root)
     print(f"Syntax/data passed: {len(python_paths)} Python files; {count} JavaScript sources/handlers", flush=True)
 
 

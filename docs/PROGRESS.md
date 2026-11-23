@@ -12,8 +12,8 @@ done after current foundation increments are committed, not by resetting work.
 | Package | State | Evidence / next step |
 | --- | --- | --- |
 | EF-01 Takeover, requirements, process, architecture | Implemented | Full handoff diff/PR inspected; branch isolated; catalog and documented seams |
-| EF-02 Standard Checks and regression guards | In progress | Baseline tooling characterized; implement scripts and runtime tests |
-| EF-03 CI/container safety and review delivery | Ready | Replace all-branch publication with non-publishing verification; open separate PR |
+| EF-02 Standard Checks and regression guards | Implemented / final verification | Mandatory commands, security/browser, integrated handoff/HTTP tests |
+| EF-03 CI/container safety and review delivery | In progress | Safe workflow implemented; actual PR/container execution next |
 | EF-04 Narrow legacy rehabilitation | Not started / approval gate | Select one characterized seam after foundation review |
 
 ## Verification log — 2026-11-22
@@ -26,7 +26,8 @@ done after current foundation increments are committed, not by resetting work.
 - Same command in detached handoff worktree: **96 passed** (including all nine
   transferred regressions). SMTP and SumUp calls are mocked there.
 - Initial Ruff `E4,E7,E9,F`: one unused local (`created`) in schema migration;
-  no mass formatting planned. Remove unused row lookup only; SQL is unchanged.
+  unused row lookup removed; SQL unchanged. Initial no-format scope was later
+  expanded by owner to mandatory formatting in isolated mechanical commits.
 - Node 24.11.1 unpacked to temporary tooling; no frontend build system introduced.
 - Docker/Podman unavailable locally. Container build/runtime/Compose checks must
   run in non-publishing CI; do not claim a local container pass.
@@ -62,3 +63,12 @@ publication have been performed by this assignment.
 - Initial isolated installed dependency audit: **no known vulnerabilities found**.
 - New tooling formatted; legacy formatting postponed to small mechanical commits
   after main integration to avoid overlapping transferred feature changes.
+- Integrated owner main `052c2bb` with merge commit on this branch; clean merge,
+  all eight transferred files and nine original tests preserved, no history reset.
+- Chromium smoke on combined code passed member booking/admin/event +1/-1 and
+  kassa/self-pay rendering with no uncaught page errors. Target-device checks open.
+- Ruff formatter cleanup isolated: 10 module/import files, legacy runtime, then
+  legacy suite in three dedicated commits; Python AST identical in each increment.
+- Requirements catalog now uses verified `052c2bb` baseline with previous base
+  retained and original PR #1 tests local (`handoff-integrated`), not fictitious
+  external/pending evidence. Remaining manual IDs MV-01..06 still pending.
