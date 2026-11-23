@@ -135,3 +135,10 @@ target races and retention. This is direct synthetic evidence, not a production
 NAS/offsite rehearsal. MV-06 remains **partially pending** for coordinated
 production-like filesystem/offsite restoration in an isolated environment and
 operator acceptance of recovery procedures/RPO/RTO. See `docs/recovery.md`.
+
+PR #3 permissions regressions check pre-created restore files on both platforms;
+Linux CI additionally runs real POSIX 0600/0700 assertions under permissive umask,
+preserves existing-directory/unrelated-file modes and checks chmod-before-link and
+permission-failure publication. These three tests explicitly skip on Windows;
+that is a local POSIX evidence gap, not a Windows ACL pass. Linux matrix results
+must show them executing (no skips) before delivery.

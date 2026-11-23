@@ -74,6 +74,10 @@ new-target-only restore. DP-013 CSV contents/encoding are preserved; CSV now liv
 inside the bundle as `export.csv`. Legacy CSV is partial recovery, not an all-table
 backup. See [recovery contract/runbook](docs/recovery.md). This approval excludes
 invoice/SMTP redesign, production operations, publication and deployment.
+PR #3 security correction: POSIX restored DBs are 0600 from creation through
+publication; new restore-directory components are 0700, existing directories are
+untouched. Windows ACLs need operator verification. External root-only CSV consumers
+are not assumed migrated; the runbook defines an explicit pre-adoption procedure.
 
 ## Classification rules
 

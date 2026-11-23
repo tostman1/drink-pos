@@ -1515,8 +1515,11 @@ backup_and_recovery:
       - "Nach einem erfolgreichen Start wartet der Scheduler ca. 61 Minuten, damit derselbe Zeitpunkt nicht mehrfach exportiert wird."
   output:
     directory: "./data/backups"
-    filename_pattern: "drink_pos_backup_YYYY-MM-DD_HHMMSS.csv"
-    format: "CSV mit Semikolon-Trennung und UTF-8-BOM fuer Excel"
+    filename_pattern: "drink_pos_backup_YYYY-MM-DD_HHMMSS_<uuid>/"
+    artifacts: ["database.db", "export.csv", "manifest.json"]
+    legacy_filename_pattern: "drink_pos_backup_YYYY-MM-DD_HHMMSS.csv (alte gepinnte Images)"
+    format: "Verifiziertes SQLite-Bundle; CSV unveraendert mit Semikolon-Trennung und UTF-8-BOM fuer Excel"
+    consumer_migration: "docs/recovery.md: bestehende NAS-Filter/Dateinamen-Verbraucher separat pruefen; keine Migration vorausgesetzt"
     columns:
       - "backup_created_at"
       - "source_db"

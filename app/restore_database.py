@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import sqlite3
 import tempfile
 from pathlib import Path
@@ -11,6 +12,7 @@ from typing import Any
 try:
     from app.database_recovery import (
         check_new_target,
+        create_private_directories,
         publish_new_file,
         read_connection,
         verify_bundle,
@@ -19,6 +21,7 @@ try:
 except ImportError:
     from database_recovery import (
         check_new_target,
+        create_private_directories,
         publish_new_file,
         read_connection,
         verify_bundle,
@@ -173,9 +176,13 @@ def restore_backup(backup_path: Path, target_db: Path) -> Path:
     elif backup_path.suffix.lower() != ".csv":
         raise ValueError("SQLite recovery requires database.db in a verified backup bundle")
 
-    target_db.parent.mkdir(parents=True, exist_ok=True)
+    create_private_directories(target_db.parent)
     with tempfile.TemporaryDirectory(prefix=f".{target_db.name}.restore-", dir=target_db.parent) as temporary:
-        temp_db = Path(temporary) / "database.db"
+        # mkstemp creates mode 0600 before SQLite writes any member/financial data;
+        # the enclosing tempfile directory is mode 0700 on POSIX as well.
+        descriptor, temp_name = tempfile.mkstemp(prefix="database-", suffix=".db", dir=temporary)
+        os.close(descriptor)
+        temp_db = Path(temp_name)
         if backup_path.suffix.lower() == ".csv":
             restore_csv(backup_path, temp_db)
         else:

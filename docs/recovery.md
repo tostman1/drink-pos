@@ -30,6 +30,9 @@ mail/payment operations, automatic migration or invoice-side-effect redesign.
   selectable completed backup. Clean only temporary resources owned by this run.
 - New-target-only restore, including race/symlink/WAL-sidecar conflicts; verify
   checksums and recovered SQLite before atomic no-clobber publication.
+- POSIX restore: pre-create the temporary database as 0600 before SQLite writes;
+  create each missing target directory as 0700, leaving existing directories alone;
+  enforce 0600 again before atomic publication. Never expose intermediate data.
 - Retention disabled unless explicitly configured; keep at least two verified
   bundles, never touch legacy files, invalid bundles or another run's staging.
 - Synthetic tests compare every table (including sequence state) and schema
@@ -75,6 +78,18 @@ ext4/Btrfs and Windows NTFS); unsupported network filesystems fail closed.
 Restore produces a standalone DELETE-journal database; normal approved app startup
 re-enables WAL. Restore never starts the application or migrates the database.
 
+On POSIX, every newly created target-directory component and restore staging
+directory is private (0700, subject to a more restrictive umask). SQLite writes
+into a pre-created 0600 file; publication enforces 0600 before the no-clobber link.
+Existing directory modes/ownership are **not** modified. Use a trusted parent
+directory: this is not protection against root or a hostile directory owner.
+On Windows, POSIX mode bits are **not** an owner-only file-ACL guarantee; effective
+access depends on NTFS/Windows ACLs and inheritance. Some Python/Windows versions
+apply a restrictive ACL when creating a directory with mode 0700, but the CLI does
+not explicitly manage or verify ACLs, including those on published files or existing
+parents. Operators must select and verify a restricted destination ACL before
+restoring; Linux mode-test results are not Windows ACL verification.
+
 Standalone old CSV remains accepted, with post-commit integrity/FK checks and the
 same safe target publication. Missing tables/data (especially named events),
 sequence high-water marks and absent checksums cannot be reconstructed. Unknown
@@ -89,6 +104,73 @@ artifacts and must not be selected or automatically pruned. File fsync plus Linu
 directory fsync precedes/follows publication; storage/controller power-loss
 guarantees remain a filesystem/hardware responsibility. Retention failure after
 publication returns an error but leaves the verified new bundle intact.
+
+## CSV layout compatibility assessment and operator migration
+
+Repository inspection for PR #3 found:
+
+- Both Compose schedulers execute `backup_database.py`; neither parses output nor
+  searches for a CSV filename. Dockerfile/.env defaults and README NAS folder
+  instructions still select the same backup root. These entrypoints remain compatible.
+- `scripts/container_smoke.py` and recovery tests use the returned CSV path, not a
+  top-level filename assumption. No repository copying/cleanup/report script was
+  found that depends on `drink_pos_backup_YYYY-MM-DD_HHMMSS.csv` at the root.
+- The operational YAML's `backup_and_recovery.output.filename_pattern` described
+  the old top-level filename; it now distinguishes legacy and bundled outputs.
+  README configuration wording now describes database/CSV bundles, not CSV-only.
+- External Synology tasks, spreadsheets, NAS backup filters and other integrations
+  are **unknown/unverified**. No production inspection was performed and no claim
+  is made that any external consumer has migrated. A root-only `*.csv` filter will
+  silently miss new backups; an exact timestamp filename parser also needs review.
+
+Keep the current pinned deployment unchanged. Before separately approved adoption:
+
+1. Inventory each consumer with its owner: recursive/root-only filter, filename
+   parser, restore command, permissions, retention and offsite destination. Do not
+   infer that copying `data/backups` is recursive or includes hidden-file exclusions.
+2. Prefer updating consumers to discover completed `drink_pos_backup_*` **directories**,
+   verify `manifest.json` and both checksums via `verify_bundle`, and copy the entire
+   immutable bundle. Ignore `.drink-pos-backup-*`; never rename/edit bundle artifacts.
+   Select `export.csv` for CSV-only accounting imports; select the bundle/database
+   for full recovery. Continue preserving legacy top-level CSV files.
+3. Rehearse old and new inputs on synthetic data; validate BOM/semicolon/JSON,
+   filenames, restricted access, whole-bundle checksums and offsite restore. Keep
+   retention disabled until verified, independent copies exist.
+4. If a consumer cannot change immediately, use an **owner-approved explicit
+   CSV adapter into a separate private compatibility directory**, after bundle
+   verification. Copy bytes to a 0600 temporary file in a 0700 staging directory,
+   fsync and atomically no-clobber publish a legacy timestamp `.csv` name. Preserve
+   the authoritative bundle and do not treat this partial CSV as full recovery.
+   Reject timestamp collisions instead of replacing an existing legacy export.
+   An example for one explicitly selected bundle/target (not an automatic scheduler):
+
+   ```python
+   import os
+   import shutil
+   import tempfile
+   from pathlib import Path
+   from app.database_recovery import create_private_directories, publish_new_file, verify_bundle
+
+   bundle = Path("/isolated/backups/drink_pos_backup_<timestamp>_<uuid>")
+   target = Path("/isolated/legacy-csv/drink_pos_backup_<timestamp>.csv")
+   verify_bundle(bundle)
+   create_private_directories(target.parent)
+   with tempfile.TemporaryDirectory(dir=target.parent) as staging:
+       fd, name = tempfile.mkstemp(dir=staging)
+       with os.fdopen(fd, "wb") as output, (bundle / "export.csv").open("rb") as source:
+           shutil.copyfileobj(source, output)
+       publish_new_file(Path(name), target)
+   ```
+
+   Select restrictive Windows ACLs separately. Compatibility copies are not managed
+   by bundle retention; inventory their protected storage/cleanup with their owner.
+   Avoid symlinks into bundles (retention could break them), automatic duplicate
+   root exports or unverified `cp` overwrites. No adapter or consumer migration was
+   run here; adoption requires separate owner approval.
+
+This explicit migration keeps the bundle's one-step atomic publication intact;
+there is no silently generated secondary CSV that could fail independently and
+mislead an unchanged consumer about recovery completeness.
 
 ## What SQLite recovery does not recover
 

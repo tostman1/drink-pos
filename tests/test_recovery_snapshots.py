@@ -2,6 +2,7 @@
 
 import json
 import os
+import stat
 import sqlite3
 import subprocess
 import sys
@@ -78,6 +79,81 @@ class SnapshotRecoveryTests(unittest.TestCase):
                 recovered.execute("DELETE FROM event_lines")
             with self.assertRaises(sqlite3.IntegrityError):
                 recovered.execute("INSERT INTO event_lines VALUES(2,1,-1,NULL)")
+
+    def test_restore_precreates_database_before_sqlite_writes(self):
+        database = self.backup()
+        connect = sqlite3.connect
+        inspected = []
+
+        def inspect_staging(path, *args, **kwargs):
+            if not kwargs.get("uri"):
+                staging_db = Path(path)
+                self.assertTrue(staging_db.is_file(), "SQLite must not create a umask-readable restore file")
+                if os.name == "posix":
+                    self.assertEqual(stat.S_IMODE(staging_db.stat().st_mode), 0o600)
+                    self.assertEqual(stat.S_IMODE(staging_db.parent.stat().st_mode), 0o700)
+                inspected.append(staging_db)
+            return connect(path, *args, **kwargs)
+
+        for backup in (database, database.parent / "export.csv"):
+            with patch.object(sqlite3, "connect", side_effect=inspect_staging):
+                restore_database.restore_backup(backup, self.root / f"restored-{backup.suffix}.db")
+        self.assertEqual(len(inspected), 2)
+
+    @unittest.skipUnless(os.name == "posix", "POSIX mode assertions require Linux CI; Windows uses ACLs")
+    def test_restore_private_modes_with_permissive_umask_and_nested_new_directories(self):
+        database = self.backup()
+        old_umask = os.umask(0)
+        try:
+            parent = self.root / "new" / "nested"
+            for backup in (database, database.parent / "export.csv"):
+                target = parent / f"restored-{backup.suffix}.db"
+                restore_database.restore_backup(backup, target)
+                self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o600)
+            for directory in (parent, parent.parent):
+                self.assertEqual(stat.S_IMODE(directory.stat().st_mode), 0o700)
+        finally:
+            os.umask(old_umask)
+
+    @unittest.skipUnless(os.name == "posix", "POSIX mode assertions require Linux CI; Windows uses ACLs")
+    def test_restore_preserves_existing_directory_and_unrelated_file_permissions(self):
+        database = self.backup()
+        parent = self.root / "existing"
+        parent.mkdir(mode=0o755)
+        parent.chmod(0o755)
+        unrelated = parent / "owner-work.txt"
+        unrelated.write_text("owner work")
+        unrelated.chmod(0o640)
+        for target in (parent / "direct.db", parent / "new" / "nested.db"):
+            restore_database.restore_backup(database, target)
+            self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o600)
+        self.assertEqual(stat.S_IMODE(parent.stat().st_mode), 0o755)
+        self.assertEqual(stat.S_IMODE(unrelated.stat().st_mode), 0o640)
+        self.assertEqual(unrelated.read_text(), "owner work")
+        self.assertEqual(stat.S_IMODE((parent / "new").stat().st_mode), 0o700)
+
+    @unittest.skipUnless(os.name == "posix", "POSIX mode assertions require Linux CI; Windows uses ACLs")
+    def test_publication_restricts_file_before_atomic_link_and_fails_closed_on_chmod_error(self):
+        temporary = self.root / "owned-staging.db"
+        temporary.write_bytes(b"synthetic financial data")
+        temporary.chmod(0o644)
+        target = self.root / "published.db"
+        link = os.link
+
+        def inspect_link(source, destination):
+            self.assertEqual(stat.S_IMODE(source.stat().st_mode), 0o600)
+            return link(source, destination)
+
+        with patch.object(os, "link", side_effect=inspect_link):
+            database_recovery.publish_new_file(temporary, target)
+        self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o600)
+        temporary.write_bytes(b"other synthetic data")
+        blocked_target = self.root / "blocked.db"
+        with patch.object(os, "chmod", side_effect=PermissionError("permission failure")):
+            with self.assertRaises(PermissionError):
+                database_recovery.publish_new_file(temporary, blocked_target)
+        self.assertFalse(blocked_target.exists())
+        self.assertTrue(temporary.exists())
 
     def test_same_timestamp_never_overwrites_completed_bundle(self):
         with patch.object(backup_database, "backup_timestamp", return_value="same-time"):

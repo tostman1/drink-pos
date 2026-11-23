@@ -1,5 +1,35 @@
 # Engineering foundation progress
 
+## PR #3 final recovery security/compatibility review — 2026-11-23
+
+- Continued the approved EF-08 session on its clean branch at `6612924`.
+  Prior exact-head PR run `45141076838` passed all quality/container/image audit
+  jobs; publication skipped. Refetched main remains `a218fcc`; no integration drift.
+- DP-014 failing regression written before code: SQLite previously created the
+  restore file itself. Local baseline **one failure, three POSIX skips**; Windows
+  has no installed WSL/Docker runtime, so real POSIX mode evidence requires CI.
+- Small correction: mkstemp pre-creates 0600 restore DB; each missing directory
+  component mkdir(0700), no chmod of existing dirs; enforce 0600 on owned file
+  before no-clobber hard link. Private staging/cleanup, FK/checksum behavior and
+  financial contracts preserved. Windows ACL limitations documented, not inferred.
+- Targeted recovery rerun: **27 tests, 24 passed, three POSIX skips** on Windows.
+  Linux CI must execute those POSIX tests; full local and final CI gates follow.
+- Compatibility inspection: Compose schedulers just execute the backup CLI;
+  current scripts/tests consume its returned CSV path, no root-name glob reader
+  found. Operational YAML had a stale top-level filename and README said CSV-only;
+  corrected both. External NAS filters/consumers unknown, no production inspection.
+  Runbook defines inventory, synthetic validation, whole-bundle verification/copy,
+  legacy preservation and explicit optional private CSV adapter for unchangeable
+  consumers. No automatic duplicate export or presumed NAS migration.
+- Same bounded scope, no deployment/publication/production access/merge; MV-06
+  remains partially pending and manual MV-01..05 are unchanged.
+- Full local Standard Checks passed Python 3.12.13 and 3.13.15: **139 discovered,
+  136 passed, three POSIX skips** each (37.357s / 37.491s). Ruff lint/format,
+  Python/all JS/data/traceability, Chromium smoke and strict dependency audits
+  passed, no known vulnerabilities. Reviewed full correction diff; no generated
+  state, secrets, financial/schema/REST/Compose/image/workflow changes. Real POSIX
+  mode evidence and exact pushed-head container verification still require CI.
+
 ## EF-08a — bounded database recovery, 2026-11-23
 
 - Owner authorized implementation, branch, commits, push and PR; **not merge**.

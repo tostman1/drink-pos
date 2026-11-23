@@ -1,5 +1,19 @@
 # Handoff and protected work
 
+## PR #3 security/compatibility correction — 2026-11-23
+
+Continuation on the existing `feature/ef-08-database-recovery` branch, not a new
+work package. Incoming clean HEAD `6612924e72dfa96b1dcc6bfa80dde8f68fe33510` had
+passed exact-head PR CI `45141076838`; main refetched and remains `a218fcc`.
+POSIX restore pre-creates private 0600 SQLite files, creates all missing directory
+components 0700 without chmod of existing directories, and enforces 0600 before
+atomic no-clobber publication. Windows ACLs remain an explicit operator boundary.
+No root CSV consuming script found; operational YAML/README updated and external
+NAS consumers explicitly unknown. `docs/recovery.md` gives a pre-adoption migration
+and optional separate private CSV adapter; neither was run against production.
+Final gates/HEAD will be evidenced on PR #3; do not infer completion from the prior
+CI receipt. Still no merge, publication, deployment or production access authorized.
+
 ## Active EF-08a delivery — 2026-11-23
 
 Branch `feature/ef-08-database-recovery` from clean verified/fetched main

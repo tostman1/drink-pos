@@ -358,7 +358,9 @@ Siehe `.env.example` fuer die wichtigsten Variablen:
 - `DRINK_POS_ENV`: `development` oder `production`
 - `DRINK_POS_PIN`: Start-PIN beim ersten DB-Start; ersetzt ausserdem eine bestehende Default-PIN `1234`
 - `DRINK_POS_DB`: SQLite-Dateipfad
-- `DRINK_POS_BACKUP_DIR`: Zielordner fuer CSV-Backups
+- `DRINK_POS_BACKUP_DIR`: Zielordner fuer verifizierte SQLite/CSV-Backup-Bundles;
+  alte Images schreiben dort nur CSV. Bestehende NAS-CSV-Filter vor einer separat
+  freigegebenen Umstellung pruefen: [Migration und Berechtigungen](docs/recovery.md).
 - `DRINK_POS_AGENT_TOKEN`: Bearer-Token fuer Agenten-REST-Zugriff
 - `PAYMENT_PROVIDER`: `sumup` aktiviert SumUp Solo Self-Checkout
 - `SUMUP_API_BASE`: SumUp API-Basis, Standard `https://api.sumup.com`

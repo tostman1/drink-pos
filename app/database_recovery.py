@@ -64,8 +64,23 @@ def check_new_target(path: Path) -> None:
             raise FileExistsError(f"Target database or sidecar already exists: {candidate}")
 
 
+def create_private_directories(path: Path) -> None:
+    # Path.mkdir(parents=True, mode=...) does NOT apply mode to ancestors.
+    # Create each missing component privately; never chmod existing directories.
+    try:
+        path.mkdir(mode=0o700)
+    except FileNotFoundError:
+        create_private_directories(path.parent)
+        create_private_directories(path)
+    except FileExistsError:
+        if not path.is_dir():
+            raise
+
+
 def publish_new_file(temporary: Path, target: Path) -> None:
     check_new_target(target)
+    if os.name == "posix":
+        os.chmod(temporary, 0o600)
     sync_file(temporary)
     # Hard-link creation is atomic and fails if *any* target exists (including a
     # dangling symlink). Unlike replace/rename this cannot clobber a racing writer.
