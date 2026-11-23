@@ -211,6 +211,18 @@ class SnapshotRecoveryTests(unittest.TestCase):
         self.assertTrue(first.exists())
         self.assertEqual(lock.read_text(), "previous run")
 
+    def test_retention_never_prunes_another_database_in_shared_destination(self):
+        foreign_source = self.root / "another.db"
+        with closing(sqlite3.connect(foreign_source)) as conn:
+            conn.execute("CREATE TABLE foreign_data(id INTEGER)")
+            conn.commit()
+        with patch.dict(os.environ, {"DRINK_POS_DB": str(foreign_source)}):
+            foreign_backup = backup_database.export_backup().parent
+        os.environ["DRINK_POS_BACKUP_KEEP"] = "2"
+        for _ in range(3):
+            self.backup()
+        self.assertTrue(foreign_backup.exists())
+
     def test_racing_target_is_not_clobbered_and_restore_temp_is_removed(self):
         database = self.backup()
         target = self.root / "recovered.db"

@@ -55,7 +55,8 @@ unchanged; the fixed CSV table list deliberately remains unchanged.
 
 `DRINK_POS_BACKUP_KEEP` empty/unset disables deletion. An explicitly configured
 integer >=2 keeps that many newest *verified* bundles (and always the just-created
-bundle). Legacy CSV, invalid bundles, symlinks, foreign files and staging are never
+bundle). Bundles for a different source DB path in a shared destination are never
+pruned. Legacy CSV, invalid bundles, symlinks, foreign files and staging are never
 pruned. Only one retention run may hold an exclusive lock; a crash leaves a stale
 lock and disables further cleanup until an operator confirms no cleanup is running
 and removes that specific lock. Never enable retention before owner-approved

@@ -60,6 +60,15 @@
   rehearsal, with RPO/RTO, monitoring and protected configuration/image inventory.
   Adoption/deployment or cleanup requires separate owner-approved operational work.
 
+### Final review correction
+
+- Shared backup destinations now scope retention to the current source DB path;
+  an additional synthetic regression guards other DB bundles. Final suite is
+  **135 tests**, recovery subset **23**; full local reruns are recorded at delivery.
+- Predecessor receipt `2c0a507` passed push run `45140644113` and PR run
+  `45140651475` (non-publishing). This is predecessor evidence, **not** a claim
+  that the final retention correction passed CI; verify the final pushed SHA.
+
 ## Current scope
 
 Independent review branch `feature/engineering-foundation-baseline`, based on

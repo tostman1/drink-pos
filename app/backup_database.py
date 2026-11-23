@@ -277,6 +277,7 @@ def prune_backups(backup_dir: Path, keep: int, current: Path) -> None:
 def _prune_verified_backups(backup_dir: Path, keep: int, current: Path) -> None:
     # Only verified, exact-layout bundles from this format qualify. Corrupt,
     # incomplete, legacy and foreign artifacts are never cleanup candidates.
+    current_manifest = verify_bundle(current)
     eligible = []
     for directory in backup_dir.glob("drink_pos_backup_*"):
         if not directory.is_dir() or directory.is_symlink():
@@ -286,6 +287,8 @@ def _prune_verified_backups(backup_dir: Path, keep: int, current: Path) -> None:
         try:
             manifest = verify_bundle(directory)
             if manifest.get("backup_id") != directory.name:
+                continue
+            if manifest.get("source_db") != current_manifest["source_db"]:
                 continue
             created = datetime.fromisoformat(manifest["created_at_utc"])
             if created.tzinfo is None:
