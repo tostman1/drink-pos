@@ -54,20 +54,29 @@ See `docs/standard-checks.md` for detailed procedures and catalog IDs.
 - **MV-05:** normal offline queue/reconnect and online-only exclusions on devices.
 - **MV-06:** production-like backup/recovery rehearsal on synthetic data only.
 
-## Next safe actions
+## Final integration and next safe actions
 
-EF-01/02 and safe workflow committed/pushed; verified `052c2bb` integrated via
-`2ccb377` without conflicts/rewriting. Draft foundation PR #2 is open:
-https://github.com/tostman1/drink-pos/pull/2.
-Code SHA `57ad9cc39a54768cd9f278f9931a3618e0e2453b` passes 115 local regressions
-and full Standard Checks on Python 3.12/3.13, plus actual branch container CI
-`45131190711`. PR run `45131482792` also succeeded with actual image/container
-verification; publication skipped in both. Evidence-only docs follow verified code.
-The owner subsequently authorized merging **PR #2 after final-HEAD checks pass**.
-Finalize this PR, verify the exact merged tree and post-merge main CI, then leave
-the primary checkout clean on main synchronized with origin/main. Do not merge
-with failing checks or bypass repository protection. Real accounts, publication,
-release, deployment, infrastructure changes and production data remain forbidden.
+PR #2 https://github.com/tostman1/drink-pos/pull/2 is **merged**, not draft/open.
+Merge: **`246e0967a889822eaaddb438ba523b87b29ffe31`**, 2026-11-23T08:15:59Z.
+The owner authorized this merge conditional on final checks; PR was marked ready
+then merged normally with exact checked-head guard and no protection bypass.
+
+- Final PR HEAD: `64018bd23babe2a9cd995099178517c9ea4020f4`, including the preserved
+  `c47b73c` evidence and unrelated-reference cleanup. Merged tree matches exactly.
+- Both local Python 3.12/3.13 full Standard Checks passed, 115 tests each.
+- Final PR/branch runs `45136828301` / `45136820988` passed on exact final head.
+- Post-merge main CI **`45137226115` passed** on merge SHA, including actual image,
+  Compose, startup/restart/persistence/SQLite/health and dependency audit.
+- Publication skipped in every final run; deployments for merge SHA are empty.
+  No release, deployment, image publication, production data or real accounts used.
+- Primary tree fast-forwarded to origin/main; final integration receipt is a
+  documentation-only main descendant. Read final main HEAD/status with Git and
+  ensure a clean synchronized checkout before the next session.
+
+EF-01..03 are complete. Existing legacy/global/lifecycle/auth/file-mail risks and
+manual checks above remain visible, not inferred fixed by merge or green CI.
+Real accounts, publication, release, deployment, infrastructure changes and
+production data remain forbidden without separate authorization.
 
 The next intended session is the **database backup/restore/data-integrity portion
 of EF-08**, not a compatibility rewrite or invoice-mail redesign. Do not implement

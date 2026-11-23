@@ -8,14 +8,16 @@ PR #1 at `250a4e6` was subsequently merged by owner `tostman1` at
 2026-11-22T21:15:45Z as `052c2bbc54f05f7c7d850feb8ad597a4e4868670`.
 The original handoff branch is unchanged. Verified main was integrated with
 branch merge `2ccb377`; no reset/rebase or transferred behavior removal.
-Foundation review: https://github.com/tostman1/drink-pos/pull/2 (draft, open).
+Foundation integration: https://github.com/tostman1/drink-pos/pull/2 — **merged**
+2026-11-23T08:15:59Z as `246e0967a889822eaaddb438ba523b87b29ffe31` after the
+owner's conditional approval and successful final pushed-HEAD checks.
 
 | Package | State | Evidence / next step |
 | --- | --- | --- |
 | EF-01 Takeover, requirements, process, architecture | Implemented | Full handoff diff/PR inspected; branch isolated; catalog and documented seams |
 | EF-02 Standard Checks and regression guards | Verified | Mandatory commands, security/browser, 115 integrated regressions |
-| EF-03 CI/container safety and review delivery | Verified / owner review pending | Branch and PR container/image audit passed; draft PR #2 open |
-| EF-04 Narrow legacy rehabilitation | Not started / approval gate | Select one characterized seam after foundation review |
+| EF-03 CI/container safety and review delivery | Complete / merged | Final branch/PR checks and post-merge main CI passed; publication skipped |
+| EF-04 Narrow legacy rehabilitation | Not started / deferred | Next intended session is bounded EF-08 database recovery/data integrity |
 
 ## Verification log — 2026-11-22
 
@@ -41,8 +43,9 @@ Foundation review: https://github.com/tostman1/drink-pos/pull/2 (draft, open).
 Keep FastAPI/SQLite/vanilla PWA, both import modes, and served legacy handlers.
 Do not import another application's architecture, introduce an ORM, change payment retries,
 or run historical wide-refactor prompts. See architecture risks and EF-04 gates.
-No deployments, production DB operations, live emails/payments, PR merges, or image
-publication have been performed by this assignment.
+No deployments, production DB operations, live emails/payments or image publication
+have been performed. PR #2 was merged only after the owner's later authorization;
+this does not authorize any other PR merge or production activity.
 
 ## Continued verification — 2026-11-23
 
@@ -140,3 +143,33 @@ Next session: database backup, restore and data integrity, the bounded recovery
 portion of EF-08. No implementation in this session; preserve existing behavior,
 use synthetic data and define acceptance before any future changes. Invoice-mail
 side-effect redesign and production recovery require separate authorization.
+
+## Final integration receipt — 2026-11-23
+
+- Preserved/pushed `c47b73c`, then documentation consistency/reference cleanup
+  committed and pushed as `64018bd23babe2a9cd995099178517c9ea4020f4`.
+- Final local Standard Checks passed on Python 3.12.13 and 3.13.15, **115 tests
+  each** (47.931s / 49.065s), no known dependency vulnerabilities; Ruff lint/format,
+  compileall, all JS/PWA/traceability and focused Chromium checks passed.
+- Final PR run https://github.com/tostman1/drink-pos/actions/runs/45136828301 and
+  branch run `45136820988` passed on exact `64018bd`. Actual Compose/image/runtime/
+  restart/SQLite/health and image dependency verification passed; publish skipped.
+- PR #2 marked ready, then merged with normal merge-commit integration and exact
+  head guard (no protection bypass): **`246e0967a889822eaaddb438ba523b87b29ffe31`**.
+- Merged tree is byte-identical to checked `64018bd`; parents are previous verified
+  main `052c2bb` and final PR head. No unresolved conflicts or new critical
+  merge-blocking findings; documented legacy risks/manual evidence remain open.
+- Post-merge main run https://github.com/tostman1/drink-pos/actions/runs/45137226115
+  **passed** on exact merge SHA: both quality jobs, actual container verification
+  and image dependency audit. Publication **skipped**; GitHub deployments for this
+  SHA returned `[]`. No release or publication dispatch was issued.
+- Primary checkout fast-forwarded to verified main. This final receipt updates
+  documentation only; no database backup/restore/integrity work was implemented.
+  Its commit is a main descendant; final main HEAD/status can be read with Git.
+- Workstation DNS failures were handled with temporary per-command TLS-preserving
+  address resolution/tunneling, not system/repository/production configuration.
+
+Next recommendation: bounded **EF-08 recovery assessment** using synthetic DBs,
+covering snapshot completeness, new-target restore, integrity/FK checks and event
+artifact retention. Define acceptance first in the next session; no production
+restore, invoice-mail redesign or infrastructure work is authorized here.
