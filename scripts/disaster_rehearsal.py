@@ -47,12 +47,40 @@ def metrics(backup_started: str, failure_at: str, rto_seconds: float, *, target_
     }
 
 
+def restore_owned_image_archive(
+    image_id: str, shared_image_id: str, archive: Path, expected_hash: dict, owner: str
+) -> None:
+    """Remove ONLY drill-owned unique image config, prove absent, reload archive.
+
+    No --force, shared-image removal, cache prune or registry pull. A collision or
+    another container referencing the image fails safely rather than being bypassed.
+    """
+    if image_id == shared_image_id:
+        raise ValueError("Never remove shared input image")
+    info = json.loads(docker("image", "inspect", image_id))[0]
+    if info["Id"] != image_id or info["Config"].get("Labels", {}).get("drink-pos.dr-owner") != owner:
+        raise ValueError("Image is not owned by this drill")
+    if independent.file_metadata(archive) != expected_hash:
+        raise ValueError("Independent image archive checksum mismatch")
+    docker("image", "rm", image_id)
+    try:
+        docker("image", "inspect", image_id)
+    except subprocess.CalledProcessError:
+        pass
+    else:
+        raise AssertionError("Original drill image remains available")
+    docker("image", "load", "--input", str(archive))
+    restored = json.loads(docker("image", "inspect", image_id))[0]
+    if restored["Id"] != image_id or restored["Config"].get("Labels", {}).get("drink-pos.dr-owner") != owner:
+        raise ValueError("Archive reconstructed incompatible image")
+
+
 def run_drill(
     image: str, expected_commit: str, age: str, keygen: str, *, target_rpo: float = 3600, target_rto: float = 300
 ) -> dict:
     # Inspect local immutable image identity; all container runs --pull=never.
     info = json.loads(docker("image", "inspect", image))[0]
-    image_id = info["Id"]
+    shared_image_id = info["Id"]
     environment = dict(value.split("=", 1) for value in info["Config"]["Env"])
     if environment.get("APP_BUILD_COMMIT") != expected_commit:
         raise ValueError("Verification image does not match expected application commit")
@@ -62,6 +90,7 @@ def run_drill(
     phase = "initialization"
     started, monotonic_started = utc_now(), time.monotonic()
     durations = {}
+    owned_image_id = None
     with tempfile.TemporaryDirectory(prefix="drink-pos-disaster-") as name:
         root = Path(name)
         escrow, independent_store, scratch, journal, image_store = (
@@ -76,6 +105,20 @@ def run_drill(
             key.chmod(0o600)
         recipient = subprocess.run([keygen, "-y", str(key)], capture_output=True, text=True, check=True).stdout.strip()
         try:
+            # Unique image config owned by this drill; input/shared image untouched.
+            owned_tag = identity + ":rehearsal"
+            maker = identity + "-image-maker"
+            containers.add(maker)
+            docker("create", "--name", maker, "--network", "none", "--pull=never", shared_image_id)
+            # Commit only an unstarted, owned container config label. This avoids
+            # registry resolution/build-cache reliance and preserves source CMD.
+            docker("commit", "--change", f"LABEL drink-pos.dr-owner={identity}", maker, owned_tag)
+            owned_image_id = json.loads(docker("image", "inspect", owned_tag))[0]["Id"]
+            docker("rm", maker)
+            containers.remove(maker)
+            if owned_image_id == shared_image_id:
+                raise AssertionError("Drill must have unique owned image config")
+            image_id = owned_image_id
             image_archive = image_store / "verified-image.tar"
             docker("image", "save", "--output", str(image_archive), image_id)
             image_hash = independent.file_metadata(image_archive)
@@ -175,9 +218,16 @@ def run_drill(
             phase = "encrypted-independent-replication"
             tick = time.monotonic()
             replica = independent.replicate(
-                local_bundle, independent_store, recipient=recipient, identity=key, scratch=scratch, age=age
+                local_bundle, independent_store, recipient=recipient, scratch=scratch, age=age
             )
-            verified = independent.verify_replica(replica, identity=key, scratch=scratch, age=age)
+            verified = independent.verify_replica(
+                replica,
+                identity=key,
+                scratch=scratch,
+                age=age,
+                verification_scope="independent",
+                verifier_id="synthetic-separate-verifier",
+            )
             independent.record_event(
                 journal,
                 "verification",
@@ -185,6 +235,10 @@ def run_drill(
                 uuid.uuid4().hex,
                 backup_id=backup_id,
                 ciphertext_sha256=verified["ciphertext"]["sha256"],
+                verification_level=verified["verification_level"],
+                verification_scope=verified["verification_scope"],
+                verifier_id=verified["verifier_id"],
+                replica_metadata_sha256=verified["replica_metadata_sha256"],
             )
             durations["replication_verification_seconds"] = time.monotonic() - tick
             docker(
@@ -213,9 +267,7 @@ def run_drill(
             phase = "independent-key-image-retrieval"
             tick = time.monotonic()
             independent.private_identity(key)
-            assert independent.file_metadata(image_archive) == image_hash
-            docker("image", "load", "--input", str(image_archive))
-            assert json.loads(docker("image", "inspect", image_id))[0]["Id"] == image_id
+            restore_owned_image_archive(image_id, shared_image_id, image_archive, image_hash, identity)
             durations["synthetic_key_image_retrieval_seconds"] = time.monotonic() - tick
             phase = "independent-recovery"
             tick = time.monotonic()
@@ -349,6 +401,9 @@ def run_drill(
                 "image_id": image_id,
                 "independently_verified_at_utc": verified["independently_verified_at_utc"],
                 "source_storage_removed": True,
+                "original_owned_image_unavailable_before_archive_load": True,
+                "shared_input_image_removed": False,
+                "producer_private_key_required": False,
                 "recovered_startup_network": "none",
                 "encryption": "external-age-X25519",
                 "state": "all-table normalized fingerprint + every artifact checksum",
@@ -368,6 +423,8 @@ def run_drill(
                 docker("rm", "--force", container)
             for volume in list(volumes):
                 docker("volume", "rm", volume)
+            if owned_image_id is not None:
+                docker("image", "rm", owned_image_id)  # exact owned config, no force/prune
 
 
 def main():
