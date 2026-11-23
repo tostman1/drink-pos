@@ -1,5 +1,125 @@
 # Engineering foundation progress
 
+## PR #3 final recovery security/compatibility review — 2026-11-23
+
+- Continued the approved EF-08 session on its clean branch at `6612924`.
+  Prior exact-head PR run `45141076838` passed all quality/container/image audit
+  jobs; publication skipped. Refetched main remains `a218fcc`; no integration drift.
+- DP-014 failing regression written before code: SQLite previously created the
+  restore file itself. Local baseline **one failure, three POSIX skips**; Windows
+  has no installed WSL/Docker runtime, so real POSIX mode evidence requires CI.
+- Small correction: mkstemp pre-creates 0600 restore DB; each missing directory
+  component mkdir(0700), no chmod of existing dirs; enforce 0600 on owned file
+  before no-clobber hard link. Private staging/cleanup, FK/checksum behavior and
+  financial contracts preserved. Windows ACL limitations documented, not inferred.
+- Targeted recovery rerun: **27 tests, 24 passed, three POSIX skips** on Windows.
+  Linux CI must execute those POSIX tests; full local and final CI gates follow.
+- Compatibility inspection: Compose schedulers just execute the backup CLI;
+  current scripts/tests consume its returned CSV path, no root-name glob reader
+  found. Operational YAML had a stale top-level filename and README said CSV-only;
+  corrected both. External NAS filters/consumers unknown, no production inspection.
+  Runbook defines inventory, synthetic validation, whole-bundle verification/copy,
+  legacy preservation and explicit optional private CSV adapter for unchangeable
+  consumers. No automatic duplicate export or presumed NAS migration.
+- Same bounded scope, no deployment/publication/production access/merge; MV-06
+  remains partially pending and manual MV-01..05 are unchanged.
+- Full local Standard Checks passed Python 3.12.13 and 3.13.15: **139 discovered,
+  136 passed, three POSIX skips** each (37.357s / 37.491s). Ruff lint/format,
+  Python/all JS/data/traceability, Chromium smoke and strict dependency audits
+  passed, no known vulnerabilities. Reviewed full correction diff; no generated
+  state, secrets, financial/schema/REST/Compose/image/workflow changes. Real POSIX
+  mode evidence and exact pushed-head container verification still require CI.
+
+### Security/compatibility verification receipt
+
+- Focused correction `1aa53856598a53d9b656f98b057979526477f579` passed push CI
+  https://github.com/tostman1/drink-pos/actions/runs/45149972529 and PR CI
+  https://github.com/tostman1/drink-pos/actions/runs/45149983134 on that exact SHA.
+  Both Linux Python matrices passed **139 tests, no skips**. Retrieved logs show
+  all four new permission/staging tests **ok**, including permissive umask,
+  existing-directory preservation and chmod-before-link/failure checks.
+- Actual Docker build, both Compose validations, disposable container recovery/
+  restart/health and image runtime dependency audit passed; publication **skipped**.
+  Existing FastAPI/Starlette and forced-Node24 action deprecation warnings remain.
+- Documented one-bundle CSV adapter exercised synthetically on both local Python
+  versions: identical CSV bytes/BOM, collision rejected, staging cleaned, bundle
+  preserved. Operational YAML parsed and revised bundle inventory asserted.
+  No real consumers were migrated; external NAS configuration remains unknown.
+- This receipt is documentation-only; the final receipt HEAD must pass its own
+  PR checks before delivery. PR #3 remains open/unmerged and owner approval is
+  required. Code review/CI readiness is not production adoption readiness: MV-06,
+  external CSV consumers and Windows ACL/operator checks retain documented limits.
+  Stop after delivery; no next work package, merge, deployment or publication.
+
+## EF-08a — bounded database recovery, 2026-11-23
+
+- Owner authorized implementation, branch, commits, push and PR; **not merge**.
+  Clean incoming main matched `a218fcc40599d5a19e53f2afee490238eeb7e910`.
+  Fetched remote main matched; exact base quality Python 3.12/3.13 and container
+  checks succeeded, publication skipped. Branch `feature/ef-08-database-recovery`.
+  Broken workstation DNS was bypassed only per command with TLS-preserving address
+  resolution, not system/repository configuration.
+- Scope DP-014/DP-013, acceptance recorded before code in `docs/recovery.md`.
+  First eight new regressions produced **seven failures** on baseline (one existing
+  interruption behavior already passed); full snapshot absence/FK gap demonstrated.
+- Implemented full Backup API SQLite snapshot, unchanged CSV in atomically
+  published unique bundle, checksum/size/table-count manifest, integrity/FK checks,
+  explicit new-target verification/no-clobber restore and opt-in conservative
+  retention (minimum two verified bundles; stale lock disables cleanup).
+- Synthetic rehearsal compares all 16 operational tables + sequence state and
+  exact schema/index definitions; retains open debt, cashup/round history, financial
+  snapshots, payment/session/client IDs, event state. Actual generated event CSV/PDF
+  and message JSON are separately copied/restored by checksum. SQLite recovery
+  alone does not recreate these files. Startup on recovered synthetic DB tested.
+- Targeted recovery suite passed **21 tests** before final extra publication/startup
+  assertions. First full Python 3.12 Standard Checks passed **130 tests**, Ruff/
+  Python/JS/traceability, dependency audit (no known vulnerabilities) and Chromium
+  smoke. Final reruns and actual container CI evidence follow below.
+- Fixed Windows fsync writable-descriptor requirement and a test's unclosed SQLite
+  handle; failures were recorded, not ignored. FastAPI/Starlette deprecations remain.
+- No production resources/accounts, deployment, pinned image/digest, Compose or
+  release workflow changes. Artifact/offsite protection, scheduling/alerting/RPO,
+  secret copies and operator recovery remain gaps. **MV-06 partially pending**;
+  MV-01..05 unchanged. Invoice/SMTP redesign remains outside EF-08a.
+
+### EF-08a final local gates
+
+- Full Standard Checks passed Python **3.12.13** and **3.13.15**, **134 tests each**
+  (30.549s / 39.631s). Ruff lint/format, compileall,
+  all JS/JSON/PWA/traceability, Chromium smoke and strict dependency audit passed
+  both; no known vulnerabilities. No UI/worker changes, so no cache bump required.
+- Recovery subset comprises **22 tests**, including deliberate process exit 37
+  after snapshot creation: only unpublished staging remains; next run succeeds
+  without deleting another run's files. New-target races/verification/publication
+  failures preserve owner targets and clean owned temporary resources.
+- Local Docker/Podman unavailable; actual Docker/Compose/image-runtime and image
+  dependency verification require the final GitHub CI run, never a local pass.
+- Reviewed tracked full diff plus new files; no generated state/secrets/runtime
+  dependencies/REST/schema/business-rule/Compose/workflow changes. Existing CSV
+  contents preserved; artifact location intentionally changes to bundled export.
+
+### EF-08a review delivery
+
+- Committed/pushed reviewable core `fbe61b4`, image verification `89cf426`, and
+  recovery/traceability docs `0e36214`. PR **#3 open**:
+  https://github.com/tostman1/drink-pos/pull/3. Main refetched and still `a218fcc`.
+- Exact final HEAD/CI result must be read from PR checks after this receipt;
+  CI is in progress at receipt creation, **not yet claimed passed**. No merge,
+  release/publication dispatch or deployment performed. Working tree clean after
+  commits; no generated DB/backup/invoice/message state tracked.
+- Next package: coordinated artifact/offsite recovery plan and isolated operational
+  rehearsal, with RPO/RTO, monitoring and protected configuration/image inventory.
+  Adoption/deployment or cleanup requires separate owner-approved operational work.
+
+### Final review correction
+
+- Shared backup destinations now scope retention to the current source DB path;
+  an additional synthetic regression guards other DB bundles. Final suite is
+  **135 tests**, recovery subset **23**; full local reruns are recorded at delivery.
+- Predecessor receipt `2c0a507` passed push run `45140644113` and PR run
+  `45140651475` (non-publishing). This is predecessor evidence, **not** a claim
+  that the final retention correction passed CI; verify the final pushed SHA.
+
 ## Current scope
 
 Independent review branch `feature/engineering-foundation-baseline`, based on

@@ -5,8 +5,28 @@ import csv
 import json
 import os
 import sqlite3
+import tempfile
 from pathlib import Path
 from typing import Any
+
+try:
+    from app.database_recovery import (
+        check_new_target,
+        create_private_directories,
+        publish_new_file,
+        read_connection,
+        verify_bundle,
+        verify_database,
+    )
+except ImportError:
+    from database_recovery import (
+        check_new_target,
+        create_private_directories,
+        publish_new_file,
+        read_connection,
+        verify_bundle,
+        verify_database,
+    )
 
 
 SCHEMA_ORDER = {
@@ -87,8 +107,10 @@ def column_names(conn: sqlite3.Connection, table_name: str) -> set[str]:
 
 def insert_payload(conn: sqlite3.Connection, table_name: str, payload: dict[str, Any]) -> None:
     if not table_exists(conn, table_name):
-        return
+        raise ValueError(f"CSV references missing table: {table_name}")
     available_columns = column_names(conn, table_name)
+    if set(payload) - available_columns:
+        raise ValueError(f"CSV references unknown columns in {table_name}")
     columns = [key for key in payload.keys() if key in available_columns]
     if not columns:
         return
@@ -117,18 +139,10 @@ def refresh_sqlite_sequences(conn: sqlite3.Connection) -> None:
         conn.execute("INSERT INTO sqlite_sequence (name, seq) VALUES (?, ?)", (table_name, int(max_id or 0)))
 
 
-def restore_backup(backup_path: Path, target_db: Path) -> Path:
+def restore_csv(backup_path: Path, temp_db: Path) -> None:
     rows = backup_rows(backup_path)
     if not rows:
         raise ValueError(f"Backup CSV is empty: {backup_path}")
-    if target_db.exists():
-        raise FileExistsError(f"Target database already exists: {target_db}")
-
-    target_db.parent.mkdir(parents=True, exist_ok=True)
-    temp_db = target_db.with_name(f".{target_db.name}.restore-tmp")
-    if temp_db.exists():
-        temp_db.unlink()
-
     conn = sqlite3.connect(temp_db)
     try:
         conn.execute("PRAGMA foreign_keys=OFF")
@@ -144,35 +158,61 @@ def restore_backup(backup_path: Path, target_db: Path) -> Path:
         for entry in post_data_entries:
             conn.execute(str(entry["sql"]))
 
-        conn.execute("PRAGMA foreign_keys=ON")
-        integrity = conn.execute("PRAGMA integrity_check").fetchone()[0]
-        if integrity != "ok":
-            raise RuntimeError(f"Restored database failed integrity_check: {integrity}")
         conn.commit()
-    except Exception:
-        conn.close()
-        temp_db.unlink(missing_ok=True)
-        raise
+        conn.execute("PRAGMA foreign_keys=ON")
     finally:
-        try:
-            conn.close()
-        except Exception:
-            pass
+        conn.close()
 
-    os.replace(temp_db, target_db)
+
+def restore_backup(backup_path: Path, target_db: Path) -> Path:
+    check_new_target(target_db)
+    if backup_path.is_dir():
+        backup_path = backup_path / "database.db"
+    # A CSV in a new bundle also requires its manifest; standalone legacy CSV
+    # remains supported but cannot provide all-table completeness/checksums.
+    manifest = None
+    if backup_path.name == "database.db" or (backup_path.parent / "manifest.json").exists():
+        manifest = verify_bundle(backup_path.parent)
+    elif backup_path.suffix.lower() != ".csv":
+        raise ValueError("SQLite recovery requires database.db in a verified backup bundle")
+
+    create_private_directories(target_db.parent)
+    with tempfile.TemporaryDirectory(prefix=f".{target_db.name}.restore-", dir=target_db.parent) as temporary:
+        # mkstemp creates mode 0600 before SQLite writes any member/financial data;
+        # the enclosing tempfile directory is mode 0700 on POSIX as well.
+        descriptor, temp_name = tempfile.mkstemp(prefix="database-", suffix=".db", dir=temporary)
+        os.close(descriptor)
+        temp_db = Path(temp_name)
+        if backup_path.suffix.lower() == ".csv":
+            restore_csv(backup_path, temp_db)
+        else:
+            source = read_connection(backup_path)
+            try:
+                recovered = sqlite3.connect(temp_db)
+                try:
+                    source.backup(recovered)
+                    recovered.execute("PRAGMA journal_mode=DELETE")
+                finally:
+                    recovered.close()
+            finally:
+                source.close()
+        tables = verify_database(temp_db)
+        if backup_path.suffix.lower() != ".csv" and manifest and tables != manifest["tables"]:
+            raise ValueError("Recovered table counts do not match backup manifest")
+        publish_new_file(temp_db, target_db)
     return target_db
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Restore a Drink POS SQLite database from a CSV backup.")
-    parser.add_argument("backup_csv", type=Path, help="Path to drink_pos_backup_*.csv")
+    parser = argparse.ArgumentParser(description="Verify and restore a Drink POS backup into a new SQLite target.")
+    parser.add_argument("backup", type=Path, help="Completed backup directory/database.db, or legacy CSV (partial)")
     parser.add_argument("target_db", type=Path, help="Path for the new SQLite database to create")
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    restored = restore_backup(args.backup_csv, args.target_db)
+    restored = restore_backup(args.backup, args.target_db)
     print(f"Restored database: {restored}")
 
 

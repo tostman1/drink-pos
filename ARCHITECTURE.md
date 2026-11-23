@@ -70,8 +70,10 @@ unreadable DBs produce actionable errors rather than being silently replaced.
 Schema truth is `app/db/schema.py`; round entitlement counting is in legacy
 runtime helpers. Monetary snapshots use SQLite REAL; card calculations use
 cents. No storage-format migration is authorized here. Backups use SQLite online
-snapshot plus CSV sections; restore is a CLI operation into a separately selected
-target, not a safe verification action against production.
+snapshot plus unchanged legacy CSV sections in a checksummed atomic bundle.
+Full snapshots retain all tables/schema/sequence state. Restore verifies SQLite
+integrity/FKs and publishes only to a new target using an atomic no-clobber link;
+it never runs migrations or connects to payments/mail. See `docs/recovery.md`.
 
 Named-event close writes required CSV, then optional PDF, then optional SMTP and
 finally closes DB state. Files/mail and SQLite are not one distributed transaction:
@@ -105,7 +107,8 @@ internet exposure is required for normal operation.
 
 Dockerfile: Python 3.12 slim, app code at `/app`, Uvicorn port 8000, `/health`
 healthcheck, build metadata injected. Compose maps host 8088 and mounts only
-`./data:/app/data`; a second container schedules weekly CSV backups. Never mount
+`./data:/app/data`; a second container schedules weekly backup CLI execution
+(full database plus CSV with the EF-08 image, CSV only with older pinned images). Never mount
 an empty host app directory over image code. Secrets live in server environment
 or protected settings, not frontend configuration. PIN-based local-network auth
 and in-memory rate limits are existing limitations, not public-internet security.

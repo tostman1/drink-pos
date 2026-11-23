@@ -157,6 +157,14 @@ volumes:
 `DRINK_POS_BACKUP_DIR: /app/data/backups` liegt damit auf dem NAS unter
 `/volume1/docker/drink-pos/data/backups`, also direkt neben der Datenbank.
 
+EF-08 erweitert den Backup-Befehl um verifizierte SQLite-Komplettsicherungen:
+jedes abgeschlossene Backup-Verzeichnis enthaelt `database.db`, `export.csv` und
+`manifest.json` (SHA-256). Das CSV-Format bleibt unveraendert. Alte, bereits
+laufende Images werden dadurch **nicht** aktualisiert. Aufbewahrungsbereinigung
+ist standardmaessig deaktiviert; Wiederherstellung erfolgt nur in ein explizites
+neues Ziel. Grenzen (Rechnungsdateien, Nachrichten, Offsite-Kopie), Befehle und
+separat freizugebende Betriebsschritte: [Recovery-Runbook](docs/recovery.md).
+
 ## SumUp Solo Self-Checkout
 
 Der vorgesehene Bedienweg liegt in der normalen Listenansicht:
@@ -350,7 +358,9 @@ Siehe `.env.example` fuer die wichtigsten Variablen:
 - `DRINK_POS_ENV`: `development` oder `production`
 - `DRINK_POS_PIN`: Start-PIN beim ersten DB-Start; ersetzt ausserdem eine bestehende Default-PIN `1234`
 - `DRINK_POS_DB`: SQLite-Dateipfad
-- `DRINK_POS_BACKUP_DIR`: Zielordner fuer CSV-Backups
+- `DRINK_POS_BACKUP_DIR`: Zielordner fuer verifizierte SQLite/CSV-Backup-Bundles;
+  alte Images schreiben dort nur CSV. Bestehende NAS-CSV-Filter vor einer separat
+  freigegebenen Umstellung pruefen: [Migration und Berechtigungen](docs/recovery.md).
 - `DRINK_POS_AGENT_TOKEN`: Bearer-Token fuer Agenten-REST-Zugriff
 - `PAYMENT_PROVIDER`: `sumup` aktiviert SumUp Solo Self-Checkout
 - `SUMUP_API_BASE`: SumUp API-Basis, Standard `https://api.sumup.com`

@@ -1,5 +1,52 @@
 # Handoff and protected work
 
+## PR #3 security/compatibility correction — 2026-11-23
+
+Continuation on the existing `feature/ef-08-database-recovery` branch, not a new
+work package. Incoming clean HEAD `6612924e72dfa96b1dcc6bfa80dde8f68fe33510` had
+passed exact-head PR CI `45141076838`; main refetched and remains `a218fcc`.
+POSIX restore pre-creates private 0600 SQLite files, creates all missing directory
+components 0700 without chmod of existing directories, and enforces 0600 before
+atomic no-clobber publication. Windows ACLs remain an explicit operator boundary.
+No root CSV consuming script found; operational YAML/README updated and external
+NAS consumers explicitly unknown. `docs/recovery.md` gives a pre-adoption migration
+and optional separate private CSV adapter; neither was run against production.
+Final gates/HEAD will be evidenced on PR #3; do not infer completion from the prior
+CI receipt. Still no merge, publication, deployment or production access authorized.
+
+Correction `1aa5385` is verified: push run `45149972529` and PR run `45149983134`
+passed on its exact SHA, both Linux matrices **139 passed/no skips**, including
+all four new permissions regressions; actual image/container recovery/audit passed,
+publication skipped. Local Windows gates: 136 passed/three POSIX skips each.
+CSV migration example validated synthetically on both local Python versions;
+external NAS consumers and Windows destination ACLs remain operator-verification
+boundaries. This evidence receipt changes documentation only; read final PR #3
+HEAD/checks for its own final gate. **Stop after delivery, wait for owner review**;
+no merge, deployment/image publication, consumer migration or new work package.
+
+## Active EF-08a delivery — 2026-11-23
+
+Branch `feature/ef-08-database-recovery` from clean verified/fetched main
+`a218fcc40599d5a19e53f2afee490238eeb7e910`; exact base quality/container CI passed,
+publication skipped. Owner authorized commit/push/PR **only**, no merge/deployment.
+Full SQLite/CSV/checksum bundles and verified new-target-only restore implemented;
+see `docs/recovery.md` for baseline weaknesses, usage, retention and limitations.
+All recovery state is disposable/synthetic. Separate event CSV/PDF/message files
+need independent coordinated/offsite protection; DB backup alone is not full
+application recovery. MV-06 has direct all-table/artifact synthetic evidence but
+remains partially pending for isolated production-like operational/offsite rehearsal.
+MV-01..05 remain pending; invoice/SMTP side-effect redesign is excluded.
+No production pinned image/digest/configuration was touched. Final commit/check/PR
+evidence follows in progress and final delivery; do not infer CI before its result.
+
+Review PR: https://github.com/tostman1/drink-pos/pull/3 — **open, not merged**.
+Implementation commits `fbe61b4` (core/regressions), `89cf426` (image recovery smoke),
+`0e36214` (runbook/traceability). Both full local Python gates passed 134 tests;
+22 recovery tests include abrupt-process staging and separate CSV/PDF/message
+recovery. Final pushed HEAD and CI are authoritative in PR #3 checks, not inferred
+from these predecessor commits. Owner review is the next gate; do not merge,
+dispatch publication or modify the pinned production deployment.
+
 ## Verified takeover — 2026-11-22
 
 - Repository: https://github.com/tostman1/drink-pos

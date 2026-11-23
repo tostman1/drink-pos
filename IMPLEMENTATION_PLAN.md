@@ -70,3 +70,12 @@ The owner selected database backup/restore/data integrity as the next session's
 intended focus (bounded recovery portion of EF-08). Do not implement it during
 foundation finalization; define synthetic-data acceptance and preserve operational
 compatibility first. Invoice-mail redesign is outside that next-session scope.
+
+## EF-08a — approved bounded database recovery (2026-11-23)
+
+Owner approved implementation/branch/commit/push/PR, not merge or deployment.
+Requirements DP-014/DP-013; acceptance and baseline evidence in `docs/recovery.md`.
+Persistent Backup API snapshots, verification/checksums/atomic bundles, opt-in
+retention and no-clobber new-target restore; synthetic all-table/artifact rehearsal.
+Invoice/SMTP side-effect redesign remains deferred (OQ-02). Production pinned
+image, schedules and data are untouched. Final evidence in progress/handoff.

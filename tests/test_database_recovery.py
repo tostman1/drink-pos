@@ -3,6 +3,7 @@ import sqlite3
 import sys
 import tempfile
 import unittest
+import shutil
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -13,6 +14,8 @@ if str(ROOT) not in sys.path:
 
 from app import backup_database, restore_database  # noqa: E402
 from app.db import schema  # noqa: E402
+from app.database_recovery import file_metadata  # noqa: E402
+from app.services import events  # noqa: E402
 
 
 @contextmanager
@@ -35,6 +38,7 @@ class DatabaseRecoveryTests(unittest.TestCase):
                 "DRINK_POS_BACKUP_DIR",
                 "DRINK_POS_ENV",
                 "DRINK_POS_MESSAGES",
+                "DRINK_POS_BACKUP_KEEP",
             ]
         }
         self.original_schema_state = (
@@ -45,6 +49,7 @@ class DatabaseRecoveryTests(unittest.TestCase):
         )
         os.environ["DRINK_POS_ENV"] = "production"
         os.environ["DRINK_POS_MESSAGES"] = str(self.root / "messages.json")
+        os.environ["DRINK_POS_BACKUP_KEEP"] = ""
 
     def tearDown(self):
         for key, value in self.original_env.items():
@@ -109,7 +114,7 @@ class DatabaseRecoveryTests(unittest.TestCase):
         self.assertIn("not a schema compatibility problem", message)
         self.assertIn("PRAGMA integrity_check", message)
 
-    def test_csv_backup_restore_includes_newer_operational_tables(self):
+    def populate_operational_database(self):
         source_db = self.root / "drink_pos.db"
         backup_dir = self.root / "backups"
         os.environ["DRINK_POS_DB"] = str(source_db)
@@ -195,7 +200,42 @@ class DatabaseRecoveryTests(unittest.TestCase):
                 """,
                 (transaction_id,),
             )
+            line_id = conn.execute(
+                """INSERT INTO order_lines(person_id,item_id,quantity,unit_price_eur,
+                unit_purchase_price_eur,item_name_snapshot,item_short_label_snapshot,
+                consumed_date,event_open,created_at,updated_at)
+                VALUES(?,?,3,2.5,1.4,'Historical Bier','Bier','2026-08-23',0,'then','then')""",
+                (person_id, item_id),
+            ).lastrowid
+            conn.execute(
+                """INSERT INTO change_requests(person_id,order_line_id,item_id,quantity_to_remove,status,requested_at)
+                VALUES(?,?,?,1,'APPROVED','then')""",
+                (person_id, line_id, item_id),
+            )
+            conn.execute(
+                "INSERT INTO round_requests(person_id,item_id,quantity,status,requested_at) VALUES(?,?,1,'APPROVED','then')",
+                (person_id, item_id),
+            )
+            conn.execute(
+                "INSERT INTO transactions(person_id,type,total,details,timestamp) VALUES(?,'CASHUP',0,'history','then')",
+                (person_id,),
+            )
+            event_id = conn.execute(
+                """INSERT INTO event_sessions(name,start_time,status,created_at,updated_at)
+                VALUES('Synthetic recovery event','2026-08-23 10:00:00','ACTIVE','then','then')"""
+            ).lastrowid
+            conn.execute(
+                """INSERT INTO event_lines(event_id,item_id,item_name_snapshot,item_short_label_snapshot,
+                quantity,unit_price_eur,unit_purchase_price_eur,created_at,updated_at)
+                VALUES(?,?,'Historical Bier','Bier',2,2.5,1.4,'then','then')""",
+                (event_id, item_id),
+            )
             conn.commit()
+
+        return source_db, person_id, message_id, event_id
+
+    def test_csv_backup_restore_includes_newer_operational_tables(self):
+        source_db, person_id, message_id, event_id = self.populate_operational_database()
 
         backup_path = backup_database.export_backup()
         restored_db = self.root / "restored.db"
@@ -214,6 +254,80 @@ class DatabaseRecoveryTests(unittest.TestCase):
             self.assertEqual(conn.execute("SELECT COUNT(*) FROM paid_round_units").fetchone()[0], 1)
             self.assertEqual(conn.execute("SELECT COUNT(*) FROM client_operations").fetchone()[0], 1)
             self.assertEqual(conn.execute("SELECT COUNT(*) FROM round_events").fetchone()[0], 1)
+
+    def test_full_database_and_separate_artifacts_recovery_rehearsal(self):
+        source_db, person_id, message_id, event_id = self.populate_operational_database()
+        with sqlite_conn(source_db) as conn:
+            conn.row_factory = sqlite3.Row
+            event = dict(conn.execute("SELECT * FROM event_sessions WHERE id=?", (event_id,)).fetchone())
+            lines = conn.execute("SELECT * FROM event_lines WHERE event_id=?", (event_id,)).fetchall()
+            summary = events.build_event_summary(event, lines)
+            csv_path = Path(events.save_event_csv(source_db, event, summary))
+            pdf_path = Path(events.generate_event_invoice_pdf(source_db, event, summary, {}))
+            conn.execute(
+                "UPDATE event_sessions SET csv_path=?,pdf_path=?,invoice_created=1 WHERE id=?",
+                (str(csv_path), str(pdf_path), event_id),
+            )
+            conn.commit()
+        messages = self.root / "messages.json"
+        messages.write_text('{"synthetic": "Recovery wording"}', encoding="utf-8")
+        artifacts = [csv_path, pdf_path, messages]
+        artifact_metadata = {path.name: file_metadata(path) for path in artifacts}
+        separate = self.root / "separately-retained-artifacts"
+        separate.mkdir()
+        for path in artifacts:
+            shutil.copy2(path, separate / path.name)
+
+        csv_backup = backup_database.export_backup()
+        target = self.root / "recovered" / "database.db"
+        restore_database.restore_backup(csv_backup.parent, target)
+        with sqlite_conn(source_db) as source, sqlite_conn(target) as recovered:
+            tables = [row[0] for row in source.execute("SELECT name FROM sqlite_master WHERE type='table'")]
+            self.assertEqual(len(tables), 17)  # 16 operational tables + sqlite_sequence
+            for table in tables:
+                with self.subTest(table=table):
+                    self.assertGreater(source.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0], 0)
+                    self.assertEqual(
+                        source.execute(f'SELECT * FROM "{table}" ORDER BY rowid').fetchall(),
+                        recovered.execute(f'SELECT * FROM "{table}" ORDER BY rowid').fetchall(),
+                    )
+            self.assertEqual(
+                source.execute("SELECT * FROM sqlite_master ORDER BY type,name").fetchall(),
+                recovered.execute("SELECT * FROM sqlite_master ORDER BY type,name").fetchall(),
+            )
+            self.assertEqual(recovered.execute("PRAGMA integrity_check").fetchall(), [("ok",)])
+            self.assertFalse(recovered.execute("PRAGMA foreign_key_check").fetchall())
+            self.assertEqual(recovered.execute("SELECT quantity,event_open FROM order_lines").fetchone(), (3, 0))
+            with self.assertRaises(sqlite3.IntegrityError):
+                recovered.execute("INSERT INTO client_operations SELECT * FROM client_operations")
+            with self.assertRaises(sqlite3.IntegrityError):
+                recovered.execute(
+                    "INSERT INTO self_payment_sessions(person_id,client_payment_id,status,amount_eur,amount_cents,revision,created_at,updated_at) VALUES(?,'restore-payment-1','unknown',2.7,270,'rev','then','then')",
+                    (person_id,),
+                )
+        # Simulate losing originals. Restoring SQLite alone does not recreate them.
+        for path in artifacts:
+            path.unlink()
+        self.assertFalse(csv_path.exists())
+        self.assertFalse(pdf_path.exists())
+        for path in artifacts:
+            self.assertEqual(file_metadata(separate / path.name), artifact_metadata[path.name])
+            path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(separate / path.name, path)
+            self.assertEqual(file_metadata(path), artifact_metadata[path.name])
+        self.assertTrue(pdf_path.read_bytes().startswith(b"%PDF"))
+        self.assertTrue(csv_path.read_bytes().startswith(b"\xef\xbb\xbf"))
+        # Approved synthetic startup seam, not switching a production DB. Normal
+        # initialization re-enables WAL without losing recovered history/debt.
+        self.configure_schema_for(target)
+        schema.init_db()
+        with sqlite_conn(target) as recovered:
+            self.assertEqual(recovered.execute("PRAGMA journal_mode").fetchone()[0], "wal")
+            self.assertEqual(recovered.execute("SELECT quantity,event_open FROM order_lines").fetchone(), (3, 0))
+            self.assertEqual(
+                recovered.execute("SELECT client_payment_id FROM self_payment_sessions").fetchone()[0],
+                "restore-payment-1",
+            )
 
 
 if __name__ == "__main__":
