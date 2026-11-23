@@ -121,6 +121,16 @@ repeat, future/unknown/inconsistent rejection and isolated recovery evidence. It
 does not import arbitrary historical/prototype state or rewrite historical costs.
 OQ-06 financial policy remains unresolved. See [migration safety](docs/migration-safety.md).
 
+## RL-03 decision evidence (2026-11-23; no financial-policy approval)
+
+Existing DP-002 snapshot and DP-004 signed audit statements have characterized
+exceptions: startup/admin product edits rewrite zero costs/profit; round normalization
+also rewrites nonzero history; member/admin negative corrections lack signed item
+details. DP-024 preserves metadata-adoption/startup state, not all later API writes.
+See [decision/write-impact matrix](docs/financial-history-policy.md) and
+[source-only adoption inventory](docs/legacy-adoption-inventory.md). No new accounting
+requirement or supported migration is inferred; OQ-06 remains open.
+
 ## Classification rules
 
 **Confirmed behavior** has direct served-code and test evidence; it may still be

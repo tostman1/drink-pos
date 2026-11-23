@@ -14,8 +14,8 @@
     {
       "id": "DP-002", "scope": "observed-main",
       "statement": "Book allowed ordinary items by stable IDs; preserve consumption-time name, price, purchase-price and admin-only snapshots after edits/archival.",
-      "sources": ["app/legacy_main.py", "app/db/schema.py"],
-      "tests": ["tests/test_backend.py::BackendFlowTests.test_booking_and_payment_flow", "tests/test_runtime_contracts.py::RuntimeContractTests.test_snapshot_and_archived_item_debt_remain_payable"], "manual": []
+      "sources": ["app/legacy_main.py", "app/db/schema.py", "docs/financial-history-policy.md", "docs/AUDIT.md"],
+      "tests": ["tests/test_backend.py::BackendFlowTests.test_booking_and_payment_flow", "tests/test_runtime_contracts.py::RuntimeContractTests.test_snapshot_and_archived_item_debt_remain_payable", "tests/test_financial_history.py::FinancialHistoryTests.test_served_item_update_rewrites_legitimate_zero_even_in_versioned_mode", "tests/test_financial_history.py::FinancialHistoryTests.test_legacy_default_item_zero_master_cost_is_replaced_not_authenticated_as_missing"], "manual": []
     },
     {
       "id": "DP-003", "scope": "observed-main",
@@ -26,8 +26,8 @@
     {
       "id": "DP-004", "scope": "observed-main",
       "statement": "Append signed audit transactions/details for operations and corrections; failed audit writes must not commit the associated booking.",
-      "sources": ["app/legacy_main.py", "app/services/statistics.py"],
-      "tests": ["tests/test_backend.py::BackendFlowTests.test_admin_person_history_shows_corrections_and_allows_archived_person", "tests/test_runtime_contracts.py::RuntimeContractTests.test_booking_rolls_back_when_audit_fails"], "manual": []
+      "sources": ["app/legacy_main.py", "app/services/statistics.py", "docs/financial-history-policy.md", "docs/AUDIT.md"],
+      "tests": ["tests/test_backend.py::BackendFlowTests.test_admin_person_history_shows_corrections_and_allows_archived_person", "tests/test_runtime_contracts.py::RuntimeContractTests.test_booking_rolls_back_when_audit_fails", "tests/test_financial_history.py::FinancialHistoryTests.test_backfill_changes_signed_details_but_not_null_ids_round_events_or_event_lines", "tests/test_financial_history.py::FinancialHistoryTests.test_round_normalization_overwrites_nonzero_audit_without_correction_record", "tests/test_financial_history.py::FinancialHistoryTests.test_member_and_admin_negative_corrections_do_not_append_signed_item_details", "tests/test_financial_history.py::FinancialHistoryTests.test_item_update_and_historical_backfill_roll_back_when_audit_fails"], "manual": []
     },
     {
       "id": "DP-005", "scope": "observed-main",
@@ -80,8 +80,8 @@
     {
       "id": "DP-013", "scope": "observed-main",
       "statement": "Keep protected audit/report exports and UTF-8 BOM/umlauts in member CSV; preserve existing event CSV formatting rather than silently altering accounting exports.",
-      "sources": ["app/legacy_main.py", "app/services/events.py", "app/backup_database.py"],
-      "tests": ["tests/test_backend.py::BackendFlowTests.test_csv_exports_include_utf8_bom_and_preserve_umlauts", "tests/test_backend.py::BackendFlowTests.test_event_mode_start_add_discount_csv_pdf_and_close"], "manual": []
+      "sources": ["app/legacy_main.py", "app/services/events.py", "app/backup_database.py", "docs/financial-history-policy.md"],
+      "tests": ["tests/test_backend.py::BackendFlowTests.test_csv_exports_include_utf8_bom_and_preserve_umlauts", "tests/test_backend.py::BackendFlowTests.test_event_mode_start_add_discount_csv_pdf_and_close", "tests/test_financial_history.py::FinancialHistoryTests.test_report_zero_profit_fallback_is_read_time_not_a_database_write"], "manual": []
     },
     {
       "id": "DP-014", "scope": "observed-main",
@@ -113,8 +113,8 @@
     {
       "id": "DP-024", "scope": "engineering",
       "statement": "RL-02 opt-in pre-write SQLite gate and exact-current version ledger support explicitly permitted fresh transactional initialization and metadata-only adoption without historical financial rewriting. Unknown/future/inconsistent/WAL states fail safely; default legacy unchanged. Synthetic rollback/concurrency/independent recovery and actual-image evidence do not approve accounting policy or production adoption.",
-      "sources": ["app/db/migrations.py", "app/db/schema.py", "app/upgrade_preflight.py", "docs/migration-safety.md", "docs/rl-02-contract.md", "scripts/migration_rehearsal.py"],
-      "tests": ["tests/test_migration_contract.py::MigrationContractTests.test_fresh_requires_permission_and_initializes_atomically", "tests/test_migration_contract.py::MigrationContractTests.test_exact_current_adoption_records_only_new_metadata_preserving_history", "tests/test_migration_contract.py::MigrationContractTests.test_future_missing_contradictory_checksum_and_incomplete_ledger_rejected", "tests/test_migration_contract.py::MigrationContractTests.test_schema_data_and_precommit_failures_roll_back_all_db_changes", "tests/test_migration_contract.py::MigrationContractTests.test_abrupt_transaction_keeps_history_and_independent_bundle_recovers", "tests/test_migration_contract.py::MigrationContractTests.test_real_concurrent_migration_processes_reject_second_attempt", "tests/test_migration_contract.py::MigrationContractTests.test_preflight_accepts_verified_ledger_and_rejects_unknown_metadata", "tests/test_versioned_runtime.py::VersionedRuntimeTests.test_round_cashup_and_debt", "tests/test_versioned_runtime.py::VersionedRuntimeTests.test_unknown_payment_is_not_success"],
+      "sources": ["app/db/migrations.py", "app/db/schema.py", "app/upgrade_preflight.py", "docs/migration-safety.md", "docs/rl-02-contract.md", "scripts/migration_rehearsal.py", "docs/legacy-adoption-inventory.md", "docs/financial-schema-inventory.json", "scripts/financial_schema_inventory.py"],
+      "tests": ["tests/test_migration_contract.py::MigrationContractTests.test_fresh_requires_permission_and_initializes_atomically", "tests/test_migration_contract.py::MigrationContractTests.test_exact_current_adoption_records_only_new_metadata_preserving_history", "tests/test_migration_contract.py::MigrationContractTests.test_future_missing_contradictory_checksum_and_incomplete_ledger_rejected", "tests/test_migration_contract.py::MigrationContractTests.test_schema_data_and_precommit_failures_roll_back_all_db_changes", "tests/test_migration_contract.py::MigrationContractTests.test_abrupt_transaction_keeps_history_and_independent_bundle_recovers", "tests/test_migration_contract.py::MigrationContractTests.test_real_concurrent_migration_processes_reject_second_attempt", "tests/test_migration_contract.py::MigrationContractTests.test_preflight_accepts_verified_ledger_and_rejects_unknown_metadata", "tests/test_versioned_runtime.py::VersionedRuntimeTests.test_round_cashup_and_debt", "tests/test_versioned_runtime.py::VersionedRuntimeTests.test_unknown_payment_is_not_success", "tests/test_financial_history.py::FinancialSchemaEvidenceTests.test_independent_literal_ddl_matches_current_baseline_without_imports", "tests/test_financial_history.py::FinancialSchemaEvidenceTests.test_unsupported_dynamic_schema_fails_instead_of_inventing_evidence", "tests/test_financial_history.py::FinancialSchemaEvidenceTests.test_ddl_upgrade_path_is_not_equivalent_to_fresh_source_schema"],
       "manual": ["MV-06"]
     },
     {
