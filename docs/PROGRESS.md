@@ -30,6 +30,27 @@
   state, secrets, financial/schema/REST/Compose/image/workflow changes. Real POSIX
   mode evidence and exact pushed-head container verification still require CI.
 
+### Security/compatibility verification receipt
+
+- Focused correction `1aa53856598a53d9b656f98b057979526477f579` passed push CI
+  https://github.com/tostman1/drink-pos/actions/runs/45149972529 and PR CI
+  https://github.com/tostman1/drink-pos/actions/runs/45149983134 on that exact SHA.
+  Both Linux Python matrices passed **139 tests, no skips**. Retrieved logs show
+  all four new permission/staging tests **ok**, including permissive umask,
+  existing-directory preservation and chmod-before-link/failure checks.
+- Actual Docker build, both Compose validations, disposable container recovery/
+  restart/health and image runtime dependency audit passed; publication **skipped**.
+  Existing FastAPI/Starlette and forced-Node24 action deprecation warnings remain.
+- Documented one-bundle CSV adapter exercised synthetically on both local Python
+  versions: identical CSV bytes/BOM, collision rejected, staging cleaned, bundle
+  preserved. Operational YAML parsed and revised bundle inventory asserted.
+  No real consumers were migrated; external NAS configuration remains unknown.
+- This receipt is documentation-only; the final receipt HEAD must pass its own
+  PR checks before delivery. PR #3 remains open/unmerged and owner approval is
+  required. Code review/CI readiness is not production adoption readiness: MV-06,
+  external CSV consumers and Windows ACL/operator checks retain documented limits.
+  Stop after delivery; no next work package, merge, deployment or publication.
+
 ## EF-08a — bounded database recovery, 2026-11-23
 
 - Owner authorized implementation, branch, commits, push and PR; **not merge**.

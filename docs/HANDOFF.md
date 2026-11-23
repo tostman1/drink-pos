@@ -14,6 +14,16 @@ and optional separate private CSV adapter; neither was run against production.
 Final gates/HEAD will be evidenced on PR #3; do not infer completion from the prior
 CI receipt. Still no merge, publication, deployment or production access authorized.
 
+Correction `1aa5385` is verified: push run `45149972529` and PR run `45149983134`
+passed on its exact SHA, both Linux matrices **139 passed/no skips**, including
+all four new permissions regressions; actual image/container recovery/audit passed,
+publication skipped. Local Windows gates: 136 passed/three POSIX skips each.
+CSV migration example validated synthetically on both local Python versions;
+external NAS consumers and Windows destination ACLs remain operator-verification
+boundaries. This evidence receipt changes documentation only; read final PR #3
+HEAD/checks for its own final gate. **Stop after delivery, wait for owner review**;
+no merge, deployment/image publication, consumer migration or new work package.
+
 ## Active EF-08a delivery — 2026-11-23
 
 Branch `feature/ef-08-database-recovery` from clean verified/fetched main
