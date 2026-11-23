@@ -26,6 +26,21 @@ still unresolved, no backup-code fixes/retries. Actual container/Linux/final-hea
 and open PR evidence required next. Plan/core/rehearsal commits `4258ab5`/`3fdef64`/
 `f61a40c`; no generated state committed. Production/merge authority unchanged.
 
+**RL-02 implementation review receipt:** PR https://github.com/tostman1/drink-pos/pull/7
+OPEN/unmerged. Exact implementation `4c68ab3b5e84b1f3133b235bed929f67692e816f`
+passed branch `45254857601` / PR `45254875390`: both Linux matrices 232 discovered,
+231 passed/one Windows-only skip, real new POSIX permission test ok. All actual
+Docker/4 Compose/start-restart-persistence/legacy upgrade/opt-in fresh-adoption-repeat/
+independent EF-08b recovery/encrypted source+owned-image-loss DR/image audit passed;
+publication skipped. Migration original 17 tables preserved/history_rewritten=false/
+network_attempts=0/recovery_verified=true. Synthetic only, no historical release claim.
+This receipt is documentation-only; final HEAD/its own CI must be verified separately
+and recorded on PR/report (read Git/GitHub, not predecessor inference). Main refetched
+unchanged at baseline; no production/real services/merge. Owner independent review
+next; stop after final delivery. Default legacy historical-backfill risk remains;
+strict optional DELETE-journal/exact schema/no-existing-normalization contract only.
+OQ-06 and MV-01..06/Windows EF-08a WinError 5 unresolved. No v1→v2 or mandatory adoption.
+
 ## RL-01 integrated handoff — 2026-11-23
 
 PR #6 https://github.com/tostman1/drink-pos/pull/6 is **MERGED** after the owner's
