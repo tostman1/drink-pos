@@ -6,6 +6,7 @@ import os
 import re
 import sqlite3
 from collections.abc import Callable
+from contextlib import nullcontext
 
 try:
     from app.config import (
@@ -112,12 +113,41 @@ def is_database_unreadable_error(error: Exception) -> bool:
 
 
 def init_db():
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    mode = os.getenv("DRINK_POS_MIGRATION_MODE", "legacy")
+    if mode == "legacy":
+        return _init_legacy()
+    try:
+        from app.db.migrations import MigrationRejected, migrate
+    except ImportError:
+        from db.migrations import MigrationRejected, migrate
+    if mode != "versioned":
+        raise MigrationRejected("Unknown Drink POS migration mode")
+    permissions = {}
+    for key in ("DRINK_POS_ALLOW_FRESH", "DRINK_POS_ADOPT_LEGACY"):
+        value = os.getenv(key, "0")
+        if value not in {"0", "1"}:
+            raise MigrationRejected("Explicit migration permissions must be 0 or 1")
+        permissions[key] = value == "1"
+    migrate(
+        DB_PATH,
+        allow_fresh=permissions["DRINK_POS_ALLOW_FRESH"],
+        adopt_legacy=permissions["DRINK_POS_ADOPT_LEGACY"],
+        initialize=lambda conn: _init_legacy(connection=conn),
+    )
+    # Only after DB commit. No atomicity with files; no financial normalizations
+    # on existing versioned state. Strict rollout keeps rollback-journal mode.
     ensure_messages_file()
 
-    with get_conn() as conn:
+
+def _init_legacy(*, connection=None):
+    if connection is None:
+        os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+        ensure_messages_file()
+
+    with get_conn() if connection is None else nullcontext(connection) as conn:
         try:
-            conn.execute("PRAGMA journal_mode=WAL")
+            if connection is None:
+                conn.execute("PRAGMA journal_mode=WAL")
             conn.execute("PRAGMA foreign_keys=ON")
         except sqlite3.DatabaseError as exc:
             if is_database_unreadable_error(exc):
@@ -437,7 +467,8 @@ def init_db():
         ensure_settings(conn)
         ensure_indexes(conn)
 
-        conn.commit()
+        if connection is None:
+            conn.commit()
 
 
 def ensure_indexes(conn: sqlite3.Connection):
