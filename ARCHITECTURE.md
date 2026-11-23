@@ -80,6 +80,15 @@ finally closes DB state. Files/mail and SQLite are not one distributed transacti
 CSV may remain after PDF failure; delivery can be uncertain. Preserve tested
 ordering/failure behavior and do not invent exactly-once mail guarantees.
 
+EF-08b `application_recovery.py` adds a separate standalone maintenance CLI, not
+a route/service replacement. All writers must be quiesced; logical DB/filesystem
+before/after checks detect observed changes but do not establish online consistency.
+It preserves full SQLite plus exact events/messages and explicit non-secret config,
+with versioned manifest/completion marker and no-replace publication. Isolated
+restore adjusts only mutable event file locations and verifies all remaining
+logical state unchanged. Provider/mail/client queues and independent secrets/code
+escrow stay outside local recovery; see `docs/application-recovery.md`.
+
 ## Migration Strategy
 
 `legacy_main.py` is now a compatibility handler catalog rather than the app that

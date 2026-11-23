@@ -12,6 +12,8 @@
 | D-06 | Owner approves PR #2 merge only after final pushed-HEAD checks, then main-CI/tree verification | Mark ready, use normal reviewed integration without bypass; no release/publication/deployment |
 | D-07 | Next intended session is database backup, restore and data integrity | Prepare bounded EF-08 recovery handoff only; implement nothing from it during finalization |
 | D-08 | Owner approved bounded EF-08a implementation on 2026-11-23 | Full SQLite plus unchanged CSV in atomic bundles; new-target-only restore; count retention opt-in (minimum two); no production/deployment/mail redesign |
+| D-09 | EF-08b uses explicit all-writer maintenance quiescence, observed change checks and a distinct application bundle contract | No online/DB-lock-only consistency claim; preserve event CSV→PDF→SMTP→commit behavior; exact artifact relocation only, no side-effect redesign |
+| D-10 | Application recovery core is filesystem/one-shot CLI only, atomic no-replace publication on Linux/Windows; no new retention | Scheduling/transport/encryption/independent copies remain operator-controlled; unsupported publication semantics fail closed; no production adoption |
 
 ## Unresolved decisions (not implementation authorization)
 

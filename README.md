@@ -392,3 +392,11 @@ nicht identisch mit der Admin-PIN sein.
 Mitglieder-Selbstzahlung ist fuer ein iPad im lokalen Vereinsnetz gedacht. Die Mitgliederseite
 ist bewusst getrennt von `/kassa`; Zahlungsabschluss per SumUp erfolgt serverseitig und wird
 ueber `client_payment_id` idempotent abgesichert.
+# Portable application recovery
+
+EF-08b adds an optional **offline, all-writer-quiesced** full application-state
+backup/isolated restore CLI. Existing database backups/schedulers remain unchanged.
+See [the portable runbook](docs/application-recovery.md),
+[state inventory/consistency contract](docs/ef-08b-contract.md), and
+[generic Compose example](examples/compose.recovery.yaml). No automatic deployment,
+restored-instance startup, payment retry or mail resend is part of recovery.

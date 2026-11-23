@@ -51,6 +51,7 @@ jobs:
         run: |
           docker compose -f compose.yaml config --quiet
           docker compose -f compose.synology.yaml config --quiet
+          DRINK_POS_IMAGE=drink-pos:verification DRINK_POS_CONFIG_FILE=/dev/null DRINK_POS_SECRET_FILE=/dev/null DRINK_POS_BACKUP_VOLUME=verification-backups docker compose -f examples/compose.recovery.yaml config --quiet
       - name: Build local-only verification image
         run: >-
           docker build --tag drink-pos:verification

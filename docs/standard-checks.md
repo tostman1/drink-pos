@@ -74,6 +74,10 @@ manifests/OpenAPI/production redaction/build metadata, restarts to check persist
 and checks SQLite integrity/FKs/WAL. `finally` removes only its own resources.
 EF-08 also runs the actual image's backup/restore CLIs inside that disposable
 volume, verifies the new target and compares its SQL dump with the source.
+EF-08b additionally generates event CSV/PDF, stops only the owned synthetic app,
+runs network-disabled image application-recovery tools, compares normalized full
+DB/artifact/messages state and status, then restarts only original synthetic state.
+The optional generic recovery Compose example is validated without starting it.
 No host DB or inherited credentials are mounted/passed. Optional local reproduction:
 build this tag with BUILD_* args, then run the helper. Missing runtime = **not run**.
 
@@ -142,3 +146,12 @@ preserves existing-directory/unrelated-file modes and checks chmod-before-link a
 permission-failure publication. These three tests explicitly skip on Windows;
 that is a local POSIX evidence gap, not a Windows ACL pass. Linux matrix results
 must show them executing (no skips) before delivery.
+
+EF-08b `ApplicationRecoveryTests` cover all-table two-installation generated-artifact
+rehearsal, exact schema/sequence/payment/audit identities, traversal/corruption/
+missing files, observed source changes, ordinary/abrupt interruption, OS lock
+overlap, no-replace races, compatibility, CLI age status and EF-08a compatibility.
+POSIX modes/FIFO/case-sensitive/symlink guards execute in Linux CI (Windows mode
+test skips; Windows symlink privilege is not assumed). MV-06 remains partially
+pending only for independently managed encrypted/offsite/storage/ACL/timed RPO/RTO
+and operator reconciliation/acceptance rehearsal; no production data required.

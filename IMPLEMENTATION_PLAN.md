@@ -79,3 +79,14 @@ Persistent Backup API snapshots, verification/checksums/atomic bundles, opt-in
 retention and no-clobber new-target restore; synthetic all-table/artifact rehearsal.
 Invoice/SMTP side-effect redesign remains deferred (OQ-02). Production pinned
 image, schedules and data are untouched. Final evidence in progress/handoff.
+
+## EF-08b — approved portable application recovery (2026-11-23)
+
+DP-014/010/011/013/018/019; ready gate in `docs/ef-08b-contract.md`.
+Separate versioned whole-state bundle, all-writer maintenance precondition,
+observed change detection, atomic no-replace publication and isolated verified
+restore with bounded event-path relocation. One-shot JSON/status CLI, filesystem
+transport boundary and optional generic Compose example. No invoice/mail/provider
+redesign or runtime-handler changes, no retention/deployment/image publication.
+Rehearsal covers complete synthetic state/failure injection and actual image tools.
+MV-06 offsite/ACL/RPO/RTO/operator acceptance remains separately bounded follow-up.

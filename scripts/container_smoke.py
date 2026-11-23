@@ -148,6 +148,47 @@ def verify(image: str, expected_commit: str | None) -> None:
             "print('Image backup/new-target restore/table-schema comparison passed')"
         )
         docker("exec", identity, "python", "-c", recovery_check)
+        request(base, "/api/admin/event/start", {"pin": pin, "name": "Synthetic portable recovery"})
+        request(base, "/api/event/add-drink", {"item_id": item["id"]})
+        request(base, "/api/admin/event/end", {"pin": pin, "create_invoice": True})
+        # Real offline boundary: stop synthetic app before the one-shot tools.
+        # No production compose, inherited secrets, or automatic recovered startup.
+        docker("stop", identity)
+        portable_check = (
+            "from pathlib import Path; import os, sqlite3; "
+            "from application_recovery import create_backup,verify_application_bundle,restore_application,database_metadata,backup_status; "
+            "source=Path('/app/data/verification.db'); "
+            "bundle=create_backup(source,Path('/app/data/messages.json'),Path('/app/data/application-backups'),"
+            "deployment_id='container-synthetic',app_commit=os.environ['APP_BUILD_COMMIT'],quiesced=True); "
+            "manifest=verify_application_bundle(bundle); "
+            "target=restore_application(bundle,Path('/app/data/isolated-recovery'),expected_commit=manifest['app_commit'],expected_schema=manifest['database']['schema_sha256']); "
+            "assert database_metadata(target/'state/database.db',immutable=True,original_references=manifest['event_references'])==database_metadata(source); "
+            "assert (target/'state/messages.json').read_bytes()==Path('/app/data/messages.json').read_bytes(); "
+            "assert len(list((target/'state/events').glob('*.csv')))==1; "
+            "assert len(list((target/'state/events').glob('*.pdf')))==1; "
+            "assert backup_status(bundle.parent,'container-synthetic',3600)['status']=='ok'; "
+            "print('Portable offline application recovery/image artifacts/relocation/status passed')"
+        )
+        docker(
+            "run",
+            "--rm",
+            "--network",
+            "none",
+            "--pull=never",
+            "--entrypoint",
+            "python",
+            "--mount",
+            f"type=volume,source={volume},target=/app/data",
+            image,
+            "-c",
+            portable_check,
+        )
+        # Restart only the original synthetic instance, NOT recovered state.
+        docker("start", identity)
+        base = container_base(identity)
+        wait_ready(base)
+        final = json.loads(request(base, f"/api/kassa/person/{person['id']}"))
+        assert final["total"] == before["total"], final
         image_info = json.loads(docker("image", "inspect", image))[0]
         assert image_info["Config"]["Healthcheck"]["Test"], "Dockerfile healthcheck missing"
         # Execute the declared healthcheck, not just a hand-rolled different probe.

@@ -1,5 +1,93 @@
 # Engineering foundation progress
 
+## EF-08b active implementation — 2026-11-23
+
+- Clean fetched local/remote main exactly `b8cb4870d90f75b9dbc2668246788c5aa24ee8a5`;
+  exact base CI `45152440365` succeeded. New branch `feature/ef-08b-portable-recovery`.
+- Ready gate/state inventory/consistency/acceptance/rollback written before code in
+  `docs/ef-08b-contract.md`. DP-014/010/011/013/018/019 and new DP-021 engineering
+  contract. Served CSV→PDF→SMTP→audit/commit and external message editors rule out
+  a DB-only coordination lock. Choose explicit all-writer offline maintenance,
+  not business-logic changes or online guarantees.
+- Initial new regressions: **10 failures/one POSIX skip** (missing interface),
+  existing EF-08a 23 tests: 20 passed/three POSIX skips. New separate bundle core,
+  no-clobber isolated restore, exact non-location logical parity, portable path/
+  symlink/reparse checks, private permissions, sanitized JSON/age CLI implemented.
+- Targeted expanded suite **22 discovered, 21 passed/one POSIX skip** locally.
+  Two real synthetic installations/all 16 operational tables + sequence, generated
+  invoices/messages, failures/kill/overlap/legacy checks. One local run encountered
+  transient Windows directory rename permission denial; rerun passed, no retries
+  added to hide storage failures. Test-fixture default text encoding/case-sensitive
+  assumptions corrected; Linux permission/special-file evidence still requires CI.
+- Generic optional Compose example and network-disabled image recovery rehearsal
+  added; existing deployment configs/digests/schedules untouched. No runtime handler,
+  schema/payment/mail/UI behavior change. Full local/CI gates follow; no pass inferred.
+- MV-06 remains partially pending: independent encrypted/offsite/storage/ACL/timed
+  RPO/RTO/operator reconciliation acceptance. No production/live service use.
+
+### EF-08b local gate receipt
+
+- Initial full gates caught the catalog's hardcoded 20-ID guard; updated to 21
+  explicit IDs (DP-021 added), no traceability validation weakened. Ruff formatting
+  failures corrected before reruns. Windows publication failures repeated across
+  both Python versions, not dismissed as a pass: wrote failing regression then
+  added Windows-only six-attempt/1.5-second **atomic no-replace rename** retry with
+  sanitized logs/target recheck; persistent denial fails, no application operations
+  or side effects repeated. The test covers transient, persistent and target cases.
+- Full Standard Checks now **exit 0** on Python 3.12.13 and 3.13.15 via UTF-8
+  exact-child-status runner, isolated approved temp root: **162 discovered,
+  158 passed/four POSIX-only skips** each. Ruff lint/format, Python/JS/data/21-ID
+  traceability, full tests, strict dependency audits (no known vulnerabilities),
+  Chromium smoke and diff hygiene passed. Existing lifecycle/TestClient warnings
+  retained. No UI/worker change (no cache bump needed).
+- Logs outside repo: `ef08b-confirmed312.log` / `ef08b-confirmed313.log` in approved
+  temporary tooling. Local Docker is unavailable; actual Compose/build/container/
+  recovery/image audit and POSIX evidence must come from final CI, not this receipt.
+
+### EF-08b review and CI receipt
+
+- Commits `b120b65` core/tests, `06cb62c` actual-image rehearsal/example and
+  `46cf466` docs/traceability pushed. PR **#4 open, not merged**:
+  https://github.com/tostman1/drink-pos/pull/4. Refetched main still `b8cb487`.
+- Exact `46cf466e386475f761c648141872d3859e9d4d1d` branch CI `45160412546` and
+  PR CI https://github.com/tostman1/drink-pos/actions/runs/45160481935 **passed**.
+  Linux matrices: **162 discovered, 161 passed/one Windows-only retry-test skip**;
+  POSIX 0700/0600, FIFO/case-sensitive/symlink guards executed successfully.
+  Existing EF-08a POSIX guards executed too. All three Compose files validated;
+  actual local-only image build, startup/restart/persistence/offline application
+  recovery and image dependency audit passed; publication **skipped** in both runs.
+- Final review adds explicit synthetic transport staging→completed verification,
+  opposite-platform source-path relocation, publication permission failure and
+  ordinary restore interruption tests (no runtime change). Full local gates rerun:
+  **164 discovered, 160 passed/four POSIX skips** each, exact child exit 0 on
+  Python 3.12.13/3.13.15; Ruff/syntax/traceability/security/browser/diff all passed.
+  Logs `ef08b-final312.log` / `ef08b-final313.log` outside Git. Final pushed-head CI
+  must be verified separately; predecessor evidence is not a final-head claim.
+- No real resources/accounts, production image/digest/config change, release,
+  publication dispatch, deployment or merge. Next bounded recommendation: isolated
+  independently managed encrypted/offsite recovery and timed operator acceptance
+  drill (MV-06), not online invoice/SMTP redesign without its own decision.
+
+### EF-08b final reviewed-code evidence
+
+Exact reviewed implementation/test head **`59fdf9d896fd00595c9232f86f021b5e52966430`**
+passed branch run https://github.com/tostman1/drink-pos/actions/runs/45161242647
+and PR run https://github.com/tostman1/drink-pos/actions/runs/45161253638.
+Both Linux matrices: **164 discovered, 163 passed/one Windows-only retry skip**;
+logs confirm POSIX modes, transport/opposite-host mapping and all safety guards.
+All Compose validations, actual image build/start/restart/persistence/offline
+recovery and image dependency audit passed; publication skipped. PR #4 is OPEN,
+base still `b8cb487`, merge state CLEAN. This receipt is documentation-only;
+final receipt HEAD requires its own CI verification at delivery. No merge,
+publication/deploy/release or real data/service use. Owner review is next gate.
+
+Final safety review found restore could be selected inside its source bundle,
+modifying immutable backup inventory. DP-021 failing regression reproduced this;
+early descendant-target rejection now preserves source bundle unchanged. Targeted
+and full gates rerun; final exact head/CI at delivery remains authoritative.
+Both local full gates exit 0: **165 discovered/161 passed/four POSIX skips**,
+Ruff/syntax/traceability/audit/Chromium/diff passed. No extra exceptions suppressed.
+
 ## EF-08 final integration — 2026-11-23
 
 - Owner approved PR #3 merge conditional on exact reviewed head/gates. Clean local

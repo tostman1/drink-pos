@@ -1,0 +1,30 @@
+# Example only: no production adoption/migration. Requires reviewed digest and
+# separately protected env files. No fixed host paths, UIDs or container names.
+services:
+  app:
+    image: "${DRINK_POS_IMAGE:?Select a reviewed immutable image digest}"
+    restart: unless-stopped
+    ports:
+      - "${DRINK_POS_PORT:-8088}:8000"
+    volumes:
+      - application-data:/app/data
+    env_file:
+      - "${DRINK_POS_CONFIG_FILE:?Select a non-secret configuration env file}"
+      - "${DRINK_POS_SECRET_FILE:?Select a separately protected secret env file}"
+    environment:
+      DRINK_POS_DB: /app/data/database.db
+      DRINK_POS_MESSAGES: /app/data/messages.json
+  recovery:
+    profiles: [tools]
+    image: "${DRINK_POS_IMAGE:?Select a reviewed immutable image digest}"
+    network_mode: none
+    # No application secrets passed; database may itself contain credentials.
+    entrypoint: [python, /app/application_recovery.py]
+    command: [--help]
+    volumes:
+      - application-data:/app/data:ro
+      - "${DRINK_POS_BACKUP_VOLUME:?Select an independently managed backup volume}:/backups"
+      - rehearsal-data:/rehearsal
+volumes:
+  application-data:
+  rehearsal-data:
