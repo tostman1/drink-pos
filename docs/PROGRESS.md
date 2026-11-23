@@ -72,3 +72,8 @@ publication have been performed by this assignment.
 - Requirements catalog now uses verified `052c2bb` baseline with previous base
   retained and original PR #1 tests local (`handoff-integrated`), not fictitious
   external/pending evidence. Remaining manual IDs MV-01..06 still pending.
+- Expanded gate: **113 unittests passed** on Python 3.12/3.13; both dependency
+  audits clean. Python 3.12 full command passed. Python 3.13 browser assertions
+  passed but Windows temporary log-handle cleanup failed, correctly failing the
+  gate. Fixed helper to drain a pipe and explicitly use one server worker; no
+  application change, no ignored cleanup failure. Rerun follows.

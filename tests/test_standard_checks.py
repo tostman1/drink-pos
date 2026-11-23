@@ -57,6 +57,12 @@ class StandardCheckTests(unittest.TestCase):
         self.assertEqual(environment["DRINK_POS_ENV"], "development")
         self.assertNotEqual(environment["DRINK_POS_DB"], "production.db")
 
+    def test_environment_removes_inherited_server_worker_configuration(self):
+        with patch.dict(os.environ, {"UVICORN_WORKERS": "4", "WEB_CONCURRENCY": "4"}):
+            environment = test_environment(Path("disposable"))
+        self.assertNotIn("UVICORN_WORKERS", environment)
+        self.assertNotIn("WEB_CONCURRENCY", environment)
+
     def test_traceability_rejects_nonexistent_test_method(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

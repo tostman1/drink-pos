@@ -16,7 +16,9 @@ def test_environment(directory: Path) -> dict[str, str]:
     environment = {
         key: value
         for key, value in os.environ.items()
-        if not key.startswith(("DRINK_POS_", "SUMUP_", "SMTP_", "APP_BUILD_", "PAYMENT_PROVIDER"))
+        if not key.startswith(
+            ("DRINK_POS_", "SUMUP_", "SMTP_", "APP_BUILD_", "PAYMENT_PROVIDER", "UVICORN_", "WEB_CONCURRENCY")
+        )
     }
     environment.update(
         {

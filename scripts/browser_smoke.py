@@ -6,6 +6,7 @@ import socket
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -27,15 +28,32 @@ def verify() -> None:
             sock.bind(("127.0.0.1", 0))
             port = sock.getsockname()[1]
         base = f"http://127.0.0.1:{port}"
-        output = Path(directory) / "server.log"
-        with output.open("w", encoding="utf-8") as log:
-            server = subprocess.Popen(
-                [sys.executable, "-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", str(port)],
-                cwd=ROOT,
-                env=environment,
-                stdout=log,
-                stderr=subprocess.STDOUT,
-            )
+        # Drain a pipe rather than an inherited log file handle. Windows subprocess
+        # descendants can otherwise retain that file past TemporaryDirectory cleanup.
+        lines: list[str] = []
+        with subprocess.Popen(
+            [
+                sys.executable,
+                "-m",
+                "uvicorn",
+                "app.main:app",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                str(port),
+                "--workers",
+                "1",
+            ],
+            cwd=ROOT,
+            env=environment,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+        ) as server:
+            assert server.stdout is not None
+            reader = threading.Thread(target=lambda: lines.extend(server.stdout), daemon=True)
+            reader.start()
             try:
                 deadline = time.monotonic() + 30
                 opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
@@ -107,8 +125,7 @@ def verify() -> None:
                         browser.close()
                 print("Browser smoke passed: Chromium/member booking/admin/event +1/-1/kassa/self-pay, no page errors.")
             except Exception:
-                log.flush()
-                print(output.read_text(encoding="utf-8"))
+                print("".join(lines))
                 raise
             finally:
                 server.terminate()
@@ -117,6 +134,7 @@ def verify() -> None:
                 except subprocess.TimeoutExpired:
                     server.kill()
                     server.wait(timeout=5)
+                reader.join(timeout=5)
 
 
 if __name__ == "__main__":
