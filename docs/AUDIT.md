@@ -24,6 +24,12 @@ Observed results are dated in PROGRESS.md; no invented coverage percentages.
 
 ## Verification limits
 
+RL-02 optional gate/ledger addresses the pre-write boundary only for explicitly
+selected fresh/exact-current paths. Default legacy repeated historical cost/partial
+DDL risks remain. Strict unknown/custom/prototype/WAL state deliberately rejects;
+no universal historical support or accounting approval. Synthetic rollback/kill/
+lock/permission/independent recovery evidence: `docs/migration-safety.md`.
+
 Previous main **87 tests**, handoff **96 tests**, initial foundation **100 tests**,
 final combined foundation **115 tests** on local Python 3.12/3.13.
 Those measured counts are not line/branch coverage percentages. HTTP tests add

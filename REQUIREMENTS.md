@@ -112,6 +112,15 @@ reported. See [release safety](docs/release-safety.md) and
 [ready gate/baseline inventory](docs/rl-01-contract.md). Versioned migrations and
 pre-write startup gating require separately approved RL-02; MV-06 remains partial.
 
+## Approved RL-02 bounded migration safety (2026-11-23)
+
+DP-024 adds an **opt-in**, exact-schema version ledger and pre-write gate. Default
+legacy behavior remains unchanged. Strict mode supports explicitly permitted fresh
+transactional initialization and metadata-only exact-current adoption, verified v1
+repeat, future/unknown/inconsistent rejection and isolated recovery evidence. It
+does not import arbitrary historical/prototype state or rewrite historical costs.
+OQ-06 financial policy remains unresolved. See [migration safety](docs/migration-safety.md).
+
 ## Classification rules
 
 **Confirmed behavior** has direct served-code and test evidence; it may still be

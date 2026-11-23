@@ -111,6 +111,13 @@
       "manual": ["MV-06"]
     },
     {
+      "id": "DP-024", "scope": "engineering",
+      "statement": "RL-02 opt-in pre-write SQLite gate and exact-current version ledger support explicitly permitted fresh transactional initialization and metadata-only adoption without historical financial rewriting. Unknown/future/inconsistent/WAL states fail safely; default legacy unchanged. Synthetic rollback/concurrency/independent recovery and actual-image evidence do not approve accounting policy or production adoption.",
+      "sources": ["app/db/migrations.py", "app/db/schema.py", "app/upgrade_preflight.py", "docs/migration-safety.md", "docs/rl-02-contract.md", "scripts/migration_rehearsal.py"],
+      "tests": ["tests/test_migration_contract.py::MigrationContractTests.test_fresh_requires_permission_and_initializes_atomically", "tests/test_migration_contract.py::MigrationContractTests.test_exact_current_adoption_records_only_new_metadata_preserving_history", "tests/test_migration_contract.py::MigrationContractTests.test_future_missing_contradictory_checksum_and_incomplete_ledger_rejected", "tests/test_migration_contract.py::MigrationContractTests.test_schema_data_and_precommit_failures_roll_back_all_db_changes", "tests/test_migration_contract.py::MigrationContractTests.test_abrupt_transaction_keeps_history_and_independent_bundle_recovers", "tests/test_migration_contract.py::MigrationContractTests.test_real_concurrent_migration_processes_reject_second_attempt", "tests/test_migration_contract.py::MigrationContractTests.test_preflight_accepts_verified_ledger_and_rejects_unknown_metadata", "tests/test_versioned_runtime.py::VersionedRuntimeTests.test_round_cashup_and_debt", "tests/test_versioned_runtime.py::VersionedRuntimeTests.test_unknown_payment_is_not_success"],
+      "manual": ["MV-06"]
+    },
+    {
       "id": "DP-015", "scope": "observed-main",
       "statement": "Preserve main/app.main imports, actual categorized legacy route registration, startup initialization, health/static/OpenAPI surfaces and build metadata.",
       "sources": ["app/main.py", "app/application.py", "app/routes/registry.py", "Dockerfile"],

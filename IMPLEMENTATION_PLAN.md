@@ -9,13 +9,16 @@ evidence, synthetic existing-startup/full-state/API/recovery tests and optional
 digest-pinned deployment guidance. No migration/runtime/UI/payment/deployment-default
 rewrite, image publication, deployment or merge. Final evidence in progress/handoff.
 
-## RL-02 — proposed versioned migration contract and pre-write gate
+## RL-02 — approved bounded versioned migration contract and opt-in gate
 
-Not authorized here. Decide supported version/schema transitions, ledger/atomicity,
-cost-history backfill semantics; write historical/failure tests before implementing
-one transition and a pre-write startup compatibility gate. Preserve all financial
-behavior except separately approved decisions. Exact tested-image promotion and
-release receipt/protection can be a separate release-artifact package; no orchestration.
+DP-024/014/015/023, authorized 2026-11-23. Ready gate `docs/rl-02-contract.md`,
+implemented contract `docs/migration-safety.md`. Default legacy unchanged; strict
+fresh transactional initialization or exact-current metadata-only adoption → v1,
+read-only repeat verification, no existing financial/history normalization. Exact
+fingerprints only, future/unknown/partial/WAL state reject before writes; ledger and
+SQLite changes commit together. No authentic historical/v1→v2 support, mandatory
+rollout, accounting policy, automatic production upgrade or merge/publication.
+OQ-06 unresolved; next package requires owner-approved preservation/adoption policy.
 
 ## EF-01 — Reconstruct before restructuring
 

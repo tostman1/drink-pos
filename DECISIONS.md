@@ -21,6 +21,15 @@
 
 ## Unresolved decisions (not implementation authorization)
 
+RL-02 D-15 (2026-11-23): implement smaller opt-in baseline contract rather than
+mandatory historical migrations. Fresh explicit initialization and exact-current
+metadata-only adoption → v1, DELETE journal mode, no repeated existing financial/
+default normalization, transactional ledger, no automatic WAL recovery. Default
+legacy remains unchanged. Rollout must be separately reviewed. OQ-06's ledger seam
+is implemented, but authentic historical support, adoption breadth, legitimate-zero/
+round-cost/prototype-history policy and production adoption remain **unresolved**.
+No new accounting interpretation is authorized by implementation/test success.
+
 - **OQ-01 — agent financial authority:** Should token-operating agents immediately
   charge rounds or require a separate consent/role? Current behavior is confirmed
   but can incur debt. Owner must decide; EF-05, not this foundation.

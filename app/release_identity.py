@@ -13,6 +13,7 @@ FORMAT = "drink-pos-release"
 PYTHON_BASELINE = ["3.12", "3.13"]
 MIGRATION_INPUTS = (
     "db/schema.py",
+    "db/migrations.py",
     "db/connection.py",
     "config.py",
     "utils/helpers.py",
@@ -46,7 +47,7 @@ def release_identity(commit: str, channel: str, version: str | None, *, image_re
         "migration_code_sha256": digest.hexdigest(),
         "python": list(PYTHON_BASELINE),
         "application_bundle_version": 1,
-        "schema_version": None,  # No maintained migration ledger exists.
+        "schema_version": None,  # Dual legacy/versioned runtime: DB evidence is separate.
     }
 
 

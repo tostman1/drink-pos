@@ -231,6 +231,15 @@ existing default prune remains a documented risk, NOT endorsed safe behavior.
 
 ## Remaining release decisions
 
+RL-02 integration: optional `db/migrations` validates ledger evidence when present
+or PRAGMAs are nonzero; unknown/inconsistent versions cannot become preflight success.
+Existing schema_version=null identity remains valid for dual legacy/versioned runtime;
+explicit v1 identity needs actual verified v1 ledger. Different target schema still
+requires separate transition decision; no preflight auto-adoption/execution. All
+original isolated snapshot/header/sidecar/key/config/image guards remain. See
+`migration-safety.md` for separately selected startup contract; historical RL-01
+descriptions above record its then-unchanged implementation.
+
 Owner approval/merge/release protection, supported version/channel/upgrade policy,
 authentic historical release fixtures, migration ledger/transactions/zero-cost
 history treatment, tested-image promotion/digest+provenance receipt, independent

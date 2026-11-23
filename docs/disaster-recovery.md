@@ -6,6 +6,12 @@ image digests, application handlers or EF-08a/b formats change.
 
 ## Architecture and lifecycle
 
+RL-02 optional migration ledger is preserved inside the unchanged full EF-08b payload.
+Independent recovery still restores to new state and requires compatible code/image
+plus explicit reconciliation before startup; migration metadata does not authorize
+provider retries or image-only downgrade. Strict WAL/journal/legacy-adoption limits
+and transaction failure recovery are documented in `migration-safety.md`.
+
 ```text
 quiesced source -> EF-08b verified bundle -> private standard tar staging
   -> external age encryption -> independent filesystem staging

@@ -20,9 +20,11 @@ from pathlib import Path
 try:
     from app.application_recovery import digest_json, read_json, regular_file, verify_application_bundle
     from app.release_identity import FORMAT
+    from app.db.migrations import inspect as inspect_migrations
 except ImportError:
     from application_recovery import digest_json, read_json, regular_file, verify_application_bundle
     from release_identity import FORMAT
+    from db.migrations import inspect as inspect_migrations
 
 EXITS = {"rehearsal-ready": 0, "intervention-required": 3, "unknown": 4, "unsafe": 2}
 SHA = r"[0-9a-f]{64}"
@@ -125,6 +127,14 @@ def evaluate(
         issue("backup-unreadable", "unknown")
         return finish()
     issue("full-bundle-integrity-inventory-verified", "rehearsal-ready")
+    # Preserve the offline snapshot guard above; this opens mode=ro, never runtime.
+    migration = inspect_migrations(bundle / "state/database.db")
+    ledger_present = "schema_migrations" in manifest["database"]["tables"] or migration.get("ledger_present", False)
+    if ledger_present or manifest["database"]["user_version"] != 0 or manifest["database"]["application_id"] != 0:
+        if migration["state"] != "versioned-current":
+            issue("migration-ledger-unsupported-or-inconsistent", "unsafe")
+        else:
+            issue("migration-ledger-verified-v1", "rehearsal-ready")
     if not STATE_TABLES.issubset(manifest["database"]["tables"]):
         issue("required-application-state-tables-missing", "unsafe")
     for name, identity in (("current", current), ("candidate", candidate)):
@@ -137,8 +147,11 @@ def evaluate(
             or identity["format_version"] != 1
             or identity["application_bundle_version"] != 1
             or identity["schema_version"] is not None
+            and (type(identity["schema_version"]) is not int or identity["schema_version"] != 1)
         ):
             issue(name + "-identity-format-unsupported", "unknown")
+        if identity["schema_version"] == 1 and migration["state"] != "versioned-current":
+            issue(name + "-declared-schema-ledger-unverified", "unknown")
         for field, pattern in (
             ("git_commit", r"[0-9a-f]{40}"),
             ("migration_code_sha256", SHA),
