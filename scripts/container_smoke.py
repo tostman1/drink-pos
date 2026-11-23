@@ -132,13 +132,31 @@ def verify(image: str, expected_commit: str | None) -> None:
             "conn.close()"
         )
         docker("exec", identity, "python", "-c", db_check)
+        recovery_check = (
+            "from pathlib import Path; import sqlite3; "
+            "from backup_database import export_backup; "
+            "from restore_database import restore_backup; "
+            "from database_recovery import verify_database; "
+            "csv = export_backup(); "
+            "target = Path('/app/data/synthetic-recovered.db'); "
+            "restore_backup(csv.parent, target); "
+            "assert verify_database(target) == verify_database(Path('/app/data/verification.db')); "
+            "source = sqlite3.connect('/app/data/verification.db'); "
+            "recovered = sqlite3.connect(target); "
+            "assert list(source.iterdump()) == list(recovered.iterdump()); "
+            "source.close(); recovered.close(); "
+            "print('Image backup/new-target restore/table-schema comparison passed')"
+        )
+        docker("exec", identity, "python", "-c", recovery_check)
         image_info = json.loads(docker("image", "inspect", image))[0]
         assert image_info["Config"]["Healthcheck"]["Test"], "Dockerfile healthcheck missing"
         # Execute the declared healthcheck, not just a hand-rolled different probe.
         healthcheck = image_info["Config"]["Healthcheck"]["Test"]
         assert healthcheck[0] == "CMD-SHELL", healthcheck
         docker("exec", identity, "sh", "-c", healthcheck[1])
-        print("Container verification passed: startup/routes/metadata/SQLite/restart/healthcheck; no publication.")
+        print(
+            "Container verification passed: startup/routes/metadata/SQLite/recovery/restart/healthcheck; no publication."
+        )
     except Exception:
         if container_created:
             print(docker("logs", identity))
