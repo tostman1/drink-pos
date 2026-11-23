@@ -56,7 +56,9 @@ def schema_entries(rows: list[dict[str, str]]) -> list[dict[str, Any]]:
         if not name or name.startswith("sqlite_") or not sql:
             continue
         entries.append(payload)
-    return sorted(entries, key=lambda item: (SCHEMA_ORDER.get(str(item.get("type") or ""), 9), str(item.get("name") or "")))
+    return sorted(
+        entries, key=lambda item: (SCHEMA_ORDER.get(str(item.get("type") or ""), 9), str(item.get("name") or ""))
+    )
 
 
 def data_entries(rows: list[dict[str, str]]) -> list[tuple[str, dict[str, Any]]]:

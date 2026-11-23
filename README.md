@@ -3,6 +3,31 @@
 Lokale touch-freundliche Getraenkeliste / Strichliste fuer Vereins- oder Veranstaltungsbetrieb.
 Die App besteht aus einem FastAPI-Backend, SQLite/WAL und einer Vanilla HTML/CSS/JS PWA.
 
+## Engineering foundation / Entwicklung
+
+Start with [`AGENTS.md`](AGENTS.md), [`docs/PROCESS.md`](docs/PROCESS.md),
+[`docs/PROGRESS.md`](docs/PROGRESS.md), and [`docs/HANDOFF.md`](docs/HANDOFF.md).
+Reconstructed Drink-POS requirements and actual runtime seams are documented in
+[`REQUIREMENTS.md`](REQUIREMENTS.md) and
+[`ARCHITECTURE.md`](ARCHITECTURE.md); reviewable increments are in
+[`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md), decisions in
+[`DECISIONS.md`](DECISIONS.md), findings in [`docs/AUDIT.md`](docs/AUDIT.md).
+
+Install `requirements-dev.txt` in an isolated Python 3.12/3.13 environment and
+make Node 24 available, then run from repository root:
+
+```sh
+python scripts/standard_checks.py
+```
+
+This runs Ruff, all Python/JavaScript syntax checks (including inline HTML),
+JSON/manifest and requirements traceability checks, regressions, and diff hygiene.
+See [`docs/standard-checks.md`](docs/standard-checks.md) for cross-platform setup,
+non-publishing container verification and manual/device/integration gaps.
+Never use production databases, production Compose startup, live payments or
+email delivery as routine verification. PR #1 was owner-merged as `052c2bb`;
+its manual verification items remain open.
+
 ## Lokal starten
 
 ```powershell
@@ -40,9 +65,12 @@ zurueckgesetzt. PDF und SEPA-Verwendungszweck verwenden dieselbe Rechnungsnummer
 ## GitHub + GHCR
 
 Das Repository ist fuer GitHub Container Registry vorbereitet. Der Workflow
-`.github/workflows/container.yml` baut bei jedem Push ein Image. Pushes auf `main`
-veroeffentlichen `stable`, `latest`, den Branch-Tag und einen `sha-...` Tag; andere
-Branches erhalten nur ihren Branch-Tag und den unveraenderlichen `sha-...` Tag.
+`.github/workflows/container.yml` prueft Branch-Pushes und Pull Requests mit
+Standard Checks und einem lokalen Container-Build/Smoke-Test **ohne Publication**.
+Images werden nur nach explizitem `workflow_dispatch` auf `main` mit `publish=true`
+und erfolgreichen Checks veroeffentlicht (`stable`, `latest`, `main`, `sha-...`).
+Der Owner muss Required Reviewers fuer das Environment `production-images`
+konfigurieren. Ein Push oder Merge allein veroeffentlicht kein Image.
 
 Repo anlegen und pushen:
 
@@ -58,7 +86,7 @@ git remote add origin git@github.com:tostman1/drink-pos.git
 git push -u origin HEAD
 ```
 
-Nach dem ersten erfolgreichen GitHub-Actions-Lauf ist das Image hier verfuegbar:
+Nach einer ausdruecklich genehmigten Publication ist das Image hier verfuegbar:
 
 ```text
 ghcr.io/tostman1/drink-pos:stable

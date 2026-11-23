@@ -1,5 +1,9 @@
 # Agent Task: Fix findings from code review of drink-pos
 
+> Historical proposal only. The current foundation contract is `AGENTS.md` and
+> `docs/PROCESS.md`; reconstruct requirements and follow `IMPLEMENTATION_PLAN.md`.
+> Do not execute this wide-refactor/payment-retry/deployment plan automatically.
+
 Ziel: Behebe die wichtigsten Probleme in `tostman1/drink-pos` (Code-Qualität, Architektur, Tests, Dokumentation) und erstelle einen PR mit klaren Commit-Schritten.
 
 Aufgabenbeschreibung (für einen Dev/Agent):

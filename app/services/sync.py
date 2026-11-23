@@ -35,7 +35,9 @@ def get_sync_state(conn: sqlite3.Connection) -> dict[str, Any]:
         if value:
             timestamps.append(str(value))
     try:
-        max_transaction_id = int(conn.execute("SELECT COALESCE(MAX(id), 0) AS v FROM transactions").fetchone()["v"] or 0)
+        max_transaction_id = int(
+            conn.execute("SELECT COALESCE(MAX(id), 0) AS v FROM transactions").fetchone()["v"] or 0
+        )
     except sqlite3.Error:
         max_transaction_id = 0
     db_changed_at = max(timestamps) if timestamps else now_text()

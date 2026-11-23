@@ -20,6 +20,10 @@ Agents can:
 - book normal user drinks,
 - create round requests.
 
+The historical round-request action immediately approves and charges the system
+item to the open bill. It is not a pending admin request or a settled payment;
+only perform it on explicit human instruction.
+
 Agents cannot:
 
 - close payments,

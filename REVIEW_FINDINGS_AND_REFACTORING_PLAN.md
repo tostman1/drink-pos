@@ -1,5 +1,10 @@
 # Drink POS - Code Review & Refactoring Plan
 
+> Historical review, not a current execution plan. Several findings, architecture
+> claims and coverage estimates are stale or unmeasured. Read `AGENTS.md`,
+> `docs/PROCESS.md`, `REQUIREMENTS.md` and `IMPLEMENTATION_PLAN.md` before acting.
+> Broad refactoring instructions below are not approved by the foundation task.
+
 **Date**: June 12, 2026  
 **Reviewer**: GitHub Copilot  
 **Repository**: tostman1/drink-pos  

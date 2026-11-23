@@ -112,10 +112,7 @@ def money(value: float) -> float:
 
 
 def get_invoice_settings(conn: sqlite3.Connection) -> dict[str, str]:
-    return {
-        key: str(get_setting(conn, key, default) or "")
-        for key, default in INVOICE_SETTING_DEFAULTS.items()
-    }
+    return {key: str(get_setting(conn, key, default) or "") for key, default in INVOICE_SETTING_DEFAULTS.items()}
 
 
 def normalize_iban(value: Any) -> str:
@@ -153,16 +150,12 @@ def normalize_external_recipient(
     if clean_email and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", clean_email):
         raise ValueError("E-Mail-Adresse des externen Empfängers ist ungültig")
     clean_address = "\n".join(
-        " ".join(line.strip().split())
-        for line in str(address or "").splitlines()
-        if line.strip()
+        " ".join(line.strip().split()) for line in str(address or "").splitlines() if line.strip()
     )[:900]
     return {"name": clean_name, "email": clean_email, "address": clean_address}
 
 
-def invoice_settings_for_recipient(
-    settings: dict[str, str], recipient: dict[str, str] | None
-) -> dict[str, str]:
+def invoice_settings_for_recipient(settings: dict[str, str], recipient: dict[str, str] | None) -> dict[str, str]:
     if not recipient:
         return dict(settings)
     recipient_lines = [recipient["name"]]
@@ -466,9 +459,7 @@ def add_event_item(
     }
 
 
-def remove_event_item(
-    conn: sqlite3.Connection, item_id: int, expected_event_id: int | None = None
-) -> dict[str, Any]:
+def remove_event_item(conn: sqlite3.Connection, item_id: int, expected_event_id: int | None = None) -> dict[str, Any]:
     event = require_active_event(conn, expected_event_id)
     # Correct the latest positive price snapshot without using today's item price.
     line = conn.execute(
@@ -501,7 +492,9 @@ def normalize_percent(value: Any, field_name: str) -> float:
     else:
         text = str(value).strip().replace("%", "").replace(" ", "").replace("\u00a0", "")
         if "," in text and "." in text:
-            text = text.replace(".", "").replace(",", ".") if text.rfind(",") > text.rfind(".") else text.replace(",", "")
+            text = (
+                text.replace(".", "").replace(",", ".") if text.rfind(",") > text.rfind(".") else text.replace(",", "")
+            )
         else:
             text = text.replace(",", ".")
         try:
@@ -905,13 +898,11 @@ def write_simple_invoice_pdf(
         pdf.write(obj)
         pdf.write(b"\nendobj\n")
     xref_pos = pdf.tell()
-    pdf.write(f"xref\n0 {len(objects)+1}\n".encode("ascii"))
+    pdf.write(f"xref\n0 {len(objects) + 1}\n".encode("ascii"))
     pdf.write(b"0000000000 65535 f \n")
     for offset in offsets[1:]:
         pdf.write(f"{offset:010d} 00000 n \n".encode("ascii"))
-    pdf.write(
-        f"trailer\n<< /Size {len(objects)+1} /Root 1 0 R >>\nstartxref\n{xref_pos}\n%%EOF\n".encode("ascii")
-    )
+    pdf.write(f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref_pos}\n%%EOF\n".encode("ascii"))
     path.write_bytes(pdf.getvalue())
 
 
@@ -1165,4 +1156,8 @@ def close_event(
             "invoice_mail_sent": mail_sent,
         }
     )
-    return {"status": "ok", "event": summary, "artifacts": asdict(EventArtifacts(csv_path, pdf_path, mail_sent, mail_copy_sent))}
+    return {
+        "status": "ok",
+        "event": summary,
+        "artifacts": asdict(EventArtifacts(csv_path, pdf_path, mail_sent, mail_copy_sent)),
+    }

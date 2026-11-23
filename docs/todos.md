@@ -17,5 +17,7 @@ source comments.
 ## Optional Product Features
 
 - Admin database download and restore/import workflow.
-- Explicit events/veranstaltungen instead of only `event_open`.
+- Named events/veranstaltungen and invoices already exist on main. PR #1 adds
+  event tally corrections (owner-merged); keep tablet/PWA/SMTP verification open
+  in `docs/HANDOFF.md`.
 - Cash balance module with start cash, count, difference, and close report.

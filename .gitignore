@@ -1,5 +1,10 @@
 __pycache__/
 *.py[cod]
+.venv/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
 
 .env
 
@@ -8,6 +13,7 @@ data/*.db-shm
 data/*.db-wal
 data/backups/
 data/events/
+data/messages.json
 
 *.log
 *.rar

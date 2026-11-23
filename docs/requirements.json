@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "baseline": "052c2bbc54f05f7c7d850feb8ad597a4e4868670",
+  "previous_baseline": "fb0812837694949dc6d228b781f2aa7af2b29d98",
+  "handoff": "250a4e6d3e4180b469d4f2a91623b60f2fd1ed72",
+  "requirements": [
+    {
+      "id": "DP-001", "scope": "observed-main",
+      "statement": "Provide a German EUR private-network touch PWA for members, cashiers and admins, not public SaaS or a full offline financial system.",
+      "sources": ["README.md", "app/index.html", "app/service-worker.js"],
+      "tests": ["tests/test_backend.py::BackendFlowTests.test_self_payment_routes_expose_page_and_open_balance"],
+      "manual": ["MV-01", "MV-05"]
+    },
+    {
+      "id": "DP-002", "scope": "observed-main",
+      "statement": "Book allowed ordinary items by stable IDs; preserve consumption-time name, price, purchase-price and admin-only snapshots after edits/archival.",
+      "sources": ["app/legacy_main.py", "app/db/schema.py"],
+      "tests": ["tests/test_backend.py::BackendFlowTests.test_booking_and_payment_flow", "tests/test_runtime_contracts.py::RuntimeContractTests.test_snapshot_and_archived_item_debt_remain_payable"], "manual": []
+    },
+    {
+      "id": "DP-003", "scope": "observed-main",
+      "statement": "Positive open debt is independent of current member tally event_open; cashup closes tally without forgiving remaining debt.",
+      "sources": ["app/legacy_main.py", "app/db/schema.py"],
+      "tests": ["tests/test_runtime_contracts.py::RuntimeContractTests.test_cashup_preserves_debt_and_cash_payment_settles_it"], "manual": []
+    },
+    {
+      "id": "DP-004", "scope": "observed-main",
+      "statement": "Append signed audit transactions/details for operations and corrections; failed audit writes must not commit the associated booking.",
+      "sources": ["app/legacy_main.py", "app/services/statistics.py"],
+      "tests": ["tests/test_backend.py::BackendFlowTests.test_admin_person_history_shows_corrections_and_allows_archived_person", "tests/test_runtime_contracts.py::RuntimeContractTests.test_booking_rolls_back_when_audit_fails"], "manual": []
+    },
+    {
+      "id": "DP-005", "scope": "observed-main",
+      "statement": "Round confirmation immediately charges the system item and records APPROVED; deductions consume eligible current ordinary drinks without repeating paid-round entitlements.",
+      "sources": ["app/legacy_main.py", "docs/agent-api.md"],
+      "tests": ["tests/test_backend.py::BackendFlowTests.test_round_and_cashup_flow", "tests/test_backend.py::BackendFlowTests.test_paid_round_after_person_payment_does_not_deduct_that_person_again_at_cashup", "tests/test_backend.py::BackendFlowTests.test_stale_round_deduction_plan_cannot_remove_twice", "tests/test_runtime_contracts.py::RuntimeContractTests.test_agent_round_request_immediately_charges_but_cannot_pay"], "manual": []
+    },
+    {
+      "id": "DP-006", "scope": "observed-main",
+      "statement": "PIN-authorized cash payment settles all open debt; kassa requires a current expected_revision and rejects stale data.",
+      "sources": ["app/legacy_main.py", "app/kassa.html"],
+      "tests": ["tests/test_backend.py::BackendFlowTests.test_kassa_payment_rejects_stale_revision", "tests/test_runtime_contracts.py::RuntimeContractTests.test_cashup_preserves_debt_and_cash_payment_settles_it"], "manual": []
+    },
+    {
+      "id": "DP-007", "scope": "observed-main",
+      "statement": "Calculate 3%/minimum 20-cent card fee and selected rounding server-side; replay one client_payment_id, lock pending person, settle only confirmed matching success including success after cancellation; uncertainty leaves debt open.",
+      "sources": ["app/legacy_main.py", "app/services/sumup.py", "docs/self-payment-sumup.md"],
+      "tests": ["tests/test_backend.py::BackendFlowTests.test_self_payment_with_sumup_closes_open_lines", "tests/test_backend.py::BackendFlowTests.test_self_payment_locks_person_while_sumup_is_running", "tests/test_backend.py::BackendFlowTests.test_sumup_timeout_or_unknown_keeps_open_lines", "tests/test_backend.py::BackendFlowTests.test_cancelled_sumup_session_can_still_book_confirmed_payment", "tests/test_payments.py::PaymentServiceTests.test_card_payment_fee_rounds_percentage_up"], "manual": ["MV-04"]
+    },
+    {
+      "id": "DP-008", "scope": "observed-main",
+      "statement": "Only ordinary member bookings queue offline; replay client_operation_id once. Other financial/admin operations remain online-only.",
+      "sources": ["app/index.html", "app/legacy_main.py", "app/service-worker.js"],
+      "tests": ["tests/test_backend.py::BackendFlowTests.test_offline_client_operation_is_idempotent"], "manual": ["MV-05"]
+    },
+    {
+      "id": "DP-009", "scope": "observed-main",
+      "statement": "Protect admin/history with PIN, block production default/placeholder PINs, disable unconfigured agent access and restrict token API; avoid exposing secrets/public production DB paths.",
+      "sources": ["app/core/security.py", "app/legacy_main.py", "docs/agent-api.md"],
+      "tests": ["tests/test_backend.py::BackendFlowTests.test_production_blocks_default_pin_login", "tests/test_backend.py::BackendFlowTests.test_production_blocks_placeholder_pin_login", "tests/test_backend.py::BackendFlowTests.test_public_transactions_require_pin", "tests/test_backend.py::BackendFlowTests.test_agent_api_requires_configured_token", "tests/test_runtime_contracts.py::RuntimeContractTests.test_served_routes_enforce_auth_validation_and_safe_config"], "manual": []
+    },
+    {
+      "id": "DP-010", "scope": "observed-main",
+      "statement": "Persist editable runtime message defaults, per-person member-message acknowledgement and independently configurable warning visibility.",
+      "sources": ["app/services/messages.py", "app/legacy_main.py", "docs/messages.md"],
+      "tests": ["tests/test_messages.py::MessageCatalogTests.test_runtime_message_file_overrides_defaults", "tests/test_backend.py::BackendFlowTests.test_member_message_acknowledgement_is_per_person", "tests/test_backend.py::BackendFlowTests.test_cost_notice_config_separates_surfaces_and_placeholders"], "manual": []
+    },
+    {
+      "id": "DP-011", "scope": "observed-main",
+      "statement": "Support named aggregate events separately from member debt with line snapshots/discounts, required CSV before close, optional PDF/SEPA QR and selected-recipient email in tested order.",
+      "sources": ["app/services/events.py", "app/legacy_main.py", "app/index.html"],
+      "tests": ["tests/test_backend.py::BackendFlowTests.test_event_mode_start_add_discount_csv_pdf_and_close", "tests/test_backend.py::BackendFlowTests.test_event_end_requires_csv_before_closing", "tests/test_backend.py::BackendFlowTests.test_event_end_keeps_event_open_when_pdf_fails_after_csv", "tests/test_backend.py::BackendFlowTests.test_event_end_orders_csv_pdf_mail_and_mail_forces_invoice", "tests/test_backend.py::BackendFlowTests.test_external_invoice_recipient_replaces_cashier_and_mail_target"], "manual": ["MV-03"]
+    },
+    {
+      "id": "DP-012", "scope": "observed-main",
+      "statement": "Validate invoice date placeholders/IBAN; use closing date/event ID for invoice number; QR remains optional and unavailable requested dependency/configuration fails explicitly.",
+      "sources": ["app/services/events.py", "README.md"],
+      "tests": ["tests/test_backend.py::BackendFlowTests.test_invoice_number_date_formats_use_closing_date", "tests/test_backend.py::BackendFlowTests.test_invoice_settings_reject_invalid_iban", "tests/test_backend.py::BackendFlowTests.test_invoice_fails_explicitly_when_qr_dependency_is_missing", "tests/test_backend.py::BackendFlowTests.test_invoice_valid_iban_does_not_force_qr"], "manual": []
+    },
+    {
+      "id": "DP-013", "scope": "observed-main",
+      "statement": "Keep protected audit/report exports and UTF-8 BOM/umlauts in member CSV; preserve existing event CSV formatting rather than silently altering accounting exports.",
+      "sources": ["app/legacy_main.py", "app/services/events.py", "app/backup_database.py"],
+      "tests": ["tests/test_backend.py::BackendFlowTests.test_csv_exports_include_utf8_bom_and_preserve_umlauts", "tests/test_backend.py::BackendFlowTests.test_event_mode_start_add_discount_csv_pdf_and_close"], "manual": []
+    },
+    {
+      "id": "DP-014", "scope": "observed-main",
+      "statement": "Use additive SQLite migration, WAL, connection foreign keys/busy timeout, actionable unreadable-DB errors, consistent snapshot backup and CLI recovery; container updates retain persistent data.",
+      "sources": ["app/db/schema.py", "app/backup_database.py", "app/restore_database.py", "compose.yaml", "compose.synology.yaml"],
+      "tests": ["tests/test_backend.py::BackendFlowTests.test_sqlite_connection_enforces_foreign_keys_and_busy_timeout", "tests/test_database_recovery.py::DatabaseRecoveryTests.test_readable_old_database_is_migrated", "tests/test_database_recovery.py::DatabaseRecoveryTests.test_malformed_database_gets_actionable_startup_error", "tests/test_database_recovery.py::DatabaseRecoveryTests.test_csv_backup_restore_includes_newer_operational_tables"], "manual": ["MV-06"]
+    },
+    {
+      "id": "DP-015", "scope": "observed-main",
+      "statement": "Preserve main/app.main imports, actual categorized legacy route registration, startup initialization, health/static/OpenAPI surfaces and build metadata.",
+      "sources": ["app/main.py", "app/application.py", "app/routes/registry.py", "Dockerfile"],
+      "tests": ["tests/test_modular_imports.py::ModularImportTests.test_runtime_app_mounts_legacy_routes_through_registry", "tests/test_modular_imports.py::ModularImportTests.test_main_exports_modular_runtime_app", "tests/test_build_info.py::BuildInfoTests.test_build_commit_reads_container_environment", "tests/test_runtime_contracts.py::RuntimeContractTests.test_served_routes_enforce_auth_validation_and_safe_config"], "manual": []
+    },
+    {
+      "id": "DP-016", "scope": "handoff-integrated",
+      "statement": "PR #1 event +1/-1 sum price snapshots, enforce zero floor/stale-event protection/atomic signed audit, remove latest positive snapshot, and update PWA shell.",
+      "sources": ["docs/HANDOFF.md", "app/services/events.py", "app/index.html"],
+      "tests": ["tests/test_backend.py::BackendFlowTests.test_event_plus_and_minus_are_logged_without_admin_pin", "tests/test_backend.py::BackendFlowTests.test_event_minus_cannot_make_quantity_negative", "tests/test_backend.py::BackendFlowTests.test_event_minus_uses_latest_positive_price_snapshot", "tests/test_backend.py::BackendFlowTests.test_event_changes_reject_stale_or_closed_event", "tests/test_backend.py::BackendFlowTests.test_event_concurrent_minus_only_removes_last_mark_once", "tests/test_backend.py::BackendFlowTests.test_event_mark_changes_roll_back_when_audit_log_fails", "tests/test_runtime_contracts.py::RuntimeContractTests.test_http_event_correction_rejects_stale_id_and_rolls_back_audit_failure"], "manual": ["MV-01", "MV-02"]
+    },
+    {
+      "id": "DP-017", "scope": "handoff-integrated",
+      "statement": "PR #1 saves/validates an independent SMTP test recipient, protects unsaved edits and uses explicit/saved recipient without cashier fallback.",
+      "sources": ["docs/HANDOFF.md", "app/admin.html", "app/services/events.py"],
+      "tests": ["tests/test_backend.py::BackendFlowTests.test_mail_test_recipient_persists_independently_from_cashier", "tests/test_backend.py::BackendFlowTests.test_mail_test_recipient_validation_preserves_saved_value", "tests/test_backend.py::BackendFlowTests.test_mail_test_uses_saved_or_explicit_recipient_never_cashier"], "manual": ["MV-03"]
+    },
+    {
+      "id": "DP-018", "scope": "engineering",
+      "statement": "Run repeatable fail-closed Ruff, Python/all JavaScript syntax, data/traceability and regression checks with explicit evidence gaps, isolated state and no live payment/email.",
+      "sources": ["AGENTS.md", "docs/PROCESS.md", "scripts/standard_checks.py", "docs/standard-checks.md"],
+      "tests": ["tests/test_standard_checks.py::StandardCheckTests.test_inline_scripts_modules_handlers_and_data_blocks", "tests/test_standard_checks.py::StandardCheckTests.test_invalid_python_fails_without_importing_it", "tests/test_foundation_contracts.py::FoundationContractTests.test_catalog_links_resolve"], "manual": []
+    },
+    {
+      "id": "DP-019", "scope": "engineering",
+      "statement": "Branch/PR container verification is read-only/non-publishing; package-write/login/push require successful checks and explicit owner main dispatch, never automatic branch push.",
+      "sources": [".github/workflows/ci.yml", ".github/workflows/container.yml", "scripts/container_smoke.py"],
+      "tests": ["tests/test_foundation_contracts.py::FoundationContractTests.test_ci_cannot_publish_on_push_or_pull_request"], "manual": []
+    },
+    {
+      "id": "DP-020", "scope": "engineering",
+      "statement": "Preserve owner-merged PR #1 transfer; independent foundation from verified main has reviewable commits, requirements/process/work packages/handoff; PR merge/production activity require owner approval.",
+      "sources": ["AGENTS.md", "docs/PROCESS.md", "docs/HANDOFF.md", "docs/PROGRESS.md", "IMPLEMENTATION_PLAN.md"],
+      "tests": ["tests/test_foundation_contracts.py::FoundationContractTests.test_catalog_links_resolve"], "manual": []
+    }
+  ]
+}

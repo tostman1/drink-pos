@@ -30,7 +30,9 @@ def create_round_request(conn: sqlite3.Connection, person_id: int, quantity: int
 def get_pending_round_requests(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     """Return pending round requests."""
 
-    return list(conn.execute("SELECT * FROM round_requests WHERE status = 'PENDING' ORDER BY requested_at, id").fetchall())
+    return list(
+        conn.execute("SELECT * FROM round_requests WHERE status = 'PENDING' ORDER BY requested_at, id").fetchall()
+    )
 
 
 def deduct_round_logic(conn: sqlite3.Connection, pin: str | None = None) -> dict[str, Any]:
