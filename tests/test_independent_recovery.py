@@ -290,8 +290,18 @@ class IndependentRecoveryTests(unittest.TestCase):
             wrong.chmod(0o600)
         for key in (self.escrow / "missing.txt", wrong):
             with self.assertRaises((ValueError, OSError)):
+                self.module().verify_replica(
+                    replica,
+                    identity=key,
+                    scratch=self.scratch,
+                    age=self.age,
+                    verification_scope="independent",
+                    verifier_id="synthetic-verifier",
+                )
+            with self.assertRaises((ValueError, OSError)):
                 self.recover(replica, identity=key)
             self.assertFalse((self.root / "reconstructed").exists())
+            self.module().inspect_replica(replica)  # wrong verifier never mutates transfer
 
     def test_missing_corrupt_or_incomplete_copy_fails_closed(self):
         module = self.module()

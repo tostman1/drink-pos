@@ -14,6 +14,14 @@ unavailable then exact ID reconstructed, preserving shared input. Full gates/fin
 CI pending until recorded. EF-08a/b formats/handlers/financial/production configs
 unchanged; remaining MV-06/Windows/authenticity/ACL/operator limits preserved.
 
+Security implementation `6af9cae` passed branch `45192886047` / PR `45192900590`:
+Linux 187/186 passed/one Windows-only skip, public-key-only/state/v1 tests and actual
+owned-image unavailability→archive reconstruction passed; shared input untouched,
+network-disabled full DR/image audit passed, publication skipped. Synthetic RPO
+0.358806s/RTO 2.318645502s (not SLA). Direct wrong/missing verifier-key guard added
+in final test review; verify final head/checks, not only predecessor. Stop after
+delivery, PR remains OPEN for owner approval; no merge or production adoption.
+
 ## Active EF-08c independent disaster recovery — 2026-11-23
 
 Branch `feature/ef-08c-disaster-recovery` from clean fetched/CI-verified main

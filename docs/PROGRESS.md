@@ -27,6 +27,22 @@ combined wrong-key/v1 handling, Chromium and strict vulnerability audits passed
 `ef08c-security312.log` / `ef08c-security313.log`. Actual owned-image removal/archive
 reconstruction and final corrected-head container CI remain required, not inferred.
 
+Corrected implementation `6af9cae5aefe33423d13c1c8e84f490f337c0b6e` passed
+branch `45192886047` and PR `45192900590` full gates. Linux each: **187 discovered/
+186 passed/one Windows-only retry-test skip**, public-only/decryption denial/full-
+independent state transitions/v1/ownership tests executed. Actual image/three Compose
+configs/complete encrypted source-loss/owned-image removal+archive reconstruction/
+network-disabled startup/image audit passed; publication skipped. PR drill flags:
+`producer_private_key_required=false`, `original_owned_image_unavailable_before_archive_load=true`,
+`shared_input_image_removed=false`. Synthetic RPO age 0.358806s/RTO 2.318645502s,
+total 7.378924705s, not operational SLA. Final small test review directly verifies
+wrong/missing private-key verification also fails without modifying valid transfer.
+Final evidence receipt/head must pass its own gates; no inferred pass from predecessor.
+Final reviewed test/docs local gates both exit 0: 187 discovered/182 passed/five
+POSIX skips, Python 3.12/3.13 full lint/format/syntax/traceability/security/Chromium.
+Logs `ef08c-security-final312.log` / `ef08c-security-final313.log` outside Git.
+No EF-08a Windows rename recurrence in these checks; unresolved finding unchanged.
+
 ## EF-08c active — 2026-11-23
 
 - Clean fetched main `e8caeed029266764d5594c275ff769ccc7cf35c8`; exact base CI

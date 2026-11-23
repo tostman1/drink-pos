@@ -11,6 +11,8 @@ DP-004/007/008/010/011/013/015/018/019; new DP-022 independent recovery evidence
 
 Continue clean reviewed `fe012099998d41ac3dd3d15e90cc754c8715e0c0` on existing
 branch. DP-022: ordinary producer needs only public recipient, never private key.
+This approved correction supersedes the original preimplementation publication/
+key assumptions below; historical acceptance/evidence is retained, not rewritten.
 Publish a new replica-envelope version 2 with **encrypted-transfer-complete** marker,
 not decrypted recovery claims. Retain read/verify of v1 envelopes but never infer
 current full verification from their marker or old ambiguous journal receipts.
