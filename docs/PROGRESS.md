@@ -1,5 +1,32 @@
 # Engineering foundation progress
 
+## EF-08 final integration — 2026-11-23
+
+- Owner approved PR #3 merge conditional on exact reviewed head/gates. Clean local
+  and fetched remote head matched `e7a6073a0faae9659bcb9963995e96f74653d117`;
+  remote main remained `a218fcc`. PR reported MERGEABLE/CLEAN; all established
+  quality/container checks succeeded, publication skipped. GitHub has no configured
+  merge-required checks; none were bypassed or weakened to merge.
+- Merged PR #3 normally with `--merge --match-head-commit`, no admin bypass:
+  **`212e6b6c20257dae532ecdbaf5d654beae7f44ab`**, 2026-11-23T09:59:42Z. Tree
+  matches reviewed head exactly, parents verified. Primary worktree switched to
+  main and fast-forwarded without discard/reset; feature branches preserved.
+- Exact merge main run https://github.com/tostman1/drink-pos/actions/runs/45152008134
+  **passed**: both Python/Node full gates, both Compose configurations, actual Docker
+  image build, disposable container startup/restart/SQLite/backup/new-target restore
+  and image runtime dependency audit. Publication **skipped**; merge deployment
+  query returned `[]`. No release/deploy/publication dispatch or production access.
+- Local merged-main Standard Checks passed Python 3.12.13: 139 discovered,
+  136 passed/three POSIX skips, 29.944s; Ruff, syntax/traceability, Chromium smoke
+  and dependency audit passed, no known vulnerabilities. Existing lifecycle/action
+  deprecation warnings retained. Linux permission checks were executed in reviewed CI.
+- This documentation-only final receipt is a main descendant; final main SHA/CI
+  must be verified before delivery. No runtime/Compose/digest/deployment changes.
+- Bounded EF-08 recovery complete/integrated. **No next work package started.**
+  Next intended: coordinated DB/files/artifacts/config/offsite recovery and isolated
+  operational rehearsal. MV-06 partially pending, external consumers/Windows ACLs,
+  same-NAS/offsite/monitoring/RPO/RTO gaps remain; invoice/SMTP redesign excluded.
+
 ## PR #3 final recovery security/compatibility review — 2026-11-23
 
 - Continued the approved EF-08 session on its clean branch at `6612924`.

@@ -1,5 +1,36 @@
 # Handoff and protected work
 
+## EF-08 integrated handoff — 2026-11-23
+
+PR #3 https://github.com/tostman1/drink-pos/pull/3 is **merged**. The owner approved
+merging only after final review/gates; this supersedes the historical open/unmerged
+notes below, not the production restrictions.
+
+- Remote head remained the reviewed `e7a6073a0faae9659bcb9963995e96f74653d117`;
+  base main was `a218fcc40599d5a19e53f2afee490238eeb7e910`. Exact-head PR CI
+  `45150671583` and branch CI `45150663385` passed, publication skipped.
+- Normal GitHub merge-commit workflow with exact head guard, no admin bypass:
+  **`212e6b6c20257dae532ecdbaf5d654beae7f44ab`**, 2026-11-23T09:59:42Z.
+  Merge parents are that base/reviewed head; merged tree is byte-identical to review.
+- Primary checkout fast-forwarded to origin/main; post-merge main CI
+  https://github.com/tostman1/drink-pos/actions/runs/45152008134 **passed** on the
+  exact merge SHA, including Python matrices, actual Docker/Compose/container
+  recovery/restart and image dependency audit. Publication **skipped**, deployment
+  query for merge SHA returned `[]`. No release or publication dispatch occurred.
+- Post-merge local Standard Checks passed: 139 discovered, 136 passed/three POSIX
+  skips (Windows); Linux permission evidence remains successful as recorded below.
+- This integration receipt changes documentation only. Read final main HEAD and
+  its own CI receipt from Git/GitHub; no application change after reviewed merge.
+
+**EF-08 bounded database recovery is complete and integrated; stop this session.**
+Next intended work package (not started): coordinated DB/filesystem artifacts/
+configuration/offsite recovery, including an isolated operational rehearsal.
+MV-06 remains partially pending; MV-01..05, external CSV consumers, Windows ACLs,
+offsite/RPO/RTO/monitoring and reconciliation boundaries remain documented.
+No production access, deployment, image/digest change, release/publication or
+consumer migration was performed. PR #3 approval grants no approval for future PRs
+or production operations. Preserve feature/handoff branches; no history rewrite.
+
 ## PR #3 security/compatibility correction — 2026-11-23
 
 Continuation on the existing `feature/ef-08-database-recovery` branch, not a new
