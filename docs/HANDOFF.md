@@ -1,5 +1,32 @@
 # Handoff and protected work
 
+## RL-01 active release-safety handoff — 2026-11-23
+
+Owner selected RL-01, superseding previous 'stop/no next package' notes only for
+this bounded implementation. Base/fetched main `dbc314e0790534ee44f362be4a194143385eb071`,
+exact base CI `45199604894` passed, branch `feature/rl-01-release-safety`.
+Ready gate `docs/rl-01-contract.md`, contract/runbook `docs/release-safety.md`.
+DP-023 isolated-bundle-only read-only preflight/identity, actual synthetic startup/
+ASGI/full-state/recovery characterization; no app/migration/UI/REST/payment/deployment
+defaults changed. Current partial DDL/repeated cost-history mutations documented,
+arbitrary upgrade/downgrade compatibility unproven. Full local/final CI/PR evidence
+pending until receipts; Docker unavailable locally. No production data/resources,
+publication/release/deploy/SumUp/SMTP/merge. Keep PR open, independent review next;
+propose RL-02 versioned migration contract/pre-write gate, not authorized here.
+Preserve all owner merges/handoff branches and EF-08a/b/c guarantees. MV-01..06,
+real operational evidence/Windows EF-08a WinError 5 remain unresolved. Stop at delivery.
+
+**RL-01 review delivery:** PR https://github.com/tostman1/drink-pos/pull/6 OPEN.
+Implementation `fdbdb5627c4fae61c41bd7e0a99c3e1a85655052` passed exact branch
+`45209356414` and PR `45209479532`: both full Linux matrices 208/207 passed/one
+Windows-only skip; actual image/4 Compose validations/installed identity/network-none
+synthetic upgrade/separate recovery and EF-08a/b/c DR/image audit passed, publication
+skipped. Local Python 3.12/3.13 full gates 208/203 passed/five POSIX skips each.
+No runtime/migration/recovery/default deployment/UI/business changes. Evidence receipt
+is documentation-only; verify its own final HEAD/CI before delivery. Read progress
+for actual synthetic tree/schema distinctions; no authentic historical or production
+upgrade proof. Owner review next, no merge permission; stop after delivery.
+
 ## EF-08c integrated handoff — 2026-11-23
 
 PR #5 https://github.com/tostman1/drink-pos/pull/5 is **merged** after the owner's

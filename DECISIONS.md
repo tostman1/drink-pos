@@ -16,6 +16,8 @@
 | D-10 | Application recovery core is filesystem/one-shot CLI only, atomic no-replace publication on Linux/Windows; no new retention | Scheduling/transport/encryption/independent copies remain operator-controlled; unsupported publication semantics fail closed; no production adoption |
 | D-11 | EF-08c optional encrypted filesystem replicas use established external age and standard tar, unchanged EF-08b bundle inside; PR #5 correction makes producer public-key-only | v2 marker means encrypted transfer only; separate private-key full verification, explicit trusted independent/offsite receipts; combined verification opt-in, no immutable/geography proof |
 | D-12 | Complete installation-loss rehearsal removes only owned synthetic source storage, preserves compatible image/key escrow independently and gates network-disabled startup on explicit synthetic reconciliation | Synthetic RPO/RTO reported separately from operational guarantees; Windows EF-08a rename issue remains a separate reliability follow-up |
+| D-13 | RL-01 preflight is standalone, explicit isolated EF-08b bundle only, exact identities/schema/installation/config and trusted key/compatibility evidence; unknown non-success | No live-state/default discovery, migrations, deployment or automatic rollback; readiness approves rehearsal only. Existing startup/deployment defaults preserved. |
+| D-14 | RL-01 characterizes existing partial DDL and repeatable purchase-cost backfills without rewriting migrations; digest/version evidence remains nullable until actually available | Synthetic fixtures are not authentic release evidence. Versioned migrations/pre-write gate and tested-image promotion require separate RL-02/release decisions. |
 
 ## Unresolved decisions (not implementation authorization)
 
@@ -33,6 +35,13 @@
 - **OQ-05 — release protection:** Owner must configure required reviewers for
   `production-images` and select merge-required checks. No settings change or
   production release is authorized by this PR.
+- **OQ-06 — migration contract:** Choose version ledger, whole-migration atomicity,
+  supported source/target paths and treatment of legitimate zero-cost historical
+  snapshots before RL-02; image downgrade on newer state is not automatically safe.
+- **OQ-07 — product release identity:** Choose human version/channel/support policy,
+  authenticated historical fixtures and exact tested-artifact promotion/provenance/
+  digest receipt. Current mutable base/dependencies and separate publish rebuild
+  do not prove reproducibility; no registry publication is authorized in RL-01.
 
 Unresolved entries stay visible; they do not block adding the non-invasive
 foundation or become inferred requirements just because they appear here.

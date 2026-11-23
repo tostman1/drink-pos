@@ -1,0 +1,20 @@
+# OPTIONAL controlled-start template, not an update script. Adopt only after review.
+# DRINK_POS_IMAGE must be repository@sha256:<verified digest>; never stable/latest.
+services:
+  drink-pos:
+    image: "${DRINK_POS_IMAGE:?Explicit independently verified immutable digest required}"
+    pull_policy: never
+    restart: "no"
+    ports:
+      - "127.0.0.1:8088:8000"
+    env_file:
+      - "${DRINK_POS_CONFIG_FILE:?Explicit non-secret configuration file required}"
+      - "${DRINK_POS_SECRET_FILE:?Explicit protected secret file required}"
+    environment:
+      DRINK_POS_IMAGE_REF: "${DRINK_POS_IMAGE}"
+    volumes:
+      - "state:/app/data"
+volumes:
+  state:
+    name: "${DRINK_POS_STATE_VOLUME:?Explicit reviewed state volume required}"
+    external: true

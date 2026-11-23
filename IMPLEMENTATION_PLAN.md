@@ -1,5 +1,22 @@
 # Engineering foundation work packages
 
+## RL-01 — approved release-readiness and upgrade-safety foundation (2026-11-23)
+
+DP-023/014/015/019; ready gate in `docs/rl-01-contract.md`. Baseline/update risk
+inventory, deterministic offline identities, explicit read-only isolated-bundle
+preflight with non-success unknown, exact operator compatibility/state/config/key
+evidence, synthetic existing-startup/full-state/API/recovery tests and optional
+digest-pinned deployment guidance. No migration/runtime/UI/payment/deployment-default
+rewrite, image publication, deployment or merge. Final evidence in progress/handoff.
+
+## RL-02 — proposed versioned migration contract and pre-write gate
+
+Not authorized here. Decide supported version/schema transitions, ledger/atomicity,
+cost-history backfill semantics; write historical/failure tests before implementing
+one transition and a pre-write startup compatibility gate. Preserve all financial
+behavior except separately approved decisions. Exact tested-image promotion and
+release receipt/protection can be a separate release-artifact package; no orchestration.
+
 ## EF-01 — Reconstruct before restructuring
 
 - Scope: verify main/handoff, inspect all diff/docs/tests/workflows, record actual

@@ -104,6 +104,13 @@
       "manual": ["MV-06"]
     },
     {
+      "id": "DP-023", "scope": "engineering",
+      "statement": "RL-01 standalone read-only preflight evaluates only attested isolated EF-08b snapshots with exact release/image/schema/installation/configuration and trusted backup/key evidence. Unknown is non-success; only approved rehearsal readiness is possible. Synthetic real-startup migration tests protect financial/API/state/recovery semantics and expose partial DDL/repeated cost backfill without changing deployment defaults or migration behavior.",
+      "sources": ["app/release_identity.py", "app/upgrade_preflight.py", "scripts/upgrade_rehearsal.py", "docs/rl-01-contract.md", "docs/release-safety.md", "examples/compose.upgrade.yaml", ".github/workflows/container.yml"],
+      "tests": ["tests/test_release_safety.py::ReleaseSafetyTests.test_valid_evidence_only_approves_rehearsal_without_side_effects", "tests/test_release_safety.py::ReleaseSafetyTests.test_missing_identity_backup_and_isolation_are_not_success", "tests/test_release_safety.py::ReleaseSafetyTests.test_mutable_wrong_images_unsupported_schema_and_installation_fail_closed", "tests/test_release_safety.py::ReleaseSafetyTests.test_encryption_receipt_must_bind_full_verification_to_this_bundle", "tests/test_release_safety.py::ReleaseSafetyTests.test_corrupt_snapshot_and_sidecars_rejected_before_sqlite_open", "tests/test_release_safety.py::ReleaseSafetyTests.test_required_application_tables_cannot_be_replaced_by_generic_sqlite", "tests/test_upgrade_migrations.py::UpgradeMigrationTests.test_failure_leaves_early_schema_and_messages_but_rolls_back_dml", "tests/test_upgrade_migrations.py::UpgradeMigrationTests.test_zero_cost_backfill_repeats_and_changes_cost_history_not_sales", "tests/test_upgrade_migrations.py::UpgradeMigrationTests.test_abrupt_migration_leaves_detectable_partial_schema_and_bundle_recovers", "tests/test_upgrade_migrations.py::UpgradeMigrationTests.test_repeatable_full_state_rehearsal_and_existing_target_protection"],
+      "manual": ["MV-06"]
+    },
+    {
       "id": "DP-015", "scope": "observed-main",
       "statement": "Preserve main/app.main imports, actual categorized legacy route registration, startup initialization, health/static/OpenAPI surfaces and build metadata.",
       "sources": ["app/main.py", "app/application.py", "app/routes/registry.py", "Dockerfile"],
