@@ -1,5 +1,38 @@
 # Engineering foundation progress
 
+## EF-08b final integration — 2026-11-23
+
+- Owner completed independent review with no merge-blocking findings and explicitly
+  approved merging PR #4 subject to exact reviewed head/checks. Clean local/fetched
+  head `0fbd743320db4b61bd279220a09062b04dad1cb1`, main `b8cb487`; branch/PR
+  CI `45164310541` / `45164321226` passed, publication skipped. GitHub CLEAN/
+  MERGEABLE; no review threads/inline findings, no required check configuration.
+  No protection bypass, admin flag, history rewrite or unexpected diff.
+- Merged normally with exact head guard as
+  **`6f5e280b090c9bb915dfabe88db9329dea31da80`**, 2026-11-23T11:53:25Z.
+  Parents and reviewed-tree equality verified. Primary checkout switched to main,
+  fast-forwarded to origin/main; feature/handoff branches retained.
+- Post-merge main run https://github.com/tostman1/drink-pos/actions/runs/45169203989
+  **passed** on exact merge SHA: both Python/Node Standard Checks, all three
+  Compose validations, actual image build/startup/restart/persistence/healthcheck,
+  network-disabled complete application recovery and image vulnerability audit.
+  Linux 165 discovered/164 passed/one Windows-only retry skip each; actual POSIX
+  permissions, complete operational state and final isolation regressions executed.
+  Publication **skipped**; deployments query returned `[]`.
+- Local full Standard Checks on merged main **exit 0** for Python 3.12.13/3.13.15:
+  165 discovered/161 passed/four POSIX-only skips (48.550s / 53.360s), Ruff/format,
+  Python/all JS/data/21-ID traceability, strict vulnerability audits (none known),
+  Chromium smoke and diff hygiene passed. Actionlint also passed. Logs retained
+  outside Git as `ef08b-merged-main312.log`, `ef08b-merged-main313.log` and
+  `ef08b-merged-main-ci.log`. Existing lifecycle/TestClient/action warnings retained.
+- Documentation-only integration receipt follows; final main receipt HEAD/checks
+  must be verified separately, not inferred from predecessor CI. No runtime changes,
+  production/deploy/release/publication, real DB/payment/mail or image-digest changes.
+- **Stop after integration; no new work package.** MV-06 independent encrypted/
+  immutable/offsite/storage/ACL/timed RPO/RTO/operator reconciliation acceptance
+  remains partially pending. Offline all-writer quiescence, independent secret/image
+  escrow and checksum-only authenticity limitations remain. MV-01..05 unchanged.
+
 ## EF-08b active implementation — 2026-11-23
 
 - Clean fetched local/remote main exactly `b8cb4870d90f75b9dbc2668246788c5aa24ee8a5`;

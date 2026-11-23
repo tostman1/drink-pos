@@ -1,5 +1,44 @@
 # Handoff and protected work
 
+## EF-08b integrated handoff — 2026-11-23
+
+PR #4 https://github.com/tostman1/drink-pos/pull/4 is **merged** after the owner
+completed independent review and authorized exact-head-guarded integration only.
+This supersedes historical open/unmerged instructions below, not production limits.
+
+- Clean local/fetched PR head matched reviewed
+  `0fbd743320db4b61bd279220a09062b04dad1cb1`; main remained
+  `b8cb4870d90f75b9dbc2668246788c5aa24ee8a5`. Exact-head branch/PR CI
+  `45164310541` / `45164321226` passed. No conflicts, review threads or inline
+  findings; GitHub MERGEABLE/CLEAN. No configured required checks; none bypassed.
+- Normal merge workflow, `--merge --match-head-commit`, no admin bypass/history
+  rewrite: **`6f5e280b090c9bb915dfabe88db9329dea31da80`**,
+  2026-11-23T11:53:25Z. Parents are verified base/reviewed head; merged tree is
+  byte-identical to review. Feature/handoff branches preserved.
+- Primary checkout switched to main and fast-forwarded safely. Exact merge main
+  CI https://github.com/tostman1/drink-pos/actions/runs/45169203989 **passed**:
+  both Python/Node full gates, all three Compose configs, actual local-only image
+  build/startup/restart/persistence/offline application recovery and image audit.
+  Linux 165 discovered/164 passed/one Windows-only retry-test skip; POSIX guards
+  and complete two-installation rehearsal executed. Publication **skipped**;
+  deployments query for merge SHA returned `[]`.
+- Both local Python 3.12.13/3.13.15 Standard Checks passed on merged main:
+  165 discovered/161 passed/four POSIX skips each, Ruff/syntax/traceability,
+  dependency audit (none known), Chromium and diff passed. Existing lifecycle/
+  TestClient/action deprecation warnings retained; no gates weakened.
+- This integration receipt is documentation-only. Read final main HEAD and its
+  own CI from Git/GitHub before delivery; no runtime/image/config changes after
+  reviewed merge. No release/publication dispatch, deployment, production access,
+  live payments/mail or deployed image-digest change occurred.
+
+**EF-08b complete and integrated; stop. No next work package started.**
+Recovery remains operator-quiesced/offline, not an online coordinated snapshot.
+MV-06 remains partially pending: independent encrypted/immutable/offsite copy,
+storage/Windows ACL validation, measured RPO/RTO and operator/external payment/mail
+reconciliation acceptance. MV-01..05 remain pending. Checksums are not authenticity;
+independent secrets/code/image preservation and storage guarantees remain operator
+boundaries. Merge approval does not authorize adoption/deployment or future PRs.
+
 ## Active EF-08b portable recovery — 2026-11-23
 
 Branch `feature/ef-08b-portable-recovery` from clean verified/fetched main
