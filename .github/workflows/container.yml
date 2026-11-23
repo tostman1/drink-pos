@@ -61,6 +61,10 @@ jobs:
           --build-arg BUILD_TAGS=verification .
       - name: Verify startup, routes, metadata, SQLite and restart persistence
         run: python scripts/container_smoke.py --image drink-pos:verification --expected-commit "$GITHUB_SHA"
+      - name: Install checksum-pinned external disaster-recovery encryption tooling
+        run: python scripts/install_age.py --destination "$RUNNER_TEMP/drink-pos-age" --github-path "$GITHUB_PATH"
+      - name: Rehearse independent encrypted recovery after complete synthetic installation loss
+        run: python scripts/disaster_rehearsal.py --image drink-pos:verification --expected-commit "$GITHUB_SHA"
       - name: Audit actual image runtime dependencies without running app code
         run: |
           python -m pip install pip-audit==2.10.1

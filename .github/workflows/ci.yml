@@ -32,5 +32,7 @@ jobs:
         run: python -m pip install -r requirements-dev.txt
       - name: Install Chromium
         run: python -m playwright install --with-deps chromium
+      - name: Install checksum-pinned external recovery encryption tooling
+        run: python scripts/install_age.py --destination "$RUNNER_TEMP/drink-pos-age" --github-path "$GITHUB_PATH"
       - name: Run Standard Checks
         run: python scripts/standard_checks.py
