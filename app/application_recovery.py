@@ -529,6 +529,8 @@ def verify_application_bundle(directory: Path, *, _staging: bool = False) -> dic
 
 def restore_application(bundle: Path, target: Path, *, expected_commit: str, expected_schema: str) -> Path:
     reject_links(target)
+    if target.absolute().is_relative_to(bundle.absolute()):
+        raise ValueError("Recovery destination must be outside its immutable source bundle")
     if os.path.lexists(target):
         raise FileExistsError("Recovery root already exists; select an isolated nonexistent destination")
     manifest = verify_application_bundle(bundle)

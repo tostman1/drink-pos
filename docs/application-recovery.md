@@ -115,6 +115,8 @@ Select `<isolated-root>/state/database.db` and messages for a *later separately
 approved* startup; normal startup re-enables WAL. No automatic start, migration,
 payment retry or invoice resend occurs. Existing destination (including symlink)
 is always rejected. Isolated trusted parent with no unrelated writers required.
+Recovery targets inside their source bundle are rejected before creating staging
+or locks, so the immutable backup itself is never changed by restore.
 
 JSON stdout describes success/status; JSON stderr is bounded/sanitized without
 credentials/member contents. Exit codes: **0** verified/recovered/fresh status,

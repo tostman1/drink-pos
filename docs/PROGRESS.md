@@ -81,6 +81,13 @@ base still `b8cb487`, merge state CLEAN. This receipt is documentation-only;
 final receipt HEAD requires its own CI verification at delivery. No merge,
 publication/deploy/release or real data/service use. Owner review is next gate.
 
+Final safety review found restore could be selected inside its source bundle,
+modifying immutable backup inventory. DP-021 failing regression reproduced this;
+early descendant-target rejection now preserves source bundle unchanged. Targeted
+and full gates rerun; final exact head/CI at delivery remains authoritative.
+Both local full gates exit 0: **165 discovered/161 passed/four POSIX skips**,
+Ruff/syntax/traceability/audit/Chromium/diff passed. No extra exceptions suppressed.
+
 ## EF-08 final integration — 2026-11-23
 
 - Owner approved PR #3 merge conditional on exact reviewed head/gates. Clean local

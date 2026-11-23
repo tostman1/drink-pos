@@ -37,6 +37,11 @@ image audit passed, publication skipped. PR #4 OPEN/CLEAN at verified base
 `b8cb487`. Documentation-only receipt follows; read final HEAD and its checks,
 not merely predecessor CI. Worktree clean before receipt, no generated state.
 
+Final isolation correction: failing DP-021 test reproduced restore-inside-bundle
+mutation; early descendant-target rejection preserves the source. Full local
+Python 3.12/3.13 gates exit 0 with 165 discovered/161 passed/four POSIX skips.
+Read final corrected head/CI on PR #4; still no merge/adoption authorization.
+
 ## EF-08 integrated handoff — 2026-11-23
 
 PR #3 https://github.com/tostman1/drink-pos/pull/3 is **merged**. The owner approved

@@ -142,6 +142,14 @@ class ApplicationRecoveryTests(unittest.TestCase):
             self.restore(bundle, target)
         self.assertEqual((target / "work").read_text(), "owner")
 
+    def test_restore_root_cannot_be_inside_source_bundle(self):
+        bundle = self.backup()
+        before = {path.relative_to(bundle).as_posix() for path in bundle.rglob("*")}
+        with self.assertRaises(ValueError):
+            self.restore(bundle, bundle / "nested-recovery")
+        self.assertEqual({path.relative_to(bundle).as_posix() for path in bundle.rglob("*")}, before)
+        self.module().verify_application_bundle(bundle)
+
     def test_incompatible_commit_or_schema_rejected(self):
         module = self.module()
         bundle = self.backup()
