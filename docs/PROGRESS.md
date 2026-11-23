@@ -41,6 +41,36 @@ Final review adds strict metadata/future/unassigned version, full 16-table inven
 FK corruption, observed-change/interruption/Linux read-only permission and optimized
 interpreter refusal guards. No recovery/financial/startup/default deployment changes.
 
+### RL-01 reviewed implementation / CI evidence
+
+PR https://github.com/tostman1/drink-pos/pull/6 **OPEN/unmerged**, core `f6c5ae3`,
+rehearsal `b8a8682`, contract implementation head
+`fdbdb5627c4fae61c41bd7e0a99c3e1a85655052`. Exact branch CI
+https://github.com/tostman1/drink-pos/actions/runs/45209356414 and PR CI
+https://github.com/tostman1/drink-pos/actions/runs/45209479532 **passed** all gates.
+Linux both matrices: **208 discovered/207 passed/one Windows-only retry-test skip**;
+POSIX/read-only permission guards executed. Four Compose configs validated, actual
+Dockerfile/local-only image built, startup/restart/persistence/EF-08a/b recovery,
+installed offline release identity and network-disabled synthetic upgrade/state/API/
+second-start/separate recovery passed; existing encrypted DR/image-loss reconstruction
+and image dependency audit passed. Publication **skipped**, deployment query `[]`.
+Actual upgrade result: 17 tables, recovery_verified=true, network_attempts=0,
+historical_release_evidence='none; synthetic fixture only'; exact synthetic schema
+`694d25ba64f7674a3e10b7402108417f0282aefa8c61fbc1a9ca922ff66ad264` (fixture adds
+audit trigger/payment index, NOT universal application schema). PR image records
+GitHub synthetic merge tree `b5847d072c4d4fd06419709f229a475a53d46f76`; branch image
+records exact implementation commit. No published digest fabricated. Logs outside
+Git `rl01-pr-ci.log`, `rl01-branch-ci.log`; existing warnings retained.
+
+Refetched main remained exact `dbc314e`, clean synchronized feature tree; protected
+runtime/migration/recovery/UI/build/production Compose/updater/timer/dependency files
+have zero diff. This is a documentation-only receipt; final receipt HEAD/checks
+must be verified separately at delivery, not inferred from predecessor. No merge,
+publication/release/deployment/real-state/provider/mail activity. Stop after delivery;
+owner independent review next. RL-02 versioned migrations/pre-write gate is proposed,
+not started/authorized. Release support/provenance/operator acceptance and MV-01..06/
+EF-08a Windows WinError 5 remain open; image reversion is not state rollback.
+
 ## EF-08c final integration — 2026-11-23
 
 - Owner completed independent security/implementation review and approved PR #5

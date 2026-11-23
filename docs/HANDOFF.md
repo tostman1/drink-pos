@@ -16,6 +16,17 @@ propose RL-02 versioned migration contract/pre-write gate, not authorized here.
 Preserve all owner merges/handoff branches and EF-08a/b/c guarantees. MV-01..06,
 real operational evidence/Windows EF-08a WinError 5 remain unresolved. Stop at delivery.
 
+**RL-01 review delivery:** PR https://github.com/tostman1/drink-pos/pull/6 OPEN.
+Implementation `fdbdb5627c4fae61c41bd7e0a99c3e1a85655052` passed exact branch
+`45209356414` and PR `45209479532`: both full Linux matrices 208/207 passed/one
+Windows-only skip; actual image/4 Compose validations/installed identity/network-none
+synthetic upgrade/separate recovery and EF-08a/b/c DR/image audit passed, publication
+skipped. Local Python 3.12/3.13 full gates 208/203 passed/five POSIX skips each.
+No runtime/migration/recovery/default deployment/UI/business changes. Evidence receipt
+is documentation-only; verify its own final HEAD/CI before delivery. Read progress
+for actual synthetic tree/schema distinctions; no authentic historical or production
+upgrade proof. Owner review next, no merge permission; stop after delivery.
+
 ## EF-08c integrated handoff — 2026-11-23
 
 PR #5 https://github.com/tostman1/drink-pos/pull/5 is **merged** after the owner's
