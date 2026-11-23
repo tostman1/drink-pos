@@ -2,13 +2,61 @@
 
 ## RL-03 review-submission continuation — 2026-11-23
 
+### Committed decision/evidence review receipt
+
+PR **https://github.com/tostman1/drink-pos/pull/8 OPEN/unmerged**, base main unchanged
+`33c16979d2ae17a5d53c118c7f173f324e02e75b`. Reviewed commits `3eb4d70` (source-only
+inventory/receipt/ten tests) and `3f323b074478e5e5c9c94856f7b2efecbdd3570b` (decision/
+findings/traceability/docs), pushed normally; clean synchronized tree. All prior
+branches/owner merges intact. Git/GitHub diff exactly 16 reviewed files, no generated
+state/secrets. Exact Git blob parity for app/financial/schema/reports/migrations/
+recovery/UI/worker/Dockerfile/production Compose; no financial policy or behavior change.
+
+Exact committed-head branch
+https://github.com/tostman1/drink-pos/actions/runs/45269458940 and PR
+https://github.com/tostman1/drink-pos/actions/runs/45269481996 **success**: both Linux
+matrices **242 discovered/241 passed/one Windows-only skip each**; all ten RL-03 tests
+execute ok, existing POSIX/financial/migration/recovery/real-age/security/browser gates
+passed. Four Compose validations, actual Dockerfile/local-only image, start/restart/
+persistence/legacy synthetic upgrade, strict fresh/adoption/repeat/independent recovery,
+encrypted source+owned-image-loss DR and image dependency audit passed. Publication
+**skipped**, head deployment query empty. Logs outside Git `rl03-initial-branch-ci.log`
+and `rl03-initial-pr-ci.log`; synthetic history_rewritten=false/network_attempts=0/
+recovery_verified=true. No authentic historical database/release/image support inferred.
+
+PR watcher exited 1 on GitHub jobs API HTTP 500 after gate execution; direct completed
+run/jobs query independently confirmed success. First log-inspection commands failed
+on PowerShell UTF-16 encoding and multiline deprecation layout; corrected log parser
+confirmed each new test's ok in both matrices. These inspection errors are not CI
+failures or ignored tests. Node-action/lifecycle/TestClient warnings remain visible.
+
+Committed-tree Python 3.12 Standard Checks **exit 0**, 242 discovered/236 passed/six
+POSIX skips, **114.536s** unittest; audits none known, Chromium/all other gates pass.
+Initial committed Python 3.13 run **failed**, 242 discovered/one error/six skips,
+**120.871s**, in existing `SnapshotRecoveryTests.test_stale_retention_lock_disables_cleanup`:
+`app/backup_database.py:340 staging.rename(completed)` **WinError 5 Access denied**.
+Known EF-08a Windows reliability issue reproduced; no app/recovery/test changes,
+retry/suppression or policy implementation. Retained `rl03-committed313.log`; full
+unchanged Python 3.13 rerun **exit 0**, 242 discovered/236 passed/six POSIX skips,
+**87.667s**, all lint/format/syntax/traceability/real-age/financial/migration/recovery/
+audits (none known)/Chromium/diff stages passed. Log `rl03-committed313-rerun.log`;
+successful rerun is **not a Windows reliability fix**, failed run remains evidence.
+Committed-tree CLI deterministic on two
+runs, all source blobs/eight canonical hashes/113 counts/ALTER receipt reproduced.
+
+This final documentation receipt is a **descendant** of the successful head above.
+Its own full local/final-head branch+PR CI must pass independently and be recorded
+on PR #8 final delivery; read the actual final SHA/checks, no predecessor pass inference
+or self-referential SHA. OQ-06 **OPEN**, recommendation **NOT APPROVED**. Owner independent
+review next; no merge/publication/deploy/production data/real migration/SumUp/SMTP.
+
 Owner completed the truncated mission and explicitly authorized reviewed commits,
 push of the **existing** feature branch, open PR against main and exact-head CI;
 **no merge/publication/deployment/policy implementation**. This supersedes the
 initial no-commit/no-push delivery notes retained below. OQ-06 remains OPEN.
 
 Preserved all 16 existing modified/new RL-03 files; complete tracked diff and new
-files reviewed. Verified HEAD/origin/main/remote main remain exact original baseline
+files reviewed. Verified incoming HEAD/origin/main/remote main at exact original baseline
 `33c16979d2ae17a5d53c118c7f173f324e02e75b`; no remote feature branch/PR existed at
 continuation. Actual source and all ten tests support findings. Added distinct
 severity register **FH-01..06** in `docs/AUDIT.md`: High historical API/round/startup

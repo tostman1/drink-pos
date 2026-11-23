@@ -2,10 +2,29 @@
 
 ## RL-03 authorized review-submission handoff — 2026-11-23
 
+**Review receipt:** PR https://github.com/tostman1/drink-pos/pull/8 **OPEN/unmerged**.
+Evidence `3eb4d70`, decision/doc head `3f323b074478e5e5c9c94856f7b2efecbdd3570b` at
+unchanged base `33c16979…`; exact branch `45269458940` / PR `45269481996` success:
+both Linux 242 discovered/241 passed/one Windows-only skip, all ten new tests ok;
+quality/browser/security/actual Docker/four Compose/legacy upgrade/strict migration/
+independent recovery/full encrypted source-image-loss DR/audit passed, publication
+skipped. Actual image evidence synthetic only, no widened support. Direct completed
+query confirmed PR success despite watcher jobs API HTTP 500. Local committed 3.12
+full gate passes; 3.13 first committed run reproduced **existing EF-08a WinError 5**
+in stale-retention-lock backup rename; unchanged full rerun passed (242/236/six POSIX
+skips, all stages), **not a recovery fix** or suppressed error. See progress for exact
+successful/failed receipts and outside-Git logs.
+
+Final documentation-only descendant receipt needs **its own** final SHA/local/
+branch+PR CI verification, recorded on PR/report after push; never infer pass from
+`3f323b0`. Keep all 16 scoped files, no app/deployment changes. OQ-06 OPEN, policy NOT
+APPROVED, FH-01..06 open, owner independent review next. Stop after delivery; do not
+merge or begin proposed RL-04. No real data/migration/payment/mail/production activity.
+
 Owner continuation authorizes reviewed commits/push/open PR and exact-final-head CI
 on existing `feature/rl-03-financial-history-policy`, **not merge**. Supersedes initial
 no-commit/push/PR notes below only for this decision package. Original 16 files/work
-preserved, complete diff/new files reviewed, HEAD/fetched/remote main still baseline
+preserved, complete diff/new files reviewed, incoming HEAD/fetched/remote main at baseline
 `33c16979d2ae17a5d53c118c7f173f324e02e75b`. No delegation/history rewrite.
 
 Read open **FH-01..FH-06** severities/source/test/follow-up register in `docs/AUDIT.md`;
