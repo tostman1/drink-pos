@@ -6,14 +6,15 @@ Independent review branch `feature/engineering-foundation-baseline`, based on
 verified `main` at `fb0812837694949dc6d228b781f2aa7af2b29d98`.
 PR #1 at `250a4e6` was subsequently merged by owner `tostman1` at
 2026-11-22T21:15:45Z as `052c2bbc54f05f7c7d850feb8ad597a4e4868670`.
-The original handoff branch is unchanged. Integration into this branch will be
-done after current foundation increments are committed, not by resetting work.
+The original handoff branch is unchanged. Verified main was integrated with
+branch merge `2ccb377`; no reset/rebase or transferred behavior removal.
+Foundation review: https://github.com/tostman1/drink-pos/pull/2 (draft, open).
 
 | Package | State | Evidence / next step |
 | --- | --- | --- |
 | EF-01 Takeover, requirements, process, architecture | Implemented | Full handoff diff/PR inspected; branch isolated; catalog and documented seams |
-| EF-02 Standard Checks and regression guards | Implemented / final verification | Mandatory commands, security/browser, integrated handoff/HTTP tests |
-| EF-03 CI/container safety and review delivery | In progress | Safe workflow implemented; actual PR/container execution next |
+| EF-02 Standard Checks and regression guards | Verified | Mandatory commands, security/browser, 115 integrated regressions |
+| EF-03 CI/container safety and review delivery | Verified / owner review pending | Branch and PR container/image audit passed; draft PR #2 open |
 | EF-04 Narrow legacy rehabilitation | Not started / approval gate | Select one characterized seam after foundation review |
 
 ## Verification log — 2026-11-22
@@ -40,7 +41,7 @@ done after current foundation increments are committed, not by resetting work.
 Keep FastAPI/SQLite/vanilla PWA, both import modes, and served legacy handlers.
 Do not copy Notenarchiv architecture, introduce an ORM, change payment retries,
 or run historical wide-refactor prompts. See architecture risks and EF-04 gates.
-No deployments, production DB operations, live emails/payments, merges, or image
+No deployments, production DB operations, live emails/payments, PR merges, or image
 publication have been performed by this assignment.
 
 ## Continued verification — 2026-11-23
@@ -83,3 +84,44 @@ publication have been performed by this assignment.
   dynamically allocated host port. Container logs showed healthy in-container
   probes. Fixed helper to rediscover port after restart and added regression;
   this run is **not** a full container pass. Publication job was skipped.
+
+## Delivery evidence — 2026-11-23
+
+Verified code commit: `57ad9cc39a54768cd9f278f9931a3618e0e2453b`.
+Authoritative command: `python scripts/standard_checks.py --node <Node24-path>`.
+
+| Check | Local Python 3.12.13 / 3.13.15 | CI |
+| --- | --- | --- |
+| `ruff check .` | Pass both | Pass Python matrix |
+| `ruff format --check .` | Pass, 57 files formatted | Pass Python matrix |
+| `python -m compileall -q app tests` + script compile | Pass both | Pass Python matrix |
+| Standalone + inline JS/handlers, JSON/PWA assets | Pass, 130 JS sources/handlers | Pass Node 24 |
+| Requirement source/test/manual links | Pass, 20 IDs; original nine tests local | Pass |
+| `python -m unittest discover -s tests -v` | **115 passed** both (42.697s / 41.015s) | Pass matrix |
+| Dependency audit including transitives | No known vulnerabilities both | Pass matrix and exact image runtime |
+| Focused Chromium smoke | Pass both, no uncaught page errors | Pass matrix |
+| Compose configs, Dockerfile build | Not run locally (runtime unavailable) | **Pass** |
+| Actual container startup/restart/persistence/SQLite/healthcheck | Not run locally | **Pass** |
+| Diff hygiene | Pass; no app HTML/worker/models/runtime dependency/Dockerfile/Compose changes vs main | Checks pass |
+
+Successful branch run: https://github.com/tostman1/drink-pos/actions/runs/45131190711
+for exact code SHA above. Verified step statuses include both Compose configs,
+actual build, container smoke and image dependency audit; publication **skipped**.
+PR-specific run https://github.com/tostman1/drink-pos/actions/runs/45131482792
+also **succeeded**, including both quality jobs, Compose/build, actual container
+startup/restart/SQLite/healthcheck and exact image runtime audit; publication
+**skipped**. Local logs are temporary tooling, not runtime data in Git.
+
+The initial 120-second all-in-one shell budgets and Windows log-handle/restart-port
+helper failures were recorded and fixed; no skipped/soft-failed checks substituted.
+Final direct AST comparison vs main confirms unchanged legacy runtime, event
+service and original backend tests. Only nonformat app edit is unused row lookup.
+Eight new served HTTP tests plus original handoff regressions protect actual
+financial/auth/snapshot/revision/rollback behavior. All MV-01..06 remain pending.
+
+CI warning retained: pinned checkout v4/setup-python v5/setup-node v4 declare Node
+20 and GitHub forces Node 24. Their jobs passed; action-major refresh is EF-06
+dependency maintenance, not suppressed evidence. Existing FastAPI lifecycle and
+Starlette TestClient warnings also remain. No merge/release readiness inferred.
+Final evidence commit changes documentation only; code verified above remains
+unchanged. Final HEAD/PR-check state is reported by Git and PR #2 at handoff.

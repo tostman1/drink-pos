@@ -22,10 +22,12 @@ Observed results are dated in PROGRESS.md; no invented coverage percentages.
 
 ## Verification limits
 
-Previous main **87 tests**, handoff **96 tests**, initial foundation **100 tests**.
+Previous main **87 tests**, handoff **96 tests**, initial foundation **100 tests**,
+final combined foundation **115 tests** on local Python 3.12/3.13.
 Those measured counts are not line/branch coverage percentages. HTTP tests add
 assembled ASGI startup/routing/serialization coverage; browser smoke uses disposable
 Chromium, not target iPad/mobile or installed-PWA upgrade proof. Container evidence
-must come from actual GitHub execution; no local runtime is installed. Dependency
+comes from actual successful GitHub run `45131190711` (startup, restart persistence,
+SQLite and healthcheck), not local execution; no local runtime is installed. Dependency
 audit is an advisory-database check, not penetration testing or full supply-chain
 assurance. Hardware/real mail/account/database operations remain out of scope.

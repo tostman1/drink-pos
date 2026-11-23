@@ -56,11 +56,16 @@ See `docs/standard-checks.md` for detailed procedures and catalog IDs.
 
 ## Next safe actions
 
-EF-01/02 changes and safe workflow committed; verified `052c2bb` integrated without
-conflicts or rewriting. Run expanded Standard Checks/combined regressions, push and open
-the separate foundation PR. Verify actual PR CI, record evidence and leave the
-foundation PR unmerged. Owner approval is required before PR merge, real accounts,
-deployment, or publication.
+EF-01/02 and safe workflow committed/pushed; verified `052c2bb` integrated via
+`2ccb377` without conflicts/rewriting. Draft foundation PR #2 is open:
+https://github.com/tostman1/drink-pos/pull/2.
+Code SHA `57ad9cc39a54768cd9f278f9931a3618e0e2453b` passes 115 local regressions
+and full Standard Checks on Python 3.12/3.13, plus actual branch container CI
+`45131190711`. PR run `45131482792` also succeeded with actual image/container
+verification; publication skipped in both. Evidence-only docs follow verified code.
+Leave PR unmerged. Next work is owner review, manual MV-01..06 authorization and
+one small roadmap package, not a new runtime rewrite.
+Owner approval remains required before PR merge, accounts, deploy/publication.
 
 ## Cross-agent takeover procedure
 

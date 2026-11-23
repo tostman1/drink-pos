@@ -24,7 +24,7 @@
 - Risk/exclusion: import/global state and misleading extracted service functions;
   no behavioral substitution or unmeasured coverage claim. Formatter debt is
   corrected mechanically in isolated commits with AST parity before final gate.
-- Status: in progress. Separate reviewable tooling/regression increment.
+- Status: implemented and verified locally/CI; evidence in docs/PROGRESS.md.
 
 ## EF-03 — Non-publishing CI and review delivery
 
@@ -37,8 +37,8 @@
   checks and explicit main dispatch; separate committed/pushed open PR.
 - Risk/exclusion: current workflow publishes every branch push; do not push before
   replacing that behavior. No production Compose start, deployment or merge.
-- Status: implementation in progress after EF-02. Integrate owner-merged main
-  before final validation. Owner controls foundation PR merge/release.
+- Status: implemented, main integrated, branch and PR container CI passed;
+  final evidence recorded. Owner controls foundation PR merge/release.
 
 ## EF-04 — First bounded rehabilitation (follow-up)
 
