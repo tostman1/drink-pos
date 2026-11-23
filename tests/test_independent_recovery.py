@@ -83,6 +83,7 @@ class IndependentRecoveryTests(unittest.TestCase):
             self.destination,
             recipient=self.recipient,
             identity=self.key,
+            verify_after_create=True,
             scratch=self.scratch,
             age=self.age,
         )
@@ -119,6 +120,166 @@ class IndependentRecoveryTests(unittest.TestCase):
         )
         self.assertEqual((recovered / "state/events/bill.pdf").read_bytes(), b"%PDF-synthetic")
         self.assertFalse(self.source.exists())
+
+    def test_public_only_producer_without_identity_and_no_decryption_access(self):
+        module = self.module()
+        identity_bytes = self.key.read_bytes()
+        self.key.unlink()  # producer has no private identity file at all
+        with (
+            patch.object(module, "private_identity", side_effect=AssertionError("producer accessed escrow")),
+            patch.object(module, "decrypt_verified", side_effect=AssertionError("producer decrypted")),
+        ):
+            replica = module.replicate(
+                self.bundle, self.destination, recipient=self.recipient, scratch=self.scratch, age=self.age
+            )
+        marker = json.loads((replica / "COMPLETED.json").read_text())
+        self.assertEqual(marker["status"], "encrypted-transfer-complete")
+        self.assertEqual(module.inspect_replica(replica)["format_version"], 2)
+        # A public recipient is not a secret identity; real age must reject it.
+        public = self.root / "public-recipient.txt"
+        public.write_text(self.recipient + "\n")
+        result = subprocess.run(
+            [self.age, "--decrypt", "--identity", str(public), str(replica / "payload.tar.age")],
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, b"")
+        with self.assertRaises(OSError):
+            module.verify_replica(replica, identity=self.key, scratch=self.scratch, age=self.age)
+        self.key.write_bytes(identity_bytes)
+        if os.name == "posix":
+            self.key.chmod(0o600)
+        verified = module.verify_replica(
+            replica,
+            identity=self.key,
+            scratch=self.scratch,
+            age=self.age,
+            verification_scope="independent",
+            verifier_id="synthetic-verifier",
+        )
+        self.assertEqual(verified["verification_level"], "decrypted-application-verified")
+        self.assertEqual(verified["verification_scope"], "independent")
+        self.assertTrue(verified["independently_verified_at_utc"])
+
+    def test_cli_transfer_success_is_not_full_recoverability(self):
+        import sys
+
+        module = self.module()
+        journal = self.root / "journal"
+        base = [sys.executable, "-m", "app.independent_recovery", "--age", self.age, "--journal", str(journal)]
+        result = subprocess.run(
+            [
+                *base,
+                "replicate",
+                str(self.bundle),
+                str(self.destination),
+                "--recipient",
+                self.recipient,
+                "--scratch",
+                str(self.scratch),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)["status"], "encrypted-transfer-complete")
+        replica = self.destination / (self.bundle.name + ".replica")
+        result = module.recovery_status(replica, journal, max_age_seconds=3600, max_verify_age_seconds=3600)
+        self.assertEqual(result["status"], "attention")
+        self.assertEqual(result["ciphertext_integrity"], "verified")
+        self.assertEqual(result["full_decrypted_verification"], "not-confirmed")
+        self.assertEqual(result["independent_verification"], "not-confirmed")
+        verify = [*base, "verify", str(replica), "--identity", str(self.key), "--scratch", str(self.scratch)]
+        checked = subprocess.run(verify, capture_output=True, text=True)
+        self.assertEqual(checked.returncode, 0, checked.stderr)
+        result = module.recovery_status(replica, journal, max_age_seconds=3600, max_verify_age_seconds=3600)
+        self.assertEqual(result["status"], "attention")
+        self.assertEqual(result["full_decrypted_verification"], "historically-verified")
+        self.assertEqual(result["independent_verification"], "not-confirmed")
+        checked = subprocess.run(
+            [*verify, "--verification-scope", "independent", "--verifier-id", "synthetic-verifier"],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(checked.returncode, 0, checked.stderr)
+        result = module.recovery_status(replica, journal, max_age_seconds=3600, max_verify_age_seconds=3600)
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["independent_verification"], "trusted-verifier-confirmed")
+        self.assertEqual(result["offsite"], "not-assessed")
+        checked = subprocess.run(
+            [*verify, "--verification-scope", "offsite", "--verifier-id", "synthetic-offsite-attestation"],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(checked.returncode, 0, checked.stderr)
+        result = module.recovery_status(replica, journal, max_age_seconds=3600, max_verify_age_seconds=3600)
+        self.assertEqual(result["offsite"], "trusted-verifier-attested; not-geographically-proven")
+
+    def test_combined_verification_is_explicit_and_wrong_key_blocks_publication(self):
+        module = self.module()
+        wrong = self.escrow / "wrong.txt"
+        with wrong.open("wb") as output:
+            subprocess.run([self.keygen], stdout=output, stderr=subprocess.PIPE, check=True)
+        if os.name == "posix":
+            wrong.chmod(0o600)
+        with self.assertRaises(ValueError):
+            module.replicate(
+                self.bundle,
+                self.destination,
+                recipient=self.recipient,
+                identity=wrong,
+                verify_after_create=True,
+                scratch=self.scratch,
+                age=self.age,
+            )
+        self.assertFalse(list(self.destination.glob("*.replica")))
+        with self.assertRaises(ValueError):
+            module.replicate(
+                self.bundle,
+                self.destination,
+                recipient=self.recipient,
+                verify_after_create=True,
+                scratch=self.scratch,
+                age=self.age,
+            )
+
+    def test_old_marker_and_ambiguous_receipts_cannot_imply_full_verification(self):
+        module = self.module()
+        replica = self.replicate()
+        metadata = json.loads((replica / "replica.json").read_text())
+        metadata["format_version"] = 1
+        metadata.pop("creation_state")
+        (replica / "replica.json").write_text(json.dumps(metadata), encoding="utf-8")
+        (replica / "COMPLETED.json").write_text(
+            json.dumps({"status": "verified-replica", "metadata": module.file_metadata(replica / "replica.json")}),
+            encoding="utf-8",
+        )
+        journal = self.root / "journal"
+        module.record_event(
+            journal, "replication", "success", "old-producer", ciphertext_sha256=metadata["ciphertext"]["sha256"]
+        )
+        module.record_event(
+            journal, "verification", "success", "old-ambiguous", ciphertext_sha256=metadata["ciphertext"]["sha256"]
+        )
+        result = module.recovery_status(replica, journal, max_age_seconds=3600, max_verify_age_seconds=3600)
+        self.assertEqual(result["status"], "attention")
+        self.assertEqual(result["full_decrypted_verification"], "not-confirmed")
+        self.assertEqual(result["independent_verification"], "not-confirmed")
+        self.assertEqual(
+            module.verify_replica(replica, identity=self.key, scratch=self.scratch, age=self.age)["verification_level"],
+            "decrypted-application-verified",
+        )
+        recovered = self.recover(replica)
+        from app.application_recovery import database_metadata
+
+        self.assertEqual(
+            database_metadata(
+                recovered / "state/database.db", immutable=True, original_references=self.manifest["event_references"]
+            ),
+            self.manifest["database"],
+        )
+        self.assertEqual((recovered / "state/events/bill.pdf").read_bytes(), b"%PDF-synthetic")
 
     def test_missing_and_wrong_identity_fail_without_recovery(self):
         replica = self.replicate()
@@ -171,6 +332,7 @@ class IndependentRecoveryTests(unittest.TestCase):
                 self.bundle / "nested",
                 recipient=self.recipient,
                 identity=self.key,
+                verify_after_create=True,
                 scratch=self.scratch,
                 age=self.age,
             )
@@ -237,7 +399,15 @@ class IndependentRecoveryTests(unittest.TestCase):
         self.assertIn("independent-verification-missing-or-stale", result["issues"])
         verified = module.verify_replica(replica, identity=self.key, scratch=self.scratch, age=self.age)
         module.record_event(
-            journal, "verification", "success", "verification-test", ciphertext_sha256=verified["ciphertext"]["sha256"]
+            journal,
+            "verification",
+            "success",
+            "verification-test",
+            ciphertext_sha256=verified["ciphertext"]["sha256"],
+            replica_metadata_sha256=verified["replica_metadata_sha256"],
+            verification_level=verified["verification_level"],
+            verification_scope="independent",
+            verifier_id="synthetic-verifier",
         )
         self.assertEqual(
             module.recovery_status(replica, journal, max_age_seconds=3600, max_verify_age_seconds=3600)["status"], "ok"
@@ -298,7 +468,7 @@ class IndependentRecoveryTests(unittest.TestCase):
         code = (
             "import os; from pathlib import Path; from app import independent_recovery as r; "
             "r.encrypt_archive=lambda *a: os._exit(37); "
-            f"r.replicate(Path({str(self.bundle)!r}),Path({str(self.destination)!r}),recipient={self.recipient!r},identity=Path({str(self.key)!r}),scratch=Path({str(self.scratch)!r}),age={self.age!r})"
+            f"r.replicate(Path({str(self.bundle)!r}),Path({str(self.destination)!r}),recipient={self.recipient!r},scratch=Path({str(self.scratch)!r}),age={self.age!r})"
         )
         result = subprocess.run([sys.executable, "-c", code], capture_output=True)
         self.assertEqual(result.returncode, 37, result.stderr)
@@ -346,6 +516,57 @@ class IndependentRecoveryTests(unittest.TestCase):
 
 
 class DisasterMeasurementTests(unittest.TestCase):
+    def test_owned_image_archive_removes_only_owned_config_and_proves_absence(self):
+        from scripts import disaster_rehearsal as drill
+        from app.independent_recovery import file_metadata
+
+        with tempfile.TemporaryDirectory() as temporary:
+            archive = Path(temporary) / "image.tar"
+            archive.write_bytes(b"synthetic owned archive")
+            owned, shared, owner = "sha256:owned", "sha256:shared", "synthetic-owner"
+            info = json.dumps([{"Id": owned, "Config": {"Labels": {"drink-pos.dr-owner": owner}}}])
+            commands = []
+            removed = False
+            loaded = False
+
+            def docker(*args):
+                nonlocal removed, loaded
+                commands.append(args)
+                if args[:2] == ("image", "rm"):
+                    self.assertEqual(args, ("image", "rm", owned))
+                    removed = True
+                    return ""
+                if args[:2] == ("image", "load"):
+                    self.assertTrue(removed)
+                    loaded = True
+                    return ""
+                if removed and not loaded:
+                    raise subprocess.CalledProcessError(1, args)
+                return info
+
+            with patch.object(drill, "docker", side_effect=docker):
+                drill.restore_owned_image_archive(owned, shared, archive, file_metadata(archive), owner)
+            self.assertEqual(
+                commands,
+                [
+                    ("image", "inspect", owned),
+                    ("image", "rm", owned),
+                    ("image", "inspect", owned),
+                    ("image", "load", "--input", str(archive)),
+                    ("image", "inspect", owned),
+                ],
+            )
+            with patch.object(drill, "docker") as tool:
+                with self.assertRaises(ValueError):
+                    drill.restore_owned_image_archive(shared, shared, archive, file_metadata(archive), owner)
+                tool.assert_not_called()
+            with patch.object(
+                drill, "docker", return_value=json.dumps([{"Id": owned, "Config": {"Labels": {}}}])
+            ) as tool:
+                with self.assertRaises(ValueError):
+                    drill.restore_owned_image_archive(owned, shared, archive, file_metadata(archive), owner)
+                self.assertEqual(tool.call_count, 1)
+
     def test_post_snapshot_commits_are_lost_and_never_automatically_replayed(self):
         from app.application_recovery import create_backup, restore_application, verify_application_bundle
         from test_database_recovery import DatabaseRecoveryTests, sqlite_conn
