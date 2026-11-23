@@ -403,6 +403,51 @@ class ApplicationRecoveryTests(unittest.TestCase):
         restored = self.restore(bundle)
         self.assertFalse((restored / "state/messages.json").exists())
 
+    def test_transport_copy_only_completed_names_and_opposite_host_paths(self):
+        import shutil
+        from app.database_recovery import file_metadata
+
+        module = self.module()
+        bundle = self.backup()
+        # Emulate an opposite-platform source path without executing source code.
+        # Captured strings are opaque; manifest relationships are POSIX portable.
+        database = bundle / "state/database.db"
+        paths = {"csv_path": "Z:\\portable\\events\\invoice.csv", "pdf_path": "Z:\\portable\\events\\invoice.pdf"}
+        with closing(sqlite3.connect(database)) as conn:
+            conn.execute("UPDATE event_sessions SET csv_path=?,pdf_path=?", (paths["csv_path"], paths["pdf_path"]))
+            conn.commit()
+
+        def update(manifest):
+            manifest["database"] = module.database_metadata(database, immutable=True)
+            manifest["files"]["state/database.db"] = file_metadata(database)
+            for ref in manifest["event_references"]:
+                ref["source_path"] = paths[ref["column"]]
+
+        self.rewrite_manifest(bundle, update)
+        offsite = self.root / "independent-copy"
+        offsite.mkdir()
+        partial = offsite / ".transport-staging"
+        shutil.copytree(bundle, partial)
+        with self.assertRaises(ValueError):
+            module.verify_application_bundle(partial)
+        completed = offsite / bundle.name
+        module.publish_directory(partial, completed)
+        self.assertEqual(module.backup_status(offsite, "synthetic-A", 3600)["status"], "ok")
+        self.restore(completed)
+
+    def test_permission_failure_and_restore_interruption_publish_nothing(self):
+        module = self.module()
+        with patch.object(module, "publish_directory", side_effect=PermissionError("synthetic denial")):
+            with self.assertRaises(PermissionError):
+                self.backup()
+        self.assertFalse(list(self.destination.glob("drink_pos_application_*")))
+        bundle = self.backup()
+        with patch.object(module, "copy_payload", side_effect=KeyboardInterrupt):
+            with self.assertRaises(KeyboardInterrupt):
+                self.restore(bundle)
+        self.assertFalse((self.root / "recovered").exists())
+        self.assertFalse(list(self.root.glob(".drink-pos-recovery-*")))
+
     @unittest.skipUnless(os.name == "nt", "Windows transient rename handles only")
     def test_windows_publication_retries_transient_denial_but_never_replaces_target(self):
         module = self.module()

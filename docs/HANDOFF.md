@@ -18,6 +18,18 @@ remains partially pending. No production data/services/deployment configs touche
 Preserve all historical handoff branches/owner merges; no rewrite. Final PR/head
 and checks must be read from Git/GitHub before delivery; leave PR open for owner.
 
+Review delivery: PR https://github.com/tostman1/drink-pos/pull/4 **open/unmerged**.
+Core/image/docs commits `b120b65` / `06cb62c` / `46cf466`. Exact `46cf466` branch
+CI `45160412546` and PR CI `45160481935` passed full Linux gates/container/build/
+all three Compose configs/offline recovery/image audit, publication skipped.
+Linux 162 tests: 161 passed/one Windows-only skip, all POSIX guards executed.
+Final review transport/opposite-host-path/permission/interruption regressions add
+two tests; local final Python 3.12/3.13 gates **164 discovered, 160 passed/four
+POSIX skips**, exact exit 0 each. Final pushed-head checks remain authoritative.
+No production/publication/merge. Stop after delivery and wait for owner review.
+Recommended next: separately approved isolated encrypted/offsite/timed operator
+recovery acceptance drill for remaining MV-06, not automatic adoption/deployment.
+
 ## EF-08 integrated handoff — 2026-11-23
 
 PR #3 https://github.com/tostman1/drink-pos/pull/3 is **merged**. The owner approved

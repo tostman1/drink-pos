@@ -44,6 +44,30 @@
   temporary tooling. Local Docker is unavailable; actual Compose/build/container/
   recovery/image audit and POSIX evidence must come from final CI, not this receipt.
 
+### EF-08b review and CI receipt
+
+- Commits `b120b65` core/tests, `06cb62c` actual-image rehearsal/example and
+  `46cf466` docs/traceability pushed. PR **#4 open, not merged**:
+  https://github.com/tostman1/drink-pos/pull/4. Refetched main still `b8cb487`.
+- Exact `46cf466e386475f761c648141872d3859e9d4d1d` branch CI `45160412546` and
+  PR CI https://github.com/tostman1/drink-pos/actions/runs/45160481935 **passed**.
+  Linux matrices: **162 discovered, 161 passed/one Windows-only retry-test skip**;
+  POSIX 0700/0600, FIFO/case-sensitive/symlink guards executed successfully.
+  Existing EF-08a POSIX guards executed too. All three Compose files validated;
+  actual local-only image build, startup/restart/persistence/offline application
+  recovery and image dependency audit passed; publication **skipped** in both runs.
+- Final review adds explicit synthetic transport staging→completed verification,
+  opposite-platform source-path relocation, publication permission failure and
+  ordinary restore interruption tests (no runtime change). Full local gates rerun:
+  **164 discovered, 160 passed/four POSIX skips** each, exact child exit 0 on
+  Python 3.12.13/3.13.15; Ruff/syntax/traceability/security/browser/diff all passed.
+  Logs `ef08b-final312.log` / `ef08b-final313.log` outside Git. Final pushed-head CI
+  must be verified separately; predecessor evidence is not a final-head claim.
+- No real resources/accounts, production image/digest/config change, release,
+  publication dispatch, deployment or merge. Next bounded recommendation: isolated
+  independently managed encrypted/offsite recovery and timed operator acceptance
+  drill (MV-06), not online invoice/SMTP redesign without its own decision.
+
 ## EF-08 final integration — 2026-11-23
 
 - Owner approved PR #3 merge conditional on exact reviewed head/gates. Clean local
