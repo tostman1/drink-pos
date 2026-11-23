@@ -1,5 +1,61 @@
 # Engineering foundation progress
 
+## RL-01 final integration — 2026-11-23
+
+- Owner completed independent implementation/security review, no merge blockers,
+  explicitly approved PR #6 subject to exact-head gates. Clean fetched head
+  `03853fde50ac1dbf31e83b2b522704acd115ec62`; main/base exactly
+  `dbc314e0790534ee44f362be4a194143385eb071`. Specified branch `45211470701` and
+  PR `45211487658` passed all matrices/browser/security/Docker/Compose/upgrade/
+  recovery/DR/image audit, publication skipped. MERGEABLE/CLEAN, no reviews/threads/
+  inline findings; no configured required checks, none bypassed. Initial Windows
+  GraphQL command quoting error corrected via explicit JSON input; query succeeded.
+- Normal exact guard `gh pr merge 6 --merge --match-head-commit 03853fde...`:
+  **`09a27a8866392cc7cdcf2b1006d31cfaccee571c`**, 2026-11-23T17:40:50Z.
+  Parents exactly verified base/reviewed head, entire merged tree identical to
+  reviewed `93363456e0515bc761aceaad166907c14cd1a5d2`. Primary checkout switched
+  to main and fast-forwarded safely; clean/synchronized, feature/handoff branches
+  preserved, no reset/rebase/force push. Protected runtime/UI/payment/invoice/
+  production Compose/updater/timer/migration/recovery files zero diff against base.
+- Exact merge main https://github.com/tostman1/drink-pos/actions/runs/45230274124
+  **passed**, Python 3.12/3.13 full Standard Checks (208 discovered/207 passed/one
+  Windows-only skip each), browser/security/23-ID traceability/POSIX guards;
+  actual local-only Docker build, all four Compose validations, startup/restart/
+  persistence/EF-08a-b recovery, installed identity/synthetic upgrade/all-table/
+  API/second-start/separate recovery, EF-08c encrypted source+owned-image loss/
+  archive reconstruction/gated network-disabled startup, image audit all passed.
+  Publication **skipped**, merge-head deployments `[]`. No release/deploy dispatch.
+- Actual merge image upgrade binds merge SHA, 17-table synthetic schema
+  `694d25ba64f7674a3e10b7402108417f0282aefa8c61fbc1a9ca922ff66ad264`,
+  recovery_verified=true/network_attempts=0, historical_release_evidence='none;
+  synthetic fixture only'. DR public-only producer, original owned image unavailable
+  before archive load, shared image untouched, all source storage removed; one
+  post-snapshot commit remains lost/no replay. Synthetic RPO 0.352007s/RTO
+  2.300773869s/total 7.27795965s, not production SLA/real human reconciliation proof.
+- Local merged-main full gates exact exit 0 Python 3.12.13/3.13.15, 208 discovered/
+  203 passed/five existing POSIX-only skips, 99.795s/101.868s. Ruff/format/syntax/
+  traceability/real age/strict audits (none known)/Chromium/diff passed, actionlint
+  passed. Outside-Git logs `rl01-merged-main312.log`, `rl01-merged-main313.log`,
+  `rl01-merge-main-ci.log`; existing lifecycle/TestClient/action deprecations retained.
+- Receipt is documentation-only; final main SHA/its own CI must be read/verified
+  after push and recorded in PR #6 final integration record/report, not inferred
+  from merge CI (self-referential SHA cannot be embedded in its own commit).
+  No reviewed code changes after merge. No next work package or production activity.
+
+**RL-01 integrated; stop after final receipt/main CI verification.** Preflight is
+read-only isolated-bundle evidence validation, success only permits a separately
+authorized rehearsal, unknown non-success; no deployment/live compatibility/key
+authenticity/schema-ledger/automatic rollback claim. Current startup partial early
+DDL/WAL/files and repeated financial cost/profit backfill remain; existing mutable
+unattended force-recreate/prune updaters remain unsafe/unmodified. Release/support/
+provenance/operator-adoption and RL-02 versioned transactional/pre-write migration
+decisions remain unresolved, RL-02 not begun. MV-01..05 pending; MV-06 actual storage/
+geography/immutability/encryption/ACL/key-image retrieval/timed human payment/mail
+reconciliation acceptance partial. EF-08a Windows WinError 5 unresolved, no fix
+inferred. No production deploy/release/publication/digest/config/schedule change,
+production DB migration/access, real payment/mail; disposable synthetic verification
+only. Owner PR #6 merge approval is not future-package/production authorization.
+
 ## RL-01 active release-safety foundation — 2026-11-23
 
 - Clean fetched main/base exactly `dbc314e0790534ee44f362be4a194143385eb071`;

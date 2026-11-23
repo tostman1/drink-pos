@@ -1,5 +1,79 @@
 # Handoff and protected work
 
+## RL-01 integrated handoff — 2026-11-23
+
+PR #6 https://github.com/tostman1/drink-pos/pull/6 is **MERGED** after the owner's
+completed independent implementation/security review and explicit conditional
+merge approval. This supersedes historical open/no-merge notes below, not production
+restrictions. No RL-02 or other package was begun.
+
+- Clean local/fetched reviewed head `03853fde50ac1dbf31e83b2b522704acd115ec62`,
+  exact base/main `dbc314e0790534ee44f362be4a194143385eb071`. Specified branch
+  https://github.com/tostman1/drink-pos/actions/runs/45211470701 and PR
+  https://github.com/tostman1/drink-pos/actions/runs/45211487658 passed both Python/
+  Node matrices, browser/security, actual Docker/4 Compose validations, upgrade/
+  recovery/DR/image audit. Publication skipped. No reviews/threads/inline findings,
+  GitHub MERGEABLE/CLEAN; no configured required checks, none bypassed.
+- Normal `--merge --match-head-commit` integration, no admin bypass/history rewrite:
+  **`09a27a8866392cc7cdcf2b1006d31cfaccee571c`**, 2026-11-23T17:40:50Z.
+  First parent is exact base above, second exact reviewed head above. Entire merged
+  tree matches reviewed tree `93363456e0515bc761aceaad166907c14cd1a5d2`.
+  Primary checkout safely switched/fast-forwarded to main, clean/synchronized;
+  all feature/handoff branches preserved. Existing handlers/UI/REST/payment/invoice,
+  production Compose/updaters/timer, migration implementation and recovery interfaces
+  have zero diff against base; RL-01 adds offline tools, tests/guidance/CI only.
+- Exact merge main CI https://github.com/tostman1/drink-pos/actions/runs/45230274124
+  **passed** all gates, including actual containerized synthetic upgrade/separate
+  recovery and encrypted full source/image-loss disaster recovery. Linux 208
+  discovered/207 passed/one Windows-only skip each matrix, POSIX guards executed.
+  Upgrade verifies 17 tables, permitted cost changes, recovery_verified=true,
+  network_attempts=0. DR restores retained owned image after proven unavailability,
+  public-only producer, shared image preserved, network-disabled gated recovery.
+  Synthetic RPO age 0.352007s/RTO 2.300773869s; not operational guarantees.
+  Publication **skipped**; deployment query for merge returned `[]`.
+- Local merged-main full Standard Checks exit 0 on Python 3.12.13/3.13.15:
+  208 discovered/203 passed/five existing POSIX-only skips each, 99.795s/101.868s.
+  Ruff/format/syntax/23-ID traceability/real age/audits (none known)/Chromium/diff
+  passed; actionlint passed. Existing lifecycle/TestClient/action warnings retained.
+- This is a **documentation-only main descendant receipt**. Final main SHA is the
+  commit carrying this section (read `git rev-parse HEAD` / `origin/main` after
+  synchronization); its own exact-head CI MUST be checked separately at delivery.
+  The resolved final main SHA/CI is recorded in the PR #6 integration-delivery
+  record and final report, avoiding an impossible self-referential commit hash.
+  Do not infer the receipt's pass from merge CI or edit code to obtain it.
+
+**RL-01 integrated; stop after final-main verification.** Deterministic offline
+release identity and read-only isolated EF-08b-bundle preflight remain opt-in.
+Preflight success approves **only a separately authorized disposable rehearsal**,
+never deployment; unknown never succeeds. Isolation/configuration/secrets/key/
+compatibility receipts are operator trust, not signed authenticity/live-state proof.
+No reliable existing migration ledger, arbitrary historical-release compatibility,
+reproducibility or automatic DB rollback is claimed. Switching image alone does
+not revert database/files/configuration or reconcile post-snapshot business activity.
+
+Startup can persist early DDL/WAL/message-file changes after late DML rollback,
+and repeatedly backfill financial purchase-cost/profit history from current costs;
+RL-01 preserves this implementation and exposes its risk. Existing unattended
+updaters remain **unsafe/unmodified**: mutable stable/always/newer selection,
+force-recreation/pruning without verified backup/compatibility/health/rollback gates.
+Operator-managed deployments/schedules were not inspected, changed or activated.
+
+RL-02 version ledger/transactionality/pre-write gate/supported transitions and
+legitimate zero-cost history treatment require separate decisions/authorization;
+release naming/support, authentic historical fixtures, exact tested-image promotion/
+digest provenance/protection and operator adoption also remain open. MV-01 devices,
+MV-02 installed PWA upgrade, MV-03 real SMTP, MV-04 real SumUp and MV-05 offline/
+reconnect devices remain pending. MV-06 synthetic automated evidence exists, but
+actual geography/hardware/immutable storage/encrypted scratch/Windows ACLs/secure
+key-image retrieval/timed human external payment-mail reconciliation acceptance
+remains partially pending. EF-08a intermittent Windows directory rename `WinError 5`
+remains unresolved; successful reruns/Linux gates are not a fix.
+
+No production deployment, release/image publication/dispatch, deployed digest/config/
+schedule change, production DB access or migration, real payment or mail occurred.
+Only disposable synthetic migrations/startup ran in verification. Merge approval
+authorizes no deployment/adoption/new package. Preserve history and stop.
+
 ## RL-01 active release-safety handoff — 2026-11-23
 
 Owner selected RL-01, superseding previous 'stop/no next package' notes only for
