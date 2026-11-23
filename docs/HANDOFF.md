@@ -1,5 +1,61 @@
 # Handoff and protected work
 
+## Active PR #5 security correction — 2026-11-23
+
+Continue EF-08c existing branch from reviewed `fe012099998d41ac3dd3d15e90cc754c8715e0c0`,
+main `e8caeed` unchanged. PR #5 remains OPEN; no merge/deploy/publication permission.
+Producer-private-key concern reproduced by failing test before code. New envelope
+v2 marks encrypted transfer only; ordinary producer uses public age recipient.
+Separate full decryption verification and explicit trusted independent/offsite
+attestation required by monitoring. Explicit combined controlled workflow retained;
+v1 readable but old markers/ambiguous receipts never imply fresh full verification.
+Owned-image archive drill now removes only UUID-labelled derived image, asserts
+unavailable then exact ID reconstructed, preserving shared input. Full gates/final
+CI pending until recorded. EF-08a/b formats/handlers/financial/production configs
+unchanged; remaining MV-06/Windows/authenticity/ACL/operator limits preserved.
+
+Security implementation `6af9cae` passed branch `45192886047` / PR `45192900590`:
+Linux 187/186 passed/one Windows-only skip, public-key-only/state/v1 tests and actual
+owned-image unavailability→archive reconstruction passed; shared input untouched,
+network-disabled full DR/image audit passed, publication skipped. Synthetic RPO
+0.358806s/RTO 2.318645502s (not SLA). Direct wrong/missing verifier-key guard added
+in final test review; verify final head/checks, not only predecessor. Stop after
+delivery, PR remains OPEN for owner approval; no merge or production adoption.
+
+## Active EF-08c independent disaster recovery — 2026-11-23
+
+Branch `feature/ef-08c-disaster-recovery` from clean fetched/CI-verified main
+`e8caeed029266764d5594c275ff769ccc7cf35c8`. Owner authorizes implementation,
+tests/docs/commit/push/open PR **not merge/release/deploy/publication**. Ready gate
+`docs/ef-08c-contract.md`, runbook `docs/disaster-recovery.md`. Preserve EF-08a/b
+formats/interfaces and all served financial/mail behavior. Optional external age
+filesystem envelope + independent decryption verification and journal/status,
+actual-image source-volume-loss reconstruction/reconciliation-gated offline startup.
+Full local/CI final evidence pending until receipts; don't infer Docker locally
+(not installed). Windows EF-08a rename WinError 5 unresolved, follow-up only.
+MV-06 synthetic encrypted independent loss/rebuild/timing can advance with direct
+evidence; actual geographic/immutable/storage/ACL/escrow/timed operator/provider/mail
+acceptance remains pending. No production data/accounts, real SMTP/SumUp or images.
+Preserve all owner merges/handoff branches; deliver open PR for review.
+
+EF-08c PR https://github.com/tostman1/drink-pos/pull/5 OPEN/unmerged. First
+`25766e6` branch/PR CI `45179952940` / `45180047138` passed both quality matrices,
+actual image/Compose/installation-loss/independent encrypted reconstruction/audit;
+publication skipped. Linux 181 tests/180 passed/one Windows-only skip. First PR
+synthetic RPO age 0.113042s/RTO 1.875316774s, total 5.198156745s (not operational
+guarantees). Final post-snapshot-loss/no-replay evidence correction follows; final
+HEAD/checks remain authoritative. No real resources or production adoption.
+
+Reviewed implementation `beb4e494bc565029113b33f2b1929b8714b8a384` passed branch
+`45181307115` / PR `45181321303`: Linux 182/181 passed/one Windows-only skip,
+actual image/Compose/start-restart/encrypted source-storage loss/fresh recovery/
+network-disabled gated startup/audit passed; publication skipped. Explicit one
+post-snapshot commit remained lost/no replay, unknown card session held. PR synthetic
+RPO 0.368372s/RTO 2.250698623s/total 6.576092409s (not production guarantee).
+MV-06 automated encrypted independent loss/rebuild/timing proven; actual geographic/
+immutable/storage/ACL/secure key-image retrieval/timed operator reconciliation remains
+pending. Documentation-only receipt follows: verify final HEAD/checks on OPEN PR #5.
+
 ## EF-08b integrated handoff — 2026-11-23
 
 PR #4 https://github.com/tostman1/drink-pos/pull/4 is **merged** after the owner

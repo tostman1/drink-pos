@@ -19,6 +19,7 @@ Observed results are dated in PROGRESS.md; no invented coverage percentages.
 | Non-atomic artifacts/mail/DB | CSV→PDF→SMTP→close, existing failure tests | Keep ordering, uncertain-delivery risk; no blind retry/exactly-once promises |
 | All-branch image publication in old CI | original container.yml push:true/packages:write/login | Split read-only checks from explicit approved publication; keep tags, no deployment |
 | Device/external proof absent | backend mocks, original unfinished tablet/cache/SMTP items | Manual MV-01..06 remain pending despite owner merge or green CI |
+| EF-08a intermittent Windows publication denial | PR #4 final integration local test: directory rename WinError 5, later full rerun passed | Unresolved reliability finding; EF-08c does not alter EF-08a or add retries. Separate disposable reproduction/correction proposal in disaster runbook |
 
 ## Verification limits
 

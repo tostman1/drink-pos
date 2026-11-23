@@ -1,5 +1,122 @@
 # Engineering foundation progress
 
+## PR #5 security boundary correction — 2026-11-23
+
+Continued clean reviewed `fe012099998d41ac3dd3d15e90cc754c8715e0c0` on existing
+`feature/ef-08c-disaster-recovery`; fetched main unchanged `e8caeed`, PR OPEN/CLEAN.
+Owner review identifies private-key prerequisite on producer. DP-022 correction
+ready gate written in `docs/ef-08c-contract.md` before implementation, failing public-
+only regression reproduced missing identity error. Default producer now public-only,
+new v2 encrypted-transfer-complete envelope (EF-08a/b unchanged), separate explicit
+full/private-key and independent/offsite verifier attestations. Combined creation/
+verification explicit opt-in only; status cannot infer full recovery from encryption,
+copy/hash or old ambiguous receipts. Protected verifier journal remains trust boundary,
+not a sender signature/geographic proof. Tests cover real producer decryption denial.
+Image review: original drill loaded archive while original image remained available.
+Correction uses unique UUID-owned labelled image, removes only that config without
+force, asserts unavailable before archive load and exact ID/label after; shared image
+untouched. Mock safety/order and actual-image CI evidence required. No runtime/
+financial/production changes; no merge, release/publication/deploy authorized.
+
+Security-correction targeted suite: **22 discovered/21 passed/one POSIX-only skip**
+on Windows. Both full local Standard Checks exit 0, Python 3.12.13/3.13.15:
+**187 discovered/182 passed/five POSIX skips**, 97.984s/101.100s; Ruff/format,
+Python/JS/PWA/traceability, real age/public-only/decryption denial/state transitions,
+combined wrong-key/v1 handling, Chromium and strict vulnerability audits passed
+(none known). Traceability links updated and revalidated. Logs outside Git:
+`ef08c-security312.log` / `ef08c-security313.log`. Actual owned-image removal/archive
+reconstruction and final corrected-head container CI remain required, not inferred.
+
+Corrected implementation `6af9cae5aefe33423d13c1c8e84f490f337c0b6e` passed
+branch `45192886047` and PR `45192900590` full gates. Linux each: **187 discovered/
+186 passed/one Windows-only retry-test skip**, public-only/decryption denial/full-
+independent state transitions/v1/ownership tests executed. Actual image/three Compose
+configs/complete encrypted source-loss/owned-image removal+archive reconstruction/
+network-disabled startup/image audit passed; publication skipped. PR drill flags:
+`producer_private_key_required=false`, `original_owned_image_unavailable_before_archive_load=true`,
+`shared_input_image_removed=false`. Synthetic RPO age 0.358806s/RTO 2.318645502s,
+total 7.378924705s, not operational SLA. Final small test review directly verifies
+wrong/missing private-key verification also fails without modifying valid transfer.
+Final evidence receipt/head must pass its own gates; no inferred pass from predecessor.
+Final reviewed test/docs local gates both exit 0: 187 discovered/182 passed/five
+POSIX skips, Python 3.12/3.13 full lint/format/syntax/traceability/security/Chromium.
+Logs `ef08c-security-final312.log` / `ef08c-security-final313.log` outside Git.
+No EF-08a Windows rename recurrence in these checks; unresolved finding unchanged.
+
+## EF-08c active — 2026-11-23
+
+- Clean fetched main `e8caeed029266764d5594c275ff769ccc7cf35c8`; exact base CI
+  `45171495944` passed. Branch `feature/ef-08c-disaster-recovery`, owner approves
+  bounded implementation/commit/push/PR only, not merge/deploy/publication.
+- Ready gate `docs/ef-08c-contract.md` before implementation; DP-022/021/014 and
+  financial/state contracts. EF-08a/b preserved. External mature age v1.3.2 chosen,
+  optional filesystem envelope/standard tar/no provider API; exact official Windows
+  archive SHA-256 verified outside Git/image. First seven new regressions all
+  failed (missing interface), then passed with real temporary synthetic keys.
+- Added independent encrypted publication/decryption/full-bundle validation,
+  no-clobber isolated recovery and sanitized operation journal/status. Source/key/
+  scratch/journal/destination roots separate; no crypto implementation or retention.
+  Actual-image installation-loss drill added; full local/CI gates pending, not passes.
+- Targeted 13 tests passed locally (before final extra guards); fixture populates
+  real served synthetic round/payment/cashup/price/event/idempotency state and
+  explicitly gates isolated startup on synthetic reconciliation, no network attempts.
+- Windows EF-08a WinError 5 remains unresolved, no correction/retry in this package.
+  MV-06 real geography/hardware/immutable/encrypted-storage/ACL/escrow/image retrieval/
+  timed operator external reconciliation acceptance remains pending. No real resources.
+
+### EF-08c local gates
+
+Both full Standard Checks exact child exit 0 on Python 3.12.13/3.13.15:
+**181 discovered, 176 passed/five POSIX-only skips**, 75.023s / 73.412s.
+Ruff lint/format, compilation/all JS/PWA/data/22-ID traceability, real age synthetic
+replica/key/failure tests, Chromium and strict dependency audits passed (none known).
+Actionlint passed. Logs `ef08c-full312.log` / `ef08c-full313.log` outside Git.
+No EF-08a WinError 5 recurrence in these runs, not proof of fix; no retry added.
+No UI changes/cache bump needed. Docker unavailable locally; actual installation-
+loss/image/Compose/CI metrics remain pending. Reviewed bounded diff: new optional
+recovery/fixture/tooling only, production files and existing EF-08a/b unchanged.
+
+### EF-08c first CI evidence and final review
+
+PR #5 https://github.com/tostman1/drink-pos/pull/5 OPEN. Core `ead0522`, image
+rehearsal `d38928d`, docs `25766e6`. Both exact-head branch/PR runs `45179952940` /
+`45180047138` passed quality and actual image/Compose/DR/audit; publication skipped.
+Linux 181 discovered/180 passed/one Windows-only skip; POSIX key/ciphertext modes
+executed. PR workflow runs synthetic merge tree `57b8a5ee03131f05309eb0f20361421906a2dd77`
+for image metadata; run head is `25766e6f573ead4326d6bc8548ad30c5ff18ed8f`.
+Actual source volume/container/local bundle removed, independent age copy/escrow/
+image reconstruction + complete state/network-disabled startup passed. First PR
+synthetic RPO age **0.113042s**, RTO **1.875316774s**, total **5.198156745s**,
+backup **0.568106799s**, replica verify **0.028775162s**, synthetic key/image
+retrieval **0.556097483s**, recovery validation **0.024410730s**, startup synthetic
+reconciliation **0.801495107s**. Targets 3600s/300s met; not production performance.
+Final review adds explicit post-snapshot lost synthetic commit and no-replay assertion
+(outside backup boundary, snapshot preserved) to strengthen RPO/reconciliation evidence.
+Final local/CI head must rerun; first-pass evidence is not final-head proof.
+Final local full gates exit 0 on both Python versions: **182 discovered/177 passed/
+five POSIX-only skips**; Ruff/format/syntax/22-ID traceability/security/Chromium/diff
+passed. Logs `ef08c-final312.log` / `ef08c-final313.log` outside repo. No Windows
+EF-08a rename failure encountered in these reruns, finding remains unresolved.
+
+### EF-08c reviewed implementation evidence
+
+Exact implementation head `beb4e494bc565029113b33f2b1929b8714b8a384` passed
+branch `45181307115` and PR https://github.com/tostman1/drink-pos/actions/runs/45181321303.
+Linux both matrices **182 discovered/181 passed/one Windows-only skip**; actual
+Docker/three Compose validations/EF-08a-b/start-restart/full encrypted source-loss
+reconstruction/image audit passed; publication skipped. Post-snapshot synthetic
+commit was not recovered/replayed, uncertain payments remained held. PR rehearsal:
+RPO age **0.368372s**, RTO **2.250698623s**, total **6.576092409s**; backup
+**0.688306717s**, replica verification **0.047257094s**, synthetic key/image
+retrieval **0.399142310s**, recovery validation **0.039346896s**, gated startup
+**1.165725736s**. These are CI synthetic measurements, not an operational SLA.
+MV-06 automated encrypted independent-copy/source-loss/full-state rebuild/timed
+isolated startup evidence demonstrated; actual geography/hardware/WORM/ACL/secure
+escrow acquisition/timed human external payment/mail reconciliation remains pending.
+Documentation-only final receipt follows; its own final-head CI is authoritative.
+No production/live services/accounts/publication/deploy/merge. PR #5 OPEN/CLEAN,
+base remains `e8caeed`. Stop after review delivery; owner approval required to merge.
+
 ## EF-08b final integration — 2026-11-23
 
 - Owner completed independent review with no merge-blocking findings and explicitly
