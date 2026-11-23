@@ -158,6 +158,9 @@ container/source volume/local plaintext bundle. Recovery can access only indepen
 replica/escrow/image, reconstructs new storage, verifies full normalized state and
 every artifact. Explicit synthetic reconciliation holds below gate startup; fresh
 network-disabled startup asserts no network attempts and state invariants.
+An explicit synthetic commit after replication is intentionally lost with the
+source; recovered state asserts it was not automatically replayed. The original
+snapshot remains unchanged and independently verified.
 
 JSON reports start/end/failure UTC, each monotonic phase duration, backup/verification
 timestamps, conservative **RPO age = assumed loss − backup start**, **RTO = loss

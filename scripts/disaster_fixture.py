@@ -108,6 +108,7 @@ def validate(root: Path, expected: dict):
         assert conn.execute("SELECT COUNT(*) FROM transactions WHERE type='CASHUP'").fetchone()[0] > 0
         assert conn.execute("SELECT COUNT(*) FROM round_events").fetchone()[0] > 0
         assert conn.execute("SELECT COUNT(*) FROM client_operations").fetchone()[0] >= 3
+        assert conn.execute("SELECT COUNT(*) FROM transactions WHERE type='DR_POST_SNAPSHOT'").fetchone()[0] == 0
         assert (
             conn.execute(
                 "SELECT status FROM self_payment_sessions WHERE client_payment_id='dr-uncertain-id'"

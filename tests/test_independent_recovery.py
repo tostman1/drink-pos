@@ -346,6 +346,42 @@ class IndependentRecoveryTests(unittest.TestCase):
 
 
 class DisasterMeasurementTests(unittest.TestCase):
+    def test_post_snapshot_commits_are_lost_and_never_automatically_replayed(self):
+        from app.application_recovery import create_backup, restore_application, verify_application_bundle
+        from test_database_recovery import DatabaseRecoveryTests, sqlite_conn
+
+        fixture = DatabaseRecoveryTests()
+        fixture.setUp()
+        try:
+            database, _, _, _ = fixture.populate_operational_database()
+            bundle = create_backup(
+                database,
+                fixture.root / "messages.json",
+                fixture.root / "bundle-root",
+                deployment_id="point-test",
+                app_commit="a" * 40,
+                quiesced=True,
+            )
+            expected = verify_application_bundle(bundle)
+            with sqlite_conn(database) as conn:
+                conn.execute(
+                    "INSERT INTO transactions(type,total,details,timestamp) VALUES('DR_POST_SNAPSHOT',0,'synthetic lost commit','then')"
+                )
+                conn.commit()
+            recovered = restore_application(
+                bundle,
+                fixture.root / "recovered",
+                expected_commit="a" * 40,
+                expected_schema=expected["database"]["schema_sha256"],
+            )
+            with sqlite_conn(recovered / "state/database.db") as conn:
+                self.assertEqual(
+                    conn.execute("SELECT COUNT(*) FROM transactions WHERE type='DR_POST_SNAPSHOT'").fetchone()[0], 0
+                )
+                self.assertEqual(conn.execute("SELECT COUNT(*) FROM client_operations").fetchone()[0], 1)
+        finally:
+            fixture.tearDown()
+
     def test_deterministic_rpo_rto_definitions_and_thresholds(self):
         from scripts.disaster_rehearsal import metrics
 

@@ -187,6 +187,20 @@ def run_drill(
                 ciphertext_sha256=verified["ciphertext"]["sha256"],
             )
             durations["replication_verification_seconds"] = time.monotonic() - tick
+            docker(
+                "run",
+                "--rm",
+                "--network",
+                "none",
+                "--pull=never",
+                "--entrypoint",
+                "python",
+                "--mount",
+                f"type=volume,source={source_volume},target=/app/data",
+                image_id,
+                "-c",
+                "import sqlite3; c=sqlite3.connect('/app/data/custom.db'); c.execute(\"INSERT INTO transactions(type,total,details,timestamp) VALUES('DR_POST_SNAPSHOT',0,'synthetic independently known loss','then')\"); c.commit(); c.close()",
+            )
             phase = "source-loss"
             failure_at, loss_tick = utc_now(), time.monotonic()
             docker("rm", original)
@@ -343,6 +357,8 @@ def run_drill(
                 **measured,
                 "immutability": "not-enforced",
                 "geographic_hardware_independence": "not-demonstrated",
+                "synthetic_post_snapshot_commits_not_recovered": 1,
+                "synthetic_external_reconciliation": "held; no automatic replay/charge/mail",
             }
         except Exception:
             print(json.dumps({"status": "disaster-rehearsal-failed", "phase": phase}), file=sys.stderr)

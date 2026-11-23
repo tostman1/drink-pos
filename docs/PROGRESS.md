@@ -33,6 +33,28 @@ No UI changes/cache bump needed. Docker unavailable locally; actual installation
 loss/image/Compose/CI metrics remain pending. Reviewed bounded diff: new optional
 recovery/fixture/tooling only, production files and existing EF-08a/b unchanged.
 
+### EF-08c first CI evidence and final review
+
+PR #5 https://github.com/tostman1/drink-pos/pull/5 OPEN. Core `ead0522`, image
+rehearsal `d38928d`, docs `25766e6`. Both exact-head branch/PR runs `45179952940` /
+`45180047138` passed quality and actual image/Compose/DR/audit; publication skipped.
+Linux 181 discovered/180 passed/one Windows-only skip; POSIX key/ciphertext modes
+executed. PR workflow runs synthetic merge tree `57b8a5ee03131f05309eb0f20361421906a2dd77`
+for image metadata; run head is `25766e6f573ead4326d6bc8548ad30c5ff18ed8f`.
+Actual source volume/container/local bundle removed, independent age copy/escrow/
+image reconstruction + complete state/network-disabled startup passed. First PR
+synthetic RPO age **0.113042s**, RTO **1.875316774s**, total **5.198156745s**,
+backup **0.568106799s**, replica verify **0.028775162s**, synthetic key/image
+retrieval **0.556097483s**, recovery validation **0.024410730s**, startup synthetic
+reconciliation **0.801495107s**. Targets 3600s/300s met; not production performance.
+Final review adds explicit post-snapshot lost synthetic commit and no-replay assertion
+(outside backup boundary, snapshot preserved) to strengthen RPO/reconciliation evidence.
+Final local/CI head must rerun; first-pass evidence is not final-head proof.
+Final local full gates exit 0 on both Python versions: **182 discovered/177 passed/
+five POSIX-only skips**; Ruff/format/syntax/22-ID traceability/security/Chromium/diff
+passed. Logs `ef08c-final312.log` / `ef08c-final313.log` outside repo. No Windows
+EF-08a rename failure encountered in these reruns, finding remains unresolved.
+
 ## EF-08b final integration — 2026-11-23
 
 - Owner completed independent review with no merge-blocking findings and explicitly

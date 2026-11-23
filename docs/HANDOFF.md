@@ -16,6 +16,14 @@ evidence; actual geographic/immutable/storage/ACL/escrow/timed operator/provider
 acceptance remains pending. No production data/accounts, real SMTP/SumUp or images.
 Preserve all owner merges/handoff branches; deliver open PR for review.
 
+EF-08c PR https://github.com/tostman1/drink-pos/pull/5 OPEN/unmerged. First
+`25766e6` branch/PR CI `45179952940` / `45180047138` passed both quality matrices,
+actual image/Compose/installation-loss/independent encrypted reconstruction/audit;
+publication skipped. Linux 181 tests/180 passed/one Windows-only skip. First PR
+synthetic RPO age 0.113042s/RTO 1.875316774s, total 5.198156745s (not operational
+guarantees). Final post-snapshot-loss/no-replay evidence correction follows; final
+HEAD/checks remain authoritative. No real resources or production adoption.
+
 ## EF-08b integrated handoff — 2026-11-23
 
 PR #4 https://github.com/tostman1/drink-pos/pull/4 is **merged** after the owner
