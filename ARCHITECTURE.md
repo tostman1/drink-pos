@@ -101,6 +101,17 @@ implementation, storage-provider API, mandatory scheduler or retention. External
 key/image escrow, geography/immutability/storage/ACL/operator acceptance remain
 separate; see `docs/disaster-recovery.md`.
 
+RL-01 standalone `release_identity.py` / `upgrade_preflight.py` inspect explicit
+identities plus attested isolated EF-08b snapshots, without importing runtime or
+migrating. SQLite sidecars/WAL headers rejected before inspection, complete state
+inventory verified, exact operator-approved identity/schema/configuration required;
+unknown never succeeds. `scripts/upgrade_rehearsal.py` executes existing served
+startup/ASGI only on owned synthetic copies and restores pre-upgrade state elsewhere.
+No startup gate/versioned ledger/default updater change is introduced. Current
+startup can persist early DDL/WAL/files before late DML rollback and repeatedly
+alter zero purchase snapshots/profits; arbitrary upgrades/downgrades are unproven.
+See `docs/release-safety.md`, `docs/rl-01-contract.md` and proposed RL-02.
+
 ## Migration Strategy
 
 `legacy_main.py` is now a compatibility handler catalog rather than the app that

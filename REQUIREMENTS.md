@@ -101,6 +101,17 @@ mail redesign or production adoption. Real encrypted storage/escrow/ACL/offsite/
 immutable/operational acceptance remains MV-06; synthetic evidence is not a SLA.
 See [disaster recovery](docs/disaster-recovery.md).
 
+## Approved RL-01 release-safety foundation (2026-11-23)
+
+DP-023 adds deterministic standalone release identity, explicit isolated-bundle-only
+read-only preflight, non-success unknown/intervention/unsafe JSON results and
+synthetic migration/full-state/API/recovery characterization. No app startup for
+inspection, no fictitious schema ledger/published digest, no default deployment/UI/
+REST/financial/payment/invoice/migration changes. Only rehearsal readiness is
+reported. See [release safety](docs/release-safety.md) and
+[ready gate/baseline inventory](docs/rl-01-contract.md). Versioned migrations and
+pre-write startup gating require separately approved RL-02; MV-06 remains partial.
+
 ## Classification rules
 
 **Confirmed behavior** has direct served-code and test evidence; it may still be

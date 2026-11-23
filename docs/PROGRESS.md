@@ -1,5 +1,46 @@
 # Engineering foundation progress
 
+## RL-01 active release-safety foundation — 2026-11-23
+
+- Clean fetched main/base exactly `dbc314e0790534ee44f362be4a194143385eb071`;
+  exact CI `45199604894` passed both matrices/container/DR/audit, publication skipped.
+  Dedicated `feature/rl-01-release-safety`; no history rewrite/user changes/delegation.
+- Ready gate/risk inventory written first in `docs/rl-01-contract.md`; DP-023 added.
+  Initial ten preflight tests failed missing interface before implementation.
+  Existing startup risks characterized: early DDL/messages/WAL persist after late
+  failure, DML rolls back, no maintained ledger, purchase cost/profit backfill repeats,
+  late duplicate payment index fails. Migration implementation untouched.
+- Optional offline identity + isolated completed EF-08b bundle-only preflight added;
+  exact identity/image/schema/config/installation/key evidence, no successful unknown.
+  11 targeted tests pass; read-only connection/byte parity/pre-SQL sidecar/WAL guards.
+  Six migration/rehearsal tests pass; missing rehearsal failed first. Full synthetic
+  startup/ASGI/state/artifact/second-start/recovery comparisons implemented.
+- Rehearsal test initially failed because Windows asyncio self-pipe uses socketpair;
+  corrected infrastructure initialization before app network guard, in-memory ASGI
+  requires no new runtime/dev dependency. No live provider/email/network use.
+- Optional no-pull/no-restart digest-pinning Compose guidance; old deployment scripts/
+  Compose/timer/Dockerfile/handlers/UI/worker/recovery formats unchanged. New actual
+  image identity/rehearsal CI stages non-publishing. Docker/Podman unavailable locally;
+  actual image/Compose evidence pending CI. Full local gates pending until recorded.
+- Ruff passes; initial actionlint path missing (not pass); resolved path/full checks
+  follow. MV-01..06/Windows EF-08a WinError 5/real operator adoption remain open.
+  Only commit/push/open PR authorized, no merge/release/publication/deploy/real state.
+
+### RL-01 final local verification
+
+Both full Standard Checks exact exit 0, Python 3.12.13/3.13.15: **208 discovered,
+203 passed/five existing POSIX-only skips**, 102.162s/105.981s. Ruff/format/syntax,
+23-ID traceability, real age recovery, full migration/preflight/rehearsal suites,
+strict dependency audits (none known), Chromium/diff all passed. Logs outside Git:
+`rl01-final312.log`, `rl01-final313.log`. Actionlint passed at resolved tool path.
+Concurrent Windows Ruff cache write warning (Access denied) retained; lint/format
+exit 0, cache acceleration not required. Existing lifecycle/TestClient deprecations
+retained; no UI/worker changes/cache bump required. Docker/Podman unavailable;
+actual image/Compose/Linux permission and exact-head CI evidence pending, not inferred.
+Final review adds strict metadata/future/unassigned version, full 16-table inventory,
+FK corruption, observed-change/interruption/Linux read-only permission and optimized
+interpreter refusal guards. No recovery/financial/startup/default deployment changes.
+
 ## EF-08c final integration — 2026-11-23
 
 - Owner completed independent security/implementation review and approved PR #5

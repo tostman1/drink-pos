@@ -94,6 +94,15 @@ environment naming alone does not enforce approval. No automatic deploy exists.
 
 ## Manual register — all pending at takeover
 
+RL-01 adds `ReleaseSafetyTests` and `UpgradeMigrationTests`: explicit offline
+identity/bundle/config/image/key safety failures, no-write/pre-SQL sidecar rejection,
+partial DDL/repeated financial-cost backfill/duplicate payment-ID/abrupt migration
+characterization and complete synthetic existing-startup/ASGI/recovery rehearsal.
+Container CI additionally runs installed offline identity and network-disabled
+synthetic upgrade in actual local-only image; validates optional upgrade Compose
+example without starting it. No authentic historical-image compatibility, production
+upgrade or automatic rollback proof; MV-06 remaining operational acceptance unchanged.
+
 Record commit/device/browser/tester/date/procedure/result, with redacted evidence,
 on an approved isolated instance. Green CI never closes these checks automatically.
 
