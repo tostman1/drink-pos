@@ -1,5 +1,62 @@
 # Engineering foundation progress
 
+## RL-02 active bounded migration safety — 2026-11-23
+
+- Clean local/fetched main exactly `65d7a869854a15cfa5ef78c98153bc35306f629b`;
+  exact-head CI `45246034817` passed. Dedicated `feature/rl-02-migration-safety`,
+  no delegation/history rewrite/production activity. Ready gate/write inventory
+  before runtime changes `docs/rl-02-contract.md`, DP-024 added.
+- Nine first regressions failed missing contract before implementation. Smaller
+  seam selected: optional versioned mode, default legacy unchanged; explicit fresh
+  transactional initialization and exact-current metadata-only adoption → v1;
+  no repeated existing financial/default normalizations. DELETE journal opt-in,
+  read-only pre-write guard refuses WAL/sidecars/unknown/future/inconsistent state.
+  OQ-06 accounting/adoption breadth still unresolved, synthetic-only fingerprint.
+- Initial targeted 14 contract + five served financial tests passed; exact original
+  table/state zero-cost preservation/repeat/new-root EF-08b recovery rehearsal
+  passed locally, network_attempts=0. First transient full-stat atime comparison
+  rejected read-only own access; corrected to size/mtime/file identity (not atime).
+  Existing-message failure test corrected to compare preexisting bytes, not absence.
+  Original 14 RL-01 preflight regressions pass with verified-ledger integration.
+- Additional actual-process contention/DDL/source-change/POSIX permission/ASGI
+  tests and actual-image fresh/adoption/recovery CI added. Full local Python 3.12/
+  3.13, final branch/PR CI/container/DR evidence pending until receipts; Docker
+  unavailable locally. Existing lifecycle/TestClient/MV-01..06/Windows EF-08a
+  WinError 5 gaps retained. No UI/worker cache bump, REST or handler changes.
+- No commit/push/PR merge/release/publication/deployment/real state/payment/mail
+  has occurred at this initial receipt. Authorized commit/push/open PR follows
+  passing gates; no merge authority. Implemented contract `docs/migration-safety.md`.
+
+Review expansion: partial ledger views cannot masquerade as unversioned state;
+unknown IDs/prerequisites/future timestamps/custom ledger triggers reject. Financial
+adoption also preserves intentionally changed round master cost/archival/person
+normalization fields. 18 contract tests (one POSIX skip locally), six served tests,
+installed-image fresh/repeat/adoption/new-root recovery helper. Initial full checks
+failed Ruff formatting in two changed files; formatted only those files and reran.
+Initial actionlint wrong tool path was not a pass; resolved `tool/actionlint.exe`
+and actionlint passed. Refetched main remains exact expected baseline. Protected
+handlers/HTML/PWA/models/events/production Compose/Dockerfile have zero diff.
+
+First full-suite reruns discovered the second existing hardcoded catalog range
+guard (23→24 IDs); corrected without weakening exact-ID checks. Python 3.13 also
+reproduced known EF-08a backup `staging.rename(completed)` WinError 5 in
+`test_same_timestamp_never_overwrites_completed_bundle`. No backup-code changes,
+retry or suppression; Windows reliability issue remains unresolved. Both runs
+failed (232 discovered, six POSIX skips); corrected full reruns required, not passes.
+
+### RL-02 full local verification
+
+Full Standard Checks **exit 0** on Python 3.12.13/3.13.15: **232 discovered,
+226 passed/six POSIX-only skips** each (91.888s/100.530s). Ruff/format/syntax,
+24-ID exact traceability, real age/encrypted recovery, migration/legacy/full served
+regressions, strict dependency audits (none known), Chromium/diff all passed.
+Actionlint passed. Logs outside Git `rl02-verified312.log` / `rl02-verified313.log`.
+One intervening rerun failed changed catalog-file formatting; formatted that file,
+no ignores. Earlier Windows EF-08a WinError 5 remains unresolved despite successful
+reruns. Existing lifecycle/TestClient/action warnings retained; no UI/cache changes.
+Plan `4258ab5`, core `3fdef64`, installed-image rehearsal `f61a40c` committed.
+Actual-image/Linux permission/branch/PR final-head evidence still pending, not inferred.
+
 ## RL-01 final integration — 2026-11-23
 
 - Owner completed independent implementation/security review, no merge blockers,

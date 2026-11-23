@@ -1,5 +1,31 @@
 # Handoff and protected work
 
+## RL-02 active handoff — 2026-11-23
+
+Owner now authorizes bounded RL-02, superseding earlier no-next-package notes for
+this task only. Verified fetched/local main `65d7a869854a15cfa5ef78c98153bc35306f629b`,
+exact base CI `45246034817` success; `feature/rl-02-migration-safety`.
+DP-024 opt-in exact-schema ledger/pre-write gate; default legacy untouched.
+Metadata-only current adoption/fresh transactional initialization → v1, no existing
+financial/default normalization in strict mode, DELETE journal chosen explicitly.
+Ready gate `docs/rl-02-contract.md`, contract/runbook `docs/migration-safety.md`.
+Nine initial failing tests before code; targeted/initial synthetic rehearsal passed,
+full local/final exact-head CI/PR/container/DR receipts pending. No authentic old
+release support, mandatory rollout or v1→v2 transition. OQ-06 financial zero/round/
+prototype inference and adoption breadth unresolved despite green tests.
+Preserve all owner merges/handoff branches. No agents delegated. Only commit/push/
+open PR authorized; **no merge/release/publication/deployment/production data/real
+SumUp/SMTP/updater activation**. MV-01..06/EF-08a Windows WinError 5 unchanged.
+After review-ready delivery stop; recommend separately approved policy/adoption path,
+not automatic production upgrade. Final SHA/CI/PR must be read at delivery.
+
+Full local Python 3.12.13/3.13.15 Standard Checks exit 0: 232 discovered,
+226 passed/six POSIX skips each; audits none known, Chromium/Ruff/traceability/diff
+passed; actionlint passed. Earlier Python 3.13 EF-08a Windows WinError 5 reproduced,
+still unresolved, no backup-code fixes/retries. Actual container/Linux/final-head CI
+and open PR evidence required next. Plan/core/rehearsal commits `4258ab5`/`3fdef64`/
+`f61a40c`; no generated state committed. Production/merge authority unchanged.
+
 ## RL-01 integrated handoff — 2026-11-23
 
 PR #6 https://github.com/tostman1/drink-pos/pull/6 is **MERGED** after the owner's

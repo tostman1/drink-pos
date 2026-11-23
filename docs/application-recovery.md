@@ -12,6 +12,12 @@ bundles and CSV restore remain unchanged; see [recovery.md](recovery.md).
 
 ## Versioned format and guarantees
 
+RL-02 adds an optional application DB ledger, not a change to this EF-08b bundle
+format. Full SQLite snapshots preserve it as ordinary table/PRAGMA state. Restore
+still performs no migration/startup and only bounded event-path relocation. Use
+`migration-safety.md` for opt-in startup inspection/adoption/recovery prerequisites;
+ledger/schema recognition never substitutes for exact commit/schema or quiescence.
+
 Application bundles use `format: drink_pos_application`, integer `format_version: 1`
 (a different namespace from EF-08a). A completed directory is named
 `drink_pos_application_<UTC timestamp>_<UUID>/` and contains:

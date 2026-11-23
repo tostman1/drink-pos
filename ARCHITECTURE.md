@@ -114,6 +114,18 @@ See `docs/release-safety.md`, `docs/rl-01-contract.md` and proposed RL-02.
 
 ## Migration Strategy
 
+RL-02 adds `db/migrations.py` as an optional SQLite-native contract selected by
+`DRINK_POS_MIGRATION_MODE=versioned`; legacy default remains unchanged. Pre-write
+read-only/header/sidecar inspection precedes directories/messages/DDL. Fresh exact
+schema initialization or metadata-only baseline adoption commits ledger/PRAGMAs
+atomically under BEGIN IMMEDIATE and exclusive migration lock; existing v1 repeat
+does not run financial/default normalizations. Strict mode keeps DELETE journal,
+rejects WAL/recovery/unknown/future/inconsistent state and requires explicit fresh/
+adoption permissions. No historical-release migration framework or approved zero-cost
+interpretation. See `docs/migration-safety.md`; prior RL-01 historical descriptions
+above describe its baseline, not this optional implementation. Preflight now verifies
+ledger evidence when present, retaining all isolated-bundle/security boundaries.
+
 `legacy_main.py` is now a compatibility handler catalog rather than the app that
 is served directly. New services accept `sqlite3.Connection` explicitly, which
 makes them testable without an ASGI app.

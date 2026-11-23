@@ -94,6 +94,15 @@ environment naming alone does not enforce approval. No automatic deploy exists.
 
 ## Manual register — all pending at takeover
 
+RL-02 DP-024 adds `MigrationContractTests` and `VersionedRuntimeTests`: explicit
+fresh/exact-current/ledger/future/unknown pre-write rejection, atomic metadata/schema/
+data rollback, real concurrent processes/SQLite writer, abrupt kill and EF-08b new-root
+recovery, simulated ENOSPC/permission, actual POSIX read-only failure (Windows skips).
+Served booking/round/cashup/event/invoice/uncertain-payment tests additionally run
+under fresh strict mode. CI runs `scripts/migration_rehearsal.py` in actual image
+network-disabled alongside unchanged existing startup/persistence/upgrade/recovery/DR.
+No UI/worker changes: cache-version review requires no bump; MV-01..06 still open.
+
 RL-01 adds `ReleaseSafetyTests` and `UpgradeMigrationTests`: explicit offline
 identity/bundle/config/image/key safety failures, no-write/pre-SQL sidecar rejection,
 partial DDL/repeated financial-cost backfill/duplicate payment-ID/abrupt migration
