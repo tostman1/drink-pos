@@ -52,6 +52,7 @@ jobs:
           docker compose -f compose.yaml config --quiet
           docker compose -f compose.synology.yaml config --quiet
           DRINK_POS_IMAGE=drink-pos:verification DRINK_POS_CONFIG_FILE=/dev/null DRINK_POS_SECRET_FILE=/dev/null DRINK_POS_BACKUP_VOLUME=verification-backups docker compose -f examples/compose.recovery.yaml config --quiet
+          DRINK_POS_IMAGE=example.invalid/drink-pos@sha256:$(printf '%064d' 0) DRINK_POS_CONFIG_FILE=/dev/null DRINK_POS_SECRET_FILE=/dev/null DRINK_POS_STATE_VOLUME=verification-state docker compose -f examples/compose.upgrade.yaml config --quiet
       - name: Build local-only verification image
         run: >-
           docker build --tag drink-pos:verification
@@ -61,6 +62,10 @@ jobs:
           --build-arg BUILD_TAGS=verification .
       - name: Verify startup, routes, metadata, SQLite and restart persistence
         run: python scripts/container_smoke.py --image drink-pos:verification --expected-commit "$GITHUB_SHA"
+      - name: Inspect offline release identity and rehearse synthetic upgrade in actual image
+        run: |
+          docker run --rm --network none --pull never --entrypoint python drink-pos:verification -B -c "import os,json; from release_identity import release_identity; assert os.environ['APP_BUILD_COMMIT']=='$GITHUB_SHA'; print(json.dumps(release_identity(os.environ['APP_BUILD_COMMIT'],os.environ['APP_BUILD_CHANNEL'],None),sort_keys=True))"
+          docker run --rm --network none --pull never --entrypoint python --mount type=bind,source="$PWD/scripts",target=/verification,readonly drink-pos:verification -B /verification/upgrade_rehearsal.py --target /tmp/rl01-synthetic --commit "$GITHUB_SHA" --synthetic-only
       - name: Install checksum-pinned external disaster-recovery encryption tooling
         run: python scripts/install_age.py --destination "$RUNNER_TEMP/drink-pos-age" --github-path "$GITHUB_PATH"
       - name: Rehearse independent encrypted recovery after complete synthetic installation loss
