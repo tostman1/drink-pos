@@ -173,3 +173,14 @@ network attempts. MV-06 may advance only on actual successful independent-loss d
 real immutable/offsite hardware/storage/ACL/key-image retrieval and timed human
 external reconciliation acceptance remain pending. EF-08a Windows WinError 5 remains
 unresolved despite successful reruns; don't suppress or arbitrarily retry failures.
+
+EF-08c automated MV-06 evidence receipt: reviewed implementation `beb4e494` passed
+PR CI `45181321303` including encrypted independent replica verification, original
+source container/volume/local-copy deletion, new compatible storage reconstruction,
+complete financial/schema/artifact parity and explicit synthetic holds before
+network-disabled startup. RPO age 0.368372s/RTO 2.250698623s for that synthetic run;
+targets 3600s/300s. This closes the automated independent-loss/timing portion only,
+**not full MV-06**. Remaining manual evidence: actual offsite/geographic/hardware
+separation, enforced immutable retention, encrypted scratch/storage and Windows ACLs,
+secure key/image acquisition under loss, timed operator/provider/mail reconciliation
+and acceptance. Production adoption remains separate authorization.

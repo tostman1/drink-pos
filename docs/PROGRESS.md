@@ -55,6 +55,25 @@ five POSIX-only skips**; Ruff/format/syntax/22-ID traceability/security/Chromium
 passed. Logs `ef08c-final312.log` / `ef08c-final313.log` outside repo. No Windows
 EF-08a rename failure encountered in these reruns, finding remains unresolved.
 
+### EF-08c reviewed implementation evidence
+
+Exact implementation head `beb4e494bc565029113b33f2b1929b8714b8a384` passed
+branch `45181307115` and PR https://github.com/tostman1/drink-pos/actions/runs/45181321303.
+Linux both matrices **182 discovered/181 passed/one Windows-only skip**; actual
+Docker/three Compose validations/EF-08a-b/start-restart/full encrypted source-loss
+reconstruction/image audit passed; publication skipped. Post-snapshot synthetic
+commit was not recovered/replayed, uncertain payments remained held. PR rehearsal:
+RPO age **0.368372s**, RTO **2.250698623s**, total **6.576092409s**; backup
+**0.688306717s**, replica verification **0.047257094s**, synthetic key/image
+retrieval **0.399142310s**, recovery validation **0.039346896s**, gated startup
+**1.165725736s**. These are CI synthetic measurements, not an operational SLA.
+MV-06 automated encrypted independent-copy/source-loss/full-state rebuild/timed
+isolated startup evidence demonstrated; actual geography/hardware/WORM/ACL/secure
+escrow acquisition/timed human external payment/mail reconciliation remains pending.
+Documentation-only final receipt follows; its own final-head CI is authoritative.
+No production/live services/accounts/publication/deploy/merge. PR #5 OPEN/CLEAN,
+base remains `e8caeed`. Stop after review delivery; owner approval required to merge.
+
 ## EF-08b final integration — 2026-11-23
 
 - Owner completed independent review with no merge-blocking findings and explicitly

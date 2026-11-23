@@ -24,6 +24,16 @@ synthetic RPO age 0.113042s/RTO 1.875316774s, total 5.198156745s (not operationa
 guarantees). Final post-snapshot-loss/no-replay evidence correction follows; final
 HEAD/checks remain authoritative. No real resources or production adoption.
 
+Reviewed implementation `beb4e494bc565029113b33f2b1929b8714b8a384` passed branch
+`45181307115` / PR `45181321303`: Linux 182/181 passed/one Windows-only skip,
+actual image/Compose/start-restart/encrypted source-storage loss/fresh recovery/
+network-disabled gated startup/audit passed; publication skipped. Explicit one
+post-snapshot commit remained lost/no replay, unknown card session held. PR synthetic
+RPO 0.368372s/RTO 2.250698623s/total 6.576092409s (not production guarantee).
+MV-06 automated encrypted independent loss/rebuild/timing proven; actual geographic/
+immutable/storage/ACL/secure key-image retrieval/timed operator reconciliation remains
+pending. Documentation-only receipt follows: verify final HEAD/checks on OPEN PR #5.
+
 ## EF-08b integrated handoff — 2026-11-23
 
 PR #4 https://github.com/tostman1/drink-pos/pull/4 is **merged** after the owner
