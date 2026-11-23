@@ -1,5 +1,45 @@
 # Engineering foundation progress
 
+## EF-08c final integration — 2026-11-23
+
+- Owner completed independent security/implementation review and approved PR #5
+  merge subject to exact head/checks. Clean fetched head
+  `982dbf101c15e78ff7cb2eb3a6fafe557925b84a`; base/main remained
+  `e8caeed029266764d5594c275ff769ccc7cf35c8`. Required engineering gates in
+  branch `45195265860` and PR `45195281503` passed, publication skipped. GitHub
+  MERGEABLE/CLEAN, no review threads/inline findings; no configured required checks.
+  No checks/protections bypassed, no changes to reviewed history or sensitive runtime.
+- Merged normally with `--merge --match-head-commit` as
+  **`34cc06a1f287348af32caa173796afc512485342`**, 2026-11-23T14:50:50Z.
+  Parents verified (expected base/reviewed head), whole tree identical to review.
+  Primary worktree switched to main and fast-forwarded safely; branches preserved.
+- Post-merge main CI https://github.com/tostman1/drink-pos/actions/runs/45198599811
+  **passed on exact merge SHA**: both Python matrices/full gates, three Compose
+  validations, actual image/startup/restart/persistence/recovery, complete encrypted
+  disaster/source-storage and owned-image loss→archive reconstruction/offline startup,
+  image security audit. Linux 187/186 passed/one Windows-only skip each, all POSIX
+  guards executed. Publication **skipped**; deployments query returned `[]`.
+- Security correction verified and integrated: public-recipient-only producer,
+  encrypted-transfer-complete v2, separate private-key full verification plus trusted
+  independent/offsite receipts, explicit combined opt-in, conservative old envelopes/
+  receipts. Main drill `producer_private_key_required=false`, owned image unavailable
+  before archive load, shared input not removed; source storage removed, uncertainty/
+  post-snapshot loss held/no replay. Synthetic RPO age 0.285082s, RTO 2.018970907s,
+  total 6.311423030s (3600s/300s targets met; not production performance guarantees).
+- Both local full gates on merged main **exit 0**, Python 3.12.13/3.13.15:
+  187 discovered/182 passed/five POSIX skips, 85.443s/85.050s. Ruff/format, all
+  syntax/PWA/22-ID traceability, actual age, strict audits (none known), Chromium and
+  diff passed; actionlint passed. Logs outside Git `ef08c-merged-main312.log`,
+  `ef08c-merged-main313.log`, `ef08c-merged-main-ci.log`. Deprecations retained.
+- Documentation-only receipt follows; its final main SHA and own CI must be checked
+  at delivery. No implementation after reviewed merge. No production deployment,
+  release/publication/image digest/config change, production data/payment/SMTP use.
+- **Stop: EF-08c integrated; no next work package.** MV-06 automated synthetic
+  encrypted independent loss/rebuild/owned-image archive/timing proof complete;
+  actual geography/hardware/WORM/storage/ACL/secure escrow/timed human external
+  reconciliation/acceptance pending. EF-08a intermittent Windows WinError 5 still
+  unresolved, no fix inferred from successful gates. MV-01..05 unchanged.
+
 ## PR #5 security boundary correction — 2026-11-23
 
 Continued clean reviewed `fe012099998d41ac3dd3d15e90cc754c8715e0c0` on existing

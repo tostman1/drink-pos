@@ -1,5 +1,58 @@
 # Handoff and protected work
 
+## EF-08c integrated handoff — 2026-11-23
+
+PR #5 https://github.com/tostman1/drink-pos/pull/5 is **merged** after the owner's
+independent security/implementation review and explicit conditional merge approval.
+This supersedes historical open/unmerged notes below, not production restrictions.
+
+- Clean local/fetched reviewed head:
+  `982dbf101c15e78ff7cb2eb3a6fafe557925b84a`; verified main/base:
+  `e8caeed029266764d5594c275ff769ccc7cf35c8`. Both specified exact-head runs
+  https://github.com/tostman1/drink-pos/actions/runs/45195265860 and
+  https://github.com/tostman1/drink-pos/actions/runs/45195281503 passed quality,
+  security, actual container/disaster recovery and image audit; publication skipped.
+  PR MERGEABLE/CLEAN, no review threads or inline findings. No configured required
+  checks; none bypassed. No unexpected handler/payment/EF-08a-b/production-file diff.
+- Normal `--merge --match-head-commit` workflow, no admin bypass/history rewrite:
+  **`34cc06a1f287348af32caa173796afc512485342`**, 2026-11-23T14:50:50Z.
+  Both parents are that verified base/reviewed head, whole merged tree identical to
+  reviewed tree. Primary checkout safely fast-forwarded to main; feature/handoff
+  branches preserved, no reset/rebase/force push.
+- Exact merge main CI https://github.com/tostman1/drink-pos/actions/runs/45198599811
+  **passed**: both Python/Node full Standard Checks, all three Compose validations,
+  actual local-only Docker build/start/restart/persistence/EF-08a-b recovery,
+  complete encrypted source-loss/owned-image archive reconstruction/gated offline
+  startup and image vulnerability audit. Linux 187 discovered/186 passed/one
+  Windows-only retry-test skip each; real POSIX guards executed. Publication
+  **skipped**; deployment query for merge SHA returned `[]`.
+- Security correction complete: ordinary backup producer uses only public age
+  recipient, no private identity. V2 marker means encrypted transfer only; separate
+  private-key full verification plus explicit trusted independent/offsite receipts
+  control monitoring. Combined verification opt-in; v1 old markers/ambiguous receipts
+  cannot imply current recoverability. Receipt protection/labels are operator trust,
+  not signatures or automatically proven geography.
+- Main disaster flags confirm producer private key not required, original UUID-owned
+  image unavailable before loading retained archive, shared input not removed.
+  Synthetic RPO age 0.285082s/RTO 2.018970907s/total 6.311423030s; not operational SLA.
+- Both local Python 3.12.13/3.13.15 Standard Checks exit 0 on merge main:
+  187 discovered/182 passed/five POSIX skips, Ruff/format/syntax/22-ID traceability,
+  real age regressions, dependency audit (none known), Chromium/diff all passed.
+  Actionlint passed. Existing lifecycle/TestClient/action warnings retained.
+- This handoff receipt is documentation-only, a main descendant. Final main SHA
+  and its own CI result must be verified/read from Git/GitHub at delivery, not
+  inferred from merge CI. No runtime/production configuration changes after review.
+
+**EF-08c implemented, security-corrected and integrated. Stop; no new work package.**
+No production deployment/release/image publication, deployed digest change, live
+payment/SMTP or production access occurred. MV-06 operational acceptance remains
+partially pending: actual geographic/hardware separation, enforced immutable storage,
+encrypted scratch/storage/transport and Windows ACLs, independent secure key/image
+retrieval and timed human external payment/mail reconciliation. Synthetic metrics
+are not operational promises. EF-08a Windows directory rename `WinError 5` remains
+unresolved; successful reruns/Linux gates are not a fix. MV-01..05 unchanged. Merge
+approval authorizes no deployment/adoption/future PR. Preserve history and stop.
+
 ## Active PR #5 security correction — 2026-11-23
 
 Continue EF-08c existing branch from reviewed `fe012099998d41ac3dd3d15e90cc754c8715e0c0`,
