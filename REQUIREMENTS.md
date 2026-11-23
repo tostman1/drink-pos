@@ -66,6 +66,15 @@ installed-PWA upgrades, authorized integrations, and synthetic recovery rehearsa
 are tracked manual checks, not claimed successes. Optional SSE/MCP/UI polish and
 mail OAuth/IMAP ideas remain in existing TODO docs, not promoted to requirements.
 
+## Approved EF-08 recovery increment (2026-11-23)
+
+DP-014 now includes persistent all-table SQLite snapshots, integrity/FK checks,
+checksummed atomic bundles, explicitly opted-in conservative retention and verified
+new-target-only restore. DP-013 CSV contents/encoding are preserved; CSV now lives
+inside the bundle as `export.csv`. Legacy CSV is partial recovery, not an all-table
+backup. See [recovery contract/runbook](docs/recovery.md). This approval excludes
+invoice/SMTP redesign, production operations, publication and deployment.
+
 ## Classification rules
 
 **Confirmed behavior** has direct served-code and test evidence; it may still be

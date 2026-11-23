@@ -157,6 +157,14 @@ volumes:
 `DRINK_POS_BACKUP_DIR: /app/data/backups` liegt damit auf dem NAS unter
 `/volume1/docker/drink-pos/data/backups`, also direkt neben der Datenbank.
 
+EF-08 erweitert den Backup-Befehl um verifizierte SQLite-Komplettsicherungen:
+jedes abgeschlossene Backup-Verzeichnis enthaelt `database.db`, `export.csv` und
+`manifest.json` (SHA-256). Das CSV-Format bleibt unveraendert. Alte, bereits
+laufende Images werden dadurch **nicht** aktualisiert. Aufbewahrungsbereinigung
+ist standardmaessig deaktiviert; Wiederherstellung erfolgt nur in ein explizites
+neues Ziel. Grenzen (Rechnungsdateien, Nachrichten, Offsite-Kopie), Befehle und
+separat freizugebende Betriebsschritte: [Recovery-Runbook](docs/recovery.md).
+
 ## SumUp Solo Self-Checkout
 
 Der vorgesehene Bedienweg liegt in der normalen Listenansicht:

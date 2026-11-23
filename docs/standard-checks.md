@@ -72,6 +72,8 @@ to local tag `drink-pos:verification`, never logs in/pushes on branch/PR runs.
 named volume/container and synthetic PIN/member/booking, checks health/pages/
 manifests/OpenAPI/production redaction/build metadata, restarts to check persistence,
 and checks SQLite integrity/FKs/WAL. `finally` removes only its own resources.
+EF-08 also runs the actual image's backup/restore CLIs inside that disposable
+volume, verifies the new target and compares its SQL dump with the source.
 No host DB or inherited credentials are mounted/passed. Optional local reproduction:
 build this tag with BUILD_* args, then run the helper. Missing runtime = **not run**.
 
@@ -121,3 +123,15 @@ Populate disposable debt/rounds/payment sessions/events; snapshot/export/restore
 into a **new** disposable target. Verify integrity, audit/operational tables and
 separately retained CSV/PDF artifacts. Existing CSV tests are not all operational
 recovery proof, and no production restore is approved.
+
+EF-08 synthetic evidence: `DatabaseRecoveryTests.test_full_database_and_separate_artifacts_recovery_rehearsal`
+populates all 16 operational tables, snapshots/restores all tables and sequence
+state, compares exact schema/data, verifies integrity/FKs/idempotency constraints,
+and separately retains/restores generated event CSV/PDF plus message JSON by
+checksum. Startup on the disposable recovered target re-enables WAL and keeps
+debt/payment IDs. `SnapshotRecoveryTests` covers WAL/uncommitted writes, corruption,
+incomplete migration rollback via prior snapshot, abrupt process exit, cleanup,
+target races and retention. This is direct synthetic evidence, not a production
+NAS/offsite rehearsal. MV-06 remains **partially pending** for coordinated
+production-like filesystem/offsite restoration in an isolated environment and
+operator acceptance of recovery procedures/RPO/RTO. See `docs/recovery.md`.

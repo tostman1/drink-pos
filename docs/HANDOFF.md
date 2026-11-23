@@ -1,5 +1,20 @@
 # Handoff and protected work
 
+## Active EF-08a delivery — 2026-11-23
+
+Branch `feature/ef-08-database-recovery` from clean verified/fetched main
+`a218fcc40599d5a19e53f2afee490238eeb7e910`; exact base quality/container CI passed,
+publication skipped. Owner authorized commit/push/PR **only**, no merge/deployment.
+Full SQLite/CSV/checksum bundles and verified new-target-only restore implemented;
+see `docs/recovery.md` for baseline weaknesses, usage, retention and limitations.
+All recovery state is disposable/synthetic. Separate event CSV/PDF/message files
+need independent coordinated/offsite protection; DB backup alone is not full
+application recovery. MV-06 has direct all-table/artifact synthetic evidence but
+remains partially pending for isolated production-like operational/offsite rehearsal.
+MV-01..05 remain pending; invoice/SMTP side-effect redesign is excluded.
+No production pinned image/digest/configuration was touched. Final commit/check/PR
+evidence follows in progress and final delivery; do not infer CI before its result.
+
 ## Verified takeover — 2026-11-22
 
 - Repository: https://github.com/tostman1/drink-pos

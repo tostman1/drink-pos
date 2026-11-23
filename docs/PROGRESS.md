@@ -1,5 +1,52 @@
 # Engineering foundation progress
 
+## EF-08a — bounded database recovery, 2026-11-23
+
+- Owner authorized implementation, branch, commits, push and PR; **not merge**.
+  Clean incoming main matched `a218fcc40599d5a19e53f2afee490238eeb7e910`.
+  Fetched remote main matched; exact base quality Python 3.12/3.13 and container
+  checks succeeded, publication skipped. Branch `feature/ef-08-database-recovery`.
+  Broken workstation DNS was bypassed only per command with TLS-preserving address
+  resolution, not system/repository configuration.
+- Scope DP-014/DP-013, acceptance recorded before code in `docs/recovery.md`.
+  First eight new regressions produced **seven failures** on baseline (one existing
+  interruption behavior already passed); full snapshot absence/FK gap demonstrated.
+- Implemented full Backup API SQLite snapshot, unchanged CSV in atomically
+  published unique bundle, checksum/size/table-count manifest, integrity/FK checks,
+  explicit new-target verification/no-clobber restore and opt-in conservative
+  retention (minimum two verified bundles; stale lock disables cleanup).
+- Synthetic rehearsal compares all 16 operational tables + sequence state and
+  exact schema/index definitions; retains open debt, cashup/round history, financial
+  snapshots, payment/session/client IDs, event state. Actual generated event CSV/PDF
+  and message JSON are separately copied/restored by checksum. SQLite recovery
+  alone does not recreate these files. Startup on recovered synthetic DB tested.
+- Targeted recovery suite passed **21 tests** before final extra publication/startup
+  assertions. First full Python 3.12 Standard Checks passed **130 tests**, Ruff/
+  Python/JS/traceability, dependency audit (no known vulnerabilities) and Chromium
+  smoke. Final reruns and actual container CI evidence follow below.
+- Fixed Windows fsync writable-descriptor requirement and a test's unclosed SQLite
+  handle; failures were recorded, not ignored. FastAPI/Starlette deprecations remain.
+- No production resources/accounts, deployment, pinned image/digest, Compose or
+  release workflow changes. Artifact/offsite protection, scheduling/alerting/RPO,
+  secret copies and operator recovery remain gaps. **MV-06 partially pending**;
+  MV-01..05 unchanged. Invoice/SMTP redesign remains outside EF-08a.
+
+### EF-08a final local gates
+
+- Full Standard Checks passed Python **3.12.13** and **3.13.15**, **134 tests each**
+  (30.549s / 39.631s). Ruff lint/format, compileall,
+  all JS/JSON/PWA/traceability, Chromium smoke and strict dependency audit passed
+  both; no known vulnerabilities. No UI/worker changes, so no cache bump required.
+- Recovery subset comprises **22 tests**, including deliberate process exit 37
+  after snapshot creation: only unpublished staging remains; next run succeeds
+  without deleting another run's files. New-target races/verification/publication
+  failures preserve owner targets and clean owned temporary resources.
+- Local Docker/Podman unavailable; actual Docker/Compose/image-runtime and image
+  dependency verification require the final GitHub CI run, never a local pass.
+- Reviewed tracked full diff plus new files; no generated state/secrets/runtime
+  dependencies/REST/schema/business-rule/Compose/workflow changes. Existing CSV
+  contents preserved; artifact location intentionally changes to bundled export.
+
 ## Current scope
 
 Independent review branch `feature/engineering-foundation-baseline`, based on
