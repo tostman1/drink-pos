@@ -79,6 +79,18 @@ publication; new restore-directory components are 0700, existing directories are
 untouched. Windows ACLs need operator verification. External root-only CSV consumers
 are not assumed migrated; the runbook defines an explicit pre-adoption procedure.
 
+## Approved EF-08b portable application recovery (2026-11-23)
+
+DP-014/010/011 now include explicitly writer-quiesced application-state bundles
+(separate from EF-08a), complete file inventory/checksums, exact SQLite/schema
+compatibility, no-clobber isolated restore with bounded event-path relocation,
+one-shot JSON CLI/age status and generic offline container examples. Full SQLite
+settings can include secrets; environment secrets and external/provider/client
+state remain excluded. See [application recovery](docs/application-recovery.md).
+No runtime handler/migration/payment/mail behavior, existing schedule, deployed
+configuration or production digest changed. MV-06 operational/offsite acceptance
+remains partially pending, not implied by automated rehearsal.
+
 ## Classification rules
 
 **Confirmed behavior** has direct served-code and test evidence; it may still be

@@ -1,5 +1,11 @@
 # EF-08 database recovery contract
 
+EF-08b adds a **separate offline application-state format/CLI**, without changing
+this EF-08a database format or current schedulers. See
+[portable application recovery](application-recovery.md) and the
+[ready gate/inventory](ef-08b-contract.md). The limitations below still apply to
+database-only bundles; do not infer EF-08b guarantees from an EF-08a backup.
+
 Scope: DP-014 and DP-013; SQLite recovery only. No production access, deployment,
 mail/payment operations, automatic migration or invoice-side-effect redesign.
 

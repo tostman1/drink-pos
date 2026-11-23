@@ -1,5 +1,23 @@
 # Handoff and protected work
 
+## Active EF-08b portable recovery — 2026-11-23
+
+Branch `feature/ef-08b-portable-recovery` from clean verified/fetched main
+`b8cb4870d90f75b9dbc2668246788c5aa24ee8a5`; exact base CI `45152440365` passed.
+Owner authorizes implementation/commits/push/open PR, **not merge/publication/deploy**.
+Inventory/ready gate: `docs/ef-08b-contract.md`; runbook: `docs/application-recovery.md`.
+New application-bundle namespace preserves EF-08a database contract. Explicit
+all-writer offline maintenance, observed changes fail closed; no online consistency
+claim or invoice/payment redesign. Exact state/artifacts plus narrow event-path
+relocation, no automatic app startup/migration/payment retry/mail resend. Linux/
+Windows atomic no-replace publication; other platforms fail closed. Windows ACLs
+remain operator boundary. Local targeted 22 tests (21 passed/one POSIX skip); full
+local/actual image/final CI evidence still pending until recorded below.
+MV-01..05 unchanged; MV-06 independent offsite/storage/ACL/RPO/RTO/operator acceptance
+remains partially pending. No production data/services/deployment configs touched.
+Preserve all historical handoff branches/owner merges; no rewrite. Final PR/head
+and checks must be read from Git/GitHub before delivery; leave PR open for owner.
+
 ## EF-08 integrated handoff — 2026-11-23
 
 PR #3 https://github.com/tostman1/drink-pos/pull/3 is **merged**. The owner approved
