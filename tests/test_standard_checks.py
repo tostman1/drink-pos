@@ -7,10 +7,16 @@ from unittest.mock import patch
 
 from scripts.check_syntax import HTMLSources, check_js, check_python
 from scripts.check_traceability import validate_test
+from scripts.container_smoke import container_base
 from scripts.standard_checks import test_environment
 
 
 class StandardCheckTests(unittest.TestCase):
+    def test_container_port_is_rediscovered_after_restart(self):
+        with patch("scripts.container_smoke.docker", side_effect=["127.0.0.1:32768", "127.0.0.1:32769"]):
+            self.assertEqual(container_base("owned-check"), "http://127.0.0.1:32768")
+            self.assertEqual(container_base("owned-check"), "http://127.0.0.1:32769")
+
     def test_inline_scripts_modules_handlers_and_data_blocks(self):
         parser = HTMLSources()
         parser.feed("""<button onclick="return 1 &amp;&amp; 2">Book</button>

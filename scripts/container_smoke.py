@@ -15,6 +15,12 @@ def docker(*args: str) -> str:
     return subprocess.run(["docker", *args], text=True, capture_output=True, check=True).stdout.strip()
 
 
+def container_base(identity: str) -> str:
+    # Docker may reassign a dynamically allocated host port on restart.
+    port = docker("port", identity, "8000/tcp").splitlines()[0].rsplit(":", 1)[1]
+    return "http://127.0.0.1:" + port
+
+
 def request(base: str, path: str, payload: dict | None = None) -> bytes:
     data = json.dumps(payload).encode("utf-8") if payload is not None else None
     req = urllib.request.Request(base + path, data=data, headers={"Content-Type": "application/json"})
@@ -71,8 +77,7 @@ def verify(image: str, expected_commit: str | None) -> None:
             image,
         )
         container_created = True
-        port = docker("port", identity, "8000/tcp").splitlines()[0].rsplit(":", 1)[1]
-        base = "http://127.0.0.1:" + port
+        base = container_base(identity)
         health = wait_ready(base)
         assert health["status"] == "ok" and health["environment"] == "production", health
         assert health["database"]["path"] == "hidden", health
@@ -111,6 +116,7 @@ def verify(image: str, expected_commit: str | None) -> None:
         before = json.loads(request(base, f"/api/kassa/person/{person['id']}"))
         assert before["total"] == item["price"] and before["lines"], before
         docker("restart", identity)
+        base = container_base(identity)
         wait_ready(base)
         after = json.loads(request(base, f"/api/kassa/person/{person['id']}"))
         assert after["total"] == before["total"] and after["revision"] == before["revision"], after

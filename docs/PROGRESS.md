@@ -77,3 +77,9 @@ publication have been performed by this assignment.
   passed but Windows temporary log-handle cleanup failed, correctly failing the
   gate. Fixed helper to drain a pipe and explicitly use one server worker; no
   application change, no ignored cleanup failure. Rerun follows.
+- CI `45130712250`: both Python/Node Standard Checks succeeded; both Compose
+  configurations and actual Dockerfile build succeeded. Container initial startup,
+  routes/metadata and synthetic booking passed, but restart probe used an obsolete
+  dynamically allocated host port. Container logs showed healthy in-container
+  probes. Fixed helper to rediscover port after restart and added regression;
+  this run is **not** a full container pass. Publication job was skipped.
