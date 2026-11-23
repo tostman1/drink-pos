@@ -47,6 +47,19 @@
   dependencies/REST/schema/business-rule/Compose/workflow changes. Existing CSV
   contents preserved; artifact location intentionally changes to bundled export.
 
+### EF-08a review delivery
+
+- Committed/pushed reviewable core `fbe61b4`, image verification `89cf426`, and
+  recovery/traceability docs `0e36214`. PR **#3 open**:
+  https://github.com/tostman1/drink-pos/pull/3. Main refetched and still `a218fcc`.
+- Exact final HEAD/CI result must be read from PR checks after this receipt;
+  CI is in progress at receipt creation, **not yet claimed passed**. No merge,
+  release/publication dispatch or deployment performed. Working tree clean after
+  commits; no generated DB/backup/invoice/message state tracked.
+- Next package: coordinated artifact/offsite recovery plan and isolated operational
+  rehearsal, with RPO/RTO, monitoring and protected configuration/image inventory.
+  Adoption/deployment or cleanup requires separate owner-approved operational work.
+
 ## Current scope
 
 Independent review branch `feature/engineering-foundation-baseline`, based on

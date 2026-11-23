@@ -15,6 +15,14 @@ MV-01..05 remain pending; invoice/SMTP side-effect redesign is excluded.
 No production pinned image/digest/configuration was touched. Final commit/check/PR
 evidence follows in progress and final delivery; do not infer CI before its result.
 
+Review PR: https://github.com/tostman1/drink-pos/pull/3 — **open, not merged**.
+Implementation commits `fbe61b4` (core/regressions), `89cf426` (image recovery smoke),
+`0e36214` (runbook/traceability). Both full local Python gates passed 134 tests;
+22 recovery tests include abrupt-process staging and separate CSV/PDF/message
+recovery. Final pushed HEAD and CI are authoritative in PR #3 checks, not inferred
+from these predecessor commits. Owner review is the next gate; do not merge,
+dispatch publication or modify the pinned production deployment.
+
 ## Verified takeover — 2026-11-22
 
 - Repository: https://github.com/tostman1/drink-pos
