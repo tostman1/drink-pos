@@ -3,11 +3,32 @@ from __future__ import annotations
 import csv
 import json
 import os
+import shutil
 import sqlite3
 import tempfile
-from datetime import datetime
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+try:
+    from app.database_recovery import (
+        file_metadata,
+        read_connection,
+        sync_directory,
+        sync_file,
+        verify_bundle,
+        verify_database,
+    )
+except ImportError:
+    from database_recovery import (
+        file_metadata,
+        read_connection,
+        sync_directory,
+        sync_file,
+        verify_bundle,
+        verify_database,
+    )
 
 
 IMPORTANT_TABLES = [
@@ -113,30 +134,27 @@ def create_snapshot(source_db: Path, backup_dir: Path) -> Path:
     os.close(fd)
     snapshot_path = Path(snapshot_name)
 
-    source_conn = sqlite3.connect(f"file:{source_db}?mode=ro", uri=True, timeout=30)
     try:
-        snapshot_conn = sqlite3.connect(snapshot_path)
+        source_conn = read_connection(source_db)
         try:
-            source_conn.backup(snapshot_conn)
+            snapshot_conn = sqlite3.connect(snapshot_path)
+            try:
+                source_conn.backup(snapshot_conn)
+                # Standalone completed artifact: no dependency on WAL sidecars.
+                snapshot_conn.execute("PRAGMA journal_mode=DELETE")
+            finally:
+                snapshot_conn.close()
         finally:
-            snapshot_conn.close()
-    finally:
-        source_conn.close()
+            source_conn.close()
+        verify_database(snapshot_path)
+    except BaseException:
+        snapshot_path.unlink(missing_ok=True)
+        raise
 
     return snapshot_path
 
 
-def export_backup() -> Path:
-    source_db = resolve_db_path()
-    if not source_db.exists():
-        raise FileNotFoundError(f"Database not found: {source_db}")
-
-    backup_dir = resolve_backup_dir(source_db)
-    backup_dir.mkdir(parents=True, exist_ok=True)
-
-    created_at = backup_timestamp()
-    output_path = backup_dir / f"drink_pos_backup_{created_at}.csv"
-    snapshot_path = create_snapshot(source_db, backup_dir)
+def export_csv(source_db: Path, snapshot_path: Path, output_path: Path, created_at: str) -> Path:
     exported_rows = 0
 
     try:
@@ -227,10 +245,104 @@ def export_backup() -> Path:
         finally:
             conn.close()
     finally:
-        snapshot_path.unlink(missing_ok=True)
+        pass
 
     print(f"Backup written: {output_path} ({exported_rows} data rows)")
     return output_path
+
+
+def retention_count() -> int | None:
+    configured = os.getenv("DRINK_POS_BACKUP_KEEP", "").strip()
+    if not configured:
+        return None
+    if not configured.isdecimal() or int(configured) < 2:
+        raise ValueError("DRINK_POS_BACKUP_KEEP must be empty (disabled) or an integer >= 2")
+    return int(configured)
+
+
+def prune_backups(backup_dir: Path, keep: int, current: Path) -> None:
+    lock = backup_dir / ".drink-pos-retention.lock"
+    try:
+        descriptor = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    except FileExistsError:
+        print("Retention skipped: another run or interrupted retention owns the lock")
+        return
+    os.close(descriptor)
+    try:
+        _prune_verified_backups(backup_dir, keep, current)
+    finally:
+        lock.unlink()
+
+
+def _prune_verified_backups(backup_dir: Path, keep: int, current: Path) -> None:
+    # Only verified, exact-layout bundles from this format qualify. Corrupt,
+    # incomplete, legacy and foreign artifacts are never cleanup candidates.
+    eligible = []
+    for directory in backup_dir.glob("drink_pos_backup_*"):
+        if not directory.is_dir() or directory.is_symlink():
+            continue
+        if {entry.name for entry in directory.iterdir()} != {"database.db", "export.csv", "manifest.json"}:
+            continue
+        try:
+            manifest = verify_bundle(directory)
+            if manifest.get("backup_id") != directory.name:
+                continue
+            created = datetime.fromisoformat(manifest["created_at_utc"])
+            if created.tzinfo is None:
+                continue
+            eligible.append((created, directory.name, directory))
+        except (OSError, ValueError, KeyError, TypeError, sqlite3.DatabaseError):
+            continue
+    eligible.sort(reverse=True)
+    survivors = {entry[2] for entry in eligible[:keep]} | {current}
+    for _, _, directory in eligible:
+        if directory not in survivors:
+            shutil.rmtree(directory)
+    sync_directory(backup_dir)
+
+
+def export_backup() -> Path:
+    keep = retention_count()  # validate before creating any artifacts
+    source_db = resolve_db_path()
+    if not source_db.is_file():
+        raise FileNotFoundError(f"Database not found: {source_db}")
+    backup_dir = resolve_backup_dir(source_db)
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    created_at = backup_timestamp()
+    # Timestamp is diagnostic; UUID prevents collisions and unsafe source names.
+    backup_id = f"drink_pos_backup_{created_at}_{uuid.uuid4().hex}"
+    completed = backup_dir / backup_id
+    staging = Path(tempfile.mkdtemp(prefix=".drink-pos-backup-", dir=backup_dir))
+    try:
+        snapshot = create_snapshot(source_db, staging)
+        database = staging / "database.db"
+        snapshot.rename(database)
+        csv_path = export_csv(source_db, database, staging / "export.csv", created_at)
+        manifest = {
+            "format_version": 1,
+            "app": "drink_pos",
+            "backup_id": backup_id,
+            "created_at_utc": datetime.now(timezone.utc).isoformat(),
+            "source_db": str(source_db),
+            "sqlite_version": sqlite3.sqlite_version,
+            "tables": verify_database(database),
+            "artifacts": {path.name: file_metadata(path) for path in (database, csv_path)},
+            "scope": "SQLite database and legacy CSV only; external artifacts excluded",
+        }
+        (staging / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+        verify_bundle(staging)
+        for path in staging.iterdir():
+            sync_file(path)
+        sync_directory(staging)
+        staging.rename(completed)
+        sync_directory(backup_dir)
+    finally:
+        if staging.exists():
+            shutil.rmtree(staging)
+    if keep is not None:
+        prune_backups(backup_dir, keep, completed)
+    print(f"Verified database backup published: {completed}")
+    return completed / "export.csv"
 
 
 if __name__ == "__main__":
