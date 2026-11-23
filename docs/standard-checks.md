@@ -184,3 +184,11 @@ targets 3600s/300s. This closes the automated independent-loss/timing portion on
 separation, enforced immutable retention, encrypted scratch/storage and Windows ACLs,
 secure key/image acquisition under loss, timed operator/provider/mail reconciliation
 and acceptance. Production adoption remains separate authorization.
+
+PR #5 correction adds public-key-only production with no identity file, real age
+producer decryption denial, separate local/independent/offsite verification/status,
+explicit combined wrong-key failure and conservative v1/old receipt handling.
+The actual image drill now removes only its uniquely owned derived image config,
+asserts original ID unavailable, reloads retained archive and verifies identical
+ID/owner label before recovery; shared input/base image is never removed. Mock
+ownership/order tests execute locally, actual no-image archive evidence requires CI.

@@ -9,8 +9,9 @@ image digests, application handlers or EF-08a/b formats change.
 ```text
 quiesced source -> EF-08b verified bundle -> private standard tar staging
   -> external age encryption -> independent filesystem staging
-  -> decrypt destination bytes + full EF-08b verification -> no-replace publication
-  -> transport/protect externally -> periodic independent verification receipt
+  -> ciphertext inventory/checksums -> no-replace encrypted-transfer publication
+  -> separate trusted private-key decryption + full EF-08b verification receipt
+  -> explicit independent/offsite verifier attestation -> transport/protect externally
   -> source loss -> independent key + compatible image retrieval
   -> decrypt/verify -> isolated EF-08b restore -> reconciliation -> approved startup
 ```
@@ -22,12 +23,18 @@ No custom cryptography, provider interfaces, network APIs, retention, scheduler 
 mandatory monitoring server. Age is **not** embedded in the Drink-POS image.
 
 An encrypted replica directory `<backup-id>.replica/` contains exactly:
-`payload.tar.age`, `replica.json`, `COMPLETED.json`. Separate envelope version 1
+`payload.tar.age`, `replica.json`, `COMPLETED.json`. Separate envelope version 2
 records public backup ID/deployment/commit/schema/times and ciphertext size/SHA-256.
 It intentionally does not expose rows/member details, source paths or keys. The
 timestamp/identity metadata is sensitive operational information and **not signed**.
-Completion requires decrypting from destination bytes and verifying complete inner
-DB/artifacts. Missing/wrong identity or recipient mismatch fails before publication.
+Ordinary production uses **only the public age recipient**, no private identity or
+decryption. Completion means successful encryption and ciphertext/inventory checks,
+not decryptability or recovery-tested state. Version 2's marker is explicitly
+`encrypted-transfer-complete`; the inner EF-08b format stays unchanged. Version 1
+replicas remain readable/decryptable, but their old `verified-replica` marker and
+ambiguous journal receipts never count as current full/independent verification.
+Wrong-but-valid recipient can produce a completed transfer that the intended verifier
+cannot decrypt; therefore do not rely on it before trusted full verification.
 Envelope is never an EF-08b bundle; decrypt it before ordinary EF-08b inspection.
 
 Encryption protects confidentiality of payload at rest/in transport against parties
@@ -65,11 +72,12 @@ age-keygen -y <separate-private-escrow>/identity.txt
 # First create EF-08b bundle after stopping/draining ALL writers (see that runbook).
 python -m app.independent_recovery --age <trusted-age> --journal <private-journal> \
   replicate <completed-application-bundle> <independent-filesystem-root> \
-  --recipient <age1-recipient> --identity <separate-private-escrow>/identity.txt \
+  --recipient <age1-recipient> \
   --scratch <private-encrypted-scratch>
 
 python -m app.independent_recovery --journal <private-journal> verify <replica> \
-  --identity <separate-private-escrow>/identity.txt --scratch <private-encrypted-scratch>
+  --identity <separate-private-escrow>/identity.txt --scratch <private-encrypted-scratch> \
+  --verification-scope independent --verifier-id <trusted-verifier-label>
 python -m app.independent_recovery --journal <private-journal> status <replica> \
   --max-age-seconds 86400 --max-verify-age-seconds 86400 --max-used-percent 90
 python -m app.independent_recovery --journal <private-journal> recover <replica> \
@@ -77,6 +85,18 @@ python -m app.independent_recovery --journal <private-journal> recover <replica>
   --scratch <private-encrypted-scratch> --expected-commit <trusted-commit> \
   --expected-schema <trusted-schema-sha256>
 ```
+
+Ordinary producer/automation never needs the private key; verification/recovery
+occurs on a separately trusted host/role with independent key escrow. Default
+`verify` scope is `local`: full decrypted application verification, **not** independent
+or offsite confirmation. Scope `independent`/`offsite` requires an explicit verifier
+ID and a successful full decrypt/validate. The protected journal records this trusted
+operator attestation; the software cannot prove geography or authenticate a label.
+Only a trusted verifier should write independent receipts; producer-controlled
+journals are not independent trust. For a controlled combined workflow explicitly
+pass `replicate --verify-after-create --identity <identity>`: private-key verification
+is opt-in, wrong/missing key fails before publication, and it still counts only as
+local full verification. Supplying an identity without the opt-in is rejected.
 
 All source/replica/scratch/escrow/recovery/journal roots must be nonoverlapping;
 existing recovered state always rejected. Private trust boundaries still required:
@@ -114,9 +134,10 @@ Compose/image/runtime dependency change is included in EF-08c.
 
 Keep recipient/public metadata available to backup automation; private identity is
 separate secure escrow with independently controlled access, preferably offline or
-another failure domain. This example checks recoverability using a selected private
-identity during publication; separate read-only verification host can hold escrow
-instead. Never expose identity contents in command line/logs. POSIX identity permissions
+another failure domain. Public-key-only production cannot decrypt its output. A
+separate trusted verifier holds escrow and confirms full application verification;
+optional controlled combined creation does not establish independence. Never expose
+identity contents in command line/logs. POSIX identity permissions
 must have no group/world access. Windows ACL verification remains manual. Protect
 key retrieval procedures, spare identities/rotation, access approvals and trusted
 compatible images independently of original system and backup data. Lose every
@@ -131,12 +152,26 @@ incompatible/decryption failure, 3 operation lock, 4 status attention, 5 ENOSPC,
 130 interruption. Scheduler owns invocation/timeouts/alerts and captures exit code;
 never infer successful offsite replication from local EF-08b creation.
 
+Explicit state distinctions:
+
+| State | Evidence / monitoring meaning |
+| --- | --- |
+| Encrypted replica created | Version 2 `encrypted-transfer-complete` inventory/marker; no private key required |
+| Ciphertext integrity verified | Current size/SHA-256/inventory matches; not decryption/recoverability proof |
+| Full decrypted application verified | Matching explicit full-verification receipt, bound to ciphertext **and envelope metadata** hashes; default local scope |
+| Independent verification confirmed | Fresh matching full receipt with explicit independent/offsite scope and trusted verifier ID |
+| Offsite confirmed | Explicit offsite verifier attestation, not automatically proven geographic/hardware separation |
+
 Optional explicit journal stores private per-operation start/success/failure events
 with UTC, operation ID, checksum and duration. `status` reports backup creation,
 replication time, last matching encrypted-byte full-verification receipt, backup/
 verification age, successful rehearsal timestamp, recorded failures, unfinished
 operations, locks/hidden staging and `disk_usage` used-percent threshold where
-measurable. Invalid metadata/unavailable capacity causes attention. Full `verify`
+measurable. Encryption/replication success alone, old ambiguous receipts or local
+combined verification cannot yield independent recovery-ready status. Monitoring
+returns attention/exit 4 until fresh full **and** independent receipts match. Full
+verification alone is not an actual startup rehearsal (that timestamp is separate).
+Invalid metadata/unavailable capacity causes attention. Full `verify`
 decrypts again; `status` only hashes current ciphertext and checks **historical**
 matching decryption receipt, not current key availability. Journal must be retained
 and protected; no journal/no verification receipt means attention, not success.
@@ -153,11 +188,19 @@ state is per explicit replica; external automation selects newest/expected backu
 price snapshots/debt, round deduction/payment/cashup/audit, offline IDs, local
 synthetic paid/unknown SumUp correlation, event invoice/message state. Verifies
 schema/index/trigger/sequence, quiesces, creates EF-08b, independently encrypts/
-verifies, retains keys/image archive/expected evidence separately. Removes original
+verifies using a separate trusted key operation, retains keys/image archive/expected
+evidence separately. Removes original
 container/source volume/local plaintext bundle. Recovery can access only independent
 replica/escrow/image, reconstructs new storage, verifies full normalized state and
 every artifact. Explicit synthetic reconciliation holds below gate startup; fresh
 network-disabled startup asserts no network attempts and state invariants.
+The drill derives a UUID-owned unique image config labelled with its owner from an
+unstarted owned container (no application state or network calls), saves it,
+removes only that owned image **without force**, and asserts its image ID is unavailable
+before loading the independently retained archive. Reload must reproduce exact ID/
+owner label. The shared verification/base image, other containers/images and shared
+cache are never removed/pruned. Mock safety/order tests and actual CI exercise this
+archive reconstruction; it remains same-host simulation, not registry/geographic loss.
 An explicit synthetic commit after replication is intentionally lost with the
 source; recovered state asserts it was not automatically replayed. The original
 snapshot remains unchanged and independently verified.

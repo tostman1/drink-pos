@@ -7,6 +7,30 @@ DP-004/007/008/010/011/013/015/018/019; new DP-022 independent recovery evidence
 
 ## Bounded architecture and acceptance (before implementation)
 
+### PR #5 security correction ready gate (2026-11-23)
+
+Continue clean reviewed `fe012099998d41ac3dd3d15e90cc754c8715e0c0` on existing
+branch. DP-022: ordinary producer needs only public recipient, never private key.
+Publish a new replica-envelope version 2 with **encrypted-transfer-complete** marker,
+not decrypted recovery claims. Retain read/verify of v1 envelopes but never infer
+current full verification from their marker or old ambiguous journal receipts.
+Private-key `verify` is separate, records full decrypted bundle verification.
+Independent/offsite confirmation requires explicit trusted-verifier scope/ID; protected
+journal is operator trust boundary, not a signature/geographic proof. Combined
+create+decrypt remains explicit opt-in and is not automatically independent.
+Status stays attention until fresh full and independent receipts match ciphertext;
+encryption/hash/transfer alone must not report recovery-verified. EF-08a/b unchanged.
+
+Acceptance: failing tests for no-identity producer and producer decryption denial,
+missing/wrong-key verification, distinct transfer/hash/full/independent/offsite states,
+combined workflow, old-envelope conservative handling, corruption/interruption,
+complete-loss rehearsal. Actual image loss will use a UUID-owned derived image
+(unique label/config), save archive, remove **only that owned image without force**,
+assert image ID unavailable, load archive, verify exact ID before reconstruction.
+Shared input/base image is never removed. Mock safety/order tests + actual CI evidence.
+Risks: wrong public recipient cannot be diagnosed by producer decryption; independent
+verification required before reliance. Rollback code-only, no real keys/images/data.
+
 Preserve all EF-08a/b interfaces and bundle formats. Add a small optional one-shot
 filesystem replica tool: verified EF-08b bundle → standard tar in private staging →
 external **age** encryption → selected separate filesystem destination → decrypt

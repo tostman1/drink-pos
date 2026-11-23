@@ -1,5 +1,32 @@
 # Engineering foundation progress
 
+## PR #5 security boundary correction — 2026-11-23
+
+Continued clean reviewed `fe012099998d41ac3dd3d15e90cc754c8715e0c0` on existing
+`feature/ef-08c-disaster-recovery`; fetched main unchanged `e8caeed`, PR OPEN/CLEAN.
+Owner review identifies private-key prerequisite on producer. DP-022 correction
+ready gate written in `docs/ef-08c-contract.md` before implementation, failing public-
+only regression reproduced missing identity error. Default producer now public-only,
+new v2 encrypted-transfer-complete envelope (EF-08a/b unchanged), separate explicit
+full/private-key and independent/offsite verifier attestations. Combined creation/
+verification explicit opt-in only; status cannot infer full recovery from encryption,
+copy/hash or old ambiguous receipts. Protected verifier journal remains trust boundary,
+not a sender signature/geographic proof. Tests cover real producer decryption denial.
+Image review: original drill loaded archive while original image remained available.
+Correction uses unique UUID-owned labelled image, removes only that config without
+force, asserts unavailable before archive load and exact ID/label after; shared image
+untouched. Mock safety/order and actual-image CI evidence required. No runtime/
+financial/production changes; no merge, release/publication/deploy authorized.
+
+Security-correction targeted suite: **22 discovered/21 passed/one POSIX-only skip**
+on Windows. Both full local Standard Checks exit 0, Python 3.12.13/3.13.15:
+**187 discovered/182 passed/five POSIX skips**, 97.984s/101.100s; Ruff/format,
+Python/JS/PWA/traceability, real age/public-only/decryption denial/state transitions,
+combined wrong-key/v1 handling, Chromium and strict vulnerability audits passed
+(none known). Traceability links updated and revalidated. Logs outside Git:
+`ef08c-security312.log` / `ef08c-security313.log`. Actual owned-image removal/archive
+reconstruction and final corrected-head container CI remain required, not inferred.
+
 ## EF-08c active — 2026-11-23
 
 - Clean fetched main `e8caeed029266764d5594c275ff769ccc7cf35c8`; exact base CI

@@ -1,5 +1,19 @@
 # Handoff and protected work
 
+## Active PR #5 security correction — 2026-11-23
+
+Continue EF-08c existing branch from reviewed `fe012099998d41ac3dd3d15e90cc754c8715e0c0`,
+main `e8caeed` unchanged. PR #5 remains OPEN; no merge/deploy/publication permission.
+Producer-private-key concern reproduced by failing test before code. New envelope
+v2 marks encrypted transfer only; ordinary producer uses public age recipient.
+Separate full decryption verification and explicit trusted independent/offsite
+attestation required by monitoring. Explicit combined controlled workflow retained;
+v1 readable but old markers/ambiguous receipts never imply fresh full verification.
+Owned-image archive drill now removes only UUID-labelled derived image, asserts
+unavailable then exact ID reconstructed, preserving shared input. Full gates/final
+CI pending until recorded. EF-08a/b formats/handlers/financial/production configs
+unchanged; remaining MV-06/Windows/authenticity/ACL/operator limits preserved.
+
 ## Active EF-08c independent disaster recovery — 2026-11-23
 
 Branch `feature/ef-08c-disaster-recovery` from clean fetched/CI-verified main
