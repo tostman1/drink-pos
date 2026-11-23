@@ -90,3 +90,13 @@ transport boundary and optional generic Compose example. No invoice/mail/provide
 redesign or runtime-handler changes, no retention/deployment/image publication.
 Rehearsal covers complete synthetic state/failure injection and actual image tools.
 MV-06 offsite/ACL/RPO/RTO/operator acceptance remains separately bounded follow-up.
+
+## EF-08c — approved independent disaster recovery (2026-11-23)
+
+DP-022/021/014 and financial preservation requirements; ready gate in
+`docs/ef-08c-contract.md`. Optional external-age replica adapter, independent
+decryption verification, safe tar/atomic publication, explicit lifecycle journal/
+monitoring and complete synthetic source-loss/reconstruction/timing CI rehearsal.
+EF-08a/b formats/interfaces and business handlers remain unchanged. No real storage,
+credentials, deployment/publication/merge; MV-06 real geography/immutability/ACL/
+escrow/image acquisition/operator timed reconciliation remains separate acceptance.

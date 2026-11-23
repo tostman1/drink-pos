@@ -78,6 +78,12 @@ EF-08b additionally generates event CSV/PDF, stops only the owned synthetic app,
 runs network-disabled image application-recovery tools, compares normalized full
 DB/artifact/messages state and status, then restarts only original synthetic state.
 The optional generic recovery Compose example is validated without starting it.
+EF-08c installs checksum-pinned external age outside the application image, executes
+real encrypted-replica tests in both quality matrices and runs
+`scripts/disaster_rehearsal.py` against the local-only image: delete UUID-owned source
+container/volume, decrypt independent copy, reconstruct fresh storage, explicitly
+reconcile synthetic holds, then network-disabled startup and complete-state checks.
+The resulting JSON records synthetic RPO/RTO/phase durations; no operational SLA.
 No host DB or inherited credentials are mounted/passed. Optional local reproduction:
 build this tag with BUILD_* args, then run the helper. Missing runtime = **not run**.
 
@@ -155,3 +161,15 @@ POSIX modes/FIFO/case-sensitive/symlink guards execute in Linux CI (Windows mode
 test skips; Windows symlink privilege is not assumed). MV-06 remains partially
 pending only for independently managed encrypted/offsite/storage/ACL/timed RPO/RTO
 and operator reconciliation/acceptance rehearsal; no production data required.
+
+EF-08c requires trusted `age`/`age-keygen` on PATH for full checks; missing tools
+fail rather than skip. Install optional pinned binaries outside Git with
+`python scripts/install_age.py --destination <new-tool-dir>` and extend PATH.
+`IndependentRecoveryTests` execute real encryption/decryption/source-loss and key/
+storage/archive/interruption/status failures. Linux runs private ciphertext/key mode
+assertions; Windows effective ACLs remain operator evidence. `DisasterMeasurementTests`
+verify deterministic metrics and synthetic reconciliation-gated startup without
+network attempts. MV-06 may advance only on actual successful independent-loss drill;
+real immutable/offsite hardware/storage/ACL/key-image retrieval and timed human
+external reconciliation acceptance remain pending. EF-08a Windows WinError 5 remains
+unresolved despite successful reruns; don't suppress or arbitrarily retry failures.

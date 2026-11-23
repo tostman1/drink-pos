@@ -91,6 +91,16 @@ No runtime handler/migration/payment/mail behavior, existing schedule, deployed
 configuration or production digest changed. MV-06 operational/offsite acceptance
 remains partially pending, not implied by automated rehearsal.
 
+## Approved EF-08c independent disaster recovery (2026-11-23)
+
+DP-022 extends engineering evidence with optional external-age encrypted filesystem
+replicas, unchanged EF-08b bundle contents, independent verification and lifecycle
+monitoring, and complete disposable installation-loss/rebuild with measured synthetic
+RPO/RTO. No crypto implementation, provider dependency, retention, handler/payment/
+mail redesign or production adoption. Real encrypted storage/escrow/ACL/offsite/
+immutable/operational acceptance remains MV-06; synthetic evidence is not a SLA.
+See [disaster recovery](docs/disaster-recovery.md).
+
 ## Classification rules
 
 **Confirmed behavior** has direct served-code and test evidence; it may still be

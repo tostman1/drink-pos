@@ -1,5 +1,21 @@
 # Handoff and protected work
 
+## Active EF-08c independent disaster recovery — 2026-11-23
+
+Branch `feature/ef-08c-disaster-recovery` from clean fetched/CI-verified main
+`e8caeed029266764d5594c275ff769ccc7cf35c8`. Owner authorizes implementation,
+tests/docs/commit/push/open PR **not merge/release/deploy/publication**. Ready gate
+`docs/ef-08c-contract.md`, runbook `docs/disaster-recovery.md`. Preserve EF-08a/b
+formats/interfaces and all served financial/mail behavior. Optional external age
+filesystem envelope + independent decryption verification and journal/status,
+actual-image source-volume-loss reconstruction/reconciliation-gated offline startup.
+Full local/CI final evidence pending until receipts; don't infer Docker locally
+(not installed). Windows EF-08a rename WinError 5 unresolved, follow-up only.
+MV-06 synthetic encrypted independent loss/rebuild/timing can advance with direct
+evidence; actual geographic/immutable/storage/ACL/escrow/timed operator/provider/mail
+acceptance remains pending. No production data/accounts, real SMTP/SumUp or images.
+Preserve all owner merges/handoff branches; deliver open PR for review.
+
 ## EF-08b integrated handoff — 2026-11-23
 
 PR #4 https://github.com/tostman1/drink-pos/pull/4 is **merged** after the owner

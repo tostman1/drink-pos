@@ -89,6 +89,16 @@ restore adjusts only mutable event file locations and verifies all remaining
 logical state unchanged. Provider/mail/client queues and independent secrets/code
 escrow stay outside local recovery; see `docs/application-recovery.md`.
 
+EF-08c optional `independent_recovery.py` encrypts standard tar copies using trusted
+external age, independently decrypt-verifies destination bytes and atomically
+publishes a distinct replica envelope. It reuses EF-08b verification/restore, not
+its format or runtime. Explicit journals complement status without financial data.
+`scripts/disaster_rehearsal.py` removes owned synthetic source storage before fresh
+independent encrypted-copy recovery and gated network-disabled startup. No crypto
+implementation, storage-provider API, mandatory scheduler or retention. External
+key/image escrow, geography/immutability/storage/ACL/operator acceptance remain
+separate; see `docs/disaster-recovery.md`.
+
 ## Migration Strategy
 
 `legacy_main.py` is now a compatibility handler catalog rather than the app that

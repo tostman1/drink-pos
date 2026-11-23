@@ -1,5 +1,10 @@
 # Portable application recovery — EF-08b
 
+EF-08c complements this unchanged bundle/restore contract with optional external-age
+encrypted independent replicas and a complete synthetic installation-loss drill:
+[disaster recovery runbook](disaster-recovery.md). It does not turn EF-08b into an
+online snapshot or automatically start restored instances.
+
 The [ready gate/inventory](ef-08b-contract.md) defines scope and risks. This is an
 **offline, operator-quiesced** recovery mechanism, not a live financial snapshot
 protocol. No services are stopped/started by the recovery tool. EF-08a's database

@@ -1,5 +1,38 @@
 # Engineering foundation progress
 
+## EF-08c active — 2026-11-23
+
+- Clean fetched main `e8caeed029266764d5594c275ff769ccc7cf35c8`; exact base CI
+  `45171495944` passed. Branch `feature/ef-08c-disaster-recovery`, owner approves
+  bounded implementation/commit/push/PR only, not merge/deploy/publication.
+- Ready gate `docs/ef-08c-contract.md` before implementation; DP-022/021/014 and
+  financial/state contracts. EF-08a/b preserved. External mature age v1.3.2 chosen,
+  optional filesystem envelope/standard tar/no provider API; exact official Windows
+  archive SHA-256 verified outside Git/image. First seven new regressions all
+  failed (missing interface), then passed with real temporary synthetic keys.
+- Added independent encrypted publication/decryption/full-bundle validation,
+  no-clobber isolated recovery and sanitized operation journal/status. Source/key/
+  scratch/journal/destination roots separate; no crypto implementation or retention.
+  Actual-image installation-loss drill added; full local/CI gates pending, not passes.
+- Targeted 13 tests passed locally (before final extra guards); fixture populates
+  real served synthetic round/payment/cashup/price/event/idempotency state and
+  explicitly gates isolated startup on synthetic reconciliation, no network attempts.
+- Windows EF-08a WinError 5 remains unresolved, no correction/retry in this package.
+  MV-06 real geography/hardware/immutable/encrypted-storage/ACL/escrow/image retrieval/
+  timed operator external reconciliation acceptance remains pending. No real resources.
+
+### EF-08c local gates
+
+Both full Standard Checks exact child exit 0 on Python 3.12.13/3.13.15:
+**181 discovered, 176 passed/five POSIX-only skips**, 75.023s / 73.412s.
+Ruff lint/format, compilation/all JS/PWA/data/22-ID traceability, real age synthetic
+replica/key/failure tests, Chromium and strict dependency audits passed (none known).
+Actionlint passed. Logs `ef08c-full312.log` / `ef08c-full313.log` outside Git.
+No EF-08a WinError 5 recurrence in these runs, not proof of fix; no retry added.
+No UI changes/cache bump needed. Docker unavailable locally; actual installation-
+loss/image/Compose/CI metrics remain pending. Reviewed bounded diff: new optional
+recovery/fixture/tooling only, production files and existing EF-08a/b unchanged.
+
 ## EF-08b final integration — 2026-11-23
 
 - Owner completed independent review with no merge-blocking findings and explicitly
