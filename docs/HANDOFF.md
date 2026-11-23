@@ -1,5 +1,75 @@
 # Handoff and protected work
 
+## RL-02 integrated handoff — 2026-11-23
+
+PR #7 https://github.com/tostman1/drink-pos/pull/7 is **MERGED** after completed
+independent owner review, no approved-scope blockers, and explicit conditional
+merge authorization. This supersedes historical open/no-merge notes below only
+for PR #7 integration; **no production adoption or next work package** is authorized.
+
+- Clean local/fetched reviewed head `9b3385991641b9ef330d6f5830884a6f723b5afd`,
+  exact base/main `65d7a869854a15cfa5ef78c98153bc35306f629b`. Specified branch
+  https://github.com/tostman1/drink-pos/actions/runs/45257800656 and PR
+  https://github.com/tostman1/drink-pos/actions/runs/45257811471 passed all Python/
+  Node/browser/security/Docker/migration/recovery/DR/image-audit gates. Publication
+  skipped. No reviews/threads/inline findings/conflicts; MERGEABLE/CLEAN. No
+  configured required checks; none bypassed. Owner review authorization is explicit.
+- Normal `--merge --match-head-commit` integration, no admin bypass/history rewrite:
+  **`b3f2a5c5c9bb761705bb10810e4f4a53554d899f`**, 2026-11-23T20:31:30Z.
+  First parent exact base above, second exact reviewed head. Whole merged tree
+  equals reviewed tree `7a5d0a89450f528ffc41e35b5166f781b745a358`. Primary checkout
+  switched/fast-forwarded to main clean/synchronized; all feature/handoff branches
+  preserved. No app code changed after review. Protected handlers/UI/PWA/financial/
+  invoice/recovery/production Compose/Dockerfile/updater/timer code unchanged vs base.
+- Exact merge main CI https://github.com/tostman1/drink-pos/actions/runs/45260262831
+  **passed** both full Python 3.12/3.13 matrices, browser/security/24-ID traceability,
+  actual Docker/four Compose/start-restart-persistence/legacy upgrade/strict fresh-
+  adoption-repeat/independent EF-08b recovery/encrypted source+owned-image-loss DR/
+  image-audit gates. Linux 232 discovered/231 passed/one Windows-only skip each;
+  new real POSIX read-only permission test executed ok. Publication **skipped**;
+  merge-head deployment query `[]`.
+- Strict actual-image synthetic adoption preserves all 17 original tables (16
+  application + sequence), history_rewritten=false, repeat_startup_verified=true,
+  recovery_verified=true, network_attempts=0; image evidence binds exact merge SHA.
+  DR public-only producer/owned image unavailable before retained archive load/
+  shared image untouched/source storage removed/post-snapshot commit not replayed.
+  Synthetic RPO age 0.250959s/RTO 1.919433805s, not operational guarantees.
+- Local merged-main full Standard Checks exit 0 on Python 3.12.13/3.13.15:
+  232 discovered/226 passed/six POSIX-only skips each; all lint/format/syntax/
+  traceability/real age/audits (none known)/Chromium/diff passed, actionlint passed.
+  Existing warnings/Windows EF-08a issue retained; container proof is actual main CI.
+- This is a **documentation-only main descendant receipt**. Final main SHA is the
+  commit carrying this section: read `git rev-parse HEAD` / `origin/main` after
+  synchronization. Verify its own exact-head CI separately and record resolved
+  final SHA/run/result in PR #7 integration-delivery comment and final report;
+  no self-referential hash or predecessor-CI pass inference. No runtime changes.
+
+**RL-02 integrated; stop after final-main receipt verification.** Default legacy
+startup remains default/unmodified in behavior, including its characterized early
+DDL/WAL/files and repeated historical purchase-cost/profit backfill risk. Versioned
+migration contract is **opt-in only**, NOT enabled on production. Strict exact-current
+metadata-only adoption/repeat preserves historical/master financial values, zeros,
+round costs, payment/audit/debt/sequence records; no financial policy approved.
+Fresh initialization is the other bounded path. Strict mode requires exact schema
+fingerprint and clean DELETE-journal state; WAL/sidecars/unknown/custom/partial/future
+state reject before SQL. No arbitrary historical-release support, v1→v2 transition,
+mandatory rollout or image-only DB rollback. Files/lock/recovery remain separate.
+
+OQ-06 financial zero/round/prototype-history interpretation and adoption breadth
+remain **unresolved**. Actual historical artifacts/support policy, operator/production
+adoption, storage/key/image/provenance and external business reconciliation remain
+open. EF-08a Windows directory-rename `WinError 5` remains unresolved; successful
+reruns/Linux are not a fix. MV-01 tablet/mobile, MV-02 installed PWA upgrade, MV-03
+real SMTP, MV-04 real SumUp, MV-05 offline/reconnect devices remain pending. MV-06
+automated synthetic evidence exists; real geography/hardware/immutable storage/
+encrypted scratch/Windows ACL/key-image retrieval/timed human reconciliation and
+acceptance remain partial. Never equate green CI with operational acceptance.
+
+No production mode/config/digest/schedule change, deployment/publication/release/
+dispatch, production DB access/real migration, SumUp or SMTP operation occurred.
+Disposable synthetic verification only. No new package begun; preserve history
+and stop. Merge permission grants no deployment/adoption/future-package authority.
+
 ## RL-02 active handoff — 2026-11-23
 
 Owner now authorizes bounded RL-02, superseding earlier no-next-package notes for

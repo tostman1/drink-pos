@@ -1,5 +1,65 @@
 # Engineering foundation progress
 
+## RL-02 final integration — 2026-11-23
+
+- Independent owner review completed, no approved-scope merge blockers. Owner
+  explicitly authorized PR #7 merge subject to exact-head gates. Clean fetched
+  reviewed head `9b3385991641b9ef330d6f5830884a6f723b5afd`; main/base exactly
+  `65d7a869854a15cfa5ef78c98153bc35306f629b`. Specified branch `45257800656` and
+  PR `45257811471` passed all quality/browser/security/Docker/migration/recovery/DR/
+  image-audit gates, publication skipped. No reviews/threads/inline findings, no
+  conflicts, MERGEABLE/CLEAN. No configured required checks; none bypassed.
+- Normal exact-head guard `gh pr merge 7 --merge --match-head-commit 9b338599...`:
+  **`b3f2a5c5c9bb761705bb10810e4f4a53554d899f`**, 2026-11-23T20:31:30Z.
+  Parents exactly verified base/reviewed head; entire merged tree equals reviewed
+  `7a5d0a89450f528ffc41e35b5166f781b745a358`. Primary checkout switched to main
+  and fast-forwarded safely; clean/synchronized, all feature/handoff branches
+  preserved, no force push/reset/rebase/bypass. All 14 original non-init schema
+  helper ASTs unchanged; financial handlers/UI/PWA/recovery/production configs/
+  Dockerfile/updaters/timer untouched vs base. Opt-in dispatch only startup seam.
+- Exact merge main https://github.com/tostman1/drink-pos/actions/runs/45260262831
+  **passed** full Python 3.12/3.13 (232 discovered/231 passed/one Windows-only skip
+  each), Node/Ruff/format/syntax/24-ID traceability/strict audits/Chromium; new POSIX
+  read-only-file permission test actually ran ok. Actual local-only Dockerfile image,
+  four Compose validations, startup/restart/persistence/EF-08a-b recovery, installed
+  identity/legacy synthetic upgrade, strict fresh/adoption/repeat/all-table history
+  preservation/independent EF-08b recovery and complete encrypted source+owned-image
+  loss disaster recovery/image audit passed. Publication **skipped**, deployments `[]`.
+- Exact merge-image RL-02 JSON: original_tables_preserved=17 (16 app + sequence),
+  history_rewritten=false, repeat_startup_verified=true, recovery_verified=true,
+  network_attempts=0, historical_release_evidence='none; exact synthetic current
+  fixture only'. Strict historical/master/audit/payment/debt state preserved.
+  DR public-only producer/owned image unavailable before archive load/shared image
+  preserved/source storage removed/one post-snapshot commit not replayed. Synthetic
+  RPO age 0.250959s/RTO 1.919433805s, not operational performance guarantees.
+  Outside-Git logs `rl02-premerge-branch-ci.log`, `rl02-premerge-pr-ci.log`,
+  `rl02-merge-main-ci.log`; existing lifecycle/TestClient/action warnings retained.
+- Local merged-main Standard Checks **exit 0** Python 3.12.13/3.13.15: 232
+  discovered/226 passed/six POSIX-only skips each, 110.360s/115.608s. Ruff/format/
+  syntax/traceability/real age/strict audits (none known)/Chromium/diff passed;
+  actionlint passed. Outside-Git logs `rl02-merged-main312.log`/`rl02-merged-main313.log`.
+  Docker unavailable locally; direct actual-container proof is the exact main CI
+  above, not inferred local execution. Windows EF-08a reliability remains unresolved.
+- Receipt changes documentation only. Its final main SHA/own exact-head CI must
+  be checked after push and recorded on PR #7 integration-delivery/report, not
+  inferred from merge CI (self-referential hash cannot be embedded in its own commit).
+  No application changes after review, no deployment/image publication/release or
+  production adoption/data/payment/mail/config/schedule operations.
+
+**RL-02 integrated; stop after final-main verification, no next package started.**
+Default legacy path remains unchanged (including known historical backfill/partial
+DDL risk); versioned migrations remain opt-in only, not activated on production.
+Strict exact-current adoption is metadata-only, preserving historical zeros/round/
+master/audit/payment/debt/sequence values; exact-schema/DELETE-journal/WAL-sidecar
+rejection/independent recovery prerequisites apply. No universal historical-release
+or v1→v2 support/mandatory rollout/automatic DB rollback. OQ-06 accounting/adoption
+breadth remains unresolved; authentic fixtures, operator adoption/storage/provenance/
+key-image retrieval/provider/mail reconciliation acceptance remains open. EF-08a
+Windows `WinError 5` unresolved despite successful reruns. MV-01..05 pending;
+MV-06 actual geography/hardware/immutable/encrypted storage/scratch/Windows ACL/
+secure retrieval/timed human reconciliation acceptance partial. Green CI is not
+financial-policy approval, production adoption or closure of manual acceptance.
+
 ## RL-02 active bounded migration safety — 2026-11-23
 
 - Clean local/fetched main exactly `65d7a869854a15cfa5ef78c98153bc35306f629b`;
