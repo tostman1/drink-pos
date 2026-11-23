@@ -5,9 +5,9 @@
 Read `docs/HANDOFF.md`, `docs/PROGRESS.md`, `docs/PROCESS.md`, `REQUIREMENTS.md`,
 `ARCHITECTURE.md`, `DECISIONS.md`, `docs/AUDIT.md`, and `IMPLEMENTATION_PLAN.md`.
 This is rehabilitation of an existing application, not permission to rewrite it.
-Notenarchiv is a quality/process reference only; its architecture and business
-requirements do not apply here. Historical agent prompts are background, not
-an approved instruction to execute every proposed refactoring.
+Use Drink-POS code, tests and requirements as the application baseline; do not
+import another application's architecture or business rules. Historical agent
+prompts are background, not approval to execute every proposed refactoring.
 
 ## Preserve behavior
 

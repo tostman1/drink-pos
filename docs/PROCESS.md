@@ -58,12 +58,12 @@ New unresolved requirements must be marked as such, never given fictitious tests
 
 ## Integration / release boundaries
 
-The owner merged PR #1 while foundation development was active; verified main
-is now `052c2bbc54f05f7c7d850feb8ad597a4e4868670`. Preserve both histories.
-Commit foundation increments first, then merge the verified main into this branch
-without rewriting it, resolve overlapping documentation/tests deliberately and
-verify the complete combined tree before delivery. This branch integration is
-not approval to merge the foundation PR or release anything.
+The owner merged PR #1 while foundation development was active as
+`052c2bbc54f05f7c7d850feb8ad597a4e4868670`; this was integrated into the foundation
+branch without rewriting either history. The owner later approved PR #2 merge
+conditional on final pushed-HEAD checks. Use the normal repository merge method
+without protection bypass, then verify merged-tree and main CI evidence. Approval
+for one PR is not standing approval for future PRs or any release/deployment.
 
 PR and main integration runs use the same non-publishing quality/container jobs.
 An image publication requires separate owner approval, successful checks and an

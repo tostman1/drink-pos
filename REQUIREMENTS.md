@@ -56,7 +56,7 @@ coverage, not approval requirements or a new authorization scheme; see DECISIONS
 | Explicit events are a future optional feature | Named events/invoices are already on main; PR #1 adds corrections |
 | Agent round request does not charge | Current route immediately books/approves a round; operating-agent docs corrected |
 | Mount `./app:/app` | Current production templates mount only persistent `./data`; image owns code |
-| Historical cache v88/v90, reset-by-deleting production DB | Historical snapshots, not instructions; main v106, PR #1 v108; production deletion out of scope |
+| Historical cache v88/v90, reset-by-deleting production DB | Historical snapshots, not instructions; previous main v106, integrated PR #1 v108; production deletion out of scope |
 | Test counts/coverage percentages in old review | Measured takeover: previous main 87 tests, handoff 96; no coverage percentage measured |
 
 Known gaps: no target-device automation/E2E suite; SMTP and SumUp tests are mocks;

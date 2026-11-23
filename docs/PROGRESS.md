@@ -39,7 +39,7 @@ Foundation review: https://github.com/tostman1/drink-pos/pull/2 (draft, open).
 ## Decisions and exclusions
 
 Keep FastAPI/SQLite/vanilla PWA, both import modes, and served legacy handlers.
-Do not copy Notenarchiv architecture, introduce an ORM, change payment retries,
+Do not import another application's architecture, introduce an ORM, change payment retries,
 or run historical wide-refactor prompts. See architecture risks and EF-04 gates.
 No deployments, production DB operations, live emails/payments, PR merges, or image
 publication have been performed by this assignment.
@@ -125,3 +125,18 @@ dependency maintenance, not suppressed evidence. Existing FastAPI lifecycle and
 Starlette TestClient warnings also remain. No merge/release readiness inferred.
 Final evidence commit changes documentation only; code verified above remains
 unchanged. Final HEAD/PR-check state is reported by Git and PR #2 at handoff.
+
+## Finalization and merge authorization
+
+The owner authorized merging **PR #2 only**, provided final pushed-HEAD checks
+pass, followed by merged-tree/main-CI verification and a clean synchronized main
+checkout. This supersedes the earlier pending-owner-review handoff; it does **not**
+authorize publication, release, deployment, infrastructure changes or real data.
+Local `c47b73c` evidence commit was preserved and pushed during finalization.
+Unrelated-project references removed; current requirements/process/handoff wording
+reconciled without restarting the audit or changing the runtime.
+
+Next session: database backup, restore and data integrity, the bounded recovery
+portion of EF-08. No implementation in this session; preserve existing behavior,
+use synthetic data and define acceptance before any future changes. Invoice-mail
+side-effect redesign and production recovery require separate authorization.

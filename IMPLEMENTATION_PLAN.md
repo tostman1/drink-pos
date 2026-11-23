@@ -35,10 +35,11 @@
 - Acceptance: no login/push/secrets/write permission in verification jobs; image
   metadata/health/static routes/db persistence checked; publish gated on successful
   checks and explicit main dispatch; separate committed/pushed open PR.
-- Risk/exclusion: current workflow publishes every branch push; do not push before
-  replacing that behavior. No production Compose start, deployment or merge.
+- Risk/exclusion: original workflow published every branch push; replacement
+  verification is non-publishing. No production Compose start or deployment.
 - Status: implemented, main integrated, branch and PR container CI passed;
-  final evidence recorded. Owner controls foundation PR merge/release.
+  final evidence recorded. Owner authorized conditional PR #2 merge; publication
+  and deployment remain separately controlled and forbidden in this session.
 
 ## EF-04 — First bounded rehabilitation (follow-up)
 
@@ -65,4 +66,7 @@
 | EF-08 Recovery/invoice side-effect hardening | MV-06 + OQ-02/OQ-03 | Synthetic all-table/artifact recovery and explicit uncertain-mail design; no production restore |
 
 All roadmap items are **proposals**, not approved implementation in this PR.
-First deliver the foundation; choose one small follow-up with owner review.
+The owner selected database backup/restore/data integrity as the next session's
+intended focus (bounded recovery portion of EF-08). Do not implement it during
+foundation finalization; define synthetic-data acceptance and preserve operational
+compatibility first. Invoice-mail redesign is outside that next-session scope.

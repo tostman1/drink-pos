@@ -29,9 +29,9 @@ Eight files, 319 additions/47 deletions against `fb08128`:
 These feature changes were subsequently merged by the owner, not this agent.
 GitHub confirms `tostman1`, 2026-11-22T21:15:45Z, merge
 `052c2bbc54f05f7c7d850feb8ad597a4e4868670`; owner confirmed continuation.
-Remote main matches this SHA, and run `45071103604` passed. The handoff branch
-still points to `250a4e6`. The foundation will preserve these changes through an
-explicit branch integration before final checks/PR delivery. Do not undo the
+At inspection remote main matched this SHA, and run `45071103604` passed. The
+handoff branch still points to `250a4e6`. The foundation preserved these changes
+through branch integration `2ccb377` before final checks/PR delivery. Do not undo the
 owner merge or rewrite the original handoff branch.
 
 ## Evidence retained
@@ -63,9 +63,17 @@ Code SHA `57ad9cc39a54768cd9f278f9931a3618e0e2453b` passes 115 local regressions
 and full Standard Checks on Python 3.12/3.13, plus actual branch container CI
 `45131190711`. PR run `45131482792` also succeeded with actual image/container
 verification; publication skipped in both. Evidence-only docs follow verified code.
-Leave PR unmerged. Next work is owner review, manual MV-01..06 authorization and
-one small roadmap package, not a new runtime rewrite.
-Owner approval remains required before PR merge, accounts, deploy/publication.
+The owner subsequently authorized merging **PR #2 after final-HEAD checks pass**.
+Finalize this PR, verify the exact merged tree and post-merge main CI, then leave
+the primary checkout clean on main synchronized with origin/main. Do not merge
+with failing checks or bypass repository protection. Real accounts, publication,
+release, deployment, infrastructure changes and production data remain forbidden.
+
+The next intended session is the **database backup/restore/data-integrity portion
+of EF-08**, not a compatibility rewrite or invoice-mail redesign. Do not implement
+it during finalization. Start from verified main, review current backup/restore
+code and synthetic fixtures, define acceptance/rollback and retain MV-06 until
+direct rehearsal evidence exists. Existing MV-01..05 also remain pending.
 
 ## Cross-agent takeover procedure
 
