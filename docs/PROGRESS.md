@@ -68,6 +68,19 @@
   independently managed encrypted/offsite recovery and timed operator acceptance
   drill (MV-06), not online invoice/SMTP redesign without its own decision.
 
+### EF-08b final reviewed-code evidence
+
+Exact reviewed implementation/test head **`59fdf9d896fd00595c9232f86f021b5e52966430`**
+passed branch run https://github.com/tostman1/drink-pos/actions/runs/45161242647
+and PR run https://github.com/tostman1/drink-pos/actions/runs/45161253638.
+Both Linux matrices: **164 discovered, 163 passed/one Windows-only retry skip**;
+logs confirm POSIX modes, transport/opposite-host mapping and all safety guards.
+All Compose validations, actual image build/start/restart/persistence/offline
+recovery and image dependency audit passed; publication skipped. PR #4 is OPEN,
+base still `b8cb487`, merge state CLEAN. This receipt is documentation-only;
+final receipt HEAD requires its own CI verification at delivery. No merge,
+publication/deploy/release or real data/service use. Owner review is next gate.
+
 ## EF-08 final integration — 2026-11-23
 
 - Owner approved PR #3 merge conditional on exact reviewed head/gates. Clean local

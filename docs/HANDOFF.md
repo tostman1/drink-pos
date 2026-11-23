@@ -30,6 +30,13 @@ No production/publication/merge. Stop after delivery and wait for owner review.
 Recommended next: separately approved isolated encrypted/offsite/timed operator
 recovery acceptance drill for remaining MV-06, not automatic adoption/deployment.
 
+Final reviewed code/test head `59fdf9d896fd00595c9232f86f021b5e52966430` passed
+branch `45161242647` and PR `45161253638`: Linux 164 discovered/163 passed/one
+Windows-only skip, all POSIX guards and actual image/Compose/offline recovery/
+image audit passed, publication skipped. PR #4 OPEN/CLEAN at verified base
+`b8cb487`. Documentation-only receipt follows; read final HEAD and its checks,
+not merely predecessor CI. Worktree clean before receipt, no generated state.
+
 ## EF-08 integrated handoff — 2026-11-23
 
 PR #3 https://github.com/tostman1/drink-pos/pull/3 is **merged**. The owner approved
