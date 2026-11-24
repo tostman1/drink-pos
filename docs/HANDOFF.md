@@ -1,5 +1,48 @@
 # Handoff and protected work
 
+## Current checkpoint — EF-03 governance / deterministic CI waiting, 2026-11-24
+
+- Branch `feature/governance-ci-wait`; HEAD/base
+  `7a6aa5dff411c8fb5601b87758a0fc64810aa0c3`, uncommitted scoped governance/helper/tests.
+  Worktree `C:/Users/fritz/AppData/Local/Temp/opencode/drink-pos-governance-ci-wait`.
+  Original clean `docs/product-operability-requirements` / `ac5b7e7` checkout left
+  untouched. Do not import its unmerged product requirements or begin RL-07.
+- Owner scope: mandatory token-efficient repository governance + read-only helper,
+  DP-018/019; no unrelated product/runtime/UI/migration/Compose/workflow changes.
+  Owner now explicitly authorizes commit/push/new PR/candidate CI and controlled
+  integration subject to all review/protection/check gates. No release/deployment/
+  Synology/product epic authority. No merge/publication/deployment yet.
+- Completed: source governance/helper audit; fresh fetched main exact baseline;
+  existing run `45410477163` / https://github.com/tostman1/drink-pos/actions/runs/45410477163
+  success/exact SHA, mandatory jobs success/publication skipped. Initial 20-test red
+  run proved absent helper/policy; all 33 final focused methods pass through Git Bash.
+  Full local Python 3.12.13/3.13.15 Standard Checks pass, each 351 discovered/345 passed/
+  six POSIX skips (199.618s/207.236s), quality/25-ID traceability/audit/Chromium/diff pass.
+  Initial Node PATH failures retained; existing lifecycle/TestClient/LF-to-CRLF and
+  EF-08a Windows WinError 5 gaps remain, not fixed by passing tests.
+- Pending: authorized committed-tree/final-head branch/PR/container CI and review.
+  Completed baseline-run AND existing OPEN PR #12 helper
+  compatibility exit 0 (run `45423092675`, exact unrelated `ac5b7e73...`); main
+  refetched unchanged. This is not governance candidate CI.
+  New branch/PR/final-head CI
+  pending authorized commit/push; local Docker unavailable.
+- Next action: commit with `git commit -F`, push this branch, create new PR, then
+  verify exact candidate branch AND PR CI once each via the helper. Use fresh
+  outside-Git result/metrics files `governance-delivery-branch-*` / `-pr-*`. Persist
+  resolved candidate SHA/run/PR in the authorized PR receipt after commit, avoiding
+  recursive receipt commits. Before merge verify review/protection/base/head gates;
+  stop for any unmet approval. Post-merge exact main CI is mandatory, no deployment.
+  All recorded local/compatibility jobs completed; no active monitor or external
+  wait. No merge or deployment occurred for this package. Original OPEN PR #12 is unrelated; its
+  monitor verifies helper compatibility only, not governance branch CI evidence.
+
+Binding future workflow: `docs/PROCESS.md` and `docs/standard-checks.md`, primary
+discovery in `AGENTS.md`. Waiting is not reasoning; one deterministic helper call,
+automatic background completion or clean checkpoint, never LLM polling. This ONE
+current checkpoint is updated on meaningful transitions; historical receipts below
+are preserved evidence, not instructions to repeat watcher/recheck/log/context loops
+or renewed authority. Final-head/post-merge/local/manual/approval gates stay intact.
+
 ## RL-06 integrated handoff — 2026-11-24
 
 PR #11 https://github.com/tostman1/drink-pos/pull/11 **MERGED** with explicit owner

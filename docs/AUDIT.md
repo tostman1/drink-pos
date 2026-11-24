@@ -1,5 +1,28 @@
 # Technical audit — evidence, not a rewrite mandate
 
+## EF-03 governance audit — deterministic external waiting (2026-11-24)
+
+Owner reports model rate limits during GitHub waiting; no token/call measurements
+available. Inspected authoritative AGENTS/PROCESS/check/package/PR docs, root historical
+prompts/review, operating-agent docs, workflows and scripts. No CONTRIBUTING/nested
+agent policy or reusable GitHub waiter found. `gh run watch`/PR watch default short
+intervals and incomplete target/backoff/deadline contracts are unsafe defaults for
+LLM orchestration; old receipts are evidence, not binding polling instructions.
+
+Corrected repeated full-context expectations, foundation-specific reconciliation,
+historical “merge when tests pass”/old-prompt guidance and absent wait/checkpoint/
+rate-limit distinctions in authoritative files. DP-018/019 read-only Python+gh
+helper/mocked tests add deterministic exact-head/attempt/check monitoring, not CI
+weakening. Primary AGENTS discovers PROCESS/Standard Checks. No product polling,
+financial retries, recovery/CI definitions, publication permission or approval gates
+changed. Historical receipts and RL-06 artifact identities preserved. New exact-head
+CI remains pending authorized commit/push; real Docker/DSM/device/provider/operator
+gaps and EF-08a Windows WinError 5 remain unchanged. Final local Python 3.12/3.13
+Standard Checks each pass 351 tests/345 passed/six POSIX skips; 33 focused methods
+also pass in Windows Git Bash. Real completed-run/open-PR gh compatibility succeeds
+without triggering workflows; candidate Linux/container/exact-head CI still pending.
+See current PROGRESS/HANDOFF.
+
 ## RL-06 scoped deployment evidence — integrated, manual acceptance pending
 
 Owner independently reviewed exact `3f9e9d3`/artifact `14924980940`; no approved-scope

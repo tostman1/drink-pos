@@ -120,6 +120,150 @@ Verification permissions are read-only. Release publication is a separate explic
 `production-images` environment. Owner must configure required reviewers there;
 environment naming alone does not enforce approval. No automatic deploy exists.
 
+## Deterministic CI waiting — EF-03
+
+Mandatory orchestration policy is in [PROCESS](PROCESS.md#mandatory-token-efficient-github-and-ci-workflow).
+`scripts/wait_for_ci.py` is Python 3.12/3.13 standard library + authenticated GitHub
+CLI `gh` on PATH. Runs from PowerShell, Windows Git Bash or Linux/macOS shells; no
+Bash, jq, pip package, LLM or OpenCode dependency. Only github.com OWNER/REPO is
+supported. It makes explicit `gh api --method GET --include` requests, never mutations.
+
+Evaluation: no existing repository monitor was found. `gh run watch` defaults to 3s
+and `gh pr checks --watch` to 10s; interval flags exist but neither alone supplies
+the full exact-HEAD/attempt/required-job binding, overall deadline, header-aware
+bounded backoff and distinct terminal statuses. Reuse `gh` authentication/HTTP
+instead of adding another client. Default workflow is `container.yml`, the actual
+top-level branch/PR workflow (quality `ci.yml` is reusable, not separately triggered).
+
+### Exact usage
+
+Capture HEAD once after the authorized commit/push. PowerShell:
+
+```powershell
+$sha = git rev-parse HEAD
+python scripts/wait_for_ci.py --repo tostman1/drink-pos --run-id RUN_ID --sha $sha --result-file 'C:/Users/fritz/AppData/Local/Temp/opencode/ci-UNIQUE.json'
+python scripts/wait_for_ci.py --repo tostman1/drink-pos --pr PR_NUMBER --sha $sha --result-file 'C:/Users/fritz/AppData/Local/Temp/opencode/pr-ci-UNIQUE.json'
+```
+
+Git Bash / POSIX (replace placeholders and choose new outside-Git result paths):
+
+```sh
+sha=$(git rev-parse HEAD)
+python scripts/wait_for_ci.py --repo tostman1/drink-pos --run-id RUN_ID --sha "$sha" --result-file "$CI_RESULT"
+python scripts/wait_for_ci.py --repo tostman1/drink-pos --pr PR_NUMBER --sha "$sha" --result-file "$PR_CI_RESULT"
+```
+
+Automatic push-run discovery including exact main/post-merge SHA:
+
+```sh
+python scripts/wait_for_ci.py --repo tostman1/drink-pos --branch BRANCH_NAME --sha FULL_SHA --result-file OUTSIDE_GIT_NEW_PATH
+```
+
+Use each command ONCE for its distinct required run/PR, not as a sequence of polling
+invocations. `--run-id` can be combined with `--branch` or `--pr` for explicit binding;
+otherwise explicit run mode expects a push event. PR mode verifies PR HEAD before
+waiting, discovers only pull_request runs bound to that PR/SHA, checks all observed
+latest commit check runs/status contexts after workflow success, and rechecks PR HEAD
+before accepting success. It never uses the synthetic merge-test SHA as the expected
+feature HEAD; artifact/image binding to that SHA remains a separate verification.
+
+Current mandatory jobs (always required, no removal flag):
+`checks / Python 3.12 / Node 24`, `checks / Python 3.13 / Node 24`, and
+`Non-publishing container verification`. Extra jobs use repeatable `--require-job NAME`.
+Only `Explicit owner-triggered main publication` may intentionally be skipped in
+non-publishing runs; missing/skipped required jobs or any other non-success are not
+passes. When new checks/protection are configured, supply exact additional names:
+
+```sh
+python scripts/wait_for_ci.py --repo tostman1/drink-pos --pr PR_NUMBER --sha FULL_SHA --require-check 'EXACT_REQUIRED_CONTEXT' --require-job 'EXACT_ADDITIONAL_JOB' --result-file OUTSIDE_GIT_NEW_PATH
+```
+
+The helper does NOT infer branch protection/review rules or promise that no new
+checks can appear later. Verify current rule inventory once at the integration
+boundary, supply missing required contexts, and retain normal GitHub protections.
+Unknown/fork PR association (empty `pull_requests` metadata) fails closed/discovery
+times out: use an independently verified exact run/PR association, not relaxed SHA
+checks. A run selection is pinned once; it never silently substitutes a cancelled
+run, different commit, or rerun. A newly authorized rerun is a new verification event.
+Pagination is bounded to 1000 evidence rows (100/page); excessive/incomplete results
+return unavailable, not success. Custom workflows still retain the mandatory jobs.
+
+### Defaults and result contract
+
+All time options are seconds. Initial/discovery/poll/backoff happen inside Python:
+
+| Flag | Default |
+| --- | --- |
+| `--initial-delay` | 90 (use 0 only for an already completed run or justified verification) |
+| `--discovery-delay` | 30 |
+| `--interval` | 60 |
+| `--long-interval` / `--long-after` | 120 / 600 |
+| `--max-wait` | 1800, includes delays and bounded requests |
+| `--max-retries` | 3 additional attempts; configurable 0..3 |
+| `--retry-base` | 15, exponentially 15/30/60 for transient failures |
+| `--request-timeout` | 30 or remaining overall budget, whichever is shorter |
+
+Rate limits use the later of Retry-After (seconds/HTTP date), exhausted-primary
+reset (+1s margin) and 60s exponential secondary backoff. A successful response
+with exhausted quota also delays the next API call. No reset endpoint probes.
+If permitted retry falls outside the budget, return rate_limited immediately with
+`retry_at_epoch`. No fixed delay guarantees LLM-provider recovery.
+
+| Exit | JSON `status` | Meaning |
+| --- | --- | --- |
+| 0 | success | Exact-head terminal success and mandatory evidence; NOT merge permission |
+| 1 | failed | Workflow/PR check failed or needs action |
+| 2 | cancelled | GitHub terminal cancellation, not success/retry authorization |
+| 3 | timed_out | GitHub timed_out or local overall deadline expired; no pass |
+| 4 | rate_limited | Bounded retries exhausted or permitted API retry outside budget |
+| 5 | unavailable | Missing gh/auth/permission/target, transient exhaustion, insufficient/malformed evidence or local output failure |
+| 6 | invalid_input | Bad target/options or already-existing result path |
+| 7 | interrupted | Ctrl-C; no resource mutation |
+
+stdout is one JSON line at terminal completion (except explicit `--help`). It includes
+schema version, PID/start/finish, repo/expected SHA, run ID/URL/attempt, PR identity,
+status/exit/reason and, on success only, verified SHA + job names/conclusions. Raw
+headers, secrets, full API bodies/logs are never output. `--result-file` reserves a
+NEW path with pending identity immediately and atomically writes final JSON; parent
+must exist. Existing results are never overwritten/reused. Output path must be
+outside Git; credentials remain in existing gh auth. Forced kill/output failure can
+leave pending; never treat that as success. Verify recorded process identity once
+on interrupted resume, not a loop. Result persistence failure is nonzero.
+
+### OpenCode execution and failure diagnostics
+
+Use the harness background shell invocation described in PROCESS (1860000ms timeout
+for default 1800s budget + cleanup, automatic completion notification). Set correct
+workdir/absolute Python and an outside-Git result path. Do not run a 30-minute wait
+under an explicitly background 120000ms timeout: it can kill the watcher. Do not
+poll/sleep/read the file while it runs; one completion notification, then read once.
+If long blocking/background execution is unsupported, preserve HANDOFF and stop.
+No success is claimed for that execution gap. Other OpenCode versions/harnesses
+must verify their tool contract instead of assuming identical timeout semantics.
+
+For a failed run, get job/step metadata first, for the exact attempt:
+
+```sh
+gh api --method GET 'repos/tostman1/drink-pos/actions/runs/RUN_ID/attempts/ATTEMPT/jobs?per_page=100' --jq '.jobs[] | select(.conclusion != "success" and .conclusion != "skipped") | {id,name,conclusion,steps:[.steps[] | select(.conclusion == "failure") | {name,number,conclusion}]}'
+gh run view RUN_ID --repo tostman1/drink-pos --attempt ATTEMPT --job FAILED_JOB_ID --log-failed > OUTSIDE_GIT_FAILED_JOB_LOG
+```
+
+Use targeted search/read against that saved log, once. Paginate metadata if needed;
+retrieve other relevant failing steps/cancelled/timed-out details as justified.
+`gh --log-failed` can internally obtain an archive; do not repeatedly redownload it.
+Escalate to full logs only when targeted evidence cannot establish root cause; don't
+truncate essential information. For success, retain compact JSON/evidence, not logs.
+
+Focused mocked tests (no network/workflow/sleep/model calls):
+
+```sh
+python -m unittest discover -s tests -p test_ci_wait.py -v
+python scripts/standard_checks.py
+```
+
+The tests run in the existing Python matrices via unittest discovery; CI definitions,
+required jobs, permissions, timeouts and publication gates are not weakened.
+
 ## Manual register — all pending at takeover
 
 RL-03 adds `tests/test_financial_history.py`: existing served financial rewrite/

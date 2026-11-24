@@ -871,7 +871,9 @@ export class PeopleList {
 
 ## 🔧 Detailed Refactoring Instructions
 
-See the accompanying file: `REFACTORING_AGENT_PROMPT.md`
+Historical reference: `REFACTORING_AGENT_PROMPT.md` is not present and is not an
+execution instruction. Do not reconstruct it or repeatedly search for it; use
+`AGENTS.md`, `docs/PROCESS.md` and the authorized current work package instead.
 
 This document contains:
 - Step-by-step Python backend refactoring
@@ -970,14 +972,19 @@ After refactoring is complete:
 
 ## 📚 Next Steps
 
-1. **Read** `REFACTORING_AGENT_PROMPT.md` for detailed instructions
+Historical sequence only, superseded by `AGENTS.md` and `docs/PROCESS.md`.
+The referenced old prompt is not an authoritative source or an execution gate.
+Use the mandatory deterministic CI waiting policy; no repeated model-driven waits.
+
+1. **Read** current `AGENTS.md` / `docs/PROCESS.md` for binding instructions
 2. **Review** This document with your team
 3. **Create** Feature branch: `refactor/modularize`
 4. **Execute** Phase 1 (Python services)
 5. **Test** Each extracted service
 6. **Document** As you go
 7. **Review** PR with focus on logic preservation
-8. **Merge** When all tests pass
+8. **Merge** only with explicit owner approval, exact final-head CI and unchanged
+   review/protection gates; verify exact post-merge/final-main CI deterministically
 
 ---
 

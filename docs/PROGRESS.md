@@ -1,5 +1,135 @@
 # Engineering foundation progress
 
+## EF-03 controlled delivery authorization — 2026-11-24
+
+Owner reviewed reported implementation/local results and explicitly authorizes
+commit/push/new PR, candidate CI, established guarded integration and post-merge CI;
+all existing review/check/protection gates retained. No deployment/image publication/
+Synology/product epic. Final targeted review of actual helper/tests/policy confirms
+full SHA/workflow/event/PR/attempt binding, required jobs not removable, skipped/neutral/
+missing evidence fail closed, three retries/header reset/backoff, monotonic overall
+budget/per-request timeout, no raw credential output, no-clobber fresh outside-Git
+pending/atomic terminal result. Windows native/Git Bash verified; Linux awaits actual
+candidate execution, macOS remains unverified. No review-driven code changes and no
+reason to repeat successful full local gates. Known fail-closed limits (merged/fork
+PR association, bounded pagination, rule inventory reviewed externally, trusted
+outside-Git result directory) remain explicit, not claimed universal portability.
+
+Fresh fetched main still `7a6aa5dff411c8fb5601b87758a0fc64810aa0c3`. Primary unrelated
+docs checkout clean; PR #12 OPEN/head `ac5b7e73fd12e67ac66e427abc93b5a524e650ca`
+unchanged, no edits. Current main protection reports unprotected 404, active branch
+rules empty; no settings/bypass change. Candidate frozen; next commit/push/new PR.
+Use one deterministic helper phase each for branch/PR/main. Lightweight outside-Git
+wrapper counts helper gh requests by endpoint + elapsed time without extra requests,
+stores metrics/result and runs helper unchanged. No token measurements available.
+Final resolved SHA/PR/run receipts live in authorized PR comments/report after commit;
+no successful full workflow logs routinely downloaded. Relevant quality-job test
+evidence may be retrieved once only if required to confirm Linux/POSIX execution.
+
+## EF-03 token-efficient GitHub / CI governance — 2026-11-24
+
+Scope DP-018/019, owner-requested workflow/helper/tests only. Separate worktree/new
+`feature/governance-ci-wait` from freshly fetched main
+`7a6aa5dff411c8fb5601b87758a0fc64810aa0c3`; baseline run `45410477163` independently
+queried success/exact HEAD/all mandatory jobs, publication skipped. Clean unrelated
+product documentation branch/commit preserved; no cherry-pick/rewrite/delegation.
+Ready gate: audit authoritative agent/process/check/package/PR governance and helper
+inventory; acceptance read-only exact-SHA/PR waiting, bounded timing/backoff/headers,
+distinct JSON/exit results + tests, unchanged security/integration gates. No runtime,
+GUI/cache/production/migration/Compose/workflow/provider/mail/refactor scope.
+
+- Audit: AGENTS full historical reading instructions and foundation-specific branch
+  reconciliation wording; PROCESS unspecified asynchronous waiting and blanket EF
+  selection; repeated historical watcher/recheck/full-log/final-receipt examples;
+  historical review “merge when all tests pass” and missing-old-prompt reconstruction
+  direction. No CONTRIBUTING, nested AGENTS or CI waiting script found. Ordinary
+  product sync/payment polling and backup scheduler descriptions are NOT GitHub
+  governance and remain unchanged. Existing operating-agent manual is distinct.
+- Corrected authoritative AGENTS/PROCESS/Standard Checks/package/PR discovery and
+  contextual historical prompt/review warnings. Historical HANDOFF/PROGRESS receipts
+  retained verbatim below, explicitly non-prescriptive. Single current HANDOFF
+  checkpoint, no new status-document collection. No existing CI gate removed.
+- Evaluated gh 2.97.0 help: run watch defaults 3s, PR checks watch 10s; custom intervals
+  alone insufficient for exact target/attempt/required evidence + deadline/header
+  backoff/distinct outcomes. Chosen standard-library Python `scripts/wait_for_ci.py`
+  over Bash/jq (repository already cross-platform Python, native PowerShell support).
+- Initial 20-test red run before implementation: expected missing-helper errors and
+  two policy/CLI failures. Expanded mocks use fake clock/CLI only; no network/sleeps/
+  workflows/providers. First 28 targeted regressions pass (0.450s); final expanded
+  focused/full gate evidence pending below. Record missing tools/skips/warnings as
+  gaps, not passes. No commit/push/PR/merge/deploy/publication performed/authorized.
+
+Defaults 90s initial/30s discovery/60s normal/120s after 600s, 1800s total, three
+additional retries, 15/30/60s transient backoff and header-aware secondary/reset
+waiting, final JSON only. Background harness timeout documented explicitly rather
+than splitting waits into model turns. Illustrative (NOT measured): a 15-minute
+run checked by an LLM every 10s uses about 90 status interactions; one deterministic
+helper has one launch/completion and roughly 14 run polls + final job metadata
+(normal until 10m, then 120s). No measured token/model/API savings claimed.
+
+Verification continuation:
+- Expanded focused tests: 32 pass (0.892s); actual completed-main helper invocation
+  exit 0 in 2.7s, one background launch/completion, exact `45410477163`/baseline SHA/
+  attempt 1/mandatory jobs/publication skipped. JSON outside Git
+  `governance-baseline-ci-result.json`. No workflow triggered or status polling.
+- Both initial full Standard Checks exit 1 at JS syntax because `node` absent from
+  tool PATH (Ruff/check/90-file format and compile passed, tests not reached). Failed
+  UTF-16 PowerShell logs retained `governance-standard312.log`/`313.log`; dedicated
+  read correctly rejected binary encoding, single targeted tail used for diagnosis.
+  Existing Node 24.11.1 found outside Git and PATH corrected (not code/check changes).
+  Corrected frozen-tree full gates running as tool jobs `sh_20e515a63001JwsfCLOhJNK6Te`
+  / `sh_20e515a64001PUb61ZHYr4hV8V`, 600000ms timeout, logs
+  `governance-standard312-node.log` / `313-node.log`. Await notification, no polling.
+- Read-only historical PR-run metadata inspection shows merged PR #11 run has empty
+  `pull_requests`; helper retains fail-closed association. Existing OPEN PR #12 HEAD
+  `ac5b7e73fd12e67ac66e427abc93b5a524e650ca` found with one targeted read. Helper
+  compatibility-only monitoring once, 180s bounded (not CI of this uncommitted branch),
+  job `sh_20e515a63002aLkXloLWUHhFOP` / PID 26288, 240000ms tool timeout, result
+  `governance-existing-pr12-result.json` outside Git. No PR/resource mutation.
+- Local Markdown links pass; runtime/CI/Compose trees zero diff; refetched main
+  unchanged exact baseline. Test/helper code frozen for full gates; current 33 focused
+  methods include excessive/malformed discovery guards. New branch/PR CI still pending
+  commit/push authorization; no merge/deploy/production/image/provider/mail operations.
+
+Existing OPEN PR #12 helper compatibility **exit 0**, 7.9s, one background launch/
+completion: run `45423092675`, attempt 1, PR HEAD exactly `ac5b7e73...`, mandatory
+workflow jobs + all observed latest check contexts success, publication intentionally
+skipped; final PR HEAD recheck passed. No workflow triggered/logs fetched/resources
+mutated. Receipt `governance-existing-pr12-result.json`, helper PID 42656. This is
+external-client compatibility evidence only, NOT CI of governance uncommitted changes.
+
+### Final local evidence — supersedes running/pending local notes above
+
+Corrected frozen candidate full Standard Checks **exit 0** on Python **3.12.13** and
+**3.13.15**, Node **24.11.1**, existing pinned age **1.3.2**. Each **351 discovered /
+345 passed / six POSIX-only skips**; unittest **199.618s / 207.236s**. All 33 new
+helper methods executed; Ruff/90-file formatting, Python/JS/data syntax, unchanged
+25-ID/zero-external traceability, financial/migration/recovery/encryption regressions,
+strict dependency audit (**no known vulnerabilities**), Chromium booking/keyed
+correction/admin/event/kassa/self-pay and diff gate passed. Logs retained outside Git
+`governance-standard312-node.log` / `governance-standard313-node.log`; initial missing
+Node failures remain retained, not silently erased. Existing FastAPI lifecycle/
+Starlette TestClient/LF-to-CRLF warnings remain; EF-08a Windows WinError 5 is still
+unresolved, passing suites are not a reliability fix. Manual/device/provider/
+operational acceptance and local Docker remain gaps, not inferred successes.
+
+Git Bash actual invocation of final 33 mocked methods **passes** (0.741s); no real
+requests/sleeps in scenario tests. Live Windows Python/gh completed-run and open-PR
+compatibility passed once each without workflow/resource mutation. Native Linux/
+macOS runner execution awaits candidate CI; current workflow/required-job names
+checked against helper defaults and all CI/publication guards unchanged. No model
+or API polling while background work ran; all recorded jobs finished. Final receipt
+edits are documentation-only and use targeted traceability/diff checks, not an
+unjustified repeat of full frozen-code suites. No commit/push/new PR/merge/deploy;
+candidate exact-head/container CI awaits explicit delivery authorization.
+
+Post-receipt traceability passes (25 IDs/zero external), unrelated primary checkout
+still clean on its original docs branch. An extra `git -c core.autocrlf=false diff
+--check` inspection failed on CRLF working-copy line endings and treated unchanged
+lines as changes; this command-local override was inappropriate for the Windows
+checkout, not a source whitespace fix. No Git configuration/source normalization
+changed. Use the repository's ordinary `git diff --check` gate instead.
+
 ## RL-06 approved integration — 2026-11-24
 
 - Independent owner technical/artifact review complete; explicit guarded merge

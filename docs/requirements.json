@@ -144,9 +144,9 @@
     },
     {
       "id": "DP-018", "scope": "engineering",
-      "statement": "Run repeatable fail-closed Ruff, Python/all JavaScript syntax, data/traceability and regression checks with explicit evidence gaps, isolated state and no live payment/email.",
-      "sources": ["AGENTS.md", "docs/PROCESS.md", "scripts/standard_checks.py", "docs/standard-checks.md"],
-      "tests": ["tests/test_standard_checks.py::StandardCheckTests.test_inline_scripts_modules_handlers_and_data_blocks", "tests/test_standard_checks.py::StandardCheckTests.test_invalid_python_fails_without_importing_it", "tests/test_foundation_contracts.py::FoundationContractTests.test_catalog_links_resolve"], "manual": []
+      "statement": "Run repeatable fail-closed Ruff, Python/all JavaScript syntax, data/traceability and regression checks with explicit evidence gaps, isolated state and no live payment/email. EF-03 CI waiting is read-only deterministic non-LLM automation, exact-HEAD bound with internal delays, bounded header-aware retries and non-success timeout/rate-limit/unavailable checkpoints; integration and verification gates unchanged.",
+      "sources": ["AGENTS.md", "docs/PROCESS.md", "scripts/standard_checks.py", "docs/standard-checks.md", "scripts/wait_for_ci.py"],
+      "tests": ["tests/test_standard_checks.py::StandardCheckTests.test_inline_scripts_modules_handlers_and_data_blocks", "tests/test_standard_checks.py::StandardCheckTests.test_invalid_python_fails_without_importing_it", "tests/test_foundation_contracts.py::FoundationContractTests.test_catalog_links_resolve", "tests/test_ci_wait.py::CIWaitTests.test_success_is_exact_head_read_only_with_required_jobs", "tests/test_ci_wait.py::CIWaitTests.test_rate_limit_headers_wait_without_reset_probes", "tests/test_ci_wait.py::CIWaitTests.test_pending_timeout_is_never_success", "tests/test_ci_wait.py::CIWaitTests.test_policy_is_discoverable_and_preserves_integration_gates"], "manual": []
     },
     {
       "id": "DP-019", "scope": "engineering",

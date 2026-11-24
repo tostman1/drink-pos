@@ -1,5 +1,20 @@
 # Engineering foundation work packages
 
+## EF-03 governance increment — deterministic CI orchestration (2026-11-24)
+
+Owner-requested repository workflow improvement; DP-018/019, no product changes.
+Binding for all existing/future EF/RL/documentation packages: follow
+[`docs/PROCESS.md`](docs/PROCESS.md#mandatory-token-efficient-github-and-ci-workflow)
+and [`docs/standard-checks.md`](docs/standard-checks.md#deterministic-ci-waiting--ef-03).
+One read-only waiting helper invocation per run/PR+exact HEAD, bounded internal
+delays/backoff/final result; no model-driven waiting, duplicate monitors or repeated
+context reconstruction. All local/security/container/review/final-head/post-merge/
+manual/approval/deployment boundaries remain intact. Focused mocked regressions
+precede helper implementation; no real workflow triggered for scenario testing.
+Owner subsequently authorizes controlled commit/push/PR/candidate CI/integration and
+post-merge verification subject to all review/approval gates (2026-11-24). No image
+publication/deployment/Synology operations or RL-07 authority. See current HANDOFF.
+
 ## RL-06 — isolated Synology test deployment (2026-11-24)
 
 DP-025 plus preserved DP-001/008/009/015/016/021–024. Ready gate
