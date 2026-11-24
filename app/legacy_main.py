@@ -5440,6 +5440,16 @@ def add_metric_row(base: dict, row: dict):
     base["vk_value_eur"] += float(row.get("vk_value_eur", 0) or 0)
 
 
+def recorded_paid_profit(row: sqlite3.Row | dict, *, revenue: float, cost: float) -> float:
+    """Read the paid snapshot, including zero; derive only if unavailable.
+
+    Consumption margins and round expenses are operational report calculations,
+    not reads of this paid-profit snapshot.
+    """
+    profit = row_get(row, "profit_eur")
+    return float(profit) if profit is not None else revenue - cost
+
+
 def build_report_rows(conn: sqlite3.Connection, req: ReportRequest) -> tuple[list[str], list[list[object]]]:
     report_type = (req.report_type or "consumption").strip().lower()
     group_cols = report_group_columns(req.group_by)
@@ -5573,7 +5583,7 @@ def build_report_rows(conn: sqlite3.Connection, req: ReportRequest) -> tuple[lis
                         "quantity": qty,
                         "revenue_eur": total,
                         "cost_eur": purchase_total,
-                        "profit_eur": total - purchase_total,
+                        "profit_eur": recorded_paid_profit(r, revenue=total, cost=purchase_total),
                         "vk_value_eur": total,
                     }
                 )
@@ -5603,7 +5613,7 @@ def build_report_rows(conn: sqlite3.Connection, req: ReportRequest) -> tuple[lis
                             "quantity": qty,
                             "revenue_eur": total,
                             "cost_eur": purchase_total,
-                            "profit_eur": total - purchase_total,
+                            "profit_eur": recorded_paid_profit(r, revenue=total, cost=purchase_total),
                             "vk_value_eur": total,
                         }
                     )
@@ -5808,7 +5818,7 @@ def admin_statistics(req: StatisticsRequest):
             else:
                 revenue = float(row["total_eur"] or 0)
                 cost = float(row["purchase_total_eur"] or 0)
-                profit = float(row["profit_eur"] or (revenue - cost))
+                profit = recorded_paid_profit(row, revenue=revenue, cost=cost)
                 vk_value = revenue
             date_value = str(row["timestamp"])[:10]
             day = finance_by_date.setdefault(

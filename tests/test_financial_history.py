@@ -155,11 +155,11 @@ class FinancialHistoryTests(unittest.TestCase):
                         "SELECT unit_purchase_price_eur,purchase_total_eur,profit_eur,total_eur FROM transaction_items"
                     ).fetchone()
                 ),
-                (0, 0, line["unit_price_eur"], line["unit_price_eur"]),
+                (4, 4, line["unit_price_eur"] - 4, line["unit_price_eur"]),
             )
             self.assertEqual([tuple(r) for r in conn.execute("SELECT * FROM transactions")], before)
 
-    def test_report_zero_profit_fallback_is_read_time_not_a_database_write(self):
+    def test_report_stored_zero_profit_is_not_reinterpreted_or_written(self):
         self.book()
         self.post("/api/pay", {"pin": "1234", "person_id": self.person["id"]})
         with self.legacy.get_conn() as conn:
@@ -168,7 +168,7 @@ class FinancialHistoryTests(unittest.TestCase):
             )
             conn.commit()
         result = self.post("/api/admin/statistics", {"pin": "1234", "scope": "all", "include_admin_items": True})
-        self.assertEqual(result["kpis"]["profit_eur"], 2)
+        self.assertEqual(result["kpis"]["profit_eur"], 0)
         with self.legacy.get_conn() as conn:
             self.assertEqual(
                 conn.execute("SELECT profit_eur FROM transaction_items WHERE kind='PAID_CASH'").fetchone()[0], 0
