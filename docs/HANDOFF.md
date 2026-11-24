@@ -1,5 +1,46 @@
 # Handoff and protected work
 
+## RL-06 verified test deliverable — 2026-11-24 (supersedes in-progress notes)
+
+PR #11 https://github.com/tostman1/drink-pos/pull/11 **OPEN/UNMERGED**.
+Exact baseline/main `25a78ba6606e74760969cce7c993d60d3a139f2e`; verified implementation
+`8ca880b7ac48d1d26ad2570c20bd707a598f1297`. Branch CI
+https://github.com/tostman1/drink-pos/actions/runs/45401715029 and PR CI
+https://github.com/tostman1/drink-pos/actions/runs/45401726644 **success**. Publication
+skipped. Both Linux matrices 318 discovered/317 passed/one Windows-only skip;
+all nine RL06 methods executed. Local 3.12.13/3.13.15 318/312/six POSIX skips,
+176.660s/178.719s; browser/security/traceability pass.
+
+Download branch artifact `drink-pos-test-amd64-8ca880b7ac48d1d26ad2570c20bd707a598f1297`,
+ID `14924186574`, https://github.com/tostman1/drink-pos/actions/runs/45401715029/artifacts/14924186574,
+14-day retention. Downloaded independently: all 13 file checksums and archive/
+config/source/platform/tag verification pass. Archive SHA-256
+`73ae5ce76255dcb86c41ec6baa7690bfb4527499ba17ca32491a4a46a084941a`;
+config ID `sha256:0429d3f9dd17d28dae8d2679f3cfa09211cbee06a6f1647f6ccc5c1742e8baf2`.
+CI Docker index ID is separately
+`sha256:d218b0549be9e712a9036469dd9aab053d9392a4f43f2fe058ab9aa90006c025`, not config.
+No OCI registry digest/publication or reproducibility claim. Final documentation
+commit will receive its own exact-head CI/artifact; final PR receipt identifies it.
+
+Actual **delivered Compose** verifies isolated non-root internal network/fixed IP,
+outbound blocking, explicit fresh v2/no reseed/persistence, baseline→candidate
+same-schema full-table/ledger/receipt comparison, round cancellation/net/replay,
+paid/event CSV/PDF recovery, unsupported older v1 startup without state mutation,
+independent full recovery and original post-backup activity preservation. Existing
+full encrypted image/source-loss EF-08c and financial/migration image gates pass.
+The older initial failures were correctly blocked, retained and fixed without
+weakening verifier. Production Compose/updaters/timer/runtime/UI unchanged.
+
+Operator guide `docs/synology-test-deployment.md`: archive via browser/Windows
+Get-FileHash, DSM file import/project/env differences/NAS CLI, test-owned UID/GID,
+non-overlapping subnet/fixed IP to DSM HTTPS reverse proxy (no unreliable host
+app-port mapping), one-time v2, controlled update/full recovery and manual rounds.
+NAS/DSM GUI/ACL/HTTPS/trusted certificate/tablet/mobile/installed-PWA/offline/cache/
+round blocks/offsite/key/operational reconciliation acceptance **PENDING**; no real
+NAS/deployment/payment/mail/production DB/publication performed. Existing FH-05,
+OQ-06, EF-08a Windows `WinError 5` and operational gaps remain open.
+
+
 ## RL-06 in progress — 2026-11-24
 
 PR #11 OPEN/UNMERGED, implementation `67ec1a89b756713045f9545aef09bab0a1e5ff27`.

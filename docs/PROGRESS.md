@@ -1,5 +1,30 @@
 # Engineering foundation progress
 
+## RL-06 successful automated delivery — 2026-11-24
+
+- Implementation `8ca880b7ac48d1d26ad2570c20bd707a598f1297`, exact base
+  `25a78ba6606e74760969cce7c993d60d3a139f2e`, PR #11 OPEN/UNMERGED. Branch
+  `45401715029` / PR `45401726644` all gates success, publication skipped.
+- Both Linux matrices 318/317/one Windows-only skip, all nine RL06 regressions.
+  Local exact implementation 3.12.13/3.13.15 Standard Checks 318/312/six POSIX
+  skips, 176.660s/178.719s; syntax/Ruff/traceability/security/Chromium passed.
+- Actual one-service internal-network/fixed-IP/non-root deliverable, initialization,
+  persistence, exact-baseline update/full unchanged DB, older-v1 rejection/failed
+  state, independent recovery/round replay and post-backup activity all verified;
+  existing financial/round/migration/EF-08b/c encrypted source/image-loss gates pass.
+- Export saves/reimports exact tested AMD64 image, binds archived Config/rootfs
+  against tested runtime, separates config hash from CI Docker index descriptor.
+  Independent downloaded artifact ID `14924186574` verifies all 13 checksums and
+  archive config/source/tag/platform. Immutable receipt/checksums in HANDOFF above.
+- Final docs-only receipt commit gets its own exact-head CI/artifact, recorded in
+  PR final receipt without pretending previous archive names bind a newer SHA.
+  German guide `synology-test-deployment.md`; no deployment/publication/provider/mail.
+  NAS/device/HTTPS/PWA/offline/ACL/offsite/key/operator acceptance remains pending.
+- Evidence gaps: pinned Actions emit Node20-deprecation/forced-Node24 warnings;
+  no bypass or silent suppression. Older real historical, broader policy, Windows
+  EF-08a permission and operational acceptance gaps unchanged.
+
+
 ## RL-06 active increment — 2026-11-24
 
 - Exact-head `28e0068` branch/PR CI `45400576542`/`45400589154` passes complete
