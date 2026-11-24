@@ -1,5 +1,38 @@
 # Engineering foundation progress
 
+## RL-06 approved integration — 2026-11-24
+
+- Independent owner technical/artifact review complete; explicit guarded merge
+  approval for PR #11 only. Exact fresh reviewed `3f9e9d36f572072600390dbdfff3dc611a1e24e6`
+  and base `25a78ba6606e74760969cce7c993d60d3a139f2e`, no newer reviews/unresolved
+  threads/check changes/conflicts. Normal GitHub merge, no bypass/history rewrite:
+  **`d647cfc958b7d23d917904af00ef166b7fecef14`**, 2026-11-24T13:59:26Z.
+  Parents exact base/reviewed head, tree equal `0e2281573bef362d28bc26e64be69f972aae773e`.
+- Required exact-head `45402852539`/`45402863286` independently rechecked, 318 tests
+  per Linux matrix/317 passed/one Windows-only skip; nine RL06 methods executed,
+  all actual Docker/Compose/migration/financial/recovery/encrypted DR/audits pass,
+  publication skipped. Merge-main `45409146142` likewise all gates successful.
+- Local merged main Python 3.12.13/3.13.15 full Standard Checks **exit 0**:
+  318/312/six POSIX skips, 175.239s/181.087s; browser/security/syntax/Ruff/traceability
+  pass. Primary checkout synchronized, feature/history retained; no deployment.
+- Original reviewed branch artifact `14924980940` freshly downloaded/13 checksums/
+  TAR/config/source/platform/tag verified before merge; expires 2026-12-08T13:25:50Z.
+  Retained complete copy with verification receipt outside Git; exact URL/identities
+  in HANDOFF integrated section. Merge-main archive `14925933170` differs and is
+  not a replacement for independently reviewed archive or a stable publication.
+  Downloaded merge-main artifact independently passes 13 checksums and archive/
+  config/source/platform/tag/CI binding; separate identity retained.
+- This commit changes **only integration documentation**. Final main SHA is the
+  commit carrying this receipt; its own exact-head CI/local/artifact evidence and
+  SHA are recorded in PR final integration comment after synchronization. No
+  self-referential SHA or predecessor-CI assertion. No further implementation.
+- **Manual NAS/DSM/UID/GID/ACL/proxy/HTTPS/PWA/offline/round/operator recovery/key/
+  offsite/reconciliation acceptance still PENDING**, not inferred from CI. German
+  guide `synology-test-deployment.md`; existing FH-05/OQ-06/WinError 5 gaps retained.
+  Production files unchanged; no production access/image publication/release/stable/
+  schedule/network/provider/mail/DSM operation. **Stop; no RL-07.**
+
+
 ## RL-06 successful automated delivery — 2026-11-24
 
 - Implementation `8ca880b7ac48d1d26ad2570c20bd707a598f1297`, exact base

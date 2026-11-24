@@ -1,10 +1,13 @@
 # Technical audit — evidence, not a rewrite mandate
 
-## RL-06 scoped deployment evidence (in progress)
+## RL-06 scoped deployment evidence — integrated, manual acceptance pending
 
-Superseded status: implementation `8ca880b` branch/PR `45401715029`/`45401726644`
-successful with independent downloaded artifact/config/source/checksum validation;
-see HANDOFF verified receipt. NAS/device/operational boundaries remain pending.
+Owner independently reviewed exact `3f9e9d3`/artifact `14924980940`; no approved-scope
+merge blocker. Guarded PR #11 merge `d647cfc` preserves exact base/head parents and
+reviewed tree; required branch/PR `45402852539`/`45402863286` and exact merge-main
+`45409146142` pass all gates, publication skipped. Original branch artifact verified/
+retained separately from different merge/final-main images, expiry December 8, 2026.
+See HANDOFF integration receipt; NAS/device/operational boundaries remain pending.
 
 Production `stable` Compose/pull/updater/timer are intentionally unchanged and not
 safe test defaults. New DP-025 local-image/internal-network single-service test

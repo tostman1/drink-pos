@@ -1,5 +1,68 @@
 # Handoff and protected work
 
+## RL-06 integrated handoff — 2026-11-24
+
+PR #11 https://github.com/tostman1/drink-pos/pull/11 **MERGED** with explicit owner
+approval after independent technical/artifact review. Supersedes historical OPEN/
+UNMERGED notes below for PR #11 only; repository integration, not NAS/production
+authorization. **Stop after final verification; do not start RL-07.**
+
+- Reviewed head **`3f9e9d36f572072600390dbdfff3dc611a1e24e6`** and expected base
+  **`25a78ba6606e74760969cce7c993d60d3a139f2e`** matched fresh fetched/GitHub state.
+  No newer reviews/unresolved threads/changed required checks; MERGEABLE/CLEAN.
+  Main protection absent (404), active rules empty; no bypass/configuration change.
+  Required branch https://github.com/tostman1/drink-pos/actions/runs/45402852539
+  and PR https://github.com/tostman1/drink-pos/actions/runs/45402863286 success:
+  both Linux matrices 318 discovered/317 passed/one Windows-only skip, all nine
+  RL06 methods executed and complete image/migration/financial/recovery/DR/audit
+  gates passed; publication skipped. Original delivery receipt retained at
+  https://github.com/tostman1/drink-pos/pull/11#issuecomment-7132981565.
+- Normal GitHub `--merge --match-head-commit` (no squash/rebase/admin/force):
+  merge **`d647cfc958b7d23d917904af00ef166b7fecef14`**, 2026-11-24T13:59:26Z.
+  Parent 1 expected base, parent 2 exact reviewed head; merged/reviewed tree both
+  **`0e2281573bef362d28bc26e64be69f972aae773e`**. Primary main fast-forwarded,
+  clean/synchronized; feature/handoff branches and prior owner merges preserved.
+- Exact merge-main CI https://github.com/tostman1/drink-pos/actions/runs/45409146142
+  success: both Python matrices 318/317/one Windows-only skip; actual Docker/test
+  Compose/restart/persistence/fresh v2/migration/net corrections/round reversal/
+  isolated update/full recovery/age-encrypted source+owned-image-loss DR/image
+  dependency audit pass. Publication skipped, deployment query zero. Local full
+  Python 3.12.13/3.13.15 Standard Checks 318/312/six POSIX skips, 175.239s/181.087s,
+  Ruff/syntax/25-ID traceability/security/Chromium pass. Visible Node-action/
+  lifecycle warnings and existing EF-08a Windows WinError 5 gap remain unchanged.
+- **Reviewed installation artifact remains the original branch artifact**:
+  https://github.com/tostman1/drink-pos/actions/runs/45402852539/artifacts/14924980940
+  (ID `14924980940`, source/tag `3f9e9d36f572072600390dbdfff3dc611a1e24e6`).
+  Available/expiry confirmed **2026-12-08T13:25:50Z**. Fresh pre-merge download
+  independently verifies all 13 checksums/TAR/config/platform/source/tag. TAR SHA
+  `67781222ccc0c7b16c3ba42f2989f612496d245eca0fdb0b741d14ad934577d3`;
+  config `sha256:d55086d9c2259d4d48358caed54eaa63ce91aef41146a36557878fe2e9ac29a4`;
+  CI Docker index `sha256:4560aa33c6df7da07b5235cccc43d50f3f3f660849542160821a4027b3c6fed6`.
+  Retained outside Git in approved temp `rl06-premerge-preserved-14924980940/`
+  alongside `VERIFICATION-RECEIPT.json`; owner should copy this complete artifact/
+  receipt to trusted private retention before expiry (local copy is not offsite/
+  immutable-storage acceptance). Do not retag stable or mix receipts/images.
+- Merge-main artifact `14925933170`, source `d647cfc...`, is **different**, with
+  TAR `67ca7cd2d42f5de8e452d3f94183a7b11daa1a7299833efa24165d2b98336f26` and
+  config `sha256:5ba0dfa61054b0077c917bab9572fc4fad5521d28109ab66f2223f391dc1fc77`.
+  Independently downloaded merge-main artifact/13 checksums/config/source/tag/
+  platform and exact CI receipt verified; no byte-identity claim against branch.
+  Final documentation-only main commit gets its **own** exact-head CI/artifact;
+  final SHA/CI/independent validation recorded in PR integration comment/final
+  handoff after commit. Never assume same-tree images/archive bytes identical.
+
+German guide **`docs/synology-test-deployment.md`** is unchanged and packaged.
+Actual DSM/Container Manager, test-share UID/GID/ACL, non-overlapping subnet/fixed
+internal-IP reverse-proxy connectivity, trusted HTTPS/certificate, desktop/tablet/
+mobile/installed-PWA, ordinary-only offline queue/cache, full round cancellation/
+overlap/paid/closed/settled/uncertain/unattributed blocks and operator independent/
+encrypted recovery/key/post-backup reconciliation remain **PENDING**. No manual
+success inferred from CI. Existing FH-05/OQ-06/Windows/operational gaps retained.
+Production Compose/updaters/timer/Dockerfile/runtime/migrations/UI/service-worker
+zero diff from expected base. No NAS install/share/production data/network/DSM/
+certificate/firewall/provider/refund/SMTP/release/publication/schedule operation.
+
+
 ## RL-06 verified test deliverable — 2026-11-24 (supersedes in-progress notes)
 
 PR #11 https://github.com/tostman1/drink-pos/pull/11 **OPEN/UNMERGED**.
