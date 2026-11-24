@@ -37,6 +37,7 @@ class EditRequestIn(PositiveIdModel):
     line_quantities: dict[str, int] | None = None
     changes: dict[str, int] | None = None
     reason: str | None = None
+    correction_operation_id: str | None = None
 
 
 class RoundRequestIn(PositiveIdModel):
@@ -51,6 +52,8 @@ class PayRequest(PinRequest, PositiveIdModel):
     reject_request_ids: list[int] = Field(default_factory=list)
     approve_pending: bool = False
     reject_pending: bool = False
+    payment_operation_id: str | None = None
+    corrections_only: bool = False
 
 
 class KassaPayRequest(PayRequest):
@@ -79,6 +82,19 @@ class AdminAdjustItemRequest(PinRequest, PositiveIdModel):
     delta: int
     item_id: int | None = None
     drink: str | None = None
+    correction_operation_id: str | None = None
+    correction_purpose: Literal["erroneous_booking"] | None = None
+    correction_reason: str | None = None
+
+
+class RoundCancellationRequest(PinRequest):
+    round_unit_ids: list[int]
+    correction_operation_id: str
+    correction_reason: str
+
+
+class RoundDeductionRequest(PinRequest):
+    round_unit_id: int | None = None
 
 
 class AdminChangeRequestDecision(PinRequest, PositiveIdModel):

@@ -115,6 +115,22 @@ def is_database_unreadable_error(error: Exception) -> bool:
 def init_db():
     mode = os.getenv("DRINK_POS_MIGRATION_MODE", "legacy")
     if mode == "legacy":
+        # A versioned installation must retain its ledger contract even when a
+        # caller selects legacy mode. Never normalize it behind the strict gate.
+        if os.path.isfile(DB_PATH):
+            # Header-only dispatch, before any SQLite open/WAL recovery. Ledger
+            # validation remains the strict inspector's responsibility.
+            with open(DB_PATH, "rb") as stream:
+                header = stream.read(100)
+            version = int.from_bytes(header[60:64], "big") if header[:16] == b"SQLite format 3\0" else 0
+            if version:
+                try:
+                    from app.db.migrations import migrate
+                except ImportError:
+                    from db.migrations import migrate
+                migrate(DB_PATH)
+                ensure_messages_file()
+                return
         return _init_legacy()
     try:
         from app.db.migrations import MigrationRejected, migrate
@@ -132,11 +148,20 @@ def init_db():
         DB_PATH,
         allow_fresh=permissions["DRINK_POS_ALLOW_FRESH"],
         adopt_legacy=permissions["DRINK_POS_ADOPT_LEGACY"],
-        initialize=lambda conn: _init_legacy(connection=conn),
+        initialize=initialize_current,
     )
     # Only after DB commit. No atomicity with files; no financial normalizations
     # on existing versioned state. Strict rollout keeps rollback-journal mode.
     ensure_messages_file()
+
+
+def initialize_current(conn):
+    _init_legacy(connection=conn)
+    try:
+        from app.db.transaction_schema import initialize
+    except ImportError:
+        from db.transaction_schema import initialize
+    initialize(conn)
 
 
 def _init_legacy(*, connection=None):
@@ -467,6 +492,13 @@ def _init_legacy(*, connection=None):
         ensure_indexes(conn)
 
         if connection is None:
+            try:
+                from app.db.transaction_schema import initialize
+            except ImportError:
+                from db.transaction_schema import initialize
+            if not conn.in_transaction:
+                conn.execute("BEGIN IMMEDIATE")
+            initialize(conn)
             conn.commit()
 
 
