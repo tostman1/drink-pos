@@ -3,6 +3,9 @@
 > Historical proposal only. The current foundation contract is `AGENTS.md` and
 > `docs/PROCESS.md`; reconstruct requirements and follow `IMPLEMENTATION_PLAN.md`.
 > Do not execute this wide-refactor/payment-retry/deployment plan automatically.
+> GitHub waiting is governed by `docs/PROCESS.md`: use one deterministic
+> `scripts/wait_for_ci.py` invocation, not model polling. Historical PR/test text
+> here grants no merge authority and does not override exact-head/review gates.
 
 Ziel: Behebe die wichtigsten Probleme in `tostman1/drink-pos` (Code-Qualität, Architektur, Tests, Dokumentation) und erstelle einen PR mit klaren Commit-Schritten.
 

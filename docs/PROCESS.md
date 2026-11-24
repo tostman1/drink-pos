@@ -15,8 +15,10 @@ external-service behavior.
 
 ## Ready gate
 
-1. Read the handoff and inspect Git state, base, affected code, tests, and CI.
-2. Identify `DP-*` requirements and one `EF-*` work package.
+1. Read the current handoff checkpoint and inspect Git state, base, affected code,
+   tests, and CI once. Refresh only state that may have changed; expand historical
+   context when a real dependency or contradiction requires it.
+2. Identify `DP-*` requirements and one bounded `EF-*`, `RL-*` or documentation package.
 3. Describe scope, acceptance, risks, exclusions, and verification before editing.
 4. For structural work, first demonstrate behavior parity at the actual runtime
    seam; do not substitute an extracted prototype based only on its name.
@@ -45,6 +47,142 @@ manual/device/integration evidence. These states are not interchangeable.
 records branch/base/PR relationships, protected changes, unresolved verification,
 and the next safe action. Never clear an unfinished check because an unrelated
 lint/test job passed. No automatic merge or deployment is part of this process.
+
+## Mandatory token-efficient GitHub and CI workflow
+
+**Waiting is not reasoning. An LLM must not repeatedly reason, generate commentary,
+invoke tools or reconstruct context solely to wait for an external operation.**
+Binding for all sessions, agents, epics and packages, including Actions, PR checks,
+mergeability/protection updates, final-head and post-merge CI, artifacts, rate-limit
+recovery and other asynchronous external systems. Repetitive waiting is mechanical
+work for deterministic non-LLM automation, normally one invocation and one final result.
+
+### Sequence and unchanged safeguards
+
+1. Complete implementation; freeze the candidate while verification is running.
+2. Run relevant local regression and full Standard Checks; retain failures/warnings.
+3. With owner authorization, commit (`git commit -F`) and push the verified commit.
+4. Capture the full intended HEAD SHA and explicit repo/branch or PR. Identify its
+   Actions run once, or let the helper discover by workflow/event/exact SHA/PR identity.
+5. Invoke `python scripts/wait_for_ci.py` once, as specified in
+   [Standard Checks](standard-checks.md#deterministic-ci-waiting--ef-03).
+6. Wait without model turns or status commentary. Receive one compact terminal result.
+7. Success must match that exact HEAD, workflow, event, attempt and all mandatory
+   jobs/checks. No stale/unrelated/missing/skipped/neutral checks accepted as passes;
+   only the existing intentionally skipped publication job is exempt. Additional
+   protection/external check contexts must be supplied with `--require-check` and
+   independently reviewed against the current rules. The helper does not change rules
+   or replace review/mergeability/protection/artifact authenticity checks.
+8. Continue only the next authorized integration action. Before an approved merge,
+   refresh HEAD/base/reviews/unresolved threads/protection/mergeability once at that
+   boundary. Use the established exact-head guard and normal merge method, no bypass.
+   If GitHub is still computing mergeability, checkpoint/stop or use one bounded
+   deterministic watcher; never short-sleep/tool/model loops or assume mergeability.
+9. On failure, obtain targeted failed-job/step evidence, diagnose and change the actual
+   problem. Repeat verification only for changed commit, failed check, tooling fix or
+   another meaningful state change; preserve failed evidence, never retry to hide it.
+10. Apply the same helper to final-head branch AND PR CI and, after an explicitly
+    approved merge, exact merge-main and final-main CI. Verify tree/parents separately.
+    Documentation descendants get their own exact-commit CI; predecessor/same-tree
+    success is not sufficient. Avoid creating endless receipt-only commits: retain
+    final SHA/results in the authorized PR receipt/report after the final commit.
+
+CI/review/security/migration/regression/manual gates, branch protection, release
+traceability and deployment authorization are unchanged. A timeout, missing evidence
+or pending result is never success or merge permission. Successful CI is not real
+DSM/mobile/PWA/provider/operator acceptance. No dispatch/rerun/cancel/merge by the helper.
+
+### Prohibited orchestration
+
+- Tight LLM-driven GitHub polling, `gh run view` every few seconds, repeated
+  `gh pr checks` while pending, or short shell sleeps followed by another model turn.
+- Re-requesting unchanged status or full PR inspections, repeated full CI logs, or
+  progress commentary without actionable state changes.
+- Re-reviewing/rewriting unchanged implementation while CI runs, or reconstructing
+  the entire repository context during one work package.
+- Aggressive rate-limited retries, parallel agents watching identical CI, or elapsed
+  waiting time as a reason for more model requests/tokens.
+
+Use targeted searches/reads, concise tool output, cached verified session facts and
+batched independent read-only queries. Do not redundantly repeat status/diff/branch/
+remote commands, implementation summaries or unchanged code. Use existing DP/EF/RL/
+decision IDs; persist important knowledge in authoritative docs. Deterministic scripts
+handle repetitive work; LLM reasoning is for analysis/design/implementation/debugging/
+meaningful review. Quality, coverage and accurate reporting take precedence over brevity.
+
+### Timing, execution and distinct limits
+
+Defaults: 90s after trigger/push, 30s discovery retry, 60s normal polling, 120s after
+10 minutes, 30-minute overall budget including delays/requests, three retries after
+the original failed request, transient backoff 15/30/60s. Internal delays only;
+final JSON only. Configure supported values with justified evidence, not for tight polling.
+
+| Limit/failure | Correct response |
+| --- | --- |
+| GitHub REST primary | Follow `X-RateLimit-Resource`, remaining/reset and `Retry-After`; helper uses REST through `gh api --include` and waits until the latest permitted time. No extra reset probes. |
+| GitHub GraphQL primary | Separate budget/resource; do not infer availability from REST. Respect returned reset information; use one deterministic wait or checkpoint, not endpoint switching to evade quotas. Helper does not use GraphQL. |
+| GitHub secondary | Respect `Retry-After`; absent that, at least 60s, then bounded exponential backoff. Stop with permitted retry timestamp if outside budget or retries exhausted. |
+| Transient API/network failure | Bounded exponential backoff; honor retry instructions. Authentication/permission/unrecognized evidence is unavailable, not an automatic retry campaign. |
+| LLM provider request limits | Stop unnecessary model interactions/repeated requests; preserve checkpoint, resume only when session/provider is available; no quota bypass. |
+| LLM provider token limits | Separate from request limits and GitHub; reduce context/output duplication, preserve checkpoint and stop. A fixed delay never guarantees recovery. |
+| OpenCode tool execution timeout | Execution boundary, not CI/provider failure. Use supported background completion notification or a clean checkpoint; no repeated short polling. |
+
+In the current harness the shell defaults to **120000ms**; foreground timeout hands
+off to background, while an explicitly background command is stopped at its timeout.
+Use one `functions.shell` call with `background: true, timeout: 1860000` for the
+1800s helper budget plus cleanup margin (or one foreground call with that timeout).
+Use an absolute Python executable and correct workdir; do not launch an unmanaged
+detached child/PowerShell job. Record returned tool/job identity plus the helper's
+PID/start/expected SHA/result path. The harness delivers completion automatically:
+do not sleep, poll, or check the result file while waiting. One notification then
+one result read if needed. If this capability/timeout is not available, stop with
+checkpoint; never recreate it through repeated model invocations or prompt reminders.
+
+The helper bounds each `gh` request to 30s or remaining budget, uses no shell/child
+watcher, and Python cleans up timed-out child requests. It writes a small pending
+record immediately and atomically replaces it with a terminal result. Ctrl-C records
+interrupted; forced process termination may leave pending, which is NOT success.
+Do not start a second monitor on resume before checking the recorded process identity
+once; PID alone can be reused, so compare start time/command/target. Only an identified
+owned monitor may be stopped; GitHub runs are never cancelled. Retain evidence until
+integration review; cleanup only that operation's outside-Git result/log after no
+monitor is active. No recurring LLM jobs, sleeps or notifications for unchanged state.
+
+### Failure diagnostics and compact evidence
+
+First query failed jobs/steps for the recorded run attempt (commands in Standard
+Checks). Download `--log-failed` for only the failed job once; store large logs outside
+Git and search relevant errors/sections. Do not fetch successful-job logs or repeated
+complete workflow logs routinely. Escalate to complete logs only when targeted data
+is insufficient; retain all information needed for reliable root-cause analysis.
+For success report run ID/URL, exact verified SHA, workflow/check names and conclusion,
+plus test summary only where required. Do not dump complete logs or PR JSON.
+
+### Durable checkpoint and recovery (existing documents, no new status files)
+
+Maintain ONE concise current checkpoint at the top of `docs/HANDOFF.md`; completed/
+failed evidence belongs in `docs/PROGRESS.md`, not a growing new family of documents.
+Historical receipts remain intact but are not automatically reread or renewed authority.
+Update on interruption/rate limit/dependency/tool failure or meaningful transitions,
+not each poll. If model access is already lost, the helper's outside-Git identity/
+result record plus existing checkpoint enables later completion without model calls.
+
+```text
+Work package: EF/RL/docs ID; implementation status; authorized scope
+Branch / current full commit SHA: ... (uncommitted changes explicitly noted)
+PR: number + URL / none; run: ID + URL / not yet discovered
+Completed verification: exact SHA/tree/environment/result + evidence path
+Pending verification: required local/branch/PR/final-head/post-merge/manual checks
+Blocker: specific GitHub REST/GraphQL/secondary / provider request/token / tool / other
+Next action: exact command/approval needed; permitted retry time if supplied
+Monitor: tool job + PID/start/target/result/log paths / none
+Integration: merge occurred? SHA / no; deployment/publication occurred? / no
+```
+
+On resume read the checkpoint first, verify branch/HEAD/worktree and only external
+state that could have changed. Read one persisted result after known completion or
+perform one identity check after interruption. Do not restart the package/repeat
+verified work without a concrete reason. Never automatically resume a merge/deploy.
 
 ## Traceability maintenance
 

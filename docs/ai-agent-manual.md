@@ -3,6 +3,11 @@
 This manual is for AI agents or MCP wrappers that operate Drink POS through the
 Agent REST API.
 
+Repository development agents instead start with `AGENTS.md` and `docs/PROCESS.md`.
+Their GitHub/CI waiting must use `scripts/wait_for_ci.py`, not repeated model-driven
+status checks. This operating-API manual does not authorize GitHub integration,
+deployment or changes to the financial retry/freshness rules below.
+
 ## Contract
 
 Use the Agent REST API only. Treat all other endpoints as out of scope unless a

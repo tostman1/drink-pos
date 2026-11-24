@@ -33,6 +33,11 @@ Never use production databases, production Compose startup, live payments or
 email delivery as routine verification. PR #1 was owner-merged as `052c2bb`;
 its manual verification items remain open.
 
+Coding agents must follow [the mandatory token-efficient CI workflow](docs/PROCESS.md#mandatory-token-efficient-github-and-ci-workflow):
+waiting is deterministic automation, not repeated model interactions. Exact
+`scripts/wait_for_ci.py` commands, timeouts, exit codes and limitations are in
+[Standard Checks](docs/standard-checks.md#deterministic-ci-waiting--ef-03).
+
 ## Lokal starten
 
 ```powershell
