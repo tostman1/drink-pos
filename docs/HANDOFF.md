@@ -1,5 +1,19 @@
 # Handoff and protected work
 
+## Active RL-05 R5-01/02 review continuation — 2026-11-24
+
+Owner authorizes bounded review fixes on existing PR #10, not merge/new package.
+Incoming clean reviewed/local/remote `f4d56ffcb4992dfbef813f05ab5feafc19a88f52`, main
+`2cc36fd69ec56dbdfe65ffb7ed98600d7c33b7c4`. Preserve original RL05 work/branches.
+R5-01 opposite round-reversal VK; R5-02 complete ordinary/round read-time provenance
+classification. Narrow necessary new member receipt parent T field only, no old
+receipt rewrite/DDL/v2/ledger change. 16 served tests pass after initial failing
+regressions; actual full local/exact-final-head container+DR/PR gates still required.
+Paid/physical net/source-period/idempotency/round safety untouched. Old incomplete
+or NULL-parent approvals stay unverified; no reconstruction. FH-05/broader OQ-06/
+WinError 5/MV01..05/operational MV06 remain unresolved. Leave PR open; second review
+after complete delivery, no merge/deploy/publish/production/payment/refund/mail/schedules.
+
 ## RL-05 review submission receipt — 2026-11-24
 
 PR https://github.com/tostman1/drink-pos/pull/10 **OPEN/unmerged**, exact base remains

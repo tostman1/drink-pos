@@ -125,6 +125,12 @@ indexes/triggers transactionally; no automatic historical source reconstruction.
 Normal consumption reads explicit signed sources, paid snapshots distinct; person
 history no longer heuristically subtracts old request names/time. See RL-05 contracts.
 
+R5-02 adds read-only `services/correction_coverage.py` for complete ordinary/round
+parent-audit linkage validation, not financial reconstruction or authorization. New
+member decisions populate the existing receipt transaction_id; old receipts remain.
+R5-01 round finance readers apply opposite VK signs to deduction/reversal, matching
+their expense/profit convention; consumption/paid paths and v2 DDL are unchanged.
+
 RL-04 scoped preservation supersedes former RL-01/03 rewrite descriptions below:
 `admin_update_drink` is master-only plus audit; legacy initializer no longer calls
 historical cost backfill/round reset and initializes missing default products only.

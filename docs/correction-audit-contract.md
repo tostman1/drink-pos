@@ -51,6 +51,29 @@ Round lifecycle/blocks/reversal/abuse matrix: `round-cancellation-contract.md`.
 Real additive schema/version/compatibility: `migration-safety.md`. FH-04 implementation
 is under verification, closure only after final full local/exact-head container/CI.
 
+## R5-02 review correction: coverage requires complete relational evidence
+
+`admin_statistics` validates the parent audit against a complete ordinary **or**
+round operation, not merely existence of one correction_details row. Ordinary
+details all link source booking/O/date/person/item/unit snapshots and signed totals,
+purpose/operator, receipt and member request (where applicable). Round evidence uses
+its separate cancellation/deduction/reversal/RE/reservation links; see round contract.
+New member-decision receipts populate the **existing transaction_id field** with the
+exact CHANGE_APPROVED/REJECTED audit ID, required to prove approval coverage rather
+than guess by person/text/timestamp. Discovery severity Low/Medium: pre-review receipts
+omitted this parent link. No old receipt/audit UPDATE or schema change is introduced;
+old NULL-parent approvals remain unverified, even if their other detail appears plausible.
+Report completeness is stored linkage validation, not external/historical authenticity.
+
+The existing `historical_correction_coverage` and
+`legacy_ambiguous_correction_transactions` response fields remain unchanged in shape.
+The counter now covers unverified CHANGE_APPROVED/negative ADMIN_ADJUSTMENT **and**
+ROUND_CANCELLED parent audits; complete new operations yield no false warning. Missing
+details, receipts, reversals or contradictory snapshots/RE remain flagged. Counts are
+parent audits, not guessed correction quantities; one incomplete multi-parent operation
+may flag several audits. Coverage is database-wide, independent of display period/admin
+item filtering, not an as-of/period-completeness certificate or authorization to repair.
+
 ## Retained RL-04 baseline evidence (not current policy)
 
 RL-04 characterization at baseline `8dd961b`; implementation deliberately unchanged.

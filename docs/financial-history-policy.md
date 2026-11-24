@@ -12,6 +12,14 @@ not new physical consumption. See correction-audit/round-cancellation/rl-05 cont
 No old correction inference, historical export/invoice regeneration, refunds, as-of
 reports or extra historical fingerprint. FH-05 and broader OQ-06 remain open.
 
+R5-01/02 review corrections: round-finance VK uses original deduction +abs(total)
+and compensating reversal −abs(total), matching its signed expense/profit and separate
+round-event totals. Physical net consumption/paid snapshots unchanged. Audit coverage
+recognizes complete source-linked round as well as ordinary corrections; incomplete
+or historical T-only/NULL-parent receipts remain unverified. New member receipts
+record the existing approval parent FK, never backfilled. See correction/round contracts;
+no storage/migration/historical financial UPDATE or provider/refund change.
+
 ## RL-04 scoped owner authorization — 2026-11-24
 
 **Routine snapshot preservation is approved and implemented for review**, baseline

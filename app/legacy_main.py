@@ -138,6 +138,7 @@ try:
     from .services import events as event_service
     from .services import messages as message_service
     from .services import corrections as correction_service
+    from .services.correction_coverage import ambiguous_correction_transactions
     from .services.statistics import log_transaction, log_transaction_item
     from .services.sync import get_sync_state
     from .utils.formatting import (
@@ -164,6 +165,7 @@ except ImportError:
     from services import events as event_service
     from services import messages as message_service
     from services import corrections as correction_service
+    from services.correction_coverage import ambiguous_correction_transactions
     from services.statistics import log_transaction, log_transaction_item
     from services.sync import get_sync_state
     from utils.formatting import (
@@ -3770,7 +3772,7 @@ def decide_single_change_request(conn: sqlite3.Connection, request_id: int, deci
             "UPDATE change_requests SET status = 'REJECTED', decided_at = ? WHERE id = ?",
             (now_text(), request_id),
         )
-        log_transaction(
+        tx_id = log_transaction(
             conn,
             int(row["person_id"]),
             "CHANGE_REJECTED",
@@ -3784,7 +3786,7 @@ def decide_single_change_request(conn: sqlite3.Connection, request_id: int, deci
         "decision": decision_norm,
         "person_id": int(row["person_id"]),
     }
-    correction_service.receipt(conn, identity, "member-decision", payload, result)
+    correction_service.receipt(conn, identity, "member-decision", payload, result, tx_id)
     return result
 
 
@@ -5973,6 +5975,8 @@ def build_report_rows(conn: sqlite3.Connection, req: ReportRequest) -> tuple[lis
                 )
             else:  # profit
                 if kind in {"ROUND_DEDUCTED", "ROUND_DEDUCTION_REVERSAL"}:
+                    # Original deduction VK is +abs(total); compensation must be
+                    # -abs(total), not a second positive retail contribution.
                     cost = abs(purchase_total) * (-1 if kind == "ROUND_DEDUCTION_REVERSAL" else 1)
                     raw.append(
                         {
@@ -5984,7 +5988,7 @@ def build_report_rows(conn: sqlite3.Connection, req: ReportRequest) -> tuple[lis
                             "revenue_eur": 0,
                             "cost_eur": cost,
                             "profit_eur": -cost,
-                            "vk_value_eur": abs(total),
+                            "vk_value_eur": abs(total) * (-1 if kind == "ROUND_DEDUCTION_REVERSAL" else 1),
                         }
                     )
                 else:
@@ -6210,10 +6214,11 @@ def admin_statistics(req: StatisticsRequest):
                 continue
             kind = row["kind"]
             if kind in {"ROUND_DEDUCTED", "ROUND_DEDUCTION_REVERSAL"}:
+                # Same signed compensation convention as the profit preview/CSV.
                 revenue = 0.0
                 cost = abs(float(row["purchase_total_eur"] or 0)) * (-1 if kind == "ROUND_DEDUCTION_REVERSAL" else 1)
                 profit = -cost
-                vk_value = abs(float(row["total_eur"] or 0))
+                vk_value = abs(float(row["total_eur"] or 0)) * (-1 if kind == "ROUND_DEDUCTION_REVERSAL" else 1)
             else:
                 revenue = float(row["total_eur"] or 0)
                 cost = float(row["purchase_total_eur"] or 0)
@@ -6324,9 +6329,7 @@ def admin_statistics(req: StatisticsRequest):
             )
         ]
 
-        legacy_corrections = conn.execute(
-            "SELECT COUNT(*) FROM transactions t WHERE (t.type='CHANGE_APPROVED' OR (t.type='ADMIN_ADJUSTMENT' AND t.total<0)) AND NOT EXISTS(SELECT 1 FROM correction_details cd JOIN transaction_items ti ON ti.id=cd.transaction_item_id WHERE ti.transaction_id=t.id)"
-        ).fetchone()[0]
+        legacy_corrections = ambiguous_correction_transactions(conn)
         return {
             "consumption_basis": "current-net-corrected",
             "historical_correction_coverage": "unverified" if legacy_corrections else "new-source-linked-operations",

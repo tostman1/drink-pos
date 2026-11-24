@@ -146,9 +146,92 @@ def worker(target: Path, commit: str) -> dict:
         patch.object(main.event_service, "send_smtp_message", side_effect=AssertionError("No SMTP authorized")),
     ):
         main.startup()
-        seed()  # Several members, priced history, paid rounds/deductions/cashup,
-        # idempotency, named invoice+CSV/PDF, messages, provider IDs and sequence gap.
         pin = os.environ["DRINK_POS_PIN"]
+        # R5-01/02 actual served reporting: different historical price/cost
+        # snapshots, exact linked member round approval, no financial repair.
+        review_people = [
+            api("/api/admin/people/create", {"pin": pin, "first_name": "Review", "last_name": name})["id"]
+            for name in ("Roundpayer", "Consumer")
+        ]
+        api(
+            "/api/admin/drinks/create",
+            {"pin": pin, "name": "Review snapshot drink", "short_label": "Review", "price": 3, "purchase_price": 1},
+        )
+        with main.get_conn() as conn:
+            review_item = conn.execute("SELECT id FROM items WHERE name='Review snapshot drink'").fetchone()[0]
+        api("/api/add-drink", {"person_id": review_people[0], "item_id": review_item})
+        api(
+            "/api/admin/drinks/update",
+            {
+                "pin": pin,
+                "item_id": review_item,
+                "name": "Review snapshot drink",
+                "short_label": "Review",
+                "price": 5,
+                "purchase_price": 2.5,
+            },
+        )
+        api("/api/add-drink", {"person_id": review_people[1], "item_id": review_item})
+        api("/api/round-request", {"person_id": review_people[0], "quantity": 1})
+        with main.get_conn() as conn:
+            review_unit, review_line = tuple(
+                conn.execute("SELECT id,original_order_line_id FROM round_units ORDER BY id DESC LIMIT 1").fetchone()
+            )
+        report_payload = {"pin": pin, "report_type": "profit", "group_by": "item"}
+        api("/api/deduct-round", {"pin": pin, "round_unit_id": review_unit})
+        deducted_report = api("/api/admin/report/preview", report_payload)
+        deducted_review = next(row for row in deducted_report["rows"] if row[0] == "Review snapshot drink")
+        assert deducted_review == ["Review snapshot drink", -2, "8,00", "0,00", "3,50", "-3,50"]
+        review_original = state()
+        api(
+            "/api/edit-request",
+            {
+                "person_id": review_people[0],
+                "line_quantities": {str(review_line): 1},
+                "reason": "review synthetic round correction",
+            },
+        )
+        with main.get_conn() as conn:
+            review_request = conn.execute("SELECT MAX(id) FROM change_requests").fetchone()[0]
+        decision_payload = {"pin": pin, "request_id": review_request, "decision": "approve"}
+        decision = api("/api/admin/change-request/decide", decision_payload)
+        corrected_review = next(
+            row for row in api("/api/admin/report/preview", report_payload)["rows"] if row[0] == "Review snapshot drink"
+        )
+        assert corrected_review == ["Review snapshot drink", 0, "0,00", "0,00", "0,00", "0,00"]
+        review_after = state()
+        assert_old_snapshots(review_original, review_after)
+        assert api("/api/admin/change-request/decide", decision_payload) == decision
+        assert state() == review_after
+        # Aggregate only finance/RE linked to this unit; other valid rounds and
+        # prior paid snapshots are a deliberately different population.
+        with main.get_conn() as conn:
+            for person, price, cost in ((review_people[0], 3, 1), (review_people[1], 5, 2.5)):
+                assert tuple(
+                    conn.execute(
+                        "SELECT quantity,unit_price_eur,unit_purchase_price_eur FROM order_lines WHERE person_id=? AND item_id=?",
+                        (person, review_item),
+                    ).fetchone()
+                ) == (1, price, cost)
+            assert (
+                conn.execute(
+                    "SELECT COUNT(*) FROM transaction_items WHERE kind='CONSUME' AND item_id=?", (review_item,)
+                ).fetchone()[0]
+                == 2
+            )
+        coverage_before = state()
+        coverage = api("/api/admin/statistics", {"pin": pin, "scope": "all", "include_admin_items": True})
+        assert sum(day["vk_value_eur"] for day in coverage["finance_by_date"]) == 0
+        assert coverage["kpis"]["cost_eur"] == coverage["kpis"]["profit_eur"] == coverage["kpis"]["revenue_eur"] == 0
+        assert coverage["kpis"]["quantity"] == coverage["kpis"]["gross_quantity"] == 2
+        assert coverage["kpis"]["corrected_quantity"] == 0
+        assert coverage["rounds"]["deducted_vk_eur"] == coverage["rounds"]["deducted_purchase_eur"] == 0
+        assert coverage["legacy_ambiguous_correction_transactions"] == 0
+        assert coverage["historical_correction_coverage"] == "new-source-linked-operations"
+        assert state() == coverage_before
+        # Seed provider uncertainty only after this isolated review scenario; the
+        # existing UNKNOWN guard must not be bypassed to run another manual round.
+        seed()  # Priced history, paid rounds/cashup, invoice/artifacts/provider IDs.
         cash_person, card_person, unknown_person = [
             api("/api/admin/people/create", {"pin": pin, "first_name": "RL04", "last_name": name})["id"]
             for name in ("Cash", "Card", "Unknown")
@@ -385,6 +468,8 @@ def worker(target: Path, commit: str) -> dict:
         "versioned_adoption_verified": True,
         "net_consumption_verified": True,
         "round_reversal_verified": True,
+        "round_reversal_reporting_verified": True,
+        "correction_coverage_verified": True,
         "recovery_verified": True,
         "network_attempts": len(network_attempts),
         "mocked_card_creations": len(calls),

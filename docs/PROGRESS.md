@@ -1,5 +1,52 @@
 # Engineering foundation progress
 
+## RL-05 R5-01/02 review corrections — 2026-11-24
+
+Continued clean fetched/local/remote reviewed `f4d56ffcb4992dfbef813f05ab5feafc19a88f52`
+on existing feature/rl-05-transaction-integrity / PR #10 OPEN. Main unchanged
+`2cc36fd69ec56dbdfe65ffb7ed98600d7c33b7c4`, no rewrite/restart/delegation. Mandatory
+docs and served handlers/actual receipt schema inspected; bounded ready-gate addendum
+in rl-05-contract before code. R5-01/02 plus narrow omitted approval-parent discovery.
+
+Initial 9 served regressions **7 expected failures**, proves VK 6/16 instead of zero,
+NULL member-decision parent and missed partial detail/reversal (`rl05-review-red.log`
+outside Git). Expanded **16 tests pass** locally, full gates still pending. Reversal
+VK sign corrected in both read paths; separate RE/expense/profit/payment/consumption
+unchanged. Complete ordinary/round coverage validates relational snapshots/receipt/
+request/reservations/all reversal/RE details, fails unverified for partial/old data.
+New member receipt existing transaction_id links exact parent; never UPDATE old rows.
+
+Installed-style served financial rehearsal covers two VK/EK generations/member approval/
+exact zero round report, physical quantity/debt/original audit/replay and coverage;
+network_attempts=0/recovery_verified=true. Initial synthetic placement after seed
+hit preserved UNKNOWN-card guard; moved scenario before provider uncertainty, no
+guard bypass. Mistyped fixture settings route corrected to existing /settings/update.
+Original implementation/migrations/DDL/ledger/provider/UI/deployment untouched except
+new receipt insert field. Final local 3.12/3.13/CI/container/recovery receipts pending.
+No production/provider/refund/mail/release/publication/deploy/schedule/merge.
+
+First full 3.12/3.13 Standard Checks stopped at Ruff format for the changed legacy
+handler (no suite pass claimed); changed-handler formatting corrected and full
+reruns running. Focused 16-test gate passes, including chronology across second
+boundaries/missing receipts/RE inconsistency; no existing format/check weakened.
+
+### Review correction pre-commit verification
+
+Full Standard Checks **exit 0** Python **3.12.13/3.13.15**: **309 discovered/303
+passed/six POSIX-only skips**, **179.707s/180.073s** unittest. All existing 293 and
+16 new review methods execute; Ruff/84-file format/syntax/24-ID traceability/Chromium
+keyed UI replay/real age/security audits (**no known vulnerabilities**)/diff pass.
+Logs outside Git `rl05-review-full312.log`/`rl05-review-full313.log`; initial format
+failures retained. No WinError 5 during successful gates (still unresolved/not fixed).
+Final installed scenario additionally asserts served finance and RE zero totals;
+committed-tree/full actual-image/exact-head CI verification remains required.
+
+Full scoped diff review: only 2 report VK sign changes, member receipt parent insert,
+read-only coverage service/new tests/installed rehearsal/docs. Existing source IDs/
+quantities/round lifecycle/concurrency locks/card uncertainty/refund/paid-profit/
+period logic/UI/worker/v2 DDL/hash/ledger/migration/EF08 tools/deployment have zero
+diff vs reviewed head. No original financial UPDATE; synthetic damage only in tests.
+
 ## RL-05 active — 2026-11-24
 
 Verified clean/fetched main `2cc36fd69ec56dbdfe65ffb7ed98600d7c33b7c4`, dedicated

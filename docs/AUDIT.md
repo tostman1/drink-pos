@@ -24,6 +24,25 @@ Observed results are dated in PROGRESS.md; no invented coverage percentages.
 
 ## RL-03 distinct financial-history findings — OPEN
 
+### RL-05 independent review R5-01/02 — corrections under verification
+
+- **R5-01 Medium:** profit report/statistics finance used +abs(VK) for deduction and
+  reversal (3,00+3,00=6,00; mixed-member 8,00+8,00=16,00). Reversal now contributes
+  opposite VK; cost/profit signs, paid snapshots/physical consumption/old records
+  unchanged. Served preview/CSV/statistics/RE/read-only/replay tests added.
+- **R5-02 Low/Medium:** ordinary-detail existence misclassified member round approvals
+  and missed partial new operations. Read-time complete ordinary/round relationship
+  validation added; missing/contradictory links remain unverified. Narrow related
+  discovery: member-decision receipts lacked exact parent transaction_id; now populated
+  for new decisions only, pre-fix NULL-parent receipts remain explicitly unverified.
+  No guesses/backfill/global suppression/schema/migration or provider effects.
+- `tests/test_review_reporting.py` adds 16 served regressions. Initial nine tests
+  produced seven expected failures (including subtest parent-link failures); subsequent
+  fixtures cover old T-only, partial detail/reversal/cancellation, unrelated/NULL parent,
+  malformed receipt, multi-parent operation, RE mismatch and second-boundary timestamps.
+  Exact full gates/PR second review pending; earlier FH-04 closure does not negate
+  these specific findings. FH-05/broader OQ-06/Windows/manual limits unchanged.
+
 ### RL-05 implemented contract (independent review pending)
 
 FH-04 new ordinary corrections append complete source-linked signed TI/metadata/

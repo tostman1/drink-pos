@@ -59,6 +59,34 @@ Original negative deduction TI/RE retained. Reversal TI values +3,00, costs +1,0
 0,00; profit report's round expense offsets explicitly, paid revenue unchanged.
 ROUND_CANCELLATION is never ordinary CONSUMPTION_CORRECTION or paid/refund detail.
 
+### R5-01 signed report VK convention (2026-11-24 review correction)
+
+Profit preview/CSV and statistics finance keep the existing original deduction
+convention: ROUND_DEDUCTED contributes **+abs(stored total_eur)** to VK and
++abs(stored purchase_total_eur) expense, with profit −expense. A linked
+ROUND_DEDUCTION_REVERSAL contributes **−abs(stored total_eur)** to VK and negative
+expense, with opposite profit. Thus −1 deduction at VK 3,00/EK 1,00 plus its +1
+reversal nets q=0/VK=0,00/cost=0,00/profit=0,00/revenue=0,00. Previously both VK
+contributions were positive (6,00); cost/profit already offset. Two members at
+3,00/1,00 and 5,00/2,50 previously yielded 16,00 VK; now zero. Original TI/RE
+financial snapshots are unchanged; separate RE deducted_vk/purchase/profit sums
+already carry signed compensating events and reconcile with this round population.
+Statistics KPI VK remains the net physical-consumption value, while finance_by_date
+VK is paid/round finance; do not conflate these populations or add a second CONSUME.
+
+### R5-02 read-time audit coverage
+
+Coverage distinguishes ordinary correction_details from round_cancellations and
+round_reversals. Complete round evidence requires the entire operation's cancelled
+unit set, booking/O snapshot, parent ROUND_CANCELLED T/TI, committed operation receipt,
+and every deduction's exact source/RE/reversal TI/compensating RE. Member approval
+also requires the APPROVED request/reserved unit set and an exact receipt→approval T
+link. Direct and generic admin round operations use their own receipt contracts;
+generic multi-line round cancellation may have several parent T entries. No free-text
+or current-price/count inference. Any missing/contradictory/partial operation remains
+unverified, including genuinely historical T-only audits. Original convention/period/
+payment/entitlement/migration schema and source IDs are not changed by these readers.
+
 ## Atomicity and abuse invariants
 
 BEGIN IMMEDIATE serializes cancellation, corrections, cash payment, manual deduction

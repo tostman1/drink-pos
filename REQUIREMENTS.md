@@ -160,6 +160,12 @@ Paid/closed/unknown/unattributed states fail closed. Genuine additive v2 migrati
 no original rebuild/backfill or additional historical support. See rl-05 and round
 contracts; legacy audit completeness and broad OQ-06/FH-05 remain unresolved.
 
+R5-01/02 scoped review acceptance (DP-004/005/013): exact round deduction/reversal
+nets zero round-finance VK/cost/profit, no paid revenue or physical-consumption change.
+Report coverage distinguishes complete ordinary/round provenance from incomplete/
+ambiguous historical parent audits, without inferring missing detail. New approval
+receipts retain their exact parent T ID using existing fields; old records unchanged.
+
 ## Classification rules
 
 **Confirmed behavior** has direct served-code and test evidence; it may still be

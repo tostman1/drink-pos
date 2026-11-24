@@ -77,3 +77,23 @@ open, EF-08a WinError 5 unresolved, devices/real provider/storage acceptance gap
 No production DB/deploy/release/publication/updater/schedule/real SumUp/SMTP or merge.
 Keep PR open for independent review. Addendum is part of this package; unsupported
 round reversals cannot masquerade as successful ordinary corrections.
+
+## Independent review corrections R5-01/02 — 2026-11-24
+
+Continue reviewed `f4d56ffcb4992dfbef813f05ab5feafc19a88f52` on existing PR #10.
+DP-004/005/013; failing served tests before implementation. R5-01 keeps the original
+ROUND_DEDUCTED +abs(VK) convention; its exact reversal contributes −abs(VK), just
+as its expense/profit contribution already compensates. Read-only profit preview/
+CSV/statistics finance and round-event reconciliation tested, physical consumption/
+paid stored profit/debt/entitlements unchanged.
+
+R5-02 coverage must validate complete source-linked ordinary **or** round operations,
+not merely existence of a correction_details row. Recognize round cancellation,
+every original deduction's reversal, member request/reservation and committed receipt;
+missing/inconsistent/partial links remain unverified, old T-only rows never inferred.
+Narrow necessary provenance discovery: member-decision receipt currently has NULL
+parent transaction_id, so the exact CHANGE_APPROVED audit cannot be authenticated
+relationally. Populate that existing field for new decisions only (no receipt UPDATE
+or schema change); pre-fix NULL-linked approval audits remain unverified. Add failure/
+partial-state fixtures and read-only state comparisons; retain strict v2 schema/
+ledger, concurrency/replay/rollback and installed-image financial/EF08 gates.
