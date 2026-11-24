@@ -1,5 +1,69 @@
 # Drink POS Architecture — observed baseline
 
+## Approved target boundaries — planned, not implemented (2026-11-24)
+
+Inspected main `7a6aa5dff411c8fb5601b87758a0fc64810aa0c3`; RL-06 integrated.
+The GUI-only administrator journey is binding in
+[`docs/product-operability.md`](docs/product-operability.md) (DP-026–040). This
+section defines required boundaries, **not a selected implementation**. Existing
+runtime/Compose/migrations/recovery tools are unchanged; dated RL descriptions
+below retain history, with RL-04/05 scoped supersessions, not present defect claims.
+
+```text
+Container Manager / other Docker host GUI
+  -> exact trusted image + port/exposure + independent persistent data
+  -> protected bootstrap/recovery browser boundary (no main-DB dependency)
+  -> explicitly initialized/versioned compatible application state
+  -> admin GUI -> typed settings + protected secret references + redacted audit
+              -> fresh action-bound authorization -> integration config revision
+              -> diagnostics / isolated acceptance records / activation
+  -> maintenance control -> durable journal + all-writer drain/hold
+                         -> existing EF-08 verification/new-root recovery
+  -> exact candidate + preflight/rehearsal readiness
+                         -> separate restricted install/restart boundary
+```
+
+- **Deployment/bootstrap:** one Compose/minimal image/port/volume inputs, one app
+  service by default, persistent data independent from image. No shared PIN/automatic
+  ownership/production activation/socket/privileged container. Installation claim,
+  strong credential verifier and browser recovery authority work without the main DB
+  (PO-ADR-01/09/10). One service may contain mutually exclusive normal/recovery modes
+  if safe; extra service requires a demonstrated safety need, not convenience.
+- **Settings/secrets:** A infrastructure stays host-controlled; B operational GUI
+  settings with C fresh authorization and D protected secrets. Typed/versioned atomic
+  revision+audit+secret-reference persistence, explicit ENV precedence/migration; no
+  empty-secret fallback/restart drift. Key hierarchy/old-backup retention/new-NAS
+  restoration and settings migrations block persistence until PO-ADR-02–05 resolve.
+  Existing SMTP/PIN TEXT settings are not the new secure persistence contract.
+- **Payment:** server-only provider adapter, restricted endpoint/network trust,
+  immutable config/merchant/reader binding per durable operation. Completeness,
+  connectivity, acceptance and activation differ. Unready normal UI/creation fail
+  closed; no production fake provider. Fresh authorization serializes changes against
+  active/unresolved normal/test operations; retired identity/access survives disable
+  for reconciliation. Tests are isolated from member debt/beverage revenue with real
+  funds accounted separately. No secrets/raw sensitive responses in reports. Access
+  policy/holds/test classification are PO-ADR-06–08, not inferred from old routes.
+- **Recovery:** GUI orchestrates all-writer drain/hold, EF-08b full snapshots/EF-08c
+  envelopes and verified new-root restore, never an active-DB overwrite. Journal/auth
+  is independent of broken DB. Bounded uploads are data, not paths/commands. Preserve
+  old/failed roots and post-backup financial/provider/mail/client activity; reconcile
+  before activation. Settings/secret format evolution requires compatibility review,
+  not a second archive. Independent keys/images/copies are necessities, not GUI magic.
+- **Updates:** evidence-bound version/image/schema/backup/storage/pending operation
+  visibility is not installation permission. Exact approval, verified backup/keys,
+  isolated rehearsal, writer hold, restricted restart and health/full-state checks
+  precede release. No general socket/host privilege/path injection/prune. PO-ADR-11/12
+  select provenance/narrow host authority. Image-only incompatible-schema rollback
+  forbidden; separate-root recovery/reconciliation is required where needed.
+- **Transport/acceptance:** trusted HTTPS for admin secrets/PWA, private LAN/VPN
+  default; TLS lifecycle stays host infrastructure unless approved (PO-ADR-13).
+  Actual DSM/mobile/PWA/financial/key-loss/offsite/immutable journeys remain RL-11
+  pending (PO-ADR-14). No service-worker bump: no UI change in this package.
+
+State machines/measurable gates are in the focused specification; options/owners
+in DECISIONS. RL-07→RL-11 are not implementation authorization. D-01 retains the
+served stack; no framework/ORM/architecture transplant.
+
 Drink POS has a modular runtime shell around the original production handlers.
 The stable production entrypoint is `app/main.py`, which loads the FastAPI app
 through `app/application.py`. Runtime routes are grouped by `app/routes/registry.py`
@@ -188,8 +252,9 @@ Dockerfile: Python 3.12 slim, app code at `/app`, Uvicorn port 8000, `/health`
 healthcheck, build metadata injected. Compose maps host 8088 and mounts only
 `./data:/app/data`; a second container schedules weekly backup CLI execution
 (full database plus CSV with the EF-08 image, CSV only with older pinned images). Never mount
-an empty host app directory over image code. Secrets live in server environment
-or protected settings, not frontend configuration. PIN-based local-network auth
+an empty host app directory over image code. Secrets currently live in server ENV
+or ordinary TEXT settings (SMTP/PIN), not frontend configuration; this is not
+encrypted-at-rest persistence and does not meet planned DP-030. PIN-based local-network auth
 and in-memory rate limits are existing limitations, not public-internet security.
 
 Foundation CI verifies without publishing; explicit owner-triggered main release

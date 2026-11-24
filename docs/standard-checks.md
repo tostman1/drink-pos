@@ -1,5 +1,50 @@
 # Standard Checks
 
+## Product-operability documentation gate (2026-11-24)
+
+DP-026–040 are owner-approved **planned** targets in `docs/product-operability.md`:
+PO-V01–15 are pending specification acceptance, not implemented test methods or
+new manual passes. Preserve the MV-01–06 register and unchanged code/CI gates.
+The schema-v1 catalog checker/exact-count tests cover only `requirements` DP-001–025;
+they do **not** validate `planned_requirements`. This docs-only package additionally
+audits both partitions for unique/exact IDs, source/spec references, pending/no-test
+status, owning RL packages/dependencies, open ADRs and prior-catalog/tree preservation.
+Record this supplemental result separately, not “40 requirements covered by CI”.
+RL-07 must separately extend schema/checker/tests for combined lifecycle validation
+before promotion; no weakening of CI/exact-ID assertions to accommodate documentation.
+Full Standard Checks still run on disposable state with provider/SMTP mocked;
+they authorize no deployment/real tests and do not implement the planned GUIs.
+
+Reproducible read-only supplemental catalog check (Python from repo root; developer
+verification, **not a normal administrator procedure**). Run this snippet through
+Python stdin or a temporary file outside Git, alongside the existing traceability
+command. The broader human/receipt audit also checks ADR options, roadmap dependencies,
+historical evidence, local Markdown links and documentation-only protected-tree parity.
+
+```python
+import json
+import re
+from pathlib import Path
+
+root = Path.cwd()
+catalog = json.loads((root / "docs/requirements.json").read_text(encoding="utf-8"))
+planned = catalog["planned_requirements"]
+ids = [r["id"] for r in catalog["requirements"] + planned]
+assert len(ids) == len(set(ids)) == 40
+assert [r["id"] for r in planned] == [f"DP-{n:03}" for n in range(26, 41)]
+spec = (root / "docs/product-operability.md").read_text(encoding="utf-8")
+headings = re.findall(r"^### (PO-V\d{2}) — planned acceptance:", spec, re.M)
+for n, requirement in enumerate(planned, 1):
+    assert requirement["status"] == "planned-not-implemented"
+    assert requirement["verification_status"] == "pending" and not requirement["tests"]
+    assert requirement["verification_id"] == f"PO-V{n:02}" in headings
+    assert requirement["acceptance"] and requirement["work_packages"]
+    for source in requirement["sources"]:
+        path = (root / source).resolve()
+        assert path.is_relative_to(root.resolve()) and path.is_file()
+print("Supplemental planned catalog passed; PO-V acceptance still pending")
+```
+
 ## Local setup and single command
 
 Python 3.12 (container baseline) or 3.13, Node 24 LTS. No npm install/build.

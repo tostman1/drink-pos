@@ -1,5 +1,41 @@
 # Technical audit — evidence, not a rewrite mandate
 
+## Product operability decision/evidence receipt — documentation only, 2026-11-24
+
+Exact inspected clean/current origin/main
+`7a6aa5dff411c8fb5601b87758a0fc64810aa0c3`; new docs branch, baseline CI
+`45410477163` independently queried success/publication skipped. Owner approves
+product outcomes D-18–25/DP-026–040, not technical PO-ADR-01–14 options or RL-07
+implementation. No existing PR altered/merged; RL-01–06/EF08 evidence preserved.
+
+Served code inventory in `docs/product-operability.md` follows main/application/
+registry/legacy and SumUp/security/events/build helpers. Findings are **source evidence
+and future gaps**, not asserted live incidents or authorized fixes:
+
+| Gap at inspected baseline | Evidence | Planned owner requirement / boundary |
+| --- | --- | --- |
+| No guided secure product bootstrap | ENV PIN/current stored TEXT admin PIN/legacy initialization; RL06 explicit synthetic CLI | DP-026/027: safe strong no-default GUI ownership, exact migration gates, DB-independent recovery |
+| SumUp operational ENV only | `sumup_payment_settings`, config builder; admin ENV text/status, list/pair/status APIs | DP-029/032: GUI persistence/discovery, no promised new functionality yet |
+| Completeness advertised as ready/partial UI hiding | admin “SumUp bereit”; member panel uses enabled, cashier button shown disabled, kassa rounding amount-based | DP-028/033/034: separate current readiness/activation, complete hiding and server gating |
+| Production fake-provider flag loophole | `test_card_payment_mode`: explicit allow-test flag/provider branch independent of APP_ENV production | DP-033: reject production fake/test regardless of flag. Docs only, no fix/deployment here |
+| Sensitive auth/secrets weaker than target | Browser-held reused PIN; `admin_pin` and `mail_smtp_password` stored TEXT; ENV provider keys; no action grant/encrypted key hierarchy | DP-030/031: fresh action-bound PIN and protected persistence/recovery; no current encryption claim |
+| Local uncertainty labels insufficient for new acceptance contract | Session local CANCELLED before terminate; poll TIMEOUT/expiry; current success accepts missing amount and currency fallback; no per-session merchant/reader/config revision | DP-031/035–037: immutable identities/exact success/definitive cancel, UNKNOWN holds/report/acceptance policy |
+| Backup/update interfaces not product GUI | Standalone EF08/release tools, exports/build labels, unsafe legacy pull/recreate/prune scripts | DP-038/039: all-writer isolated recovery/restricted updater with independent keys/images and post-backup reconciliation |
+
+No provider query, credential access, database inspection or real-device testing was
+performed. Existing uncertainty means no paid debt without provider evidence; new
+strict contracts do not retroactively claim old tests establish stronger merchant/
+config matching. Historical windows/audit/adoption gaps remain named below.
+
+Evidence receipt consists of updated authoritative docs/focused spec and planned JSON
+partition, PO-V01–15 all pending. Existing traceability validator covers only unchanged
+DP-001–025; supplemental source/status/unique-ID/ADR/roadmap audit is required and
+recorded in PROGRESS/PR. RL-07 owns lifecycle validation extension. No Python/test/CI
+loosening to mask a doc catalog change. Documentation review is not implementation,
+independent review/merge or NAS/operator/provider acceptance. Runtime/migrations/UI/
+Compose/RL06 deployment artifacts stay unchanged; final SHA/PR/checks recorded after
+commit/push without predecessor-CI inference. No production/deploy/payment/mail/release.
+
 ## RL-06 scoped deployment evidence — integrated, manual acceptance pending
 
 Owner independently reviewed exact `3f9e9d3`/artifact `14924980940`; no approved-scope

@@ -1,5 +1,46 @@
 # Handoff and protected work
 
+## Product operability documentation handoff — 2026-11-24
+
+Active branch `docs/product-operability-requirements`, created directly from clean
+fresh fetched/current main **`7a6aa5dff411c8fb5601b87758a0fc64810aa0c3`**.
+Exact-baseline CI `45410477163` independently queried: both Python matrices and
+container success, publication skipped. RL-06/PR #11 integrated; preserved original
+artifact identities/expiry below. No existing PR/branch/history rewritten/delegated.
+
+Owner approved **product requirements/docs only**, with commit/push/new OPEN PR;
+no merge/RL-07 implementation/production/Compose/migration/UI/provider/SMTP/NAS/
+image publication. Current authoritative target is `docs/product-operability.md`,
+DP-026–040, PO-V01–15 pending, D-18–25 binding; PO-ADR-01–14 OPEN recommendations
+unapproved. Read AGENTS/REQUIREMENTS/ARCHITECTURE/DECISIONS/IMPLEMENTATION_PLAN/PROCESS.
+
+- Binding journey: ordinary admin Compose → Start → Browser → Setup → Operate,
+  no SSH/CLI/manual SQLite/YAML/.env/developer help for routine operation; minimal
+  infrastructure remains host-GUI-controlled. One default service, no shared PIN/
+  start activation/socket/privilege; GUI secure settings/first-run, SumUp acceptance/
+  activation/full gating, complete recovery and restricted updates are **planned**.
+- Source-only inventory distinguishes served ENV SumUp/partial gating/fake-provider
+  flag risk/plaintext SMTP-PIN/settings/reader APIs/CLI EF08/build metadata from future
+  GUIs. No current feature or safety fix inferred from approved docs. Preserve exact
+  debt/tally/event/round/snapshots/idempotency/payment uncertainty/ordinary-only offline.
+- Schema-v1 old catalog DP-001–025 unchanged; new `planned_requirements` has explicit
+  pending/no-tests/spec/package references. Existing 25-ID checker/tests do not validate
+  this partition; supplemental combined audit required, no CI weakening. RL-07 must
+  separately evolve combined lifecycle machine gates before promoting requirements.
+- RL-07–11 sequence in plan; all need separate implementation approval and resolved
+  PO-ADR design gates. Next safe action after this delivery: **independent review of
+  the new OPEN documentation PR**. Do not merge/update prior PRs/start RL-07/live tests.
+- Existing FH-05/broader OQ-06/EF-08a WinError 5 and MV-01–05/partial MV-06 remain;
+  DSM/HTTPS/mobile/PWA/provider/offsite/key/operator acceptance still pending.
+
+Validation: supplemental 40-ID/15 pending anchors/14 ADR/dependency/local-link audit
+and full local Python 3.12.13/3.13.15 gates passed (318/312/six POSIX skips). Initial
+wrong age PATH failures retained; old 25-ID machine-gate scope and lifecycle warning/
+Windows/manual gaps explicit. See current PROGRESS and new PR description/final report.
+Committed/final-head local and branch/PR container CI are verified separately there.
+Final HEAD/PR/exact-head checks are read after commit/push, not self-referential SHA
+or predecessor-CI pass. Historical integrated receipts below remain untouched.
+
 ## RL-06 integrated handoff — 2026-11-24
 
 PR #11 https://github.com/tostman1/drink-pos/pull/11 **MERGED** with explicit owner

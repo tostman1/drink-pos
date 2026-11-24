@@ -1,5 +1,46 @@
 # Engineering foundation work packages
 
+## Current roadmap authority — 2026-11-24
+
+Main baseline `7a6aa5dff411c8fb5601b87758a0fc64810aa0c3`; RL-01–RL-06 are
+integrated (PRs #6–11). RL-06 NAS/manual acceptance is still pending. The original
+package scopes/approval-time exclusions below remain historical; their OPEN/no-merge/
+no-v2 wording is superseded **only** by recorded integration/RL-05 evidence, not
+deleted or renumbered. No RL-07–11 entries previously existed; IDs are now reserved.
+EF modernization suggestions remain separate, not silently replaced product policy.
+
+The owner approved target requirements DP-026–040 and documentation delivery only.
+**Every implementation, real integration test, deployment and merge needs separate
+authorization.** Read [focused specification](docs/product-operability.md) and open
+PO-ADR-01–14 in DECISIONS; recommended options are not approved designs.
+
+| Planned package | Depends on / decision gates | Target acceptance and exclusions |
+| --- | --- | --- |
+| RL-07 — Simple Deployment, Configuration Foundation & First-Run Wizard | RL-01–06/EF-08 retained; PO-ADR-01–06, 09–11, 13 and preparedness part of 14 | DP-026–031 foundations; PO-V01–06. Strong no-default admin/bootstrap, one-Compose/no-CLI GUI setup, typed settings/secret/key/ENV transition, DB-independent recovery design and trusted image/TLS prerequisite. Extend traceability schema/checker/tests for planned+implemented lifecycle **before promotion**. No implicit production rollout/SumUp activation. |
+| RL-08 — SumUp GUI, Diagnostics, Guided Payment Acceptance & Feature Gating | RL-07 settings/secrets/auth/bootstrap accepted; PO-ADR-06–08, provider capability/limits and acceptance policy verified | DP-028/030/031 integration + DP-032–037; PO-V03/05–12. All nine settings, pairing, no-charge diagnostics, isolated success/cancel/timeout tests, exact config/identity/UNKNOWN holds, explicit activation, complete UI/API gating and no production fake provider. Mocks/synthetic tests first; real tests need separate owner approval/credentials. |
+| RL-09 — Integrated Backup, Restore & Recovery GUI | RL-07 independent control/key/format architecture, RL-08 unresolved provider identity/access model; EF-08a/b/c and release/migration contracts; PO-ADR-03/04/07/09/10/14 | DP-030/038; PO-V05/13. Consistent complete encrypted backups/history/upload/prevalidation, all-writer maintenance/new-root recovery and DB-unavailable GUI, original/post-backup retention and reconciliation. No second incompatible format/active DB overwrite/auto-payment-mail replay. Resolve EF-08a Windows reliability in separately bounded scope before claiming that platform's readiness. |
+| RL-10 — Updates & Maintenance Center | RL-07 image provenance, RL-09 proven restore/key/maintenance, RL-08 payment holds; PO-ADR-11/12 and exact compatibility policy | DP-039; PO-V14. Version/image/schema/backup/storage/pending/recovery status, candidate approval/quiescence/verified backup/isolated rehearsal, restricted install/restart, health/full-state verification/recovery. No unrestricted Docker socket/privileged host control, blind pruning/unattended updates or incompatible image-only rollback. |
+| RL-11 — Synology, Mobile, PWA & Operational Acceptance | RL-07, RL-08, RL-09 and RL-10 implementation individually accepted; PO-ADR-13/14 and unresolved device/operator gaps; explicit authorization for devices/integrations | DP-040 plus all journey requirements; PO-V01–15 and retained MV-01–06. Actual DSM GUI-only install/security/HTTPS, tablet/mobile/installed-PWA/cache/offline, finance/net correction/round block matrix, live provider only approved, independent key/image/DB-unavailable loss/update recovery and post-backup reconciliation. Record assistance/errors/time/real RPO/RTO; never infer hardware/offsite/immutable/provider passes from CI. |
+
+### Package ready/done gates
+
+Before each implementation: verify current main, secure approval/scope, select DP IDs,
+resolve blocking technical choices with owner/security/accounting review, write failing
+served-boundary regressions and define migration/recovery/rollback evidence. Preserve
+existing interfaces unless explicitly reviewed, never substitute prototypes wholesale.
+RL-07 does not bypass strict unknown/future/WAL gates or adopt arbitrary historical DBs.
+
+Each package must deliver small commits, updated traceability/docs, full unchanged
+Standard Checks and exact-head non-publishing branch/PR container gates. GUI work
+also reviews worker cache version and device/PWA checks. Implemented, review-ready,
+owner-merged and operationally accepted are distinct states. For live tests record
+separate owner authority; a C timeout safety pass with UNKNOWN still blocks activation.
+At each handoff retain partial/failed evidence and outstanding choices, then stop.
+
+The current docs-only package uses no behavioral regression/code edits: old 25-entry
+catalog remains intact and new planned partition is supplementally audited (details
+in product-operability). RL-07 owns machine-gate evolution; current CI is not weakened.
+
 ## RL-06 — isolated Synology test deployment (2026-11-24)
 
 DP-025 plus preserved DP-001/008/009/015/016/021–024. Ready gate
