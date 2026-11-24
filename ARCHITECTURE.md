@@ -114,6 +114,14 @@ See `docs/release-safety.md`, `docs/rl-01-contract.md` and proposed RL-02.
 
 ## Migration Strategy
 
+RL-03 evidence (no runtime change): `docs/financial-history-policy.md` inventories
+the historical-write exceptions. Legacy startup and the served admin item-update
+API mutate cost/profit snapshots; RL-02 metadata-only adoption/repeat protects
+startup state, not later API writes. RE/named-event costs are not backfilled; report
+formulas can differ from recorded profit. `docs/legacy-adoption-inventory.md`
+distinguishes source-derived fresh/ALTER schema fingerprints from authenticated
+installation/release evidence. No new financial policy or adoption path approved.
+
 RL-02 adds `db/migrations.py` as an optional SQLite-native contract selected by
 `DRINK_POS_MIGRATION_MODE=versioned`; legacy default remains unchanged. Pre-write
 read-only/header/sidecar inspection precedes directories/messages/DDL. Fresh exact

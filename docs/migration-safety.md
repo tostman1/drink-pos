@@ -159,6 +159,14 @@ Results/exact final SHA/CI receipts are in progress/handoff and PR, not assumed 
 
 ### Recommended next bounded package (proposal only)
 
+RL-03 owner-authorized decision package now documents the source-only compatibility
+inventory and proposed A/B/C financial policy in `financial-history-policy.md` /
+`legacy-adoption-inventory.md`. No option approved, no extra adoption fingerprint
+implemented. **Important scope clarification:** strict adoption/repeat preserves DB
+values at startup, but served `admin_update_drink` still rewrites historical zero
+costs/profit in either mode. Exact preservation of all future API writes requires
+a separately approved financial change, not merely the RL-02 flag.
+
 RL-03: explicit owner decision for preservation of zero/nonzero round snapshots and
 prototype inference; inventory only sanitized schema metadata or independently
 authorized historical artifacts; approve one additional exact legacy fingerprint

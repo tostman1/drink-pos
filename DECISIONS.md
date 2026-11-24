@@ -21,6 +21,15 @@
 
 ## Unresolved decisions (not implementation authorization)
 
+RL-03 proposal (2026-11-23), **not approved**: [financial-history decision record](docs/financial-history-policy.md)
+compares A exact originals, B separate provenance-labelled inference, C controlled
+corrections. Recommend A preservation invariant plus separately authorized B;
+defer C, prefer additive corrections if required. Existing legacy startup **and served
+item-update API** overwrite historical zeros/cost/profit; versioned startup does not
+protect the API. No accounting/migration/adoption implementation here. Source-only
+inventory finds eight fresh schemas and an ALTER-fee variant, **no authenticated
+historical DB/release image**; no support widened. OQ-06 remains owner-pending.
+
 RL-02 D-15 (2026-11-23): implement smaller opt-in baseline contract rather than
 mandatory historical migrations. Fresh explicit initialization and exact-current
 metadata-only adoption → v1, DELETE journal mode, no repeated existing financial/
@@ -44,9 +53,11 @@ No new accounting interpretation is authorized by implementation/test success.
 - **OQ-05 — release protection:** Owner must configure required reviewers for
   `production-images` and select merge-required checks. No settings change or
   production release is authorized by this PR.
-- **OQ-06 — migration contract:** Choose version ledger, whole-migration atomicity,
-  supported source/target paths and treatment of legitimate zero-cost historical
-  snapshots before RL-02; image downgrade on newer state is not automatically safe.
+- **OQ-06 — financial preservation and adoption breadth:** RL-02 opt-in ledger/
+  transaction gate is integrated. Remaining owner choice: original zero/nonzero/
+  round snapshots, explicit unknown/inference provenance, corrections/report basis,
+  authentic historical sources and exact supported adoption paths. RL-03 supplies
+  evidence/options, not approval. Image downgrade on newer state is not safe rollback.
 - **OQ-07 — product release identity:** Choose human version/channel/support policy,
   authenticated historical fixtures and exact tested-artifact promotion/provenance/
   digest receipt. Current mutable base/dependencies and separate publish rebuild

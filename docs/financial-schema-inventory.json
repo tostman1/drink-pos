@@ -1,0 +1,25 @@
+{
+  "format": "drink-pos-rl03-source-schema-identities",
+  "format_version": 1,
+  "base_commit": "33c16979d2ae17a5d53c118c7f173f324e02e75b",
+  "sqlite_version_observed": "3.53.1",
+  "scope": "fresh literal-DDL reconstructions from reachable Git source only; not authenticated databases or releases",
+  "authenticated_historical_database_artifacts": [],
+  "verified_historical_release_images": [],
+  "adoption_support_added": false,
+  "schemas": [
+    {"id": "S1", "first_source_commit": "1ea24429400baacf0fb8f6282fec0615d0a79837", "source_path": "app/main.py", "source_blob": "5ad696d0de2f3927215c8240dbb7b812ad5c3aea", "schema_sha256": "2907ec6eb4b4f146d9a575f39146d71cd998909af0df10120f13c542740246d3", "reachable_commit_count": 3},
+    {"id": "S2", "first_source_commit": "003a8b737c459ee1f12c07d2f8fb5841b6041ec9", "source_path": "app/main.py", "source_blob": "d251111ac55dd18302893a60b7235b46044cbff0", "schema_sha256": "41848e9aa734e110642c0d2843d274a25f7f5dcf8b84ee24e84a6b1ecf764d6e", "reachable_commit_count": 2},
+    {"id": "S3", "first_source_commit": "d3991f8c8a5fb7f47a55ebb9744ee65b05e073af", "source_path": "app/main.py", "source_blob": "9ec1e5387b9dfd8542559b3c76f2683521bfa00c", "schema_sha256": "8d2fe797224818b0e1ce21bb2e2e06464bc2469d218808798e2115cf624c7d17", "reachable_commit_count": 1},
+    {"id": "S4", "first_source_commit": "bffb2ad3a268df39487424d39770692eb952e5b5", "source_path": "app/main.py", "source_blob": "05e31b676dfd572ed8bf6b501b0ab4b397327b80", "schema_sha256": "e3ca98287e7ddda31ba5ff27924b7f65454f6ec29d5a482963ad2ffb09e3d05d", "reachable_commit_count": 21},
+    {"id": "S5", "first_source_commit": "c5ce7367d8dba5a2162397b9cfb9cc5b81de7f27", "source_path": "app/main.py", "source_blob": "45718e4f470dd81607bf27ccbd421ca9089205a1", "schema_sha256": "f4fce04befdc661275958a1cdb03f19a76ca948c7987808feaa430bb08d2e50f", "reachable_commit_count": 1},
+    {"id": "S6", "first_source_commit": "c101aede7ca2bc77a094107b9d1ea205ae4bddfb", "source_path": "app/main.py", "source_blob": "4b9dd0ffe2ae0017ada01031aa6ff802add7a175", "schema_sha256": "429e78a0c6afca5f6f2c6242a4d0db88863b619fe141da9c44942fb9e40e6638", "reachable_commit_count": 5},
+    {"id": "S7", "first_source_commit": "849228102574dc61c02748bee50b59cf3039cc32", "source_path": "app/main.py", "source_blob": "1825efcd9bdb2255a8c359c7af1cab660466cf83", "schema_sha256": "2ebc244c8260b07e161489585fccb32290acef8aac70e995d2fcf81851ff3a02", "reachable_commit_count": 21},
+    {"id": "S8", "first_source_commit": "c3a78cd334b47e9f45dec6c10fe26be2a26df8bb", "source_path": "app/db/schema.py", "source_blob": "7f03c61d90a8d9ece83232a5b179460a93def1ce", "schema_sha256": "090ea55aa19289c833f2010950722d4eb443c1b567068cbdc04217e1a25256a2", "reachable_commit_count": 59}
+  ],
+  "illustrative_ddl_sequence": {
+    "source_ids": ["S5", "S6", "S7", "S8"],
+    "schema_sha256": "c07c9c5534c86438a34c431d5248d1518c138801ec0be763e039cd055fa95db0",
+    "scope": "synthetic DDL-only sequence, not authenticated installation or supported migration"
+  }
+}

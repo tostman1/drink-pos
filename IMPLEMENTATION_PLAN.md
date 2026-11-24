@@ -20,6 +20,18 @@ SQLite changes commit together. No authentic historical/v1→v2 support, mandato
 rollout, accounting policy, automatic production upgrade or merge/publication.
 OQ-06 unresolved; next package requires owner-approved preservation/adoption policy.
 
+## RL-03 — authorized decision/evidence package, not policy implementation
+
+Owner request 2026-11-23; ready gate `docs/rl-03-contract.md`. DP-002/003/004/005/
+011/013/014/023/024. Exact financial write matrix, A/B/C proposed decision, source-only
+schema/provenance inventory, synthetic characterization tests and fail-closed safe
+adoption proposal. No app changes, new fingerprint support, accounting policy,
+v1→v2 migration or production upgrade. Owner continuation explicitly authorizes
+reviewed commits/push/open PR/final-head CI, **not merge**. Deliver owner decision
+inputs; next implementation/operations need separate approval. Proposed next scope
+`RL-04 — Historical Snapshot Write Preservation` in `docs/financial-history-policy.md`
+addresses FH-01/02/06 only after A approval; FH-03/04/adoption breadth remain separate.
+
 ## EF-01 — Reconstruct before restructuring
 
 - Scope: verify main/handoff, inspect all diff/docs/tests/workflows, record actual

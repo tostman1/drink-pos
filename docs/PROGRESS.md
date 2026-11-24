@@ -1,5 +1,164 @@
 # Engineering foundation progress
 
+## RL-03 review-submission continuation — 2026-11-23
+
+### Committed decision/evidence review receipt
+
+PR **https://github.com/tostman1/drink-pos/pull/8 OPEN/unmerged**, base main unchanged
+`33c16979d2ae17a5d53c118c7f173f324e02e75b`. Reviewed commits `3eb4d70` (source-only
+inventory/receipt/ten tests) and `3f323b074478e5e5c9c94856f7b2efecbdd3570b` (decision/
+findings/traceability/docs), pushed normally; clean synchronized tree. All prior
+branches/owner merges intact. Git/GitHub diff exactly 16 reviewed files, no generated
+state/secrets. Exact Git blob parity for app/financial/schema/reports/migrations/
+recovery/UI/worker/Dockerfile/production Compose; no financial policy or behavior change.
+
+Exact committed-head branch
+https://github.com/tostman1/drink-pos/actions/runs/45269458940 and PR
+https://github.com/tostman1/drink-pos/actions/runs/45269481996 **success**: both Linux
+matrices **242 discovered/241 passed/one Windows-only skip each**; all ten RL-03 tests
+execute ok, existing POSIX/financial/migration/recovery/real-age/security/browser gates
+passed. Four Compose validations, actual Dockerfile/local-only image, start/restart/
+persistence/legacy synthetic upgrade, strict fresh/adoption/repeat/independent recovery,
+encrypted source+owned-image-loss DR and image dependency audit passed. Publication
+**skipped**, head deployment query empty. Logs outside Git `rl03-initial-branch-ci.log`
+and `rl03-initial-pr-ci.log`; synthetic history_rewritten=false/network_attempts=0/
+recovery_verified=true. No authentic historical database/release/image support inferred.
+
+PR watcher exited 1 on GitHub jobs API HTTP 500 after gate execution; direct completed
+run/jobs query independently confirmed success. First log-inspection commands failed
+on PowerShell UTF-16 encoding and multiline deprecation layout; corrected log parser
+confirmed each new test's ok in both matrices. These inspection errors are not CI
+failures or ignored tests. Node-action/lifecycle/TestClient warnings remain visible.
+
+Committed-tree Python 3.12 Standard Checks **exit 0**, 242 discovered/236 passed/six
+POSIX skips, **114.536s** unittest; audits none known, Chromium/all other gates pass.
+Initial committed Python 3.13 run **failed**, 242 discovered/one error/six skips,
+**120.871s**, in existing `SnapshotRecoveryTests.test_stale_retention_lock_disables_cleanup`:
+`app/backup_database.py:340 staging.rename(completed)` **WinError 5 Access denied**.
+Known EF-08a Windows reliability issue reproduced; no app/recovery/test changes,
+retry/suppression or policy implementation. Retained `rl03-committed313.log`; full
+unchanged Python 3.13 rerun **exit 0**, 242 discovered/236 passed/six POSIX skips,
+**87.667s**, all lint/format/syntax/traceability/real-age/financial/migration/recovery/
+audits (none known)/Chromium/diff stages passed. Log `rl03-committed313-rerun.log`;
+successful rerun is **not a Windows reliability fix**, failed run remains evidence.
+Committed-tree CLI deterministic on two
+runs, all source blobs/eight canonical hashes/113 counts/ALTER receipt reproduced.
+
+This final documentation receipt is a **descendant** of the successful head above.
+Its own full local/final-head branch+PR CI must pass independently and be recorded
+on PR #8 final delivery; read the actual final SHA/checks, no predecessor pass inference
+or self-referential SHA. OQ-06 **OPEN**, recommendation **NOT APPROVED**. Owner independent
+review next; no merge/publication/deploy/production data/real migration/SumUp/SMTP.
+
+Owner completed the truncated mission and explicitly authorized reviewed commits,
+push of the **existing** feature branch, open PR against main and exact-head CI;
+**no merge/publication/deployment/policy implementation**. This supersedes the
+initial no-commit/no-push delivery notes retained below. OQ-06 remains OPEN.
+
+Preserved all 16 existing modified/new RL-03 files; complete tracked diff and new
+files reviewed. Verified incoming HEAD/origin/main/remote main at exact original baseline
+`33c16979d2ae17a5d53c118c7f173f324e02e75b`; no remote feature branch/PR existed at
+continuation. Actual source and all ten tests support findings. Added distinct
+severity register **FH-01..06** in `docs/AUDIT.md`: High historical API/round/startup
+rewrites; Medium read-time report/correction-detail gaps; High conditional adoption-
+readiness provenance risk (current strict rejection remains safe). Full exact owner
+adjustment decisions and proposed next preservation-only package recorded in policy.
+No application/test-policy behavior changed; no agents delegated or work discarded.
+
+Final two-version Standard Checks/receipt reproduction, reviewed commits/open PR/
+exact-head CI receipts pending below; previous local passes are not final-head proof.
+Only mandatory synthetic tests may execute existing migrations on disposable state;
+no live or production migration/adoption, financial correction, report/runtime/config
+change or historical artifact access. No new support or approval inferred from CI.
+
+**Continuation pre-commit gate:** full Standard Checks exit 0 on Python 3.12.13/
+3.13.15: **242 discovered/236 passed/six POSIX-only skips each**, **110.440s /
+115.876s** unittest time. All ten RL-03 methods discovered; original financial/
+migration/recovery/real-age suites pass. Ruff/format/syntax/24-ID traceability/audits
+(none known)/Chromium/diff pass. CLI reproduces all eight hashes/source blobs/counts/
+ALTER counterexample; actionlint/link checks pass. Logs outside Git `rl03-submit312.log`
+/ `rl03-submit313.log`. Only audit/catalog/receipt documentation finalized afterward;
+final committed-tree local gates and exact-head CI will be verified independently.
+Lifecycle/TestClient/LF→CRLF warnings remain; Windows EF-08a not fixed by this pass.
+
+## RL-03 decision package — 2026-11-23
+
+Owner authorizes bounded financial-history/adoption **decision evidence**, not
+policy implementation, v1→v2 migration or production upgrade. Supersedes historical
+no-next-package notes for RL-03 only. Request ends at “5. Safe Adoption Proposal”;
+proposal prepared without assuming omitted authorization. No delegated agents.
+
+- Clean incoming main/local/fetched/remote ref exactly
+  `33c16979d2ae17a5d53c118c7f173f324e02e75b`; exact baseline CI
+  https://github.com/tostman1/drink-pos/actions/runs/45260937868 success for both
+  quality matrices/actual image/migration/recovery/DR/audit, publication skipped.
+  Feature `feature/rl-03-financial-history-policy` created from this main; all
+  previous feature/handoff branches/owner merges retained. Refetch remains unchanged.
+- Ready gate before edits `docs/rl-03-contract.md`; actual import/served registry/
+  schema/snapshot/prototype/round/payment/cashup/audit/export/recovery paths inspected.
+  Field write-impact matrix and A/B/C comparisons/examples/sign-off gates in
+  `docs/financial-history-policy.md`. Recommend A invariant + separately authorized
+  B estimates; defer C, prefer additive correction if needed. **OQ-06 not approved.**
+- Newly characterized: served admin item update rewrites historical zero costs/profit
+  even after valid versioned adoption; unchanged positive EK save can trigger it.
+  Startup round reset rewrites nonzero history; linked TI can change while NULL-ID
+  manual deductions/RE/event lines retain old cost. Zero-profit statistics fallback
+  is read-time only, item exports/preview differ; member/admin negative corrections
+  omit signed TI. No implicit immutable-history guarantee or refund support claimed.
+- Source-only schema inventory scans 113 full reachable source commits, derives eight
+  fresh shapes in memory from literal DDL (SQLite 3.53.1) and reproduces RL-02 hash.
+  Synthetic S5→S6→S7→S8 ALTER-fee shape differs (`c07c9c55…`) despite same columns;
+  unsupported, not an authentic installation or full data migration. Exact hashes/
+  source blobs/known changes/provenance in `docs/legacy-adoption-inventory.md` and
+  `docs/financial-schema-inventory.json`; full metadata stdout from
+  `scripts/financial_schema_inventory.py`. Receipt independently reproduced.
+- GitHub tag/release APIs empty. Eight unexpired `.dockerbuild` artifact **metadata**
+  records found, not downloaded/authenticated images/DBs. No registry/installation
+  access, historical runtime blob reading or authentic historical DB/release image
+  established. Earliest reachable source already has EK; pre-EK/prototype release
+  provenance unknown. No added adoption fingerprint or synthetic-authenticity claim.
+- Ten targeted tests in `tests/test_financial_history.py` pass on Python 3.12.13,
+  including real assembled HTTP after actual strict metadata adoption and audit-fault
+  rollback. They characterize exceptions, not implement a proposed financial rule.
+  Initial test-harness failures: broad import guard caught stdlib ast.walk import;
+  replaced with source-exec guard; uppercase APPROVE rejected by actual Pydantic
+  enum; fixture corrected to accepted `approve`, not API changed. Traceability 24 IDs
+  passes with exception links; no approved business requirement added.
+- Initial full 3.12/3.13 runs stopped by tool 120-second budget (exit 143 during
+  tests), **not passes**. Rerun with 600-second budget underway; final local gate
+  receipts follow. Logs `rl03-standard312.log`/`rl03-standard313.log` and
+  `rl03-verified312.log`/`rl03-verified313.log` outside Git in approved temp root.
+  Existing lifecycle/TestClient warnings retained; no app/UI/worker/cache change.
+
+No commit/push/PR/merge permission inferred; package remains uncommitted local work.
+No production access, actual migration/adoption, policy/config/default change,
+deployment/release/publication/updater/payment/SMTP activity. Container runtime is
+unavailable locally, new branch/PR CI not run; baseline CI is not RL-03-head proof.
+MV-01..05 pending, MV-06 real operational acceptance partial, EF-08a Windows rename
+WinError 5 unresolved. Owner decision and separately authorized implementation next.
+
+### RL-03 completed local verification receipt
+
+Full Standard Checks **exit 0** on Python **3.12.13 / 3.13.15**, Node 24.11.1,
+trusted external age v1.3.2, private disposable approved temp roots: **242 discovered,
+236 passed/six POSIX-only skips each**, unittest durations **102.487s / 103.639s**.
+Ruff lint/format (77 files), Python/all-JS/data syntax, 24-ID traceability, real-age/
+existing migration/recovery tests, strict dependency audits (**no known vulnerabilities**),
+Chromium booking/admin/event/kassa/self-pay/no-page-errors and diff hygiene all passed.
+Logs `rl03-verified312.log` / `rl03-verified313.log` outside Git. Initial timeouts are
+retained as unsuccessful runs, not hidden. No EF-08a WinError 5 encountered in completed
+runs, still unresolved/not fixed. Lifecycle/TestClient and Git LF→CRLF warnings retained;
+PowerShell wraps native stderr warnings as NativeCommandError text, child exit is 0.
+
+Source identity receipt reproduced independently on Python 3.12/3.13; actual inventory
+CLI exit 0, eight schema hashes/113 counts/source blobs/synthetic ALTER hash match.
+New decision-doc links resolve, actionlint passed. Final receipt/traceability edits
+are documentation-only after full gates; no application code or dependencies changed.
+Protected app/.github/Dockerfile/Compose/updater/rehearsal/recovery files have zero diff.
+New scripts/tests remain synthetic/source-only; no generated state or secrets tracked.
+Fresh branch/PR/container checks remain **not run**, no commit/push authorization.
+Stop after local delivery; owner policy/report-basis/source-scope decision next.
+
 ## RL-02 final integration — 2026-11-23
 
 - Independent owner review completed, no approved-scope merge blockers. Owner

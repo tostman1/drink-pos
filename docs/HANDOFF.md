@@ -1,5 +1,98 @@
 # Handoff and protected work
 
+## RL-03 authorized review-submission handoff — 2026-11-23
+
+**Review receipt:** PR https://github.com/tostman1/drink-pos/pull/8 **OPEN/unmerged**.
+Evidence `3eb4d70`, decision/doc head `3f323b074478e5e5c9c94856f7b2efecbdd3570b` at
+unchanged base `33c16979…`; exact branch `45269458940` / PR `45269481996` success:
+both Linux 242 discovered/241 passed/one Windows-only skip, all ten new tests ok;
+quality/browser/security/actual Docker/four Compose/legacy upgrade/strict migration/
+independent recovery/full encrypted source-image-loss DR/audit passed, publication
+skipped. Actual image evidence synthetic only, no widened support. Direct completed
+query confirmed PR success despite watcher jobs API HTTP 500. Local committed 3.12
+full gate passes; 3.13 first committed run reproduced **existing EF-08a WinError 5**
+in stale-retention-lock backup rename; unchanged full rerun passed (242/236/six POSIX
+skips, all stages), **not a recovery fix** or suppressed error. See progress for exact
+successful/failed receipts and outside-Git logs.
+
+Final documentation-only descendant receipt needs **its own** final SHA/local/
+branch+PR CI verification, recorded on PR/report after push; never infer pass from
+`3f323b0`. Keep all 16 scoped files, no app/deployment changes. OQ-06 OPEN, policy NOT
+APPROVED, FH-01..06 open, owner independent review next. Stop after delivery; do not
+merge or begin proposed RL-04. No real data/migration/payment/mail/production activity.
+
+Owner continuation authorizes reviewed commits/push/open PR and exact-final-head CI
+on existing `feature/rl-03-financial-history-policy`, **not merge**. Supersedes initial
+no-commit/push/PR notes below only for this decision package. Original 16 files/work
+preserved, complete diff/new files reviewed, incoming HEAD/fetched/remote main at baseline
+`33c16979d2ae17a5d53c118c7f173f324e02e75b`. No delegation/history rewrite.
+
+Read open **FH-01..FH-06** severities/source/test/follow-up register in `docs/AUDIT.md`;
+policy write matrix/A/B/C/examples now also has exact pre-correction owner decisions
+and proposed next `RL-04 — Historical Snapshot Write Preservation`. Recommendation
+**NOT APPROVED**, OQ-06 **OPEN**. No implementation, runtime/report/deployment/default
+mode change, added fingerprint, correction or v1→v2 transition. No real financial DB
+or installations; mandatory tests use existing migration routines only synthetically.
+
+Final local Standard Checks/reviewed commits/PR/exact-head CI receipts follow in
+progress and PR final delivery. Do not infer completion from old local/base receipts.
+
+Continuation pre-commit Standard Checks passed both Python 3.12.13/3.13.15, 242
+discovered/236 passed/six POSIX skips each; ten new methods/financial/migration/
+recovery/real-age/lint/format/syntax/traceability/audits/Chromium/diff passed. Final
+committed-tree local checks and head-specific branch/PR/container CI still required;
+receipt updates are documentation-only. No implementation or policy approved.
+Leave PR open for independent owner review; stop after final delivery. No merge,
+release/image publication/deployment/updater/real SumUp/SMTP authority. All prior
+branches/owner merges/MV-01..05/partial MV-06/EF-08a Windows WinError 5 preserved.
+
+## RL-03 local decision-package handoff — 2026-11-23
+
+Current owner request authorizes financial-history/adoption evidence for OQ-06 only,
+superseding historical no-next-package instructions for RL-03. **No new financial
+policy, v1→v2 migration or production upgrade.** Supplied message ends at section 5
+heading; safe-adoption proposal provided, no omitted authority inferred.
+
+- Verified clean incoming local/fetched/remote main
+  `33c16979d2ae17a5d53c118c7f173f324e02e75b`; exact base CI `45260937868` success,
+  publication skipped. Separate `feature/rl-03-financial-history-policy`, HEAD still
+  baseline with uncommitted evidence/tests/docs. All prior branches/owner merges
+  preserved, no delegation/rewrite. Refetched origin/main unchanged.
+- Read `docs/rl-03-contract.md`, `docs/financial-history-policy.md` (field write matrix,
+  A/B/C/report examples/owner questions/adoption stop gates),
+  `docs/legacy-adoption-inventory.md` and `docs/financial-schema-inventory.json`.
+  `scripts/financial_schema_inventory.py` derives literal schema-only metadata in
+  memory from fixed full Git ancestry; no old code execution or DB input.
+- Critical scope: RL-02 startup metadata preservation **does not protect later
+  admin item API writes**; zero costs/profit still rewritten. Nonzero round history
+  reset, RE/EL/NULL-ID divergence, read-time zero-profit fallback and incomplete
+  signed member/admin correction detail documented. Do not fix them without approval.
+- Eight fresh schema shapes/113 source commits and one synthetic ALTER-fee counterexample
+  authenticated as source content only, **not databases/releases/installations**.
+  No authentic historical DB/image established; tags/releases empty, eight build-record
+  metadata entries not downloaded/verified. No additional fingerprint support.
+- Recommend **A exact preservation + B separately authorized labelled inference**;
+  C deferred/prefer append-only if needed. Recommendation **not approval**; OQ-06 stays
+  open. Never equate legitimate zero with missing cost or current EK with past fact.
+- Ten targeted characterization tests pass; full Python 3.12/3.13 Standard Checks
+  rerunning after initial 120-second tool timeout (not pass), results in progress.
+  No actual local container or new branch/PR CI evidence; base CI is separate.
+
+**Final local receipt:** both full Standard Checks exit 0 on Python 3.12.13/3.13.15:
+242 discovered/236 passed/six POSIX skips each; Ruff/format/syntax/traceability/real age/
+strict audits (none known)/Chromium/diff all passed. Source receipt/actual inventory CLI
+reproduced and decision-doc links/actionlint pass. Logs outside Git `rl03-verified312.log`
+and `rl03-verified313.log`; lifecycle/TestClient/LF→CRLF warnings retained. No new CI/
+container/production evidence inferred; EF-08a WinError 5 remains unresolved. Subsequent
+receipt edits documentation only; final traceability/diff checks recorded in progress.
+
+No commit/push/open-PR/merge authority inferred. Do not stage/commit/push/merge until
+explicit authorization. No app/schema/runtime/report/UI/recovery/deployment edits,
+new financial policy/adoption/v1→v2 implementation, real resources/mail/payments or
+production scripts accessed/run. No service-worker bump needed. MV-01..05/partial
+MV-06/EF-08a Windows WinError 5 remain open. Next: owner chooses policy/report basis/
+source scope, then separately authorizes bounded implementation; no production adoption.
+
 ## RL-02 integrated handoff — 2026-11-23
 
 PR #7 https://github.com/tostman1/drink-pos/pull/7 is **MERGED** after completed

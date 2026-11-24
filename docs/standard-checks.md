@@ -94,6 +94,14 @@ environment naming alone does not enforce approval. No automatic deploy exists.
 
 ## Manual register — all pending at takeover
 
+RL-03 adds `tests/test_financial_history.py`: existing served financial rewrite/
+report/correction exceptions and independently derived literal-DDL metadata only.
+`python -B scripts/financial_schema_inventory.py` reproduces source-only inventory
+from exact baseline/full Git ancestry; it is not a migration/adoption command.
+No application/UI/cache change, new financial policy or supported fingerprint;
+owner decision and authentic release/DB evidence remain open. Local/CI/manual
+results must remain separate; no new device or production check completed.
+
 RL-02 DP-024 adds `MigrationContractTests` and `VersionedRuntimeTests`: explicit
 fresh/exact-current/ledger/future/unknown pre-write rejection, atomic metadata/schema/
 data rollback, real concurrent processes/SQLite writer, abrupt kill and EF-08b new-root
