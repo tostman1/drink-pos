@@ -47,6 +47,34 @@ quantities/round lifecycle/concurrency locks/card uncertainty/refund/paid-profit
 period logic/UI/worker/v2 DDL/hash/ledger/migration/EF08 tools/deployment have zero
 diff vs reviewed head. No original financial UPDATE; synthetic damage only in tests.
 
+### R5-01/02 committed implementation CI
+
+Fix commit **`c26879f9c1a7b674d25acda5abf6a72f1a3a03bc`** pushed on existing PR #10;
+exact branch https://github.com/tostman1/drink-pos/actions/runs/45381146469 and PR
+https://github.com/tostman1/drink-pos/actions/runs/45381154883 **success**. Both Linux
+Python matrices **309 discovered/308 passed/one Windows-only skip**, all 16 new
+review methods execute ok. Full quality/browser/security/real-age, actual Docker/
+four Compose/start-restart/legacy upgrade/prepared v1→v2/strict fresh-adoption-repeat/
+served mixed-snapshot round-report+coverage/full independent application recovery/
+encrypted source+owned-image-loss DR/image audit pass; publication **skipped**.
+Installed evidence reporting_verified/coverage_verified/history_rewritten=false/
+recovery_verified=true/network_attempts=0, 26 tables, two mocked card calls. Branch
+image binds c26879f; PR image binds GitHub merge-test `819414909aaa23c7b6c0e345bd0690c8455f2529`.
+PR synthetic RPO 0.353222s/RTO 2.316512s, not operational guarantees. Logs/validated
+summaries outside Git `rl05-r5-45381146469-*`/`rl05-r5-45381154883-*`.
+
+This evidence update is documentation-only and needs its **own** final-head CI/local
+verification after push; exact final SHA/run/results recorded in PR delivery comment,
+never predecessor inference. Second independent owner review pending; PR stays OPEN,
+no merge/deploy/publication/production/provider/mail/history repair or new package.
+
+Committed implementation local Standard Checks **exit 0** Python 3.12.13/3.13.15:
+309 discovered/303 passed/six POSIX skips each, 203.933s/205.353s; all quality,
+traceability/real-age/audit none known/Chromium/diff pass. Outside-Git logs
+`rl05-r5-committed312.log`/`rl05-r5-committed313.log`. Lifecycle/TestClient/Node-action/
+LF→CRLF warnings retained; no Windows WinError 5 fix inferred. Final evidence-only
+descendant requires own full local/exact-head CI results as above.
+
 ## RL-05 active — 2026-11-24
 
 Verified clean/fetched main `2cc36fd69ec56dbdfe65ffb7ed98600d7c33b7c4`, dedicated

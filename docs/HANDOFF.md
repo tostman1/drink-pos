@@ -14,6 +14,17 @@ or NULL-parent approvals stay unverified; no reconstruction. FH-05/broader OQ-06
 WinError 5/MV01..05/operational MV06 remain unresolved. Leave PR open; second review
 after complete delivery, no merge/deploy/publish/production/payment/refund/mail/schedules.
 
+R5-01/02 implementation **`c26879f9c1a7b674d25acda5abf6a72f1a3a03bc`** passed exact
+branch https://github.com/tostman1/drink-pos/actions/runs/45381146469 and PR
+https://github.com/tostman1/drink-pos/actions/runs/45381154883; both Linux matrices
+309 discovered/308 passed/one Windows-only skip, all 16 new regressions ok; actual
+image financial reporting/coverage/v1→v2/recovery/DR/image-audit and all original
+gates pass, publication skipped. Scope only reporting validation/new receipt parent
+INSERT and synthetic tests/docs; original schema/ledger/financial snapshots untouched.
+This final documentation-only evidence descendant must pass its own final-head
+CI/local gate; read actual SHA and record final branch/PR links/results on PR #10
+delivery receipt. No self-referential SHA/predecessor inference; stop after delivery.
+
 ## RL-05 review submission receipt — 2026-11-24
 
 PR https://github.com/tostman1/drink-pos/pull/10 **OPEN/unmerged**, exact base remains

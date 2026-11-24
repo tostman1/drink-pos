@@ -24,7 +24,7 @@ Observed results are dated in PROGRESS.md; no invented coverage percentages.
 
 ## RL-03 distinct financial-history findings — OPEN
 
-### RL-05 independent review R5-01/02 — corrections under verification
+### RL-05 independent review R5-01/02 — implemented; second review pending
 
 - **R5-01 Medium:** profit report/statistics finance used +abs(VK) for deduction and
   reversal (3,00+3,00=6,00; mixed-member 8,00+8,00=16,00). Reversal now contributes
@@ -42,6 +42,12 @@ Observed results are dated in PROGRESS.md; no invented coverage percentages.
   malformed receipt, multi-parent operation, RE mismatch and second-boundary timestamps.
   Exact full gates/PR second review pending; earlier FH-04 closure does not negate
   these specific findings. FH-05/broader OQ-06/Windows/manual limits unchanged.
+
+Implementation `c26879f…` full exact-head branch `45381146469` / PR `45381154883`
+passed both Python matrices/all 16 review regressions/actual-image reconciliation/
+v1 transition/recovery/encrypted DR/image audit, publication skipped. R5-01/02 fixed
+in implementation; second independent review pending, final receipt head CI verified
+separately at delivery. No historical-data repair or authenticity guarantee.
 
 ### RL-05 implemented contract (independent review pending)
 
