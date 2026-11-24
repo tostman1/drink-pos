@@ -1,5 +1,85 @@
 # Engineering foundation progress
 
+## RL-05 final integration — 2026-11-24
+
+- Second independent owner review complete, R5-01/R5-02 verified, no approved-scope
+  blockers; explicit guarded merge approval for PR #10 only. Clean local/fetched
+  reviewed **`0b5972404ab94bb59d49c299a75260260baa5713`** and expected base/main
+  **`2cc36fd69ec56dbdfe65ffb7ed98600d7c33b7c4`** matched. Exact-final-head branch
+  https://github.com/tostman1/drink-pos/actions/runs/45382286868 and PR
+  https://github.com/tostman1/drink-pos/actions/runs/45382296704 success; independently
+  verified both Linux 309/308 passed/one Windows-only skip and every 30 RL05 + 16
+  review regression execution. Full quality/actual image/migration/recovery/DR/audit
+  passed, publication skipped. Previous delivery receipt
+  https://github.com/tostman1/drink-pos/pull/10#issuecomment-7130456272 retained.
+- No reviews/inline comments/unresolved review threads/conflicts; MERGEABLE/CLEAN.
+  Main protection endpoint unprotected (404), active branch rules empty; no changes/
+  checks bypassed. No code drift; whole local/remote tree match. Owner's independent
+  review supplied outside GitHub formal reviews, not fabricated as a GitHub approval.
+- `gh pr merge 10 --merge --match-head-commit 0b597240...` normal merge:
+  **`e9204e88ad2faf6cb8919f9ef9824bb0f6a5b005`**, 2026-11-24T11:55:25Z.
+  Parent 1 exact expected base, parent 2 reviewed head; whole tree equals reviewed
+  **`eaa73817cfc3b410dd93030b5483fbbcf2ca3ef5`**. Primary checkout switched/fast-
+  forwarded main clean/synchronized, all branches and original owner merges retained.
+  No squash/rebase/force push/reset/delegation/unrelated or financial edits.
+- Exact merge-main https://github.com/tostman1/drink-pos/actions/runs/45388627081
+  **success**: both Linux matrices **309 discovered/308 passed/one Windows-only skip**;
+  all 30 RL05 transaction/round safety and 16 R5-01/02 methods execute ok. Ruff/format/
+  syntax/24-ID traceability/Chromium/keyed UI replay/real-age/security pass, no known
+  vulnerabilities. Actual Dockerfile/four Compose/start-restart-persistence/legacy
+  upgrade/prepared exact v1→v2/strict fresh-adoption-repeat/served financial reporting+
+  coverage/net consumption/round reversal/full independent application recovery/
+  encrypted source+owned-image-loss DR/image dependency audit pass. Publication
+  **skipped**, merge SHA deployment query zero. No production rollout implied.
+- Installed financial JSON binds merge SHA: 26 tables preserved/history_rewritten=false/
+  both modes/v1_to_v2_verified=true/round_reversal_reporting_verified=true/
+  correction_coverage_verified=true/recovery_verified=true/network_attempts=0/two
+  mocked paid/unknown card creations. Synthetic fixture only, not historical evidence.
+  DR public-only producer, owned image absent before archive reload, shared input
+  retained/source storage removed/one post-snapshot commit not replayed. Synthetic
+  RPO age **0.357783s**, RTO **2.312204s**, not operational/storage/human guarantees.
+  Full logs/summaries outside Git `rl05-r5-45388627081-ci.log` / `-summary.json`.
+- Full local merged-main Standard Checks **exit 0** Python **3.12.13/3.13.15**,
+  **309 discovered/303 passed/six POSIX skips** each, **170.921s/177.010s** unittest.
+  All quality/browser/security/real age/traceability/diff gates and actionlint pass;
+  outside-Git logs `rl05-merged-main312.log`/`rl05-merged-main313.log`. Lifecycle/
+  TestClient/Node-action warnings retained, local Docker unavailable (actual CI proof).
+- Integration receipt modifies only `docs/HANDOFF.md`, `docs/PROGRESS.md` and the
+  necessary `docs/AUDIT.md` review/integration status. Final main SHA is this receipt
+  commit's HEAD after commit/push; must pass **its own** exact CI/local gates, then
+  final SHA/run/results recorded on PR #10 integration comment/final report. Never
+  infer final pass from merge-main or embed a self-referential commit hash.
+
+Integrated policy/contracts: normal net corrected consumption uses explicit original
+booking provenance and original period, immutable original financial snapshots;
+durable correction detail/operation identity/purpose, safe keyed replay/conflict,
+serialized quantities/request/audit/receipt rollback. `/api/pay` correction-only zero
+debt is HTTP 200/no fake PAID; resolution-only remaining debt explicit, no hidden
+commit on failed payment, existing paid snapshot/fee/uncertainty rules retained.
+First-party vanilla action IDs/round impact/worker v109 and documented unkeyed
+negative/manual client compatibility changes unchanged from approved review.
+
+Exact round attribution/reservation/cancellation/restoration offsets only linked
+safe unpaid/current/unsettled drink debt once, never physical consumption/refund.
+Cancelled rounds cannot create further deductions; paid/closed/settled/active-unknown/
+ambiguous history blocked. R5-01 signed round-finance VK (6→0 / 16→0 mixed snapshots)
+and signed expense/profit/RE reconcile; R5-02 complete ordinary/round audit classification
+keeps partial/old T-only/NULL-parent unverified, new receipts bind exact approval ID.
+**FH-04 new-operation gap addressed; R5-01/02 reviewed/resolved and integrated.**
+Actual additive v1→v2 exact current support, preserved original v1 ledger/rows/sequence,
+no rebuild/backfill/new historical fingerprint/default strict activation or WAL recovery.
+
+**FH-05 OPEN, broader OQ-06 OPEN** for historical inference/repair/reconstruction/
+refund/closed-period/additional authentic adoption decisions. Never automatically
+reconcile unsupported legacy rounds. **EF-08a Windows WinError 5 unresolved**; no
+suppression/retry/fix from successful checks. MV-01 device/MV-02 installed PWA v109/
+MV-03 SMTP/MV-04 SumUp/MV-05 offline reconnect pending; operational MV-06 actual
+geography/hardware/immutability/encrypted storage/scratch/Windows ACL/secure key-image
+acquisition/timed human external reconciliation/acceptance partial. No production
+data/migration/repair, real payment/refund/mail, deployment/publication/release,
+updater/schedule change or RL-06/new package. Historical open/pending notes below
+superseded only for PR #10 integration. Stop after exact final-main verification.
+
 ## RL-05 R5-01/02 review corrections — 2026-11-24
 
 Continued clean fetched/local/remote reviewed `f4d56ffcb4992dfbef813f05ab5feafc19a88f52`

@@ -1,5 +1,79 @@
 # Handoff and protected work
 
+## RL-05 integrated handoff — 2026-11-24
+
+PR #10 https://github.com/tostman1/drink-pos/pull/10 is **MERGED** after completed
+second independent owner review, verified R5-01/02 resolution, no approved-scope
+blockers and explicit conditional merge authorization. This supersedes historical
+open/no-merge/review-pending notes below for PR #10 only. No RL-06/production authority.
+
+- Clean local/fetched reviewed head **`0b5972404ab94bb59d49c299a75260260baa5713`**
+  and exact main/base **`2cc36fd69ec56dbdfe65ffb7ed98600d7c33b7c4`** matched Git/GitHub.
+  Specified exact branch https://github.com/tostman1/drink-pos/actions/runs/45382286868
+  and PR https://github.com/tostman1/drink-pos/actions/runs/45382296704 success:
+  both Linux matrices 309 discovered/308 passed/one Windows-only skip; all 30 RL05
+  plus 16 R5 review methods execute ok; full actual container/migration/recovery/DR/
+  image audits pass, publication skipped. No new reviews/inline comments/threads or
+  conflicts; MERGEABLE/CLEAN. Main unprotected/active rules empty, no checks bypassed.
+- Normal `--merge --match-head-commit` integration, no squash/rebase/force push:
+  **`e9204e88ad2faf6cb8919f9ef9824bb0f6a5b005`**, 2026-11-24T11:55:25Z.
+  First parent exact base, second exact reviewed head above; whole tree equals
+  reviewed **`eaa73817cfc3b410dd93030b5483fbbcf2ca3ef5`**. Primary checkout switched
+  and fast-forwarded to clean synchronized main. All original branches/merges retained,
+  no delegation/history rewrite or runtime changes after independent review.
+- Exact merge-main CI https://github.com/tostman1/drink-pos/actions/runs/45388627081
+  **success**: Linux Python 3.12/3.13 each 309 discovered/308 passed/one Windows-only
+  skip; all 46 RL05/review methods ok. Quality/security/Chromium/real age plus actual
+  Docker/four Compose/start-restart-persistence/legacy upgrade/prepared exact v1→v2/
+  strict fresh-adoption-repeat/served financial net+round-reversal reporting/coverage/
+  independent EF08 application recovery/encrypted source+owned-image-loss DR/image
+  dependency audit pass. Publication **skipped**, merge SHA deployments zero.
+  Installed synthetic evidence binds merge SHA: 26 tables preserved/no history rewrite/
+  reporting+coverage/recovery verified/network_attempts=0/two mocked card creations.
+- Local merged-main full Standard Checks **exit 0** Python **3.12.13/3.13.15**:
+  309 discovered/303 passed/six POSIX skips each, 170.921s/177.010s unittest. Ruff/
+  84-file format/syntax/24-ID traceability/real age/audits none known/Chromium/diff/
+  actionlint pass. Outside-Git logs `rl05-merged-main312.log`/`rl05-merged-main313.log`.
+  Existing lifecycle/TestClient/Node-action warnings retained; local Docker unavailable.
+- This is a **documentation-only main descendant receipt**. Final main SHA is the
+  commit carrying this section (read HEAD/origin/main after synchronization). Verify
+  its **own** exact-head CI/local checks and record final SHA/run/results in PR #10
+  integration comment/final report. No self-referential SHA/predecessor-CI inference.
+
+**RL-05 implemented and integrated**: normal consumption is net after explicit
+source-linked approved erroneous-booking corrections, attributed to original period;
+gross/reversed/net transparent, actual correction timestamp separate. Originals remain
+immutable. Durable operation receipts/provenance, mandatory negative ID/purpose,
+idempotent request decisions and serialized writes/rollback retained. `/api/pay`
+correction-only zero debt returns HTTP 200 without fake payment; explicit resolution-
+only can report remaining payment-required debt, failure does not hide committed change.
+Unkeyed legacy cash/request creation is not a blanket retry guarantee.
+
+Stable round units/payment/deduction/reservation/cancellation/reversal relations:
+safe tracked unpaid/current/unsettled cancellation restores only exact original drink
+debt once, never new physical consumption or refund. Paid/closed/subsequently settled/
+active-unknown/ambiguous historical reversals fail closed. Pending requests reserve
+original units, hold eligibility/block cashup. R5-01 signed VK now offsets exact
+reversal (6→0 / mixed-member 16→0); R5-02 complete ordinary/round coverage plus new
+member receipt exact parent FK, no false complete classification from partial detail.
+Historical T-only/NULL-parent gaps stay unverified and never reconstructed.
+
+Real additive v1→v2 support integrated: exact v2 `39dbd90c…`, original ledger/financial
+rows/sequence preserved, no table rebuild/backfill/extra historical fingerprint. Strict
+opt-in/pre-write/clean DELETE/fail-closed/no WAL recovery retained; default legacy.
+FH-04 **new-operation gap addressed**, R5-01/02 **resolved by independent review**;
+**FH-05 OPEN**, broad OQ-06 inference/history repair/refunds/closed-period/additional
+adoption decisions remain open. No automatic unsupported-history reconciliation.
+
+EF-08a Windows **WinError 5 remains unresolved**. MV-01 target tablet/mobile, MV-02
+installed worker v109, MV-03 real SMTP, MV-04 real SumUp, MV-05 offline/reconnect
+pending; operational MV-06 geography/hardware/immutability/encrypted scratch/storage/
+Windows ACL/key-image acquisition/timed human external reconciliation/acceptance partial.
+Merge synthetic DR RPO age 0.357783s/RTO 2.312204s is not an operational guarantee.
+No production financial data/migration/repair, real payment/refund/SMTP, deployment,
+image publication/release/updater/schedule change or RL-06/new package. Stop after
+successful exact final-main integration verification.
+
 ## Active RL-05 R5-01/02 review continuation — 2026-11-24
 
 Owner authorizes bounded review fixes on existing PR #10, not merge/new package.

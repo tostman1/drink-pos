@@ -24,6 +24,22 @@ Observed results are dated in PROGRESS.md; no invented coverage percentages.
 
 ## RL-03 distinct financial-history findings — OPEN
 
+### RL-05 independent review and integration completed — 2026-11-24
+
+Owner completed second independent review against exact
+`0b5972404ab94bb59d49c299a75260260baa5713`, verified R5-01/02 and authorized normal
+guarded merge of PR #10; merged `e9204e88ad2faf6cb8919f9ef9824bb0f6a5b005` with
+exact reviewed tree. Merge-main CI https://github.com/tostman1/drink-pos/actions/runs/45388627081
+passed both 309-test matrices/all 30 transaction-round + 16 reporting-review tests,
+actual Docker/migration/recovery/DR/image audits; publication skipped.
+**R5-01/02 resolved and integrated; FH-04 new-operation contract addressed.** This
+supersedes review-pending notes below, not missing historical data. Old T-only or
+NULL-parent receipts remain unverified, no reconstructed provenance/financial repair.
+FH-05 and broader OQ-06 remain open; paid/closed/uncertain/ambiguous round automatic
+reversal blocked, EF-08a Windows WinError 5 and manual/operational acceptance pending.
+Receipt descendant exact-final-main CI verified separately and recorded at delivery;
+no production adoption/deployment/publication/provider operations approved.
+
 ### RL-05 independent review R5-01/02 — implemented; second review pending
 
 - **R5-01 Medium:** profit report/statistics finance used +abs(VK) for deduction and
