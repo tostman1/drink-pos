@@ -1,5 +1,22 @@
 # Technical audit — evidence, not a rewrite mandate
 
+## RL-06 scoped deployment evidence (in progress)
+
+Superseded status: implementation `8ca880b` branch/PR `45401715029`/`45401726644`
+successful with independent downloaded artifact/config/source/checksum validation;
+see HANDOFF verified receipt. NAS/device/operational boundaries remain pending.
+
+Production `stable` Compose/pull/updater/timer are intentionally unchanged and not
+safe test defaults. New DP-025 local-image/internal-network single-service test
+project has fixed isolated state and explicit non-root UID/GID, empty synthetic-only
+v2 initialization, no serve fresh/adopt, strong PIN and no provider/mail/agent env.
+Marker validates test identity, not host mount provenance or writer quiescence;
+trusted NAS ACL/mount selection and stopped writers remain operator obligations.
+Exact-main-baseline/candidate Compose, older-v1 fail-closed and full financial
+recovery rehearsals are CI-only synthetic evidence, not NAS/historical acceptance.
+Docker save checksum/config ID differ from OCI/schema/migration hashes. Actual
+DSM/PWA/offsite/key/operational verification is still pending, not inferred.
+
 Audit of previous main `fb08128`, transfer `250a4e6`, and owner-merged main
 `052c2bb`. Takeover/diff details in HANDOFF.md; requirements in ../REQUIREMENTS.md.
 Observed results are dated in PROGRESS.md; no invented coverage percentages.

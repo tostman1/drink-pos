@@ -29,7 +29,7 @@ jobs:
     name: Non-publishing container verification
     needs: checks
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     permissions:
       contents: read
     steps:
@@ -37,6 +37,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+          fetch-depth: 0
       - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
@@ -55,7 +56,7 @@ jobs:
           DRINK_POS_IMAGE=example.invalid/drink-pos@sha256:$(printf '%064d' 0) DRINK_POS_CONFIG_FILE=/dev/null DRINK_POS_SECRET_FILE=/dev/null DRINK_POS_STATE_VOLUME=verification-state docker compose -f examples/compose.upgrade.yaml config --quiet
       - name: Build local-only verification image
         run: >-
-          docker build --tag drink-pos:verification
+          docker build --platform linux/amd64 --tag drink-pos:verification
           --build-arg BUILD_COMMIT="$GITHUB_SHA"
           --build-arg BUILD_REF=verification
           --build-arg BUILD_CHANNEL=verification
@@ -79,6 +80,30 @@ jobs:
           python -m pip install pip-audit==2.10.1
           docker run --rm --network none --pull never --entrypoint python drink-pos:verification -m pip freeze > "$RUNNER_TEMP/image-requirements.txt"
           python -m pip_audit --strict --disable-pip --no-deps --progress-spinner off -r "$RUNNER_TEMP/image-requirements.txt"
+      - name: Rehearse exact isolated Synology test Compose deliverable
+        run: |
+          git archive 25a78ba6606e74760969cce7c993d60d3a139f2e | docker build --platform linux/amd64 --tag drink-pos:rl06-baseline --build-arg BUILD_COMMIT=25a78ba6606e74760969cce7c993d60d3a139f2e --build-arg BUILD_REF=rl06-baseline --build-arg BUILD_CHANNEL=verification -
+          git archive 2cc36fd69ec56dbdfe65ffb7ed98600d7c33b7c4 | docker build --platform linux/amd64 --tag drink-pos:rl06-unsupported-v1 --build-arg BUILD_COMMIT=2cc36fd69ec56dbdfe65ffb7ed98600d7c33b7c4 --build-arg BUILD_CHANNEL=verification -
+          python scripts/synology_test_rehearsal.py --image drink-pos:verification --commit "$GITHUB_SHA" --baseline-image drink-pos:rl06-baseline --unsupported-image drink-pos:rl06-unsupported-v1 --target "$RUNNER_TEMP/rl06-compose"
+      - name: Export already tested AMD64 image and exact identity receipt (no publication)
+        run: python scripts/export_test_image.py --image drink-pos:verification --commit "$GITHUB_SHA" --destination "$RUNNER_TEMP/rl06-artifact" --run-url "https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --run-attempt "$GITHUB_RUN_ATTEMPT"
+      - name: Upload non-production exact-image installation artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: drink-pos-test-amd64-${{ github.sha }}
+          path: ${{ runner.temp }}/rl06-artifact/
+          include-hidden-files: true
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+      - name: Retain synthetic test deployment evidence, including failures
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: rl06-synthetic-evidence-${{ github.sha }}
+          path: ${{ runner.temp }}/rl06-compose/evidence/
+          if-no-files-found: warn
+          retention-days: 14
 
   publish:
     name: Explicit owner-triggered main publication

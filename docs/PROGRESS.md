@@ -1,5 +1,83 @@
 # Engineering foundation progress
 
+## RL-06 successful automated delivery — 2026-11-24
+
+- Implementation `8ca880b7ac48d1d26ad2570c20bd707a598f1297`, exact base
+  `25a78ba6606e74760969cce7c993d60d3a139f2e`, PR #11 OPEN/UNMERGED. Branch
+  `45401715029` / PR `45401726644` all gates success, publication skipped.
+- Both Linux matrices 318/317/one Windows-only skip, all nine RL06 regressions.
+  Local exact implementation 3.12.13/3.13.15 Standard Checks 318/312/six POSIX
+  skips, 176.660s/178.719s; syntax/Ruff/traceability/security/Chromium passed.
+- Actual one-service internal-network/fixed-IP/non-root deliverable, initialization,
+  persistence, exact-baseline update/full unchanged DB, older-v1 rejection/failed
+  state, independent recovery/round replay and post-backup activity all verified;
+  existing financial/round/migration/EF-08b/c encrypted source/image-loss gates pass.
+- Export saves/reimports exact tested AMD64 image, binds archived Config/rootfs
+  against tested runtime, separates config hash from CI Docker index descriptor.
+  Independent downloaded artifact ID `14924186574` verifies all 13 checksums and
+  archive config/source/tag/platform. Immutable receipt/checksums in HANDOFF above.
+- Final docs-only receipt commit gets its own exact-head CI/artifact, recorded in
+  PR final receipt without pretending previous archive names bind a newer SHA.
+  German guide `synology-test-deployment.md`; no deployment/publication/provider/mail.
+  NAS/device/HTTPS/PWA/offline/ACL/offsite/key/operator acceptance remains pending.
+- Evidence gaps: pinned Actions emit Node20-deprecation/forced-Node24 warnings;
+  no bypass or silent suppression. Older real historical, broader policy, Windows
+  EF-08a permission and operational acceptance gaps unchanged.
+
+
+## RL-06 active increment — 2026-11-24
+
+- Exact-head `28e0068` branch/PR CI `45400576542`/`45400589154` passes complete
+  actual Compose installation/update/recovery/downgrade/post-backup rehearsal.
+  Export detects false config-ID assumption: containerd Docker `.Id` is index/
+  manifest digest, not config bytes SHA. New red/green config binding derives
+  digest from archive and compares Config/rootfs/platform to tested inspect data,
+  records CI Docker ID/descriptor separately, rechecks after load. Artifact still
+  withheld until final export succeeds; no reproducibility/registry digest claim.
+
+- Network-fixed CI `45399453115`/`45399465044` passed host-to-internal reachability,
+  financial/round/event/persistence, baseline startup/backup/full restore and older
+  v1 rejection. Rehearsal then renamed independent EF-08b bundle; correct verifier
+  rejects directory/backup-ID mismatch. Copy now preserves exact backup-ID name,
+  regression covers rejection of renamed versus success of original-name copy.
+  Installable artifact remains withheld; no verifier weakening/format change.
+
+- First branch/PR CI `45398131061`/`45398216593`: both Python matrices and all
+  pre-existing actual-image/financial/migration/full/encrypted recovery/audit gates
+  passed, new Compose reachability failed. App startup and in-container health
+  succeeded; internal-only Docker port publication omitted host mapping. Installable
+  artifact correctly withheld. Red regression now requires no unreliable host
+  mapping; fixed dedicated non-overlapping internal IP:8000 for DSM reverse proxy,
+  keeping one service/outbound isolation. Guide/environment updated; CI rerun pending.
+
+- Exact clean/fetched main baseline `25a78ba6606e74760969cce7c993d60d3a139f2e`;
+  branch `feature/rl-06-synology-test-deployment`; ready gate `rl-06-contract.md`.
+- New local-only internal-network Compose and empty synthetic-only v2 initializer;
+  no fresh/adopt on serve, credentials/weak PIN blocked, read-only inspection,
+  quiesced EF-08b backup/full new-root recovery and exact-candidate preflight.
+- CI export saves the already-tested AMD64 image (no publication), exact archive/
+  config-ID/source/release/CI receipts and German operator guide. Actual deliverable
+  Compose rehearsal added; full final gates and receipt are not yet claimed.
+- Initial red regressions: missing Compose/module; subsequent first four pass.
+  Windows zoneinfo dependency avoided through bounded supported IANA names;
+  isolated new-test SQLite handle leak fixed with explicit close, unrelated to the
+  existing EF-08a `WinError 5` gap. No production runtime/UI/updater changes.
+- Eight focused boundary regressions pass. First full 3.12/3.13 executions found
+  only stale foundation catalog-count expectation (24→25); 317 tests, 6 POSIX skips,
+  one failure each, 205.824s/211.566s; corrected expectation, full reruns pending.
+  Actual-image evidence expanded from same-image recreation to exact main baseline
+  → candidate, unsupported older v1 image startup rejection/unchanged state and
+  full-table/ledger/receipt comparison, independent restore and post-backup retention.
+- Full reruns pass 3.12/3.13: 317 discovered, 311 passed, six POSIX skips;
+  174.910s/177.717s, browser and dependency audit pass. A subsequent ninth red/green
+  regression closes mutable/mismatched test image tags; final 318-test reruns next.
+- Latest full local 3.12.13/3.13.15 gates pass: **318 discovered / 312 passed /
+  six POSIX skips**, 172.711s/182.238s. Ruff/format/syntax (88 Python, 130 JS),
+  traceability 25/zero external, full financial/security/migration/recovery/DR
+  regressions, dependency audit and Chromium smoke pass. Subsequent Messages
+  presence check and artifact runtime inventory also require exact-head CI; no
+  actual Compose/image run possible locally (Docker unavailable).
+
 ## RL-05 final integration — 2026-11-24
 
 - Second independent owner review complete, R5-01/R5-02 verified, no approved-scope

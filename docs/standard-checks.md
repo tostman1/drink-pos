@@ -27,6 +27,12 @@ but is not the full gate and is less isolated from a caller's environment.
 
 ## Required stages
 
+RL-06 adds `test_synology_test.py` boundaries and actual
+`scripts/synology_test_rehearsal.py` against `compose.synology.test.yaml` in CI.
+The tested local AMD64 image is saved only after all verification gates with
+`scripts/export_test_image.py`; archive/config-ID/source/CI are distinct identities.
+NAS/DSM/HTTPS/devices/offsite/keys remain manual in `synology-test-deployment.md`.
+
 RL-05 adds served net-consumption/keyed correction/pay/round reversal and actual
 concurrency/fault/v1→v2 interruption tests in test_transaction_integrity. Full all-table
 recovery fixtures populate nine new tables through served operations; disaster fixture

@@ -5,6 +5,13 @@
   "handoff": "250a4e6d3e4180b469d4f2a91623b60f2fd1ed72",
   "requirements": [
     {
+      "id": "DP-025", "scope": "engineering",
+      "statement": "RL-06 supplies a non-publishing exact-tested AMD64 image archive and isolated local-only Synology test Compose; explicit empty synthetic v2 initialization, strong test PIN, no provider/SMTP/agent/outbound connectivity or automatic updates. Read-only identity/inspection/preflight and explicit quiesced full backup/new-root recovery retain financial receipts, round provenance and post-backup state. Real NAS/device/HTTPS/PWA/offsite/operator acceptance remains pending.",
+      "sources": ["compose.synology.test.yaml", ".env.test.example", "app/synology_test.py", "scripts/export_test_image.py", "scripts/synology_test_rehearsal.py", ".github/workflows/container.yml", "docs/rl-06-contract.md", "docs/synology-test-deployment.md"],
+      "tests": ["tests/test_synology_test.py::SynologyTestTests.test_compose_is_local_only_one_service_and_internal_network", "tests/test_synology_test.py::SynologyTestTests.test_missing_marker_serve_rejects_without_creating_database", "tests/test_synology_test.py::SynologyTestTests.test_explicit_empty_initialization_v2_read_only_inspect_and_repeat_rejected", "tests/test_synology_test.py::SynologyTestTests.test_initialization_blocks_weak_pin_credentials_adoption_and_nonempty_state", "tests/test_synology_test.py::SynologyTestTests.test_full_backup_independent_verify_restore_and_identity_binding", "tests/test_synology_test.py::SynologyTestTests.test_future_or_unversioned_database_and_marker_mismatch_block_inspect", "tests/test_synology_test.py::SynologyTestTests.test_preflight_requires_isolated_exact_image_and_no_state_changes", "tests/test_synology_test.py::SynologyTestTests.test_archive_identity_checksum_platform_tag_and_config_tampering", "tests/test_synology_test.py::SynologyTestTests.test_initialization_rejects_mutable_or_mismatched_image_identity"],
+      "manual": ["MV-01", "MV-05", "MV-06"]
+    },
+    {
       "id": "DP-001", "scope": "observed-main",
       "statement": "Provide a German EUR private-network touch PWA for members, cashiers and admins, not public SaaS or a full offline financial system.",
       "sources": ["README.md", "app/index.html", "app/service-worker.js"],

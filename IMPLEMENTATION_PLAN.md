@@ -1,5 +1,14 @@
 # Engineering foundation work packages
 
+## RL-06 — isolated Synology test deployment (2026-11-24)
+
+DP-025 plus preserved DP-001/008/009/015/016/021–024. Ready gate
+`docs/rl-06-contract.md`; exact-tested AMD64 archive, local/internal-network single
+test service, explicit synthetic-only empty v2 initialization, read-only preflight,
+quiesced EF-08b backup/new-root recovery, actual Compose rehearsal and German
+`docs/synology-test-deployment.md`. Existing production defaults/updaters unchanged.
+One OPEN/UNMERGED PR; real NAS/device/HTTPS/PWA/offsite/key acceptance pending.
+
 ## RL-05 — approved transaction integrity + round addendum (2026-11-24)
 
 Ready gate `docs/rl-05-contract.md`, exact round lifecycle/blocks in

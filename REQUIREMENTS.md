@@ -2,6 +2,11 @@
 
 ## Baseline and confidence
 
+RL-06 adds DP-025: isolated non-publishing exact-image Synology test delivery,
+explicit synthetic v2 initialization, no automatic updates/seeding, read-only
+preflight versus explicit backup/new-root recovery, and German operator/device
+acceptance. Hardware/HTTPS/PWA/offsite acceptance remains pending.
+
 This catalog reconstructs the application at verified main `fb08128`, plus the
 PR #1 at `250a4e6`, now owner-merged into main `052c2bb`. It is not an imported product spec or a
 claim that stakeholders approved every legacy behavior. Stable IDs and test/manual

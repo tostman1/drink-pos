@@ -2,6 +2,16 @@
 
 ## Confirmed decisions
 
+RL-06 (owner-authorized isolated test delivery, not production): DP-025 ready gate
+`docs/rl-06-contract.md`. Distribute the tested exact-checkout local AMD64 image
+through non-publishing Actions archive; no registry/stable/timer change. New test
+Compose uses internal network, explicitly isolated state, non-root test-owner UID/
+GID, strong test PIN and one-time synthetic v2 initialization; no automatic seeding
+or update. Reuse EF-08b/c full recovery and exact-image isolated compatibility gates.
+Same-schema compatibility needs evidence/approval, not age/name inference; failed
+state and post-backup financial activity must be preserved. Actual NAS/HTTPS/devices/
+offsite/operator acceptance stays pending. PR must remain OPEN/UNMERGED.
+
 | ID | Decision / evidence | Consequence |
 | --- | --- | --- |
 | D-01 | Retain FastAPI/direct sqlite3/WAL/vanilla PWA and authoritative served legacy handlers (owner foundation scope; ARCHITECTURE.md EF-ADR-001) | No architectural transplant; parity tests precede one-seam migrations |

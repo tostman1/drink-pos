@@ -5,6 +5,11 @@ Die App besteht aus einem FastAPI-Backend, SQLite/WAL und einer Vanilla HTML/CSS
 
 ## Engineering foundation / Entwicklung
 
+Isolierte **Testinstallation** auf Synology DS224+ (kein `stable`/Produktionsupdate):
+[`docs/synology-test-deployment.md`](docs/synology-test-deployment.md),
+`compose.synology.test.yaml`, `.env.test.example`. Exaktes AMD64-Testimage als
+nicht veröffentlichtes Actions-Artefakt; reale NAS-/Geräteabnahme bleibt separat.
+
 Start with [`AGENTS.md`](AGENTS.md), [`docs/PROCESS.md`](docs/PROCESS.md),
 [`docs/PROGRESS.md`](docs/PROGRESS.md), and [`docs/HANDOFF.md`](docs/HANDOFF.md).
 Reconstructed Drink-POS requirements and actual runtime seams are documented in
