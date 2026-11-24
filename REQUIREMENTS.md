@@ -1,4 +1,55 @@
-# Reconstructed Drink-POS requirements
+# Drink-POS requirements — observed baseline and approved product target
+
+## Owner-approved product operability — planned (2026-11-24)
+
+Inspected main: `7a6aa5dff411c8fb5601b87758a0fc64810aa0c3`, RL-06 integrated
+via PR #11. **Binding:** ordinary association administrators must install, configure,
+maintain and recover without SSH/CLI, manual SQLite/YAML/.env work or developer
+assistance. Target: one simple Compose in Synology Container Manager, start, browser,
+guided setup and GUI operation; support other Docker-compatible self-hosting.
+Minimal infrastructure image/port/volume/host trust stays outside the app; routine
+settings do not. No shared default PIN, activation on mere start, privileged
+container or Docker socket. One service by default unless safety-critical isolation
+demonstrates a need. Existing RL-06 CLI test delivery is valid and unchanged, not
+the final user experience.
+
+Measurable acceptance is specified in
+[`docs/product-operability.md`](docs/product-operability.md). These functional and
+nonfunctional requirements are **approved target, planned-not-implemented**; no
+runtime implementation or real-device/provider acceptance is claimed or authorized.
+
+| ID | Target requirement | Acceptance / package |
+| --- | --- | --- |
+| DP-026 | Simple safe installation and GUI routine operability | PO-V01; RL-07, final RL-11 |
+| DP-027 | Guided strong admin/identity/settings/data/backup/optional-integration setup; DB-independent bootstrap | PO-V02; RL-07 |
+| DP-028 | Explicit incomplete/unverified/activated/unavailable/intervention states; cash-only optionality | PO-V03; RL-07/08 |
+| DP-029 | Classified typed/versioned GUI settings, precedence and safe migration | PO-V04; RL-07 |
+| DP-030 | Protected masked server credentials, encryption/rotation/backup/new-NAS recovery | PO-V05; RL-07 foundation, RL-08/09 integration |
+| DP-031 | Fresh action-bound PIN/warnings/confirmation/audit and active/unresolved config holds | PO-V06; RL-07/08 |
+| DP-032 | Dedicated SumUp settings/discovery/pairing and restricted endpoint editing | PO-V07; RL-08 |
+| DP-033 | Complete card/Self-Pay/fee UI and backend gating; production fake-provider rejection | PO-V08; RL-08 |
+| DP-034 | Independent no-charge connectivity diagnostics, no HTTP-ready inference | PO-V09; RL-08 |
+| DP-035 | Durable isolated acceptance operations, immutable config/request identities and safe replay | PO-V10; RL-08 |
+| DP-036 | Authorized EUR 1.00 success/manual terminal cancellation/timeout tests; exact outcomes and UNKNOWN safety | PO-V11; RL-08 |
+| DP-037 | Guided report, exact-config acceptance/activation and unresolved blockers | PO-V12; RL-08 |
+| DP-038 | Complete encrypted backup/controlled restore and DB-unavailable recovery GUI | PO-V13; RL-09 |
+| DP-039 | Exact update/health visibility and approval/backup/rehearsal/restricted install/recovery | PO-V14; RL-10 |
+| DP-040 | Real DSM/mobile/installed-PWA/offline/financial/operator independent recovery acceptance | PO-V15; RL-11 |
+
+All PO-V checks are pending, not existing test methods. Catalog schema v1 preserves
+DP-001–025 in `requirements`; DP-026–040 use an explicit `planned_requirements`
+partition with pending verification, no fictitious tests. The existing 25-ID CI gate
+does not inspect that partition; supplemental documentation audit is required now,
+combined lifecycle validator/test evolution is an explicit RL-07 prerequisite.
+
+Preserve server-calculated totals, immutable snapshots/audit/idempotency, exact round
+provenance/blocks, ordinary-only offline writes and EF-08/release/migration contracts.
+Acceptance tests never affect member debt/beverage revenue; real funds/fees still
+need reconciliation. Unready SumUp means hidden normal features/no provider calls;
+cash remains usable only for eligible debt, not an uncertainty override. Restore
+holds all writers, retains old/failed/post-backup activity and keys, then reconciles;
+a GUI cannot recover total storage/key loss without independent copies. Architecture
+options in DECISIONS are unapproved; implementations need separate authorization.
 
 ## Baseline and confidence
 
@@ -173,9 +224,11 @@ receipts retain their exact parent T ID using existing fields; old records uncha
 
 ## Classification rules
 
-**Confirmed behavior** has direct served-code and test evidence; it may still be
-a risk, not the ideal product rule. **Inferred requirements** (private-network
-intent, operator usability) are supported by documentation but not fresh stakeholder
-sign-off. **Proposed improvements** live only in IMPLEMENTATION_PLAN.md; they do
-not authorize runtime changes. **Unresolved decisions** live in DECISIONS.md.
+**Owner-approved planned requirements** above have explicit product sign-off and
+pending measurable acceptance, not runtime completion or implementation authority.
+**Confirmed behavior** has served-code/test evidence; it may still be a risk, not
+the ideal rule. Historical **inferred requirements** were not fresh stakeholder
+sign-off; operator usability is now explicitly approved above. **Other proposed
+improvements** stay in IMPLEMENTATION_PLAN.md, not runtime authorization.
+**Unresolved decisions** live in DECISIONS.md.
 Stable DP IDs and exact evidence stay in the catalog, not parallel duplicated lists.

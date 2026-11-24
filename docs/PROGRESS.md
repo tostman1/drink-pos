@@ -1,5 +1,72 @@
 # Engineering foundation progress
 
+## Product operability requirements — documentation only, 2026-11-24
+
+- Clean local/current fetched origin/main baseline exactly
+  **`7a6aa5dff411c8fb5601b87758a0fc64810aa0c3`**; new
+  `docs/product-operability-requirements` branch. Independent exact-baseline CI query
+  `45410477163`: Python 3.12/3.13 and non-publishing container verification success;
+  publication skipped. RL-06 integrated through PR #11, no historical evidence removed.
+- Owner approves binding GUI-only ordinary-admin product journey, D-18–25, future
+  DP-026–040 with measurable PO-V01–15 acceptance; **not implemented**. Focused spec
+  `docs/product-operability.md` distinguishes served ENV SumUp/reader APIs/partial
+  gating/SMTP+invoice GUI/CLI EF08/build labels from planned first-run, protected secrets,
+  fresh authorization, live acceptance/gating, recovery and restricted update GUIs.
+- PO-ADR-01–14 record options/trade-offs/recommendation/resolving packages without
+  pretending technical approval. RL-07→08→09→10→11 reserved, dependencies/gates and
+  real operator/DSM/mobile/PWA/financial/recovery acceptance explicitly pending.
+- Preserve old catalog `requirements` DP-001–025; new planned partition has no tests,
+  explicit pending status and spec/package mappings. Legacy checker/tests still cover
+  only 25 implemented/engineering entries: supplemental documentation audit now,
+  combined schema/checker/test lifecycle evolution is RL-07 prerequisite, no CI weakening.
+- Scope: root/docs Markdown plus `docs/requirements.json` only. No app/tests/scripts/
+  migrations/UI/worker/Dockerfile/Compose/env/deploy/workflow/dependency changes.
+  No NAS/production data/provider networking/payment/refund/SMTP/release/publication,
+  no prior PR update/merge/history rewrite/delegation or RL-07 implementation.
+- Existing FH-05/broader OQ-06/EF-08a Windows WinError 5/manual MV01–05/partial MV06
+  remain. Real-device/operator acceptance is not inferred from documentation/CI.
+
+Supplemental source-only audit **passed**: 40 unique IDs (25 preserved + 15 planned),
+15 pending PO-V heading/anchor mappings, 14 ADRs with options/trade-offs/recommendation/
+resolving package, D-18–25, RL-07–11 dependencies and 51 local Markdown links. Prior
+requirements array bytes/historical HANDOFF/PROGRESS/AUDIT receipts/protected trees
+unchanged. Temporary audit tool outside Git:
+`C:/Users/fritz/AppData/Local/Temp/opencode/product-operability-doc-audit.py`.
+First audit rejected shorthand RL-07–10 dependency text; roadmap now lists all four
+explicit prerequisites, not a dropped dependency/check.
+
+Initial full Python 3.12.13/3.13.15 runs **failed** (318 discovered, 17 failures,
+six POSIX skips each; 187.097s/188.053s): command-local PATH incorrectly pointed at
+the parent of existing pinned `age`/`age-keygen` binaries, so required encryption
+tests correctly failed. Ruff/format/syntax/old 25-ID traceability passed; later
+audit/browser stages not reached. Corrected PATH to `drink-pos-age-v1.3.2/tool/age`,
+rerunning unchanged full gates; failed logs retained outside Git as
+`product-operability-precommit312.log`/`product-operability-precommit313.log`.
+No code/check/suppression/retry logic changed; this was tooling setup, not a pass.
+
+Corrected full local Standard Checks **exit 0** on Python **3.12.13/3.13.15**,
+Node **24.11.1**, existing pinned external age: **318 discovered/312 passed/six
+POSIX-only skips**, **195.457s/203.889s** unittest. Ruff/88-file format, 88 Python/
+130 JS syntax/data, unchanged 25-ID/zero-external traceability, all synthetic
+financial/migration/recovery/encryption regressions, strict audits (no known
+vulnerabilities), Chromium booking/keyed correction/admin/event/kassa/self-pay and
+diff checks passed. Logs outside Git `product-operability-correct-path312.log`/
+`product-operability-correct-path313.log`. Existing lifecycle/TestClient/LF→CRLF
+warnings remain; EF-08a WinError 5 unresolved, not fixed by this run.
+
+Documented supplemental snippet in standard-checks executed successfully from
+Python UTF-8 file content. First PowerShell stdin attempt mangled Unicode em dash
+into regex syntax; corrected transport, no doc/check weakening. Broader supplemental
+audit and protected-tree/history parity rechecked successfully. Refetched main
+remains exact baseline; final receipt edits documentation only.
+
+Committed-tree local gates/new-PR exact-head CI still require separate results after
+push; final report/PR record them, never predecessor inference. No local Docker;
+unchanged non-publishing CI must supply actual container evidence. No publication
+dispatch, production Compose/updater/recovery operation or manual acceptance.
+The final commit's own SHA/PR/checks are recorded in the PR/final report after push.
+PR must remain OPEN/UNMERGED; independent review next, no automatic implementation.
+
 ## RL-06 approved integration — 2026-11-24
 
 - Independent owner technical/artifact review complete; explicit guarded merge
