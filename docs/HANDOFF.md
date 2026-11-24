@@ -2,6 +2,11 @@
 
 ## RL-06 in progress — 2026-11-24
 
+PR #11 OPEN/UNMERGED, implementation `67ec1a89b756713045f9545aef09bab0a1e5ff27`.
+First actual deliverable CI found internal-only Docker host-port publication failure
+(app healthy); artifact withheld. Follow-up preserves internal network/single-service,
+uses fixed internal IP as DSM reverse-proxy target, no host app port. Fix pending CI.
+
 Owner requested RL-06 after approved RL-05 integration. Verified clean HEAD/fetched
 main `25a78ba6606e74760969cce7c993d60d3a139f2e`; created
 `feature/rl-06-synology-test-deployment`. Ready gate `rl-06-contract.md` records

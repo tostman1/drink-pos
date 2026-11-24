@@ -60,6 +60,8 @@ class SynologyTestTests(unittest.TestCase):
         self.assertEqual(service["cap_drop"], ["ALL"])
         self.assertTrue(service["read_only"])
         self.assertTrue(config["networks"]["test-only"]["internal"])
+        self.assertNotIn("ports", service)
+        self.assertIn("ipv4_address", service["networks"]["test-only"])
         self.assertNotIn("build", service)
         self.assertNotIn("env_file", service)
         self.assertTrue(all(v["target"] != "/app" for v in service["volumes"]))

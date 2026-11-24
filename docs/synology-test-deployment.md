@@ -47,8 +47,11 @@ einem separaten Unterordner liegen. `.env.test.example` nach `.env.test` kopiere
 - `DRINK_POS_TEST_PIN`: zufällige 10–20 Ziffern, mindestens sechs verschiedene;
   keine einfachen Zahlenfolgen. Nicht Screenshot/Log/Issue/öffentliche Konfiguration.
 - `DRINK_POS_TEST_TZ`: `Europe/Zurich`, `Europe/Berlin`, `Europe/Vienna` oder `UTC`.
-- Standard `127.0.0.1:8089`: nur NAS-Reverse-Proxy. Für abgeschotteten LAN-HTTP-Test
-  kann die konkrete NAS-LAN-IP gesetzt werden; nie ohne Firewall öffentlich binden.
+- `DRINK_POS_TEST_SUBNET=172.30.89.0/28`, `DRINK_POS_TEST_CONTAINER_IP=172.30.89.2`:
+  vorab NAS/LAN/VPN/Docker-Netze auf Überschneidung prüfen, bei Konflikt beide Werte
+  gemeinsam ändern. Kein Host-Portmapping: DSM-Proxy greift auf feste interne IP:8000.
+  CI zeigte: Docker akzeptiert bei rein internem Netz eine Portangabe, veröffentlicht
+  sie aber nicht zuverlässig. Nicht einfach ein externes Netz ergänzen!
 - `DRINK_POS_TEST_STATE=data`: feste DB `/test/data/database.db`, eigene Messages,
   Events/CSV/PDF unter diesem Testzustand. Kein Host-Code über `/app`.
 
@@ -121,12 +124,17 @@ Schlüssel privat außerhalb Testroot/Container aufbewahren, nie Produktionsschl
 ## 4. HTTPS, Reverse Proxy und PWA
 
 Für PWA/Offline ist ein **vertrauenswürdiger sicherer Ursprung** erforderlich.
+Es wird **kein Host-Port 8089** vom Container publiziert. Für optionalen einfachen
+LAN-HTTP-Smoke kann DSM eine eigene HTTP-Proxyquelle NAS-IP:8089 → interne-IP:8000
+anlegen (nur LAN-Firewall); dies ist keine PWA-Abnahme. Direkte feste Container-IP
+ist vom NAS erreichbar, aber nicht als geräteübergreifende LAN-Adresse gedacht.
 `http://NAS-IP:8089` ist für entfernte Browser kein localhost; dort kein vollständiger
 PWA-/Offline-Erfolg behaupten. Drei mögliche Wege, jeweils separate Operatorwahl:
 
 1. DSM **Systemsteuerung → Anmeldeportal/Login Portal → Erweitert → Reverse Proxy**:
    eigene Testadresse `https://drink-pos-test.<private-domain>`:443 →
-   `http://127.0.0.1:8089`, ausschließlich vertrauenswürdiges LAN/VPN. DNS muss auf
+   `http://172.30.89.2:8000` (gewählte feste interne IP), ausschließlich
+   vertrauenswürdiges LAN/VPN. DNS muss auf
    NAS zeigen; keine öffentliche Portfreigabe nötig. Zertifikat unter
    **Sicherheit → Zertifikat → Einstellungen** dieser Testadresse zuweisen.
 2. Interne CA: Zertifikat für exakt den Testhost, CA auf Desktop/Android/iPad/iPhone
@@ -188,6 +196,9 @@ Intervention ist kein Erfolg. Wrapper unterstützt nur exact-v2/same-schema/no-c
 keine generische Schema-Migration/Downgrade. Startet/migriert nichts.
 Kandidatenstart zuerst gegen separat ausdrücklich restaurierte isolierte Testkopie
 mit anderem Testport/Projekt/Container durchführen; keine doppelte Live-Mount-Nutzung.
+Bei separatem Rehearsalprojekt außerdem anderes nicht überlappendes internes Subnetz/
+IP wählen und Containername in einer privaten Compose-Kopie ändern; nie zwei
+Container mit derselben festen IP/Name/Live-DB starten.
 EF-08b Restore benötigt zunächst das exakte **alte** Image; anschließend bewusster
 Kandidaten-Rehearsal. Prüfen: Integrity/FKs, Ledger, alle Finanz-/Auditzeilen,
 Receipts, Nettoverbrauch, Runde/Zahlhistorie, Artifacts und Replay. Bei ausstehenden
@@ -269,8 +280,9 @@ Sperranzeige getrennt festhalten, nicht „manuell getestet“ erfinden.
   keine Registry als Abkürzung. Archive/Checksum aus erfolgreichem Lauf holen.
 - **blocked-preserve-state**: Fresh/Adopt/PIN/Timezone/Marker/DB/Links/Permissions
   prüfen. Erstinitialisierung einmal leer; kein Delete/Reseed bei bestehendem Zustand.
-- **Port belegt**: Testport ändern, Produktions-8088 nicht verdrängen. Interne
-  Netzwerkveröffentlichung auf installierter Docker-Version wirklich prüfen.
+- **Proxy/Netz-Konflikt**: eigene Testproxy-Adresse/Port wählen, Produktions-8088
+  nicht verdrängen. Subnetz/IP darf NAS/LAN/VPN/andere Docker-Netze nicht überlappen.
+  NAS-CLI kann `http://INTERNE-IP:8000/health` prüfen; diese IP nicht ins LAN routen.
 - **GUI Variablen/Compose unbekannt**: separate `.env`-Kopie oder NAS-CLI wie oben;
   sicherheitsrelevante Felder nicht entfernen. Paket-/DSM-Version protokollieren.
 - **Healthfehler / fehlende Messages / Migration blockiert**: stoppen, alle Dateien
@@ -289,6 +301,8 @@ lokalisiert/versionsabhängig sein):
 - [Container Manager Image: Dateiimport/Details](https://kb.synology.com/en-global/DSM/help/ContainerManager/docker_image?version=7)
 - [Container Manager Project: Compose-Projekte](https://kb.synology.com/en-global/DSM/help/ContainerManager/docker_project?version=7)
 - [DSM Login Portal Advanced: Reverse Proxy](https://kb.synology.com/en-global/DSM/help/DSM/AdminCenter/system_login_portal_advanced?version=7)
+- [Docker internes Netz: Hostzugriff, kein externes Routing](https://docs.docker.com/reference/cli/docker/network/create/#network-internal-mode---internal)
+- [Docker internal-only Portmapping-Limit](https://github.com/moby/moby/discussions/53256)
 
 Automatische Gates sind synthetische Software-/Container-Evidenz. Erst Operator
 bestätigt echte DS224+/DSM-/GUI-/Netzwerk-/HTTPS-/Geräte-/Restore-/Key-Abnahme.

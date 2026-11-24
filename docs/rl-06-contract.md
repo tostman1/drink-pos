@@ -11,8 +11,11 @@ push and one OPEN/UNMERGED PR, not a NAS installation or production operation.
   Docker copies `app/` to `/app`; no host application-code mount is needed.
 - Both existing Compose files pull GHCR `stable`, port 8088; production Podman
   updater pulls/recreates/prunes and its timer schedules daily work. **Unchanged
-  and excluded**. New project/container `drink-pos-test`, port 8089, AMD64,
+  and excluded**. New project/container `drink-pos-test`, AMD64,
   one application service, internal network, no pull/build/scheduler/socket.
+  CI demonstrated internal-only Docker does not publish host ports reliably:
+  no host mapping; fixed dedicated non-overlapping internal IP:8000 is the DSM
+  reverse-proxy target. Optional DSM proxy listener 8089 is not an app mapping.
 - CI already builds a local verification image and exercises financial,
   migration, EF-08b/c and dependency gates. Save **that tested image**, retagged
   with exact checkout SHA, only after all gates. Downloadable Actions artifact

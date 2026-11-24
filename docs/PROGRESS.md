@@ -2,6 +2,14 @@
 
 ## RL-06 active increment — 2026-11-24
 
+- First branch/PR CI `45398131061`/`45398216593`: both Python matrices and all
+  pre-existing actual-image/financial/migration/full/encrypted recovery/audit gates
+  passed, new Compose reachability failed. App startup and in-container health
+  succeeded; internal-only Docker port publication omitted host mapping. Installable
+  artifact correctly withheld. Red regression now requires no unreliable host
+  mapping; fixed dedicated non-overlapping internal IP:8000 for DSM reverse proxy,
+  keeping one service/outbound isolation. Guide/environment updated; CI rerun pending.
+
 - Exact clean/fetched main baseline `25a78ba6606e74760969cce7c993d60d3a139f2e`;
   branch `feature/rl-06-synology-test-deployment`; ready gate `rl-06-contract.md`.
 - New local-only internal-network Compose and empty synthetic-only v2 initializer;

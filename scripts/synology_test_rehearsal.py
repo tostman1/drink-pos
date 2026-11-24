@@ -37,8 +37,8 @@ def rehearsal(image: str, commit: str, target: Path, baseline_image: str, unsupp
         DRINK_POS_TEST_ID="drink-pos-test-ci",
         DRINK_POS_TEST_PIN="7391850264",
         DRINK_POS_TEST_TZ="Europe/Zurich",
-        DRINK_POS_TEST_PORT="8089",
-        DRINK_POS_TEST_BIND_IP="127.0.0.1",
+        DRINK_POS_TEST_SUBNET="172.30.89.0/28",
+        DRINK_POS_TEST_CONTAINER_IP="172.30.89.2",
         DRINK_POS_TEST_UID=str(os.getuid()),
         DRINK_POS_TEST_GID=str(os.getgid()),
     )
@@ -108,7 +108,7 @@ def rehearsal(image: str, commit: str, target: Path, baseline_image: str, unsupp
         return result
 
     pin = env["DRINK_POS_TEST_PIN"]
-    base = "http://127.0.0.1:8089"
+    base = "http://" + env["DRINK_POS_TEST_CONTAINER_IP"] + ":8000"
 
     def api(path, payload=None):
         return json.loads(request(base, path, payload))

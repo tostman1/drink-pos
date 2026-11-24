@@ -13,8 +13,8 @@ services:
     security_opt: [no-new-privileges:true]
     tmpfs: [/tmp]
     command: [python, -B, /app/synology_test.py, serve]
-    ports:
-      - "${DRINK_POS_TEST_BIND_IP:-127.0.0.1}:${DRINK_POS_TEST_PORT:-8089}:8000"
+    # Internal-only bridges cannot reliably publish host ports on current Docker.
+    # DSM reverse proxy targets this fixed dedicated address:8000, not localhost.
     volumes:
       - type: bind
         source: "${DRINK_POS_TEST_HOST_ROOT:?Dedicated absolute test root required}"
@@ -40,7 +40,12 @@ services:
       DRINK_POS_ALLOW_TEST_CARD_PAYMENTS: "0"
       SUMUP_API_KEY: ""
       DRINK_POS_SMTP_HOST: ""
-    networks: [test-only]
+    networks:
+      test-only:
+        ipv4_address: "${DRINK_POS_TEST_CONTAINER_IP:?Dedicated internal test address required}"
 networks:
   test-only:
     internal: true
+    ipam:
+      config:
+        - subnet: "${DRINK_POS_TEST_SUBNET:?Non-overlapping dedicated test subnet required}"
