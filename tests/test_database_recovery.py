@@ -234,6 +234,49 @@ class DatabaseRecoveryTests(unittest.TestCase):
 
         return source_db, person_id, message_id, event_id
 
+    def populate_transaction_integrity(self, database):
+        # Exercise actual served operations on this owned fixture, leaving the
+        # old hand-built historical rows untracked rather than fabricating links.
+        from app import application
+
+        app, main = application.create_app("app")
+        main.APP_ENV = "development"  # Synthetic legacy fixture deliberately uses 1234.
+        with main.get_conn() as conn:
+            # Prepare the old synthetic entitlement as operationally closed before
+            # new operations; do not fabricate a link to its old payment/deduction.
+            conn.execute("UPDATE paid_round_units SET event_open=0,closed_at='synthetic-before-new-audit'")
+            conn.commit()
+        person = main.admin_create_person(
+            main.AdminPersonCreate(pin="1234", first_name="Recovery", last_name="Integrity")
+        )["id"]
+        with main.get_conn() as conn:
+            item = conn.execute("SELECT id FROM items WHERE name='Bier gross'").fetchone()[0]
+        for _ in range(3):
+            main.add_drink(main.AddDrinkRequest(person_id=person, item_id=item))
+        main.create_round_request(main.RoundRequestIn(person_id=person, quantity=2))
+        with main.get_conn() as conn:
+            units = [r[0] for r in conn.execute("SELECT id FROM round_units ORDER BY id")]
+        main.deduct_round(main.RoundDeductionRequest(pin="1234", round_unit_id=units[0]))
+        main.admin_cancel_rounds(
+            main.RoundCancellationRequest(
+                pin="1234",
+                round_unit_ids=[units[0]],
+                correction_operation_id="recovery-round",
+                correction_reason="synthetic",
+            )
+        )
+        main.admin_adjust_drink(
+            main.AdminAdjustItemRequest(
+                pin="1234",
+                person_id=person,
+                item_id=item,
+                delta=-1,
+                correction_operation_id="recovery-correction",
+                correction_purpose="erroneous_booking",
+            )
+        )
+        main.pay(main.PayRequest(pin="1234", person_id=person, payment_operation_id="recovery-cash"))
+
     def test_csv_backup_restore_includes_newer_operational_tables(self):
         source_db, person_id, message_id, event_id = self.populate_operational_database()
 
@@ -257,6 +300,7 @@ class DatabaseRecoveryTests(unittest.TestCase):
 
     def test_full_database_and_separate_artifacts_recovery_rehearsal(self):
         source_db, person_id, message_id, event_id = self.populate_operational_database()
+        self.populate_transaction_integrity(source_db)
         with sqlite_conn(source_db) as conn:
             conn.row_factory = sqlite3.Row
             event = dict(conn.execute("SELECT * FROM event_sessions WHERE id=?", (event_id,)).fetchone())
@@ -283,7 +327,7 @@ class DatabaseRecoveryTests(unittest.TestCase):
         restore_database.restore_backup(csv_backup.parent, target)
         with sqlite_conn(source_db) as source, sqlite_conn(target) as recovered:
             tables = [row[0] for row in source.execute("SELECT name FROM sqlite_master WHERE type='table'")]
-            self.assertEqual(len(tables), 17)  # 16 operational tables + sqlite_sequence
+            self.assertEqual(len(tables), 25)  # original 16 + 8 RL-05 tables + sqlite_sequence
             for table in tables:
                 with self.subTest(table=table):
                     self.assertGreater(source.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0], 0)
@@ -297,7 +341,12 @@ class DatabaseRecoveryTests(unittest.TestCase):
             )
             self.assertEqual(recovered.execute("PRAGMA integrity_check").fetchall(), [("ok",)])
             self.assertFalse(recovered.execute("PRAGMA foreign_key_check").fetchall())
-            self.assertEqual(recovered.execute("SELECT quantity,event_open FROM order_lines").fetchone(), (3, 0))
+            self.assertEqual(
+                recovered.execute(
+                    "SELECT quantity,event_open FROM order_lines WHERE item_name_snapshot='Historical Bier'"
+                ).fetchone(),
+                (3, 0),
+            )
             with self.assertRaises(sqlite3.IntegrityError):
                 recovered.execute("INSERT INTO client_operations SELECT * FROM client_operations")
             with self.assertRaises(sqlite3.IntegrityError):
@@ -323,7 +372,12 @@ class DatabaseRecoveryTests(unittest.TestCase):
         schema.init_db()
         with sqlite_conn(target) as recovered:
             self.assertEqual(recovered.execute("PRAGMA journal_mode").fetchone()[0], "wal")
-            self.assertEqual(recovered.execute("SELECT quantity,event_open FROM order_lines").fetchone(), (3, 0))
+            self.assertEqual(
+                recovered.execute(
+                    "SELECT quantity,event_open FROM order_lines WHERE item_name_snapshot='Historical Bier'"
+                ).fetchone(),
+                (3, 0),
+            )
             self.assertEqual(
                 recovered.execute("SELECT client_payment_id FROM self_payment_sessions").fetchone()[0],
                 "restore-payment-1",

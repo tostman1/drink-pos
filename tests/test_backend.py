@@ -937,7 +937,7 @@ class BackendFlowTests(unittest.TestCase):
         self.assertEqual(len(consume_entries), 1)
         self.assertEqual(consume_entries[0]["quantity"], 1)
 
-    def test_kassa_person_history_hides_approved_corrections(self):
+    def test_kassa_person_history_shows_original_and_explicit_approved_corrections(self):
         person, item = self.first_person_and_item()
 
         self.main.add_drink(self.main.AddDrinkRequest(person_id=person["id"], item_id=item["id"]))
@@ -961,7 +961,9 @@ class BackendFlowTests(unittest.TestCase):
 
         history = self.main.kassa_person_history(person["id"])
         consume_entries = [entry for entry in history["history"] if entry["type"] == "CONSUME"]
-        self.assertEqual(sum(entry["quantity"] for entry in consume_entries), 1)
+        self.assertEqual(sum(entry["quantity"] for entry in consume_entries), 2)
+        corrections = [entry for entry in history["history"] if entry["type"] == "CONSUMPTION_CORRECTION"]
+        self.assertEqual(sum(entry["quantity"] for entry in corrections), -1)
 
     def test_admin_person_history_shows_corrections_and_allows_archived_person(self):
         person, item = self.first_person_and_item()
@@ -989,10 +991,10 @@ class BackendFlowTests(unittest.TestCase):
         history = self.main.admin_person_history(self.main.AdminPersonHistoryRequest(pin=PIN, person_id=person["id"]))
         entries = history["history"]
         consume_entries = [entry for entry in entries if entry["type"] == "CONSUME"]
-        correction = next(entry for entry in entries if entry["type"] == "CHANGE_APPROVED")
+        correction = next(entry for entry in entries if entry["type"] == "CONSUMPTION_CORRECTION")
 
-        self.assertEqual(sum(entry["quantity"] for entry in consume_entries), 1)
-        self.assertEqual(correction["type_label"], "Korrektur gelöscht")
+        self.assertEqual(sum(entry["quantity"] for entry in consume_entries), 2)
+        self.assertEqual(correction["type_label"], "Fehlbuchung korrigiert")
         self.assertEqual(correction["direction"], "correction")
         self.assertEqual(correction["quantity"], -1)
         self.assertEqual(correction["quantity_label"], "-1x")

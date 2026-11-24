@@ -34,6 +34,56 @@ def seed():
     preview = main.kassa_person(b["id"])
     main.kassa_pay(main.KassaPayRequest(pin=pin, person_id=b["id"], expected_revision=preview["revision"]))
     main.admin_cashup(main.CashupRequest(pin=pin))
+    # RL-05 durable correction and reversal state must survive full source loss.
+    c = main.admin_create_person(main.AdminPersonCreate(pin=pin, first_name="Synthetic", last_name="Reversal"))
+    for _ in range(3):
+        main.add_drink(main.AddDrinkRequest(person_id=c["id"], item_id=item_id))
+    main.create_round_request(main.RoundRequestIn(person_id=c["id"], quantity=1))
+    with main.get_conn() as conn:
+        round_id = conn.execute(
+            "SELECT id FROM round_units WHERE original_order_line_id IN (SELECT id FROM order_lines WHERE person_id=?) ORDER BY id DESC LIMIT 1",
+            (c["id"],),
+        ).fetchone()[0]
+    main.deduct_round(main.RoundDeductionRequest(pin=pin, round_unit_id=round_id))
+    cancellation = main.RoundCancellationRequest(
+        pin=pin,
+        round_unit_ids=[round_id],
+        correction_operation_id="dr-round-cancel",
+        correction_reason="synthetic erroneous round",
+    )
+    main.admin_cancel_rounds(cancellation)
+    main.admin_cancel_rounds(cancellation)
+    main.admin_adjust_drink(
+        main.AdminAdjustItemRequest(
+            pin=pin,
+            person_id=c["id"],
+            item_id=item_id,
+            delta=-1,
+            correction_operation_id="dr-net-correction",
+            correction_purpose="erroneous_booking",
+            correction_reason="synthetic incorrect drink",
+        )
+    )
+    with main.get_conn() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM round_reversals").fetchone()[0] >= 1
+        assert conn.execute("SELECT COUNT(*) FROM correction_details").fetchone()[0] >= 1
+        assert (
+            conn.execute(
+                "SELECT SUM(quantity) FROM transaction_items WHERE person_id=? AND kind IN ('CONSUME','CONSUMPTION_CORRECTION')",
+                (c["id"],),
+            ).fetchone()[0]
+            == 2
+        )
+        assert (
+            conn.execute(
+                "SELECT quantity FROM order_lines WHERE person_id=? AND item_id=?", (c["id"], item_id)
+            ).fetchone()[0]
+            == 2
+        )
+        assert (
+            conn.execute("SELECT COUNT(*) FROM round_cancellations WHERE round_unit_id=?", (round_id,)).fetchone()[0]
+            == 1
+        )
     # New open debt across price changes, immutable consumption-time snapshots.
     main.add_drink(main.AddDrinkRequest(person_id=a["id"], item_id=item_id, client_operation_id="dr-offline-2"))
     main.admin_update_drink(
@@ -90,6 +140,8 @@ def seed():
         assert conn.execute("PRAGMA integrity_check").fetchall() == [("ok",)]
         assert not conn.execute("PRAGMA foreign_key_check").fetchall()
         assert conn.execute("SELECT COUNT(*) FROM round_events").fetchone()[0] > 0
+        assert conn.execute("SELECT COUNT(*) FROM round_reversals").fetchone()[0] > 0
+        assert conn.execute("SELECT COUNT(*) FROM correction_details").fetchone()[0] > 0
         assert conn.execute("SELECT COUNT(*) FROM paid_round_units").fetchone()[0] > 0
     print(json.dumps({"status": "synthetic-seeded", "message_created": bool(message)}))
 

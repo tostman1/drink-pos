@@ -174,7 +174,7 @@ class FinancialHistoryTests(unittest.TestCase):
                 conn.execute("SELECT profit_eur FROM transaction_items WHERE kind='PAID_CASH'").fetchone()[0], 0
             )
 
-    def test_member_and_admin_negative_corrections_do_not_append_signed_item_details(self):
+    def test_member_and_admin_negative_corrections_append_signed_item_details(self):
         self.book()
         with self.legacy.get_conn() as conn:
             line_id = conn.execute("SELECT id FROM order_lines").fetchone()[0]
@@ -185,10 +185,22 @@ class FinancialHistoryTests(unittest.TestCase):
         self.book()
         self.post(
             "/api/admin/adjust-drink",
-            {"pin": "1234", "person_id": self.person["id"], "item_id": self.item["id"], "delta": -1},
+            {
+                "pin": "1234",
+                "person_id": self.person["id"],
+                "item_id": self.item["id"],
+                "delta": -1,
+                "correction_operation_id": "rl05-negative",
+                "correction_purpose": "erroneous_booking",
+            },
         )
         with self.legacy.get_conn() as conn:
-            self.assertEqual(conn.execute("SELECT COUNT(*) FROM transaction_items WHERE quantity<0").fetchone()[0], 0)
+            self.assertEqual(
+                conn.execute(
+                    "SELECT COUNT(*) FROM transaction_items WHERE kind='CONSUMPTION_CORRECTION' AND quantity<0"
+                ).fetchone()[0],
+                2,
+            )
             self.assertEqual(conn.execute("SELECT SUM(quantity) FROM order_lines").fetchone()[0], 0)
             self.assertEqual(
                 conn.execute("SELECT total FROM transactions WHERE type='ADMIN_ADJUSTMENT'").fetchone()[0], -3

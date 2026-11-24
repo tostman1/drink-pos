@@ -226,7 +226,17 @@ def worker(target: Path, commit: str) -> dict:
         api("/api/edit-request", {"person_id": cash_person, "line_quantities": {str(line_id): 1}})
         api("/api/pay", {"pin": pin, "person_id": cash_person, "approve_pending": True})
         book(cash_person, "rl04-admin-correction")
-        api("/api/admin/adjust-drink", {"pin": pin, "person_id": cash_person, "item_id": item_id, "delta": -1})
+        api(
+            "/api/admin/adjust-drink",
+            {
+                "pin": pin,
+                "person_id": cash_person,
+                "item_id": item_id,
+                "delta": -1,
+                "correction_operation_id": "rl05-synthetic-admin",
+                "correction_purpose": "erroneous_booking",
+            },
+        )
         # Mock provider boundary, including matching cents/currency and replay.
         os.environ.update(
             PAYMENT_PROVIDER="sumup",
@@ -373,6 +383,8 @@ def worker(target: Path, commit: str) -> dict:
         "history_rewritten": False,
         "legacy_repeat_verified": True,
         "versioned_adoption_verified": True,
+        "net_consumption_verified": True,
+        "round_reversal_verified": True,
         "recovery_verified": True,
         "network_attempts": len(network_attempts),
         "mocked_card_creations": len(calls),
