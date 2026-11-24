@@ -1,5 +1,23 @@
 # RL-02 — implemented migration contract and opt-in startup gate
 
+## RL-05 real additive transition (under verification)
+
+v1 exact `090ea55a…`/original ledger/checksum retained. v2 adds eight empty provenance/
+receipt/round tables, indexes and immutable/snapshot guards; no original rows/table
+rebuild/source reconstruction. Exact current hash is frozen in migrations.CURRENT_SCHEMA;
+transition ID `0002-transaction-integrity` checksum binds source/target and literal DDL.
+Current v2 exact schema:
+`a05a42f5e2ffc9c5c994684ed06b7572bb5d9c968166cba329e4475d0a232913`.
+Verified v1→v2 uses BEGIN IMMEDIATE, old row unchanged plus real second completion row;
+fresh/current-unversioned v2 records direct establishment, not fictitious v1 execution.
+Old exact unversioned v1 adoption establishes metadata then applies real additive v2.
+Legacy default adds extension transactionally after old compatibility helpers; if a
+versioned header exists dispatches to strict gate before SQLite opens, never WAL
+recovery/behind-ledger normalization. Unknown/custom v1/partial/future/sidecars reject.
+No new historical fingerprint. Independently prepared v1 fixtures test all original
+tables/sequence and SQL faults/abrupt exit/repeat; recovered state remains separate.
+Older application cannot be assumed safe on v2; image-only rollback unsupported.
+
 ## RL-04 current compatibility note (2026-11-24)
 
 The historical RL-02/RL-03 descriptions below document their then-unchanged legacy

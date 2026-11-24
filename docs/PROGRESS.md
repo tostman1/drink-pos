@@ -1,5 +1,63 @@
 # Engineering foundation progress
 
+## RL-05 active — 2026-11-24
+
+Verified clean/fetched main `2cc36fd69ec56dbdfe65ffb7ed98600d7c33b7c4`, dedicated
+feature/rl-05-transaction-integrity; all earlier branches preserved, no agents.
+Mandatory docs/runtime inspected; owner addendum incorporated before persistence
+design in `docs/rl-05-contract.md`. Original test-first run 17 discovered/12 failures/
+five errors proves missing new contracts (`rl05-red.log` outside Git). Initial expanded
+22 targeted correction/round/migration tests pass; full gates still pending.
+
+New source-linked signed corrections/committed receipts, net original-period reports,
+correction-only HTTP success, serialized requests/pay/cashup and exact round unit/
+deduction/reversal model implemented under review. Additive v2 empty extension,
+no old historical links inferred; paid/closed/unknown/unassigned round states block.
+Worker v109/vanilla first-party action IDs; APIs intentionally require negative
+purpose/ID and manual round unit. Existing defect tests converted, financial originals
+still compared. Whole application/source-loss fixture extended with reversal state.
+
+Broad runs failed (not passes): first lacked age PATH and exposed compatibility/
+count expectations; subsequent run used age but found unpopulated new recovery tables,
+old person-history expectations/traceability and concurrent code-edit schema mismatch.
+Fixes/populated served recovery tests and frozen model verification in progress; no
+production data/provider/network operations, no commits/push/PR yet. Full Python
+3.12/3.13/browser/security/container/migration/DR/exact-head CI required before delivery.
+FH-04 not closed yet, FH-05/OQ-06 broader/WinError 5/device/operational gaps retained.
+
+Model expanded: eight provenance/receipt/round tables with exact v2 hash
+`a05a42f5e2ffc9c5c994684ed06b7572bb5d9c968166cba329e4475d0a232913`, immutable
+provenance/snapshot/permanent cancellation guards. Actual prepared v1 transition
+keeps all old tables/sequence/ledger; direct v2 establishes actual history only.
+29 targeted tests pass including admin/member replay, net 5−2=3, original-period cost,
+round cancellation versus cashup/payment concurrency, SQL stage faults and interrupted
+v1 migration. Existing broad failed receipts retained: formatting failed first full
+Standard Checks; later checks overlapped code/model additions and produced stale
+PayRequest attribute/schema failures, not accepted evidence. Frozen-tree rerun in
+progress; no guards weakened. Chromium expanded to first-party keyed removal/replay;
+worker v109/manual device acceptance remains pending.
+
+Frozen broad Standard Checks reached 292 tests with only one remaining old
+unqualified recovery SELECT expectation failing; now explicitly selects original
+historical row, preserving assertion. First-party Chromium correction/replay passes
+after synthetic session PIN reset before separate admin login (initial smoke failed
+hidden login field, not application correction failure). Formatted changed files only.
+Installed-style migration script additionally prepares original exact v1/ledger then
+executes real v2 and proves no invented correction/unit rows, full independent recovery,
+network_attempts=0; local actual-container verification still unavailable.
+
+### Local review candidate gate
+
+Full Standard Checks **exit 0** Python **3.12.13/3.13.15**, **292 discovered/286
+passed/six POSIX skips** each, **161.748s/163.662s** unittest. Ruff/82-file format/
+syntax/24-ID traceability/real age/financial+29 new RL-05 tests/migration/recovery/
+audits (**no known vulnerabilities**)/Chromium first-party keyed correction replay/
+diff pass; actionlint passes. Logs `rl05-gate312.log`/`rl05-gate313.log` outside Git.
+Earlier failed runs retained, no WinError 5 during successful gate (not a fix).
+Model/code stable; installed-style script adds actual prepared v1 rehearsal and passes,
+exact-head CI/actual Docker/final committed-tree gates still required. Refetched main
+unchanged exact baseline; deployment/Compose/provider/EF08 tool code unchanged.
+
 ## RL-04 final integration — 2026-11-24
 
 - Owner independent review complete, no approved-scope merge blockers; explicit

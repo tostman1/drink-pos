@@ -1,5 +1,32 @@
 # Handoff and protected work
 
+## RL-05 active handoff — 2026-11-24
+
+Owner authorizes net-consumption/source-linked correction/idempotency/transaction
+integrity plus mandatory coordinated round cancellation, **not merge/production**.
+Base `2cc36fd69ec56dbdfe65ffb7ed98600d7c33b7c4`, feature/rl-05-transaction-integrity.
+Plan `docs/rl-05-contract.md`; round safe/blocked/legacy lifecycle in
+`docs/round-cancellation-contract.md`. Existing work preserved/no delegation.
+Implementation uncommitted, tests/gates in progress; do not treat initial failures
+or targeted passes as full delivery. v2 real additive schema/zero historical inference;
+net correction does not refund/return stock, round restoration not new consumption.
+Paid/closed/uncertain/unattributed round reversals blocked. FH-04 closure pending,
+FH-05 and broader OQ-06/EF-08a WinError 5/manual devices/operational recovery open.
+Final complete local/exact-head container CI/open PR required; no new work/merge/
+deploy/publication/production state/SumUp/SMTP/updater schedules authorization.
+
+Current frozen candidate: 29 targeted RL-05 tests pass; full both-version Standard
+Checks running, earlier formatting/stale in-flight model checks failed and retained.
+No commits/push/PR yet. Full synthetic source-loss fixture includes corrected
+consumption/cancelled round/exact reversal; actual-image CI still required. Use
+current migration/schema (not prior interim hashes) and preserve all evidence gaps.
+
+Full local candidate gate now passes Python 3.12.13/3.13.15, 292 discovered/286
+passed/six POSIX skips each; quality/traceability/real age/audits none known/Chromium
+keyed correction replay/diff pass. 29 new RL05 tests; previous failed logs retained.
+Commit/open PR and exact-final-head CI/recovery receipts pending; do not infer actual
+container proof locally. No merge permission or broader OQ/FH05/manual closure.
+
 ## RL-04 integrated handoff — 2026-11-24
 
 PR #9 https://github.com/tostman1/drink-pos/pull/9 is **MERGED** after completed

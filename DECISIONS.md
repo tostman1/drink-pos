@@ -21,6 +21,16 @@
 
 ## Unresolved decisions (not implementation authorization)
 
+**D-17 RL-05 owner decision (2026-11-24):** normal consumption reports use actual net
+consumption after approved erroneous-booking corrections, original-period attribution
+and separate immutable originals/correction audit. Negative admin identity/purpose
+mandatory, explicit correction-only pay success; no unkeyed retry guarantee. Addendum:
+round cancellation is coordinated, stable unit/deduction provenance and exact once-only
+compensation; paid/closed/unknown/legacy ambiguity fail closed, no provider refund,
+inventory return or reopened settled debt. Actual additive v2 authorized only synthetic
+implementation; no extra historic fingerprint/production migration/merge approval.
+OQ-06 remains open for other policies/adoption/historical gaps; FH-05 remains open.
+
 **RL-04 D-16 (2026-11-24):** owner approves routine historical snapshot preservation
 only, including zero/nonzero/unusual round snapshots; missing defaults initialize,
 existing default zero master is retained. Admin edits and startup do not infer past

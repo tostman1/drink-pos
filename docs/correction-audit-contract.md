@@ -1,5 +1,58 @@
 # FH-04 — served correction lifecycle and audit coverage
 
+## RL-05 current contract (supersedes RL-04 characterization below)
+
+Owner approved normal **net consumption after erroneous-booking correction** and
+separate coordinated round cancellation. Original audit remains immutable. New
+CONSUMPTION_CORRECTION detail links exact new booking source/O/person/item snapshots,
+original consumption date, signed quantity/VK/EK/cost/profit, actual correction time,
+reason/purpose/admin authorization/member request, parent TI/T and committed operation.
+New source correlation is recorded at booking, never inferred for old rows.
+
+Negative admin corrections require `correction_operation_id` and
+`correction_purpose=erroneous_booking`. Same key+same canonical payload replays exact
+stored result; changed payload 409, absent key/purpose 400. New key can intentionally
+remove again up to remaining debt. Legacy callers must update; identical unkeyed
+requests cannot safely distinguish retries. First-party IDs persisted in sessionStorage
+for unresolved online retries, busy guard; no offline correction queue. New bookings
+avoid merging into old untracked O. Archived item IDs/persons may be corrected using
+their original snapshots; no current-price debt reconstruction.
+
+Member request creation is serialized; optional operation ID replay; pending capacity
+enforced. Approval/rejection identity derives from request ID, same decision replays,
+opposing decision conflicts; old already-decided requests retain old rejection/unknown
+history. Approval requires full current requested quantity (no payment-time silent cap).
+Source uncertainty/active or unknown card blocks without mutation. Rejection changes
+request status/audit only. Round requests use the special contract, not ordinary TI.
+
+`/api/pay`: all correction decisions and payment effects share BEGIN IMMEDIATE.
+Remaining payable debt → actual payment, ordinary paid response retained. Approved
+`corrections_only=true` explicitly resolves without payment and returns
+`corrections_applied`, payment_required=true and remaining debt when payment remains.
+corrections removing all debt → HTTP 200 `status=correction_only`, total=0,
+payment_required=false, pending_handled; no fake PAID record. No debt/no work → HTTP
+400 detail.status=no_work without committed change. Validation/late-payment failure
+rolls decisions/details/quantities/receipts/payment back. `payment_operation_id` supports
+exact successful replay; unkeyed cash calls retain legacy semantics (not retry-safe
+after new intervening bookings). First-party dialog carries one ID per action.
+
+Reports: normal consumption/top quantities use positive CONSUME plus explicit
+CONSUMPTION_CORRECTION, original consumed_date for correction, actual timestamp for
+audit. Gross/reversed additive components exposed in stats; current corrected view
+can change historical-date counts, not old exported files/as-of snapshots. Debt/tally
+uses remaining O once, no double subtraction. Paid profit still reads RL-04 snapshots;
+round expense/reversal distinct, no refund/inventory return. Person audit shows original
+and signed corrections separately, no historical name/time heuristic subtraction.
+Historical ambiguous T-only corrections explicitly flagged unverified in statistics;
+no precision manufactured. Details and receipts have FK/uniqueness and immutable
+UPDATE/DELETE guards. SQL failure at any stage rolls whole operation back.
+
+Round lifecycle/blocks/reversal/abuse matrix: `round-cancellation-contract.md`.
+Real additive schema/version/compatibility: `migration-safety.md`. FH-04 implementation
+is under verification, closure only after final full local/exact-head container/CI.
+
+## Retained RL-04 baseline evidence (not current policy)
+
 RL-04 characterization at baseline `8dd961b`; implementation deliberately unchanged.
 DP-004 has a known **item-detail exception**; FH-04 remains **OPEN (Medium)**.
 Actual runtime: application/registry → `legacy_main`; not prototype orders service.
