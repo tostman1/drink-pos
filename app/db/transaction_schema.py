@@ -95,6 +95,13 @@ SQL = (
         FOREIGN KEY(transaction_item_id) REFERENCES transaction_items(id),
         FOREIGN KEY(change_request_id) REFERENCES change_requests(id)
     )""",
+    """CREATE TABLE IF NOT EXISTS round_request_units (
+        change_request_id INTEGER NOT NULL,
+        round_unit_id INTEGER NOT NULL,
+        PRIMARY KEY(change_request_id,round_unit_id),
+        FOREIGN KEY(change_request_id) REFERENCES change_requests(id),
+        FOREIGN KEY(round_unit_id) REFERENCES round_units(id)
+    )""",
     "CREATE INDEX IF NOT EXISTS idx_booking_sources_line ON booking_sources(original_order_line_id)",
     "CREATE INDEX IF NOT EXISTS idx_correction_details_date ON correction_details(consumed_date)",
     "CREATE INDEX IF NOT EXISTS idx_round_units_line ON round_units(original_order_line_id)",
@@ -144,6 +151,7 @@ AUDIT_TABLES = (
     "round_deductions",
     "round_reversals",
     "round_cancellations",
+    "round_request_units",
 )
 # These SQL statements are part of the frozen additive migration checksum.
 SQL += tuple(

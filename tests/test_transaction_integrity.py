@@ -505,6 +505,24 @@ class RoundCancellationTests(unittest.TestCase):
         self.post("/api/deduct-round", {"pin": "1234", "round_unit_id": units[0]})
         self.assertEqual(self.cancel([units[0]]).status_code, 200)
 
+    def test_pending_round_request_retains_exact_unit_after_new_round_booking(self):
+        units = self.round()
+        with self.main.get_conn() as conn:
+            line = conn.execute("SELECT original_order_line_id FROM round_units LIMIT 1").fetchone()[0]
+        self.post("/api/edit-request", {"person_id": self.person, "line_quantities": {str(line): 1}})
+        self.round()
+        with self.main.get_conn() as conn:
+            request = conn.execute("SELECT id FROM change_requests").fetchone()[0]
+            self.assertEqual(conn.execute("SELECT round_unit_id FROM round_request_units").fetchone()[0], units[0])
+        self.post("/api/admin/change-request/decide", {"pin": "1234", "request_id": request, "decision": "approve"})
+        with self.main.get_conn() as conn:
+            self.assertIsNotNone(
+                conn.execute("SELECT cancelled_operation_id FROM round_units WHERE id=?", (units[0],)).fetchone()[0]
+            )
+            self.assertIsNone(
+                conn.execute("SELECT cancelled_operation_id FROM round_units ORDER BY id DESC LIMIT 1").fetchone()[0]
+            )
+
     def test_every_round_reversal_write_fault_rolls_back_full_operation(self):
         self.book(3)
         units = self.round()

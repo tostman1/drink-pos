@@ -25,8 +25,8 @@ production data/provider/network operations, no commits/push/PR yet. Full Python
 3.12/3.13/browser/security/container/migration/DR/exact-head CI required before delivery.
 FH-04 not closed yet, FH-05/OQ-06 broader/WinError 5/device/operational gaps retained.
 
-Model expanded: eight provenance/receipt/round tables with exact v2 hash
-`a05a42f5e2ffc9c5c994684ed06b7572bb5d9c968166cba329e4475d0a232913`, immutable
+Model expanded: nine provenance/receipt/round tables with exact v2 hash
+`39dbd90c2aaefdc7437aef27e5ad16bb21db8b1583d2c51d855e50bec32209c5`, immutable
 provenance/snapshot/permanent cancellation guards. Actual prepared v1 transition
 keeps all old tables/sequence/ledger; direct v2 establishes actual history only.
 29 targeted tests pass including admin/member replay, net 5−2=3, original-period cost,
@@ -57,6 +57,28 @@ Earlier failed runs retained, no WinError 5 during successful gate (not a fix).
 Model/code stable; installed-style script adds actual prepared v1 rehearsal and passes,
 exact-head CI/actual Docker/final committed-tree gates still required. Refetched main
 unchanged exact baseline; deployment/Compose/provider/EF08 tool code unchanged.
+
+### First committed-head verification and reservation review
+
+PR #10 https://github.com/tostman1/drink-pos/pull/10 OPEN at implementation/doc
+`33c0d82e7374c4e1c0d378558a7a460421af58bb`, four commits `a013878`/`e50ba38`/
+`62464be`/`33c0d82`. Exact branch `45365814913` and PR `45365827911` **success**:
+Linux each 292 discovered/291 passed/one Windows-only skip, all 29 new tests ok;
+actual Docker/4 Compose/legacy upgrade/prepared v1→v2/repeat/financial net+round
+reversal/independent recovery/encrypted source+owned-image-loss DR/image audit pass,
+publication skipped, network_attempts=0. Prior eight-table model yielded 25 tables;
+current reservation extension below changes model/evidence needs final rerun.
+
+Final review found pending round approval could select a newer unit after another
+booking aggregated into same O. Added `round_request_units` immutable request↔unit
+reservation at creation, approval uses exact IDs, conflicting direct cancellation
+blocks; focused regression before final delivery. Current genuine v2 DDL updated
+(not another migration of published state, no production adoption), nine tables/26
+total. Pending-round approved sources not reconstructed for legacy requests. Also
+serializes old pending round-add decision. No other new policy; exact final-head
+gates rerun required after this correction. Committed-head local 3.12/3.13 pass
+retained, new head/local counts follow after verification. FH-04 closure deferred
+until final evidence; original financial and deployment boundaries unchanged.
 
 ## RL-04 final integration — 2026-11-24
 

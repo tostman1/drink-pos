@@ -272,7 +272,7 @@ class FinancialIntegrityTests(unittest.TestCase):
         self.assertEqual(result["network_attempts"], 0)
         self.assertTrue(result["recovery_verified"])
         self.assertTrue(result["versioned_adoption_verified"])
-        self.assertEqual(result["original_tables_preserved"], 25)
+        self.assertEqual(result["original_tables_preserved"], 26)
 
 
 class CorrectionAuditTests(unittest.TestCase):

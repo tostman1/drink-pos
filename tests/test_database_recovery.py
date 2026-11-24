@@ -265,6 +265,16 @@ class DatabaseRecoveryTests(unittest.TestCase):
                 correction_reason="synthetic",
             )
         )
+        with main.get_conn() as conn:
+            round_line = conn.execute(
+                "SELECT original_order_line_id FROM round_units WHERE id=?", (units[1],)
+            ).fetchone()[0]
+        main.create_edit_request(main.EditRequestIn(person_id=person, line_quantities={str(round_line): 1}))
+        with main.get_conn() as conn:
+            change_request = conn.execute("SELECT MAX(id) FROM change_requests").fetchone()[0]
+        main.admin_decide_change_request(
+            main.AdminChangeRequestDecision(pin="1234", request_id=change_request, decision="reject")
+        )
         main.admin_adjust_drink(
             main.AdminAdjustItemRequest(
                 pin="1234",
@@ -327,7 +337,7 @@ class DatabaseRecoveryTests(unittest.TestCase):
         restore_database.restore_backup(csv_backup.parent, target)
         with sqlite_conn(source_db) as source, sqlite_conn(target) as recovered:
             tables = [row[0] for row in source.execute("SELECT name FROM sqlite_master WHERE type='table'")]
-            self.assertEqual(len(tables), 25)  # original 16 + 8 RL-05 tables + sqlite_sequence
+            self.assertEqual(len(tables), 26)  # original 16 + 9 RL-05 tables + sqlite_sequence
             for table in tables:
                 with self.subTest(table=table):
                     self.assertGreater(source.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0], 0)

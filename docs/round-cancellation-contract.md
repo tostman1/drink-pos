@@ -15,6 +15,8 @@ has `round_cancellations` signed ROUND_CANCELLATION detail and reason/operator/r
 No identity from current round_index/name/price/count/description.
 
 New tracked state: BOOKED/ELIGIBLE → per-person DEDUCTED; pending change request
+`round_request_units` reserves the exact selected units at request creation. Later
+bookings cannot shift approval onto newer units; conflicting direct cancellation blocks.
 holds the entire affected round O (all its units) → APPROVED cancellation or
 REJECTED release. CANCELLED is permanent and never planned; CLOSED after CASHUP
 never automatically reopened. Paid unit↔original unit mapping lives in

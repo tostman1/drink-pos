@@ -3570,6 +3570,19 @@ def create_edit_request(req: EditRequestIn):
                 """,
                 (person["id"], line_id, line["item_id"], qty_to_remove, req.reason, now_text()),
             )
+            request_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+            if is_round_order_line(line):
+                selected = conn.execute(
+                    "SELECT ru.id FROM round_units ru WHERE ru.original_order_line_id=? AND ru.cancelled_operation_id IS NULL AND ru.closed_transaction_id IS NULL AND NOT EXISTS(SELECT 1 FROM round_request_units rru JOIN change_requests cr ON cr.id=rru.change_request_id WHERE rru.round_unit_id=ru.id AND cr.status='PENDING') ORDER BY ru.id DESC LIMIT ?",
+                    (line_id, qty_to_remove),
+                ).fetchall()
+                if len(selected) != qty_to_remove:
+                    correction_service.intervention(
+                        "Rundeneinheiten sind historisch nicht eindeutig zugeordnet; Anfrage nicht gespeichert"
+                    )
+                conn.executemany(
+                    "INSERT INTO round_request_units VALUES(?,?)", [(request_id, row["id"]) for row in selected]
+                )
             details.append(f"-{qty_to_remove}x {line['item_name_snapshot']}")
 
         log_transaction(conn, person["id"], "CHANGE_REQUEST", 0, "Löschanfrage: " + ", ".join(details))
@@ -3797,6 +3810,7 @@ def admin_decide_round_request(req: AdminRoundRequestDecision):
 
     with get_conn() as conn:
         require_pin(conn, req.pin)
+        conn.execute("BEGIN IMMEDIATE")
         row = conn.execute(
             """
             SELECT rr.*, p.name AS person_name, p.first_name, p.last_name, i.name AS item_name, i.short_label, i.price_eur, i.purchase_price_eur
@@ -4575,10 +4589,16 @@ def calculate_round_preview(conn: sqlite3.Connection):
 
 
 def round_cancellation_for_line(conn, line, quantity, identity, *, reason, request_id=None):
-    units = conn.execute(
-        "SELECT id FROM round_units WHERE original_order_line_id=? AND cancelled_operation_id IS NULL ORDER BY id DESC LIMIT ?",
-        (line["id"], quantity),
-    ).fetchall()
+    if request_id is not None:
+        units = conn.execute(
+            "SELECT round_unit_id AS id FROM round_request_units WHERE change_request_id=? ORDER BY round_unit_id",
+            (request_id,),
+        ).fetchall()
+    else:
+        units = conn.execute(
+            "SELECT ru.id FROM round_units ru WHERE ru.original_order_line_id=? AND ru.cancelled_operation_id IS NULL AND NOT EXISTS(SELECT 1 FROM round_request_units rru JOIN change_requests cr ON cr.id=rru.change_request_id WHERE rru.round_unit_id=ru.id AND cr.status='PENDING') ORDER BY ru.id DESC LIMIT ?",
+            (line["id"], quantity),
+        ).fetchall()
     if len(units) != quantity:
         correction_service.intervention("Historische Rundeneinheiten fehlen; automatische Stornierung nicht möglich")
     return cancel_round_units(conn, [r["id"] for r in units], identity, reason, request_id=request_id)
@@ -4606,6 +4626,12 @@ def cancel_round_units(conn, unit_ids, identity, reason, *, request_id=None):
         ).fetchone()
         if unit is None or unit["cancelled_operation_id"]:
             correction_service.intervention("Runde fehlt oder wurde bereits storniert; Vorgangs-ID prüfen")
+        reservation = conn.execute(
+            "SELECT rru.change_request_id FROM round_request_units rru JOIN change_requests cr ON cr.id=rru.change_request_id WHERE rru.round_unit_id=? AND cr.status='PENDING'",
+            (unit_id,),
+        ).fetchone()
+        if reservation and reservation["change_request_id"] != request_id:
+            correction_service.intervention("Rundeneinheit ist für eine andere Mitgliedsanfrage reserviert")
         if (
             unit["closed_transaction_id"]
             or not unit["event_open"]

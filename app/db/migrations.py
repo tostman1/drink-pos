@@ -34,7 +34,7 @@ LEDGER_SQL = """CREATE TABLE schema_migrations (
     completed_at TEXT NOT NULL
 )"""
 CHECKSUM = hashlib.sha256((MIGRATION_ID + "\n" + BASELINE_SCHEMA + "\n" + LEDGER_SQL).encode()).hexdigest()
-CURRENT_SCHEMA = "a05a42f5e2ffc9c5c994684ed06b7572bb5d9c968166cba329e4475d0a232913"
+CURRENT_SCHEMA = "39dbd90c2aaefdc7437aef27e5ad16bb21db8b1583d2c51d855e50bec32209c5"
 TRANSITION_ID = "0002-transaction-integrity"
 try:
     from app.db.transaction_schema import SQL as TRANSACTION_SQL, initialize as initialize_transaction_schema

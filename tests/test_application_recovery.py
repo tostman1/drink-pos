@@ -549,7 +549,7 @@ class ApplicationRecoveryTests(unittest.TestCase):
                 )
                 with sqlite_conn(copied_db) as source, sqlite_conn(target) as recovered:
                     tables = [row[0] for row in source.execute("SELECT name FROM sqlite_master WHERE type='table'")]
-                    self.assertEqual(len(tables), 25)
+                    self.assertEqual(len(tables), 26)
                     for table in tables:
                         self.assertGreater(source.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0], 0)
                         if table != "event_sessions":
