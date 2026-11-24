@@ -25,7 +25,10 @@ Erstattung oder E-Mail; keine Produktionsdaten oder Produktions-PIN kopieren.
    von GitHub ist eine andere Identität. Bei Abweichung abbrechen.
 5. `source_sha`, `image_tag`, `image_config_id`, `release.migration_code_sha256`,
    CI-URL/Versuch und erwarteten erfolgreichen Gesamtstatus privat protokollieren.
-   Archive SHA-256 = übertragene Bytes; Docker Config-ID = lokales Image;
+   Archive SHA-256 = übertragene Bytes; Config-ID = SHA-256 der archivierten
+   Image-Konfiguration inklusive RootFS-Diff-IDs. `ci_docker_image_id` ist die
+   tatsächlich beobachtete CI-Docker-ID: bei containerd Index/Manifest, beim
+   klassischen Docker-Store Config-Digest. Nicht gleichsetzen;
    **kein** OCI-Registry-Digest. Schema-/Migrationschecksummen sind nochmals anders.
    Builds aus demselben SHA sind ohne Nachweis nicht bitweise reproduzierbar.
 
@@ -67,8 +70,13 @@ sudo docker image inspect --format '{{.Id}} {{.Os}}/{{.Architecture}}' drink-pos
 sudo docker run --rm --pull never --network none --entrypoint python drink-pos-test:EXACT_SHA -B /app/synology_test.py identity
 ```
 
-`docker load` nur statt GUI-Import, nicht zusätzlich erforderlich. ID muss genau
-`image_config_id`, Plattform `linux/amd64`, Runtime-SHA `source_sha` entsprechen.
+`docker load` nur statt GUI-Import, nicht zusätzlich erforderlich. Plattform muss
+`linux/amd64`, Runtime-SHA `source_sha` entsprechen. Beim klassischen Synology-
+Docker-Store muss `.Id` = `image_config_id` sein; containerd (`sudo docker info`)
+kann dort `ci_docker_image_id` liefern. Receipt hält Descriptor getrennt fest;
+Registry-Digest bleibt null (keine Veröffentlichung). Falls Store/Identität unklar
+oder abweichend: stoppen, nicht anhand eines Tags freigeben. CI prüft Config-Bytes
+und RootFS gegen tatsächlich getestetes Image und nach Archive-Reimport erneut.
 CLI-Befehle **auf dem NAS** via zeitlich begrenztem SSH ausführen; Docker nicht auf
 Windows installieren. DSM unterstützt abhängig von Paketversion `docker compose`
 oder `docker-compose`; zuerst `sudo docker compose version` bzw.

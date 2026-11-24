@@ -23,6 +23,35 @@ def digest(path: Path) -> str:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
+def archived_configuration(archive: Path) -> tuple[bytes, dict]:
+    with tarfile.open(archive, "r") as bundle:
+        manifest = json.load(bundle.extractfile("manifest.json"))
+        if len(manifest) != 1:
+            raise ValueError("Exactly one runnable image required")
+        entry = bundle.getmember(manifest[0]["Config"])
+        if not entry.isfile() or entry.size > 1_000_000:
+            raise ValueError("Invalid bounded image configuration")
+        data = bundle.extractfile(entry).read()
+        return data, json.loads(data)
+
+
+def bind_tested_configuration(archive: Path, tested: dict) -> str:
+    """Bind saved config bytes to actual tested runtime config and rootfs diff IDs.
+
+    .Id is deliberately NOT called config digest: containerd stores expose an
+    index/manifest there, classic stores the config hash. Never conflate them.
+    """
+    data, config = archived_configuration(archive)
+    if (
+        config["config"] != tested["Config"]
+        or config.get("rootfs", {}).get("diff_ids", []) != tested["RootFS"]["Layers"]
+        or config["os"] != tested["Os"]
+        or config["architecture"] != tested["Architecture"]
+    ):
+        raise ValueError("Saved configuration/rootfs differs from tested image")
+    return "sha256:" + hashlib.sha256(data).hexdigest()
+
+
 def verify_archive(archive: Path, receipt: dict) -> None:
     """No extraction; archive bytes, config identity, platform and exact tag agree."""
     if digest(archive) != receipt["archive_sha256"]:
@@ -94,12 +123,16 @@ def export(image: str, commit: str, destination: Path, *, run_url: str, run_atte
     docker("tag", image, tag)
     archive = destination / "drink-pos-test-amd64.tar"
     docker("save", "--output", str(archive), tag)
+    tested = json.loads(docker("image", "inspect", tag))[0]
+    config_id = bind_tested_configuration(archive, tested)
     receipt = {
         "format": "drink-pos-test-image",
         "format_version": 1,
         "source_sha": commit,
         "image_tag": tag,
-        "image_config_id": docker("image", "inspect", "--format", "{{.Id}}", tag),
+        "image_config_id": config_id,
+        "ci_docker_image_id": tested["Id"],
+        "ci_docker_descriptor": tested.get("Descriptor"),
         "archive": archive.name,
         "archive_sha256": digest(archive),
         "platform": "linux/amd64",
@@ -126,7 +159,8 @@ def export(image: str, commit: str, destination: Path, *, run_url: str, run_atte
     }
     verify_archive(archive, receipt)
     docker("load", "--input", str(archive))
-    if docker("image", "inspect", "--format", "{{.Id}}", tag) != receipt["image_config_id"]:
+    loaded = json.loads(docker("image", "inspect", tag))[0]
+    if loaded["Id"] != receipt["ci_docker_image_id"] or bind_tested_configuration(archive, loaded) != config_id:
         raise ValueError("Imported archive image differs from tested image")
     (destination / "artifact.json").write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     (destination / "release.json").write_text(json.dumps(identity, indent=2, sort_keys=True) + "\n", encoding="utf-8")

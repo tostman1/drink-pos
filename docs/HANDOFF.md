@@ -9,6 +9,9 @@ uses fixed internal IP as DSM reverse-proxy target, no host app port. Fix pendin
 Network-fixed follow-up passed reachability; next rehearsal issue was copying
 EF-08b under wrong directory name. Preserve exact backup ID (verifier unchanged),
 capture copy-name regression; actual final artifact gates still pending.
+`28e0068` actual Compose full rehearsal now passes, export blocked on Docker
+containerd `.Id` versus config hash mismatch. Follow-up separates actual CI image
+ID/descriptor from archived config digest, binds Config/rootfs and reimport; pending.
 
 Owner requested RL-06 after approved RL-05 integration. Verified clean HEAD/fetched
 main `25a78ba6606e74760969cce7c993d60d3a139f2e`; created

@@ -271,6 +271,18 @@ class SynologyTestTests(unittest.TestCase):
                 "image_tag": tag,
             }
             verify_archive(archive, receipt)
+            from scripts.export_test_image import bind_tested_configuration
+
+            inspected = {
+                "Id": "sha256:" + "b" * 64,
+                "Config": {"Env": ["APP_BUILD_COMMIT=" + COMMIT]},
+                "RootFS": {"Layers": []},
+                "Os": "linux",
+                "Architecture": "amd64",
+            }
+            self.assertEqual(bind_tested_configuration(archive, inspected), "sha256:" + config_hash)
+            with self.assertRaises(ValueError):
+                bind_tested_configuration(archive, {**inspected, "Config": {"Env": ["APP_BUILD_COMMIT=" + "b" * 40]}})
             for key, value in (
                 ("archive_sha256", "0" * 64),
                 ("image_config_id", "sha256:" + "0" * 64),

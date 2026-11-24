@@ -432,10 +432,10 @@ def rehearsal(image: str, commit: str, target: Path, baseline_image: str, unsupp
             "nas_device_acceptance": "pending",
             "backup_id": backed["backup_id"],
             "approval": "explicit-synthetic-ci-only-not-operator-deployment",
-            "candidate_image_config_id": subprocess.run(
+            "candidate_ci_docker_image_id": subprocess.run(
                 ["docker", "image", "inspect", "--format", "{{.Id}}", image], capture_output=True, text=True, check=True
             ).stdout.strip(),
-            "baseline_image_config_id": subprocess.run(
+            "baseline_ci_docker_image_id": subprocess.run(
                 ["docker", "image", "inspect", "--format", "{{.Id}}", baseline_image],
                 capture_output=True,
                 text=True,

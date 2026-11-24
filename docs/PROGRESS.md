@@ -2,6 +2,14 @@
 
 ## RL-06 active increment — 2026-11-24
 
+- Exact-head `28e0068` branch/PR CI `45400576542`/`45400589154` passes complete
+  actual Compose installation/update/recovery/downgrade/post-backup rehearsal.
+  Export detects false config-ID assumption: containerd Docker `.Id` is index/
+  manifest digest, not config bytes SHA. New red/green config binding derives
+  digest from archive and compares Config/rootfs/platform to tested inspect data,
+  records CI Docker ID/descriptor separately, rechecks after load. Artifact still
+  withheld until final export succeeds; no reproducibility/registry digest claim.
+
 - Network-fixed CI `45399453115`/`45399465044` passed host-to-internal reachability,
   financial/round/event/persistence, baseline startup/backup/full restore and older
   v1 rejection. Rehearsal then renamed independent EF-08b bundle; correct verifier
