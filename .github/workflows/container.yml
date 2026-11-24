@@ -68,6 +68,8 @@ jobs:
           docker run --rm --network none --pull never --entrypoint python --mount type=bind,source="$PWD/scripts",target=/verification,readonly drink-pos:verification -B /verification/upgrade_rehearsal.py --target /tmp/rl01-synthetic --commit "$GITHUB_SHA" --synthetic-only
       - name: Verify opt-in versioned adoption and independent recovery in actual image
         run: docker run --rm --network none --pull never --entrypoint python --mount type=bind,source="$PWD/scripts",target=/verification,readonly drink-pos:verification -B /verification/migration_rehearsal.py --target /tmp/rl02-synthetic --commit "$GITHUB_SHA" --synthetic-only
+      - name: Verify historical preservation and served financial scenario in actual image
+        run: docker run --rm --network none --pull never --entrypoint python --mount type=bind,source="$PWD/scripts",target=/verification,readonly drink-pos:verification -B /verification/financial_rehearsal.py --target /tmp/rl04-synthetic --commit "$GITHUB_SHA" --synthetic-only
       - name: Install checksum-pinned external disaster-recovery encryption tooling
         run: python scripts/install_age.py --destination "$RUNNER_TEMP/drink-pos-age" --github-path "$GITHUB_PATH"
       - name: Rehearse independent encrypted recovery after complete synthetic installation loss
