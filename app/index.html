@@ -2569,6 +2569,10 @@
       if (!adminMode || !adminPin) { showStatus('Bitte zuerst Admin-Modus aktivieren.'); return; }
       try {
         const endpoint = kind === 'ROUND_ADD' ? '/api/admin/round-request/decide' : '/api/admin/change-request/decide';
+        if (kind !== 'ROUND_ADD' && decision === 'approve') {
+          const request = (currentPerson?.pending_requests || []).find(entry => Number(entry.raw_id || entry.id) === Number(requestId));
+          if (request?.item === '1 Runde' && !confirm('Rundenkorrektur bestätigen? Zugeordnete Getränke anderer Mitglieder können wieder offen werden. Bezahlte/abgeschlossene/unklare Vorgänge werden gesperrt.')) return;
+        }
         await apiPost(endpoint, { pin: adminPin, request_id: Number(requestId), decision });
         showStatus(decision === 'approve' ? 'Anfrage bestätigt' : 'Anfrage abgelehnt');
         await loadPeople(true);
@@ -2640,13 +2644,22 @@
       if (total <= 0) { showStatus('Bitte zuerst eine Menge auswählen.'); return; }
       const line_quantities = buildDeleteLineQuantities(groups);
       if (!Object.keys(line_quantities).length) { showStatus('Keine löschbare Menge ausgewählt.'); return; }
+      const actionKey = `request:${currentPerson.id}:${JSON.stringify(line_quantities)}`;
+      if (correctionBusy.has(actionKey)) return;
+      const saved = JSON.parse(sessionStorage.getItem('drinkPosMemberCorrection') || 'null');
+      if (saved && saved.actionKey !== actionKey) { alert('Vorherige Löschanfrage ist noch unklar; dieselbe Auswahl erneut senden.'); return; }
+      const action = saved || { actionKey, correction_operation_id: makeClientOperationId() };
+      sessionStorage.setItem('drinkPosMemberCorrection', JSON.stringify(action));
+      correctionBusy.add(actionKey);
       try {
-        await apiPost('/api/edit-request', { person_id: currentPerson.id, line_quantities });
+        await apiPost('/api/edit-request', { person_id: currentPerson.id, line_quantities, correction_operation_id: action.correction_operation_id });
+        sessionStorage.removeItem('drinkPosMemberCorrection');
         showStatus('Löschanfrage gespeichert');
         deleteRequestMenuOpen = false;
         deleteRequestSelections = {};
         await loadPeople(true);
-      } catch (err) { alert(err.message); }
+      } catch (err) { if (err.status && err.status < 500) sessionStorage.removeItem('drinkPosMemberCorrection'); alert(err.message); }
+      finally { correctionBusy.delete(actionKey); }
     }
 
     async function requestRound() {
@@ -2665,12 +2678,36 @@
 
     async function adminAdjust(itemId, delta) {
       if (!currentPerson || !adminMode || !adminPin) return;
+      const actionKey = `adjust:${currentPerson.id}:${itemId}:${delta}`;
+      if (correctionBusy.has(actionKey)) return;
+      const saved = JSON.parse(sessionStorage.getItem('drinkPosCorrectionAction') || 'null');
+      if (saved && saved.actionKey !== actionKey) { alert('Eine Korrektur ist noch unklar. Zuerst denselben Vorgang erneut prüfen.'); return; }
+      const action = saved || { actionKey, correction_operation_id: makeClientOperationId() };
+      if (delta < 0) sessionStorage.setItem('drinkPosCorrectionAction', JSON.stringify(action));
+      correctionBusy.add(actionKey);
       try {
-        await apiPost('/api/admin/adjust-drink', { person_id: currentPerson.id, item_id: itemId, delta, pin: adminPin });
+        const item = (items || []).find(entry => entry.id === itemId);
+        if (delta < 0 && item?.name === '1 Runde') {
+          if (!action.round_unit_ids) {
+            const cashupPreview = await apiPost('/api/admin/cashup-preview', { pin: adminPin });
+            const unit = (cashupPreview.auto_rounds?.rounds || []).filter(entry => entry.round_unit_id && entry.source === 'open_line' && entry.payer_person_id === currentPerson.id).at(-1);
+            if (!unit) { throw new Error('Rundenkorrektur benötigt eine eindeutig zugeordnete offene Runde; Admin-Abgleich erforderlich.'); }
+            action.round_unit_ids = [unit.round_unit_id];
+            const preview = await apiPost('/api/admin/rounds/cancel-preview', { pin: adminPin, round_unit_ids: action.round_unit_ids, correction_operation_id: action.correction_operation_id, correction_reason: 'Fehlbuchung im Adminbereich' });
+            if (!confirm(`Runde stornieren? ${preview.restored_drinks} Getränke werden mit ursprünglichen Preisen wieder offen. Keine Rückzahlung.`)) { sessionStorage.removeItem('drinkPosCorrectionAction'); return; }
+            sessionStorage.setItem('drinkPosCorrectionAction', JSON.stringify(action));
+          }
+          await apiPost('/api/admin/rounds/cancel', { pin: adminPin, round_unit_ids: action.round_unit_ids, correction_operation_id: action.correction_operation_id, correction_reason: 'Fehlbuchung im Adminbereich' });
+        } else {
+          await apiPost('/api/admin/adjust-drink', { person_id: currentPerson.id, item_id: itemId, delta, pin: adminPin, correction_operation_id: action.correction_operation_id, correction_purpose: 'erroneous_booking', correction_reason: 'Fehlbuchung im Adminbereich' });
+        }
+        sessionStorage.removeItem('drinkPosCorrectionAction');
         showStatus('Admin-Korrektur gespeichert');
         await loadPeople(true);
-      } catch (err) { alert(err.message); }
+      } catch (err) { if (err.status && err.status < 500) sessionStorage.removeItem('drinkPosCorrectionAction'); alert(err.message); }
+      finally { correctionBusy.delete(actionKey); }
     }
+    const correctionBusy = new Set();
 
 
     function groupLinesForDisplay(lines, includePerson = false) {
@@ -3183,9 +3220,10 @@
         ${lineTableHtml(currentPerson.lines || [])}
         <div class="action-total"><span>Gesamtbetrag</span><span>${money(payableTotal)}</span></div>
       `;
+      const paymentOperationId = makeClientOperationId();
       openActionDialog('Barzahlung', body, 'Barzahlung buchen', 'pay-btn', async () => {
-        const data = await apiPost('/api/pay', { person_id: currentPerson.id, pin: adminPin });
-        showStatus(`Barzahlung gebucht: ${money(data.total)}`);
+        const data = await apiPost('/api/pay', { person_id: currentPerson.id, pin: adminPin, payment_operation_id: paymentOperationId });
+        showStatus(data.status === 'correction_only' ? 'Korrektur gespeichert; keine Zahlung erforderlich.' : `Barzahlung gebucht: ${money(data.total)}`);
         closeDialog();
       });
     }
@@ -3238,7 +3276,7 @@
           <div class="muted">Rundenpreis: ${money(preview.round_price_eur || 0)} · EK abgezogen: ${money(preview.deducted_purchase_eur || 0)} · Gewinn EK→Rundenpreis: ${money(preview.profit_vs_purchase_eur || 0)}</div>
         `;
         openActionDialog('Runde abziehen', body, 'Runde abziehen', 'danger', async () => {
-          const data = await apiPost('/api/deduct-round', { pin: adminPin });
+          const data = await apiPost('/api/deduct-round', { pin: adminPin, round_unit_id: preview.round_unit_id });
           showStatus(`Runde abgezogen: ${data.removed_count} Personen · ${money(data.total)}`);
           await loadPeople(true);
         });
