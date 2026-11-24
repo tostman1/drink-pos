@@ -24,6 +24,24 @@ Observed results are dated in PROGRESS.md; no invented coverage percentages.
 
 ## RL-03 distinct financial-history findings — OPEN
 
+### RL-04 current disposition — 2026-11-24 (review pending)
+
+| Finding | Current status / new evidence |
+| --- | --- |
+| FH-01 High | **Addressed in served implementation**: both admin historical UPDATEs removed; master/audit retained. Converted preservation regressions and repeated/unchanged/archived/SQL-audit-fault/concurrent-booking tests. Closure subject to final gates/review |
+| FH-02 High | **Addressed**: all round snapshot resets removed with helper/call; zero/nonzero O/TI, RE and entitlements preserved; round master/operational rules unchanged |
+| FH-03 Medium | **Addressed**: paid stored profit including zero read in stats/preview/report export; raw item export unchanged. Signed/inconsistent/subcent/period/archive/admin/operational-distinction/no-write regressions; no forced cross-concept reconciliation |
+| FH-04 Medium | **OPEN**: exact lifecycle, replay/capped/insufficient debt, SQL rollback, no-debt committed correction before payment HTTP error characterized. T-only detail gap requires accounting/consumer decision; no negative TI introduced |
+| FH-05 High conditional adoption readiness | **OPEN**: no authentic historical artifact/new fingerprint/support evidence |
+| FH-06 High | **Addressed routine writes**: ordinary cost inference removed; existing default zero master retained. Existing additive defaults/prototype compatibility preserved, no historical repair or additional legacy adoption |
+
+Current write inventory and reporting population rules: financial-history-policy;
+FH-04 exact contract/proposal: correction-audit-contract. All data synthetic. Full
+verification/closure receipt in PROGRESS/HANDOFF; no claim of recovering originals
+already overwritten. OQ-06 broader correction/inference/adoption decisions remain
+open. The following RL-03 table retains **former baseline evidence**, not present
+code or a denial of current scoped owner authorization.
+
 Severity is engineering impact/prioritization, **not CVSS**, observed production
 loss, or approval to change accounting. **High**: stored financial originals can
 be overwritten without a retained before-image, or missing compatibility evidence

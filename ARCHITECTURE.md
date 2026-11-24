@@ -114,6 +114,16 @@ See `docs/release-safety.md`, `docs/rl-01-contract.md` and proposed RL-02.
 
 ## Migration Strategy
 
+RL-04 scoped preservation supersedes former RL-01/03 rewrite descriptions below:
+`admin_update_drink` is master-only plus audit; legacy initializer no longer calls
+historical cost backfill/round reset and initializes missing default products only.
+No recorded O/TI cost/profit UPDATE remains. Schema, both entrypoint modes, prototype
+compatibility guards, round master normalization and opt-in exact v1 ledger remain.
+Paid-report `recorded_paid_profit` reads a present snapshot including zero, fallback
+only absent/None; operational consumption/OPEN/round formulas stay distinct. Actual
+negative correction audit remains T-only, characterized in correction-audit-contract.
+No ORM/replacement service/UI/REST/storage/deployment redesign; OQ-06 stays open.
+
 RL-03 evidence (no runtime change): `docs/financial-history-policy.md` inventories
 the historical-write exceptions. Legacy startup and the served admin item-update
 API mutate cost/profit snapshots; RL-02 metadata-only adoption/repeat protects
