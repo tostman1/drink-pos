@@ -21,6 +21,17 @@
 
 ## Unresolved decisions (not implementation authorization)
 
+**RL-04 D-16 (2026-11-24):** owner approves routine historical snapshot preservation
+only, including zero/nonzero/unusual round snapshots; missing defaults initialize,
+existing default zero master is retained. Admin edits and startup do not infer past
+costs. Paid reports read present stored profit including zero; operational formulas
+stay unchanged. FH-04 characterization only: signed correction-detail semantics are
+not unambiguous. No historical repair/reconstruction/inferred-cost storage/additional
+adoption/v2/production operations. This supersedes RL-03 NOT-approved wording below
+only for this bounded authorization. **OQ-06 remains OPEN** for separate questions;
+FH-04/05 and EF-08a Windows WinError 5 remain unresolved. See rl-04-contract and
+correction-audit-contract for exact boundaries.
+
 RL-03 integration (2026-11-24): owner completed independent PR #8 evidence review
 and explicitly approved guarded merge of reviewed `0b43f379...`; merged
 `9d09015b2d83d652d88b283ef9f5ab45050128bf`, exact reviewed tree preserved.

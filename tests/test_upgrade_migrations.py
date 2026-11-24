@@ -70,7 +70,7 @@ class UpgradeMigrationTests(unittest.TestCase):
         schema.init_db()
         self.assertGreater(recovery.database_metadata(database)["tables"]["items"], 0)
 
-    def test_zero_cost_backfill_repeats_and_changes_cost_history_not_sales(self):
+    def test_zero_cost_history_survives_repeated_startup_and_current_cost_changes(self):
         database, _, _, _ = self.fixture.populate_operational_database()
         with closing(sqlite3.connect(database)) as conn:
             conn.execute(
@@ -86,20 +86,18 @@ class UpgradeMigrationTests(unittest.TestCase):
                 conn.execute(
                     "SELECT unit_purchase_price_eur,purchase_total_eur,profit_eur FROM transaction_items"
                 ).fetchone(),
-                (1.4, 1.4, 1.1),
+                (0, 0, 2.5),
             )
             self.assertEqual(
                 conn.execute("SELECT id,quantity,unit_price_eur,total_eur FROM transaction_items").fetchall(), sales
             )
             self.assertEqual(conn.execute("SELECT * FROM transactions").fetchall(), transactions)
-            # Zero is not marked as 'already migrated'; changing current item cost
-            # can change a later startup's backfill again. Preserve/document this.
-            conn.execute("UPDATE order_lines SET unit_purchase_price_eur=0")
+            # A recorded zero is not evidence of missing information.
             conn.execute("UPDATE items SET purchase_price_eur=1.75 WHERE id=(SELECT item_id FROM order_lines LIMIT 1)")
             conn.commit()
         schema.init_db()
         with closing(sqlite3.connect(database)) as conn:
-            self.assertEqual(conn.execute("SELECT unit_purchase_price_eur FROM order_lines").fetchone()[0], 1.75)
+            self.assertEqual(conn.execute("SELECT unit_purchase_price_eur FROM order_lines").fetchone()[0], 0)
 
     def test_late_duplicate_payment_index_failure_keeps_ids_and_rolls_back_backfill(self):
         database, person, _, _ = self.fixture.populate_operational_database()

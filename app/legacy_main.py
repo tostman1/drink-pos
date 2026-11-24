@@ -438,11 +438,6 @@ def migrate_old_orders(conn: sqlite3.Connection):
     return schema_service.migrate_old_orders(conn)
 
 
-def backfill_missing_purchase_snapshots(conn: sqlite3.Connection):
-    _configure_schema_runtime()
-    return schema_service.backfill_missing_purchase_snapshots(conn)
-
-
 def ensure_settings(conn: sqlite3.Connection):
     _configure_schema_runtime()
     return schema_service.ensure_settings(conn)
@@ -4975,27 +4970,8 @@ def admin_update_drink(req: AdminItemUpdate):
             )
         except sqlite3.IntegrityError:
             raise HTTPException(status_code=400, detail="Neuer Artikelname existiert bereits")
-        # Alte Zeilen aus Versionen ohne EK hatten 0.00 als Platzhalter. Wenn nun
-        # ein EK gesetzt/geändert wird, korrigieren wir nur diese fehlenden Snapshots.
-        if purchase_price > 0:
-            conn.execute(
-                """
-                UPDATE order_lines
-                SET unit_purchase_price_eur = ?
-                WHERE item_id = ? AND COALESCE(unit_purchase_price_eur, 0) = 0
-                """,
-                (purchase_price, item["id"]),
-            )
-            conn.execute(
-                """
-                UPDATE transaction_items
-                SET unit_purchase_price_eur = ?,
-                    purchase_total_eur = quantity * ?,
-                    profit_eur = total_eur - (quantity * ?)
-                WHERE item_id = ? AND COALESCE(unit_purchase_price_eur, 0) = 0
-                """,
-                (purchase_price, purchase_price, purchase_price, item["id"]),
-            )
+        # Master-data edits affect new bookings, never recorded financial snapshots.
+        # A recorded zero is not evidence of a missing historical purchase cost.
         log_transaction(
             conn,
             None,
@@ -5464,6 +5440,16 @@ def add_metric_row(base: dict, row: dict):
     base["vk_value_eur"] += float(row.get("vk_value_eur", 0) or 0)
 
 
+def recorded_paid_profit(row: sqlite3.Row | dict, *, revenue: float, cost: float) -> float:
+    """Read the paid snapshot, including zero; derive only if unavailable.
+
+    Consumption margins and round expenses are operational report calculations,
+    not reads of this paid-profit snapshot.
+    """
+    profit = row_get(row, "profit_eur")
+    return float(profit) if profit is not None else revenue - cost
+
+
 def build_report_rows(conn: sqlite3.Connection, req: ReportRequest) -> tuple[list[str], list[list[object]]]:
     report_type = (req.report_type or "consumption").strip().lower()
     group_cols = report_group_columns(req.group_by)
@@ -5597,7 +5583,7 @@ def build_report_rows(conn: sqlite3.Connection, req: ReportRequest) -> tuple[lis
                         "quantity": qty,
                         "revenue_eur": total,
                         "cost_eur": purchase_total,
-                        "profit_eur": total - purchase_total,
+                        "profit_eur": recorded_paid_profit(r, revenue=total, cost=purchase_total),
                         "vk_value_eur": total,
                     }
                 )
@@ -5627,7 +5613,7 @@ def build_report_rows(conn: sqlite3.Connection, req: ReportRequest) -> tuple[lis
                             "quantity": qty,
                             "revenue_eur": total,
                             "cost_eur": purchase_total,
-                            "profit_eur": total - purchase_total,
+                            "profit_eur": recorded_paid_profit(r, revenue=total, cost=purchase_total),
                             "vk_value_eur": total,
                         }
                     )
@@ -5832,7 +5818,7 @@ def admin_statistics(req: StatisticsRequest):
             else:
                 revenue = float(row["total_eur"] or 0)
                 cost = float(row["purchase_total_eur"] or 0)
-                profit = float(row["profit_eur"] or (revenue - cost))
+                profit = recorded_paid_profit(row, revenue=revenue, cost=cost)
                 vk_value = revenue
             date_value = str(row["timestamp"])[:10]
             day = finance_by_date.setdefault(

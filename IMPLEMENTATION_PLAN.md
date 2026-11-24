@@ -1,5 +1,15 @@
 # Engineering foundation work packages
 
+## RL-04 — approved scoped financial integrity (2026-11-24)
+
+DP-002/004/005/013/014/024; ready gate `docs/rl-04-contract.md`. Remove routine
+master-edit/startup historical cost/profit inference and round resets; preserve
+existing default zero master; paid reports honor stored zero/nonzero profit.
+Characterize FH-04 exact lifecycle/audit/replay/failure, no new correction accounting.
+Synthetic served full-state/both-mode/recovery/mocked-payment scenario and actual
+image CI. Reviewable feature PR only; no merge/production/publication/schema/v2/
+additional adoption/history repair. FH-04/05 and broader OQ-06 remain open.
+
 ## RL-01 — approved release-readiness and upgrade-safety foundation (2026-11-23)
 
 DP-023/014/015/019; ready gate in `docs/rl-01-contract.md`. Baseline/update risk

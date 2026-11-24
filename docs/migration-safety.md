@@ -1,5 +1,21 @@
 # RL-02 — implemented migration contract and opt-in startup gate
 
+## RL-04 current compatibility note (2026-11-24)
+
+The historical RL-02/RL-03 descriptions below document their then-unchanged legacy
+baseline. RL-04 now removes routine existing O/TI cost inference and round reset,
+and retains existing default-product zero master costs. Missing default creation,
+round master normalization, additive schema/prototype compatibility remain; no
+history reconstruction or new adoption is authorized. Later served admin product
+edits now also preserve historical snapshots **after strict adoption**.
+
+No schema change: exact fingerprint `090ea55a…`, ledger ID/checksum, v1, opt-in,
+pre-write inspection, metadata-only adoption, DELETE journal, repeat validation,
+WAL rejection/no recovery and fail-closed support are unchanged. No dummy v2,
+additional fingerprint or default activation. RL-04 full-state legacy/repeat,
+independent prepared strict copy/API/new booking/payment/cashup/recovery scenario
+uses synthetic data only; authenticity/FH-05/OQ-06/operational rollout remain open.
+
 ## Deliberately bounded rollout
 
 **Default `legacy` startup is unchanged.** It still enables WAL, runs all existing

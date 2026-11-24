@@ -1,5 +1,31 @@
 # Handoff and protected work
 
+## RL-04 active handoff — 2026-11-24
+
+Current owner mission authorizes scoped implementation/commits/push/open PR/exact
+head CI only, superseding historical no-RL04/proposed-only notes below. **No merge,
+deployment/publication/real data/SumUp/SMTP/schedules or history reconstruction.**
+Base local/fetched main exactly `8dd961bfb23d7fe090a8cf2895a269bb544db09e`; branch
+`feature/rl-04-financial-integrity`. Ready gate `docs/rl-04-contract.md`, write/report
+inventory in financial-history-policy, FH-04 lifecycle in correction-audit-contract.
+Served admin/startup historical UPDATEs eliminated; existing zero default master
+retained, fresh/current/new operation behavior preserved; paid reports honor stored
+zero profit. Schema/fingerprint/v1/strict opt-in unchanged. No agents delegated.
+
+21 new targeted tests pass; full local/final committed-head/container/DR/PR gates
+pending until explicit receipts. Synthetic scenario both modes/separate recovery/
+mocked paid+unknown with zero network attempts; not authentic historical adoption.
+FH-04/05 remain open, OQ-06 only scoped routine preservation/report-zero authorized;
+no correction/refund/inferred-cost/legacy support decision. WinError 5 unresolved,
+manual device/real provider/operational recovery acceptance not implied by checks.
+All earlier branches/owner merges preserved. Stop after reviewed delivery, PR open.
+
+Local full gate receipt: Python 3.12.13/3.13.15 exit 0, **263/257 passed/six POSIX
+skips** each, 157.942s/165.859s; Ruff/format/syntax/traceability/real age/audits none
+known/Chromium/diff/actionlint pass. Implementation commits `ac1eefa`/`97d8cbe`/
+`a6f60d2`; documentation descendant and exact-head branch/PR/actual-container/DR
+receipts still required. No local Docker claim/WinError 5 fix/manual acceptance.
+
 ## RL-03 integrated handoff — 2026-11-24
 
 PR #8 https://github.com/tostman1/drink-pos/pull/8 is **MERGED** after completed

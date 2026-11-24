@@ -173,7 +173,7 @@ def worker(target: Path, commit: str) -> dict:
         configuration={"DRINK_POS_ENV": "production", "SUMUP_CURRENCY": "EUR"},
     )
     manifest = verify_application_bundle(bundle)
-    permitted = ["zero non-round purchase snapshots use current synthetic item cost; cost/profit recomputed"]
+    permitted = []  # RL-04 preserves recorded zeros; no routine financial rewrites.
     evidence = {
         "format": "drink-pos-upgrade-evidence",
         "format_version": 1,
@@ -207,15 +207,8 @@ def worker(target: Path, commit: str) -> dict:
     database = rehearsal / "state/database.db"
     expected = target / "expected.db"
     shutil.copyfile(database, expected)
-    # Construct explicit expected changes independently, not by invoking migrations.
-    with closing(sqlite3.connect(expected)) as conn:
-        conn.execute(
-            "UPDATE order_lines SET unit_purchase_price_eur=(SELECT purchase_price_eur FROM items WHERE id=order_lines.item_id) WHERE unit_purchase_price_eur=0 AND item_name_snapshot!='1 Runde'"
-        )
-        conn.execute(
-            "UPDATE transaction_items SET unit_purchase_price_eur=(SELECT purchase_price_eur FROM items WHERE id=transaction_items.item_id), purchase_total_eur=quantity*(SELECT purchase_price_eur FROM items WHERE id=transaction_items.item_id), profit_eur=total_eur-quantity*(SELECT purchase_price_eur FROM items WHERE id=transaction_items.item_id) WHERE unit_purchase_price_eur=0 AND item_name_snapshot!='1 Runde'"
-        )
-        conn.commit()
+    # Exact relocated pre-startup state is the independent expectation, not output
+    # of the initializer or an inferred historical-cost calculation.
     main.DB_PATH = str(database)
     os.environ["DRINK_POS_MESSAGES"] = str(rehearsal / "state/messages.json")
     # Actual served lifecycle path, no listening server or external credentials.

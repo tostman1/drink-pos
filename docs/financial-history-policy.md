@@ -1,6 +1,60 @@
-# RL-03 — historical financial preservation and legacy adoption decision
+# Historical financial preservation and legacy adoption decisions
 
-**Status: proposed, NOT approved or implemented.** Decision owner: repository owner.
+## RL-04 scoped owner authorization — 2026-11-24
+
+**Routine snapshot preservation is approved and implemented for review**, baseline
+`8dd961bfb23d7fe090a8cf2895a269bb544db09e`. The owner authorizes preventing routine
+historical rewrites, not all of A/B/C or OQ-06. Recorded zero is not automatically
+missing. FH-01/02/06 served cost/profit UPDATEs removed, existing default-item zero
+master retained; new bookings use current master. No historical repair/inference,
+additional adoption, schema/version change or production migration.
+
+FH-03 paid snapshots use present stored profit including zero in statistics and
+both paid preview/export-report branches. Missing/None defensively falls back to
+sales−cost; exact schema disallows NULL profit, so this does not widen adoption.
+Consumption potential margin/expense, OPEN, event tally and ROUND_DEDUCTED expense
+retain operational formulas. Raw item export retains all-kind stored profit; no
+attempt to reconcile unlike concepts. See `docs/rl-04-contract.md` and
+`docs/correction-audit-contract.md` for inclusion rules/acceptance and FH-04 OPEN.
+
+### Current historical-write inventory (supersedes baseline matrix below)
+
+| Path | Current write / preservation boundary |
+| --- | --- |
+| `admin_update_drink` | Current master UPDATE + ITEM_UPDATED T only; failure rolls back master. No O/TI UPDATE, unchanged or repeated EK save cannot backfill |
+| `_init_legacy` | No backfill helper/call. No UPDATE of recorded O/TI costs/profit or round snapshots. Missing default inserts only; existing default EK=0 retained |
+| `ensure_round_item` / round settings | Existing **master** normalization intentionally retained (EK=0/settings VK/active/admin); no O/TI/RE/paid-unit rewrite |
+| Additive column DDL | Existing supported legacy compatibility adds absent columns with schema defaults; does not infer values from current costs. Missing-column provenance is not reconstructed; not immutable-schema/whole-startup atomicity |
+| `migrate_items` / `migrate_old_orders` | Existing prototype compatibility still inserts only under old guards using current values/date; no extra import/adoption/meaning approval, not a historical correction process |
+| `add_order_line`, transaction logging/payment/round/event | New snapshot INSERTs; legitimate matching quantity/tally/status updates unchanged. Debt/payments/corrections may alter remaining quantities, never original unit financial fields |
+| RL-02 adoption/repeat | Exact-current metadata-only/no normalization; same fingerprint/v1/DELETE-journal/fail-closed gate, fresh initializes missing defaults |
+| EF-08 recovery / old CSV | Separate target recovery, bounded event-path relocation only; CSV remains partial reconstruction, not exact recovery/history authentication |
+
+Search of app SQL UPDATEs and dynamic updates finds no remaining routine historical
+cost/profit UPDATE. Prototype services still unserved. External SQL/custom triggers
+remain unknown. No immutability DB trigger or freeze of operational fields is added.
+Already overwritten originals cannot be recovered from current masters; no repair
+is attempted. Fresh/legacy/versioned/API/recovery evidence is synthetic only.
+
+### Reporting reconciliation boundary
+
+Paid basis = PAID_CASH/PAID_SUMUP signed TI quantity, total_eur, purchase_total_eur,
+profit_eur at TI timestamp; archived records retained. Compare preview revenue
+(or profit absent deductions), raw export filtered to paid kinds, statistics finance
+with identical period and include_admin_items=True. Preview paid kinds do not filter
+current admin flags; stats can. All-kind raw export, consumption, fees in T totals,
+named invoices and round_events are not this paid population. Aggregates round once
+at presentation; raw grouped export rounds per group, so subcent grouped sums can
+differ from one rounded global sum. No money-storage/rounding policy changed.
+
+Regression fixtures cover recorded zero with positive **and negative** derived
+profit, stored signed/nonzero/subcent values, period endpoints/archive/admin filters,
+round expenses and consumption margins; reports never write DB state. FH-04 detail
+semantics and FH-05 authentic adoption evidence remain open; OQ-06 unresolved.
+
+## Retained RL-03 decision/evidence record (historical baseline, not current runtime)
+
+**RL-03 status at its baseline: proposed, NOT approved or implemented.** Decision owner: repository owner.
 Evidence date: 2026-11-23. Baseline `33c16979d2ae17a5d53c118c7f173f324e02e75b`.
 Ready gate: [rl-03-contract.md](rl-03-contract.md). Addresses remaining **OQ-06**;
 RL-01/02 are integrated, not authorization for accounting or production adoption.

@@ -1,5 +1,58 @@
 # Engineering foundation progress
 
+## RL-04 active scoped financial integrity — 2026-11-24
+
+- Clean local/fetched exact main `8dd961bfb23d7fe090a8cf2895a269bb544db09e`;
+  dedicated `feature/rl-04-financial-integrity`, all prior branches/merges preserved.
+  Mandatory docs and served main/application/registry/legacy paths inspected; ready
+  gate `docs/rl-04-contract.md` before implementation. No delegation.
+- Initial converted DP-002/004/013 regressions: **10 tests, five expected failures**
+  prove master zero replacement, admin backfill, round reset, signed inference and
+  statistics zero fallback (`rl04-red-history.log` outside Git). Expanded reporting
+  tests reproduced paid derivation; fixture errors corrected (archived master lookup
+  rejects editing, Bier klein fresh default 1.00, actual SMTP helper/mock signature).
+  Defective former evidence retained in RL-03/RL-01 historical sections below.
+- Removed admin two historical UPDATEs, startup four UPDATEs/helper/call, existing
+  default master zero replacement. No history repair/new adoption/schema/v2. Paid
+  helper reads present stored profit including zero; paid preview and stats fixed,
+  raw exports/operational formulas/populations unchanged. SQL insert failure rollback,
+  concurrent booking/master snapshot and legacy full-state repeat covered.
+- **21 new targeted integrity/correction tests pass** on Python 3.12.13; expanded
+  synthetic served scenario passes legacy repeat, independently prepared strict
+  adoption/repeat, new costs/payment/cashup, separate all-table recovery, paid/unknown
+  mocked provider once-only creation, network_attempts=0. Current exact schema remains
+  17 original tables; ledger additional only under adoption. No authentic old source.
+- FH-04 remains open: contract `docs/correction-audit-contract.md` covers request/
+  approve/reject/negative adjustment/pending payment/removal/audit/consumers/replay/
+  rollback. Important existing no-debt `/api/pay` commits pending decisions before
+  400 with no PAID record; negative adjustments not idempotent. No signed correction
+  TI added; accounting/consumer/period/concurrency decision required.
+- Full local Python 3.12/3.13 gates/final-head CI actual container+DR/PR still pending,
+  not passes. Docker/Podman not installed locally; actual-image verification added
+  to existing non-publishing CI. No deployment/default/schedule/image controls changed.
+  OQ-06 broader questions/FH-05/EF-08a WinError 5/MV-01..05/operational MV-06 remain open.
+
+### Full local implementation gates
+
+Full Standard Checks **exit 0** Python **3.12.13/3.13.15**, 263 discovered/257
+passed/six POSIX-only skips each; unittest **157.942s/165.859s**. Ruff/79-file
+format/syntax/130 JS sources/24-ID traceability/real age/existing financial+recovery+
+migration/new 21 tests/strict audits (**no known vulnerabilities**)/Chromium/diff
+passed; actionlint passed. Logs `rl04-standard312.log`/`rl04-standard313.log` outside
+Git. Existing lifecycle/TestClient/LF→CRLF warnings retained, no WinError 5 this run
+(still unresolved, not a fix). Preservation `ac1eefa`, reporting `97d8cbe`, expanded
+tests/scenario+non-publishing CI `a6f60d2`; final documentation/committed-tree/CI pending.
+
+Complete app SQL UPDATE/dynamic-update review: no remaining O/TI financial UPDATE;
+only operational quantities/tally, payment status/provider links, current master,
+request decisions, event close/location and message/settings remain. Removed stale
+legacy backfill facade as well as schema helper. No new independent financial
+rewrite found; additive DDL/prototype import/round master retain documented limits.
+Protected Dockerfile/production Compose/UI/worker/migration ledger/recovery trees
+have zero diff. Main remote still exact baseline; all prior branches retained.
+Temporary partial-hunk staging first rejected corrupt patch (no index mutation),
+corrected newline/byte transport succeeded; no checkout/reset/worktree discard.
+
 ## RL-03 final integration — 2026-11-24
 
 - Independent owner implementation/evidence review complete; no approved-scope merge

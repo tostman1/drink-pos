@@ -1,4 +1,4 @@
-"""RL-03 characterize existing exceptions; no new accounting policy implemented."""
+"""RL-04 recorded snapshot preservation; RL-03 former failures retained in docs."""
 
 import os
 import tempfile
@@ -59,7 +59,7 @@ class FinancialHistoryTests(unittest.TestCase):
             },
         )
 
-    def test_served_item_update_rewrites_legitimate_zero_even_in_versioned_mode(self):
+    def test_served_item_update_preserves_legitimate_zero_even_in_versioned_mode(self):
         self.book()
         self.post("/api/pay", {"pin": "1234", "person_id": self.person["id"]})
         self.book()
@@ -74,9 +74,7 @@ class FinancialHistoryTests(unittest.TestCase):
         with patch.dict(os.environ, {"DRINK_POS_MIGRATION_MODE": "versioned"}):
             self.update("1,25")
         with self.legacy.get_conn() as conn:
-            self.assertEqual(
-                [r[0] for r in conn.execute("SELECT unit_purchase_price_eur FROM order_lines")], [1.25, 1.25]
-            )
+            self.assertEqual([r[0] for r in conn.execute("SELECT unit_purchase_price_eur FROM order_lines")], [0, 0])
             self.assertEqual(
                 [
                     tuple(r)
@@ -84,7 +82,7 @@ class FinancialHistoryTests(unittest.TestCase):
                         "SELECT unit_purchase_price_eur,purchase_total_eur,profit_eur FROM transaction_items"
                     )
                 ],
-                [(1.25, 1.25, 1.75)] * 3,
+                [(0, 0, 3)] * 3,
             )
             self.assertEqual([tuple(r) for r in conn.execute("SELECT * FROM transactions ORDER BY id")][:-1], before)
             self.assertEqual(
@@ -93,7 +91,7 @@ class FinancialHistoryTests(unittest.TestCase):
         self.update(2)
         with self.legacy.get_conn() as conn:
             self.assertEqual(
-                conn.execute("SELECT DISTINCT unit_purchase_price_eur FROM transaction_items").fetchall()[0][0], 1.25
+                conn.execute("SELECT DISTINCT unit_purchase_price_eur FROM transaction_items").fetchall()[0][0], 0
             )
         self.book()
         with self.legacy.get_conn() as conn:
@@ -102,7 +100,7 @@ class FinancialHistoryTests(unittest.TestCase):
                 2,
             )
 
-    def test_backfill_changes_signed_details_but_not_null_ids_round_events_or_event_lines(self):
+    def test_startup_preserves_signed_details_null_ids_round_events_and_event_lines(self):
         self.book()
         with self.legacy.get_conn() as conn:
             line = dict(conn.execute("SELECT * FROM order_lines").fetchone())
@@ -133,11 +131,11 @@ class FinancialHistoryTests(unittest.TestCase):
                     "SELECT quantity,unit_purchase_price_eur,purchase_total_eur,profit_eur FROM transaction_items WHERE quantity<0 ORDER BY id"
                 )
             ]
-            self.assertEqual(rows, [(-1, 1.25, -1.25, -1.75), (-1, 0, 0, -3), (-1, 1.25, -1.25, -1.75)])
+            self.assertEqual(rows, [(-1, 0, 0, -3)] * 3)
             self.assertEqual(conn.execute("SELECT deducted_purchase_eur FROM round_events").fetchone()[0], 0)
             self.assertEqual(conn.execute("SELECT unit_purchase_price_eur FROM event_lines").fetchone()[0], 0)
 
-    def test_round_normalization_overwrites_nonzero_audit_without_correction_record(self):
+    def test_startup_preserves_nonzero_round_audit_without_correction_record(self):
         with self.legacy.get_conn() as conn:
             item = conn.execute("SELECT * FROM items WHERE name='1 Runde'").fetchone()
             line_id = self.legacy.add_order_line(conn, self.person["id"], item)
@@ -157,11 +155,11 @@ class FinancialHistoryTests(unittest.TestCase):
                         "SELECT unit_purchase_price_eur,purchase_total_eur,profit_eur,total_eur FROM transaction_items"
                     ).fetchone()
                 ),
-                (0, 0, line["unit_price_eur"], line["unit_price_eur"]),
+                (4, 4, line["unit_price_eur"] - 4, line["unit_price_eur"]),
             )
             self.assertEqual([tuple(r) for r in conn.execute("SELECT * FROM transactions")], before)
 
-    def test_report_zero_profit_fallback_is_read_time_not_a_database_write(self):
+    def test_report_stored_zero_profit_is_not_reinterpreted_or_written(self):
         self.book()
         self.post("/api/pay", {"pin": "1234", "person_id": self.person["id"]})
         with self.legacy.get_conn() as conn:
@@ -170,7 +168,7 @@ class FinancialHistoryTests(unittest.TestCase):
             )
             conn.commit()
         result = self.post("/api/admin/statistics", {"pin": "1234", "scope": "all", "include_admin_items": True})
-        self.assertEqual(result["kpis"]["profit_eur"], 2)
+        self.assertEqual(result["kpis"]["profit_eur"], 0)
         with self.legacy.get_conn() as conn:
             self.assertEqual(
                 conn.execute("SELECT profit_eur FROM transaction_items WHERE kind='PAID_CASH'").fetchone()[0], 0
@@ -196,17 +194,17 @@ class FinancialHistoryTests(unittest.TestCase):
                 conn.execute("SELECT total FROM transactions WHERE type='ADMIN_ADJUSTMENT'").fetchone()[0], -3
             )
 
-    def test_legacy_default_item_zero_master_cost_is_replaced_not_authenticated_as_missing(self):
+    def test_legacy_default_item_existing_zero_master_cost_is_preserved(self):
         with self.legacy.get_conn() as conn:
             conn.execute("UPDATE items SET purchase_price_eur=0 WHERE name='Bier gross'")
             conn.commit()
         self.legacy.init_db()
         with self.legacy.get_conn() as conn:
             self.assertEqual(
-                conn.execute("SELECT purchase_price_eur FROM items WHERE name='Bier gross'").fetchone()[0], 1.4
+                conn.execute("SELECT purchase_price_eur FROM items WHERE name='Bier gross'").fetchone()[0], 0
             )
 
-    def test_item_update_and_historical_backfill_roll_back_when_audit_fails(self):
+    def test_item_update_rolls_back_and_preserves_history_when_audit_fails(self):
         self.book()
         with patch.object(self.legacy, "log_transaction", side_effect=RuntimeError("synthetic audit fault")):
             with self.assertRaisesRegex(RuntimeError, "synthetic audit fault"):

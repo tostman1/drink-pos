@@ -131,6 +131,23 @@ See [decision/write-impact matrix](docs/financial-history-policy.md) and
 [source-only adoption inventory](docs/legacy-adoption-inventory.md). No new accounting
 requirement or supported migration is inferred; OQ-06 remains open.
 
+## Approved RL-04 scoped financial integrity (2026-11-24)
+
+DP-002/004/013/024: routine current-product edits/default initialization/startup
+must preserve recorded historical financial snapshots, zero and unusual round
+costs included. Missing defaults are initialized; existing default zero costs are
+not replaced. New bookings use current master data; legitimate debt/tally/payment
+operations continue changing quantity/status. Master edit and its audit roll back
+together. No historical repair/inference, schema/fingerprint/v2/default-mode change.
+
+Paid reporting reads stored profit including zero rather than a truthiness or
+unconditional derived replacement; consumption/OPEN/round operational formulas
+and population filters remain distinct. DP-004 has a retained FH-04 exception:
+negative debt corrections create T-only audit, not signed item details; lifecycle
+and follow-up gates in `docs/correction-audit-contract.md`. FH-05/OQ-06 historical
+correction/inference/adoption/accounting decisions remain open. Prior RL-03 text
+records the former baseline, superseded only by this scoped authorization.
+
 ## Classification rules
 
 **Confirmed behavior** has direct served-code and test evidence; it may still be

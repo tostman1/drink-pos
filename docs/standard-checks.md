@@ -27,6 +27,15 @@ but is not the full gate and is less isolated from a caller's environment.
 
 ## Required stages
 
+RL-04 adds `tests/test_financial_integrity.py` (served snapshot/report/correction
+faults and full scenario) and converts RL-03/RL-01 old-defect expectations into
+preservation regressions; former failures/receipts stay documented. Actual-image CI
+runs `scripts/financial_rehearsal.py --target <new-owned-root> --commit <actual-SHA>
+--synthetic-only` with network none, current-code synthetic fixtures, both startup
+modes, audit/provider/client/sequence preservation and independent recovery.
+No historical-cost reconstruction/real providers/manual acceptance. UI/worker unchanged,
+cache-version review needs no bump; EF-08a WinError 5 remains separately unresolved.
+
 1. **Ruff:** `ruff check .` and `ruff format --check .`, conservative `E4,E7,E9,F`, no legacy
    ignores or auto-fixes. Correctness baseline, not full style/type/security lint.
    Formatter debt is corrected in mechanical, AST-equivalent isolated commits;

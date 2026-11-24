@@ -1,5 +1,13 @@
 # Release identity, preflight and controlled upgrade runbook (RL-01)
 
+RL-04 (2026-11-24) supersedes the **former** financial-backfill descriptions below:
+upgrade rehearsal now compares exact pre-startup snapshots with permitted_changes=[];
+no independent expected-cost UPDATE or routine history rewrite. The initializer
+retains legacy schema/prototype/round-master compatibility and early DDL/file risks.
+Preflight/recovery contracts and all deployment defaults remain unchanged. Added
+network-disabled actual-image financial scenario verifies both modes/API/recovery;
+no authentic historical or production compatibility inferred.
+
 This is **optional offline tooling**, not a deployment approval or automatic gate
 inside startup. Existing UI, REST metadata, Compose files, update scripts and timer
 remain unchanged. See [verified baseline/risk inventory](rl-01-contract.md).
