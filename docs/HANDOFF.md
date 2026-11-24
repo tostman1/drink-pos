@@ -1,5 +1,69 @@
 # Handoff and protected work
 
+## RL-04 integrated handoff — 2026-11-24
+
+PR #9 https://github.com/tostman1/drink-pos/pull/9 is **MERGED** after completed
+independent owner review, no approved-scope blockers and explicit conditional merge
+authorization. This supersedes historical open/no-merge/pending notes below for
+PR #9 only; no new work package or production operations authorized.
+
+- Clean local/fetched reviewed head **`94104001c50e11f87341489e607b655c5f19b6da`**
+  and exact base **`8dd961bfb23d7fe090a8cf2895a269bb544db09e`** matched Git/GitHub.
+  Branch https://github.com/tostman1/drink-pos/actions/runs/45343434976 and PR
+  https://github.com/tostman1/drink-pos/actions/runs/45343450131 both success;
+  full Python/financial/browser/security/Docker/migration/recovery/DR/image audits,
+  publication skipped. No new reviews/inline comments/review threads/conflicts;
+  MERGEABLE/CLEAN, no configured required checks/active branch rules, none bypassed.
+- Normal `--merge --match-head-commit` integration:
+  **`b6dc46e6414812089c434ef315177aa7af50826d`**, 2026-11-24T07:18:16Z.
+  First parent exact base, second exact reviewed head above. Whole merged tree
+  equals reviewed **`25ef9ae03f7314a8bf7eaf57751ad834733a2504`**. Primary checkout
+  switched/fast-forwarded to clean synchronized main; all prior branches retained.
+  No force push/rebase/history rewrite/delegation or app changes after review.
+- Exact merge-main CI https://github.com/tostman1/drink-pos/actions/runs/45346957268
+  **success**: both Linux Python matrices **263 discovered/262 passed/one Windows-only
+  skip**, all 21 new integrity/correction tests execute ok in each. Actual Docker/
+  four Compose/start-restart-persistence/legacy upgrade/strict fresh-adoption-repeat/
+  served financial scenario/independent EF-08a-b recovery/encrypted source+owned-image
+  loss DR/image-audit gates pass. Publication **skipped**; deployment query zero.
+  Synthetic 17 original tables preserved/history_rewritten=false/recovery_verified=true/
+  network_attempts=0/two mocked card creations. Not authentic historical adoption.
+- Local merged-main full Standard Checks **exit 0** Python 3.12.13/3.13.15:
+  **263 discovered/257 passed/six POSIX-only skips** each, 114.789s/119.386s unittest.
+  Ruff/format/syntax/24-ID traceability/real age/audits none known/Chromium/diff/
+  actionlint pass. Logs outside Git `rl04-merged-main312.log`/`rl04-merged-main313.log`.
+  Lifecycle/TestClient/Node-action warnings retained; local Docker unavailable.
+- This is a **documentation-only main descendant receipt**. Final main SHA is the
+  commit carrying this section: read HEAD/origin/main after synchronization. Verify
+  its **own** exact-head CI and record final SHA/run/result in the PR #9 integration
+  comment/final report; no self-referential SHA or predecessor-CI pass inference.
+
+**FH-01/02/03/06 scoped implementation integrated**: served admin two historical
+UPDATEs removed; legacy four cost/profit inference/round resets and helper/facade
+removed; missing defaults initialize, existing zero master retained; paid stats/
+preview/export-report honor present stored profit including zero. Regression evidence
+in FinancialHistoryTests/FinancialIntegrityTests plus full-state installed scenario;
+current master/new bookings and legitimate debt/tally/payment fields remain operational.
+No automatic historical repair/reconstruction/inferred-cost storage or recovered
+before-images, no extra fingerprint/adoption/v2/default strict activation.
+
+**FH-04 OPEN, characterization only**: T-only negative debt corrections, no new
+signed TI semantics; `/api/pay` can commit all-debt-removing approvals then return
+HTTP 400 with no PAID record; negative admin adjustments are **not idempotent**.
+Exact lifecycle/proposal in `docs/correction-audit-contract.md`. **FH-05 OPEN**: no
+authentic historical compatibility evidence. **OQ-06 resolved only for approved
+routine historical preservation**; historical correction/inference/round accounting/
+report-period semantics/adoption breadth remain open. No new policy from green CI.
+
+EF-08a Windows **WinError 5 remains unresolved** despite these successful checks.
+MV-01 tablet/mobile, MV-02 installed PWA, MV-03 real SMTP, MV-04 real SumUp, MV-05
+offline/reconnect pending; MV-06 automated synthetic evidence only, actual geography/
+hardware/immutability/encrypted storage/scratch/Windows ACL/key-image retrieval/timed
+human external reconciliation/operator acceptance remain partial. Synthetic DR RPO
+age 0.330150s/RTO 2.392196s are not operational guarantees. No deployment/image
+publication/release/production data or migration/real payment/mail/updater/schedule
+change, and no new work package. Stop after exact final-main receipt verification.
+
 ## RL-04 active handoff — 2026-11-24
 
 Current owner mission authorizes scoped implementation/commits/push/open PR/exact

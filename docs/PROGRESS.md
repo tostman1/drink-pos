@@ -1,5 +1,74 @@
 # Engineering foundation progress
 
+## RL-04 final integration — 2026-11-24
+
+- Owner independent review complete, no approved-scope merge blockers; explicit
+  conditional authorization for PR #9 only. Clean fetched/local reviewed head
+  **`94104001c50e11f87341489e607b655c5f19b6da`** and expected base
+  **`8dd961bfb23d7fe090a8cf2895a269bb544db09e`** matched. Specified exact-head branch
+  https://github.com/tostman1/drink-pos/actions/runs/45343434976 and PR
+  https://github.com/tostman1/drink-pos/actions/runs/45343450131 success, publication
+  skipped; both Python matrices/all 21 integrity tests/actual container+financial+
+  migration/recovery/DR/image audits verified. Final pre-review delivery receipt:
+  https://github.com/tostman1/drink-pos/pull/9#issuecomment-7124732342.
+- PR MERGEABLE/CLEAN; reviews/inline comments/review threads empty, no conflicts.
+  Branch-protection API reports unprotected (404), active main rules empty; no checks
+  bypassed/settings changed. PowerShell quoting caused initial GraphQL/tree-query
+  inspection errors; explicit JSON input/quoted revision corrected, no Git mutation.
+- Normal `gh pr merge 9 --merge --match-head-commit 94104001...`:
+  **`b6dc46e6414812089c434ef315177aa7af50826d`**, 2026-11-24T07:18:16Z.
+  Parent 1 exact base, parent 2 exact reviewed head; whole tree equals reviewed
+  **`25ef9ae03f7314a8bf7eaf57751ad834733a2504`**. Primary checkout switched to main
+  and fast-forwarded clean/synchronized; all prior branches retained. No app/test/
+  workflow/config changes after review, no reset/rebase/force push/delegation.
+- Exact merge-main https://github.com/tostman1/drink-pos/actions/runs/45346957268
+  **success**: Linux 3.12/3.13 each **263 discovered/262 passed/one Windows-only skip**;
+  all 21 new financial-integrity/correction tests execute ok. Ruff/format/syntax/
+  traceability/browser/security/real-age and existing financial/migration/recovery
+  gates passed. Four Compose configs, actual Dockerfile image/start-restart-persistence/
+  EF-08a-b recovery/legacy synthetic upgrade/strict fresh-adoption-repeat/served financial
+  scenario/independent recovery/encrypted source+owned-image-loss DR/image audit passed.
+  Publication **skipped**, merge SHA deployment query zero. Exact installed evidence
+  binds merge SHA: 17 original tables preserved/history_rewritten=false/both modes/
+  recovery_verified=true/network_attempts=0/two safely mocked card creations. Complete
+  logs/validated summary outside Git `rl04-main-45346957268-ci.log`/`-summary.json`.
+- DR: public-only producer, owned image unavailable before retained archive load,
+  shared image preserved, source storage removed, one post-snapshot commit not replayed;
+  network-disabled startup. Synthetic RPO age **0.330150s**, RTO **2.392196s**, not
+  operational guarantees/geographic/immutable/timed-human reconciliation evidence.
+- Full merged-main local Standard Checks **exit 0** Python **3.12.13/3.13.15**:
+  **263 discovered/257 passed/six POSIX skips** each, **114.789s/119.386s** unittest.
+  Ruff/79-file format/Python-JS-data syntax/24-ID traceability/real age/audits (**none
+  known**)/Chromium/diff/actionlint pass. Outside-Git logs `rl04-merged-main312.log` /
+  `rl04-merged-main313.log`. Lifecycle/TestClient/Node-action warnings retained;
+  local Docker unavailable, actual container evidence from exact main CI.
+- Integration receipt changes **only docs/HANDOFF.md and docs/PROGRESS.md**; final
+  main SHA is this descendant's HEAD after commit/push. Its own exact-head CI MUST
+  pass independently and final SHA/run/result be recorded in PR #9 integration
+  delivery comment/report, not inferred from merge CI or self-referential SHA.
+
+FH-01/02/03/06 implementation integrated: no routine O/TI historical financial
+UPDATE remains after admin backfill/startup inference/round-reset removal; default
+creation only preserves existing zero masters; present paid stored profit including
+zero is authoritative in stats/preview/report export. Current master/new bookings,
+consumption/OPEN/round operational formulas, quantities/status/payment/idempotency/
+audit/entitlement/event/invoice/sequence behavior stay within reviewed contracts.
+No automatic historical repair/reconstruction/inference or already-overwritten
+original recovery, no schema/v2/new fingerprint/adoption/default-mode change.
+
+**FH-04 OPEN, characterization only; FH-05 OPEN.** `/api/pay` correction-before-
+HTTP-400 commit without payment and non-idempotent negative admin adjustments remain;
+exact audit-coverage/follow-up acceptance contract retained. **OQ-06 resolved only
+for approved routine historical preservation**, remaining historical correction/
+inferred storage/round accounting/report-period/adoption choices open. EF-08a Windows
+**WinError 5 remains unresolved** (successful checks are not a fix). MV-01..05 remain
+pending; operational MV-06 partial for real geography/hardware/immutable/encrypted
+storage/scratch/Windows ACL/secure key-image acquisition/timed human payment-mail
+reconciliation/acceptance. No production data/migration/financial correction, real
+SumUp/SMTP, deployment/release/publication/updater/schedule change. No FH-04 or new
+package begun. Supersedes historical open/no-merge/pending PR #9 notes below only;
+stop after exact final-main verification.
+
 ## RL-04 active scoped financial integrity — 2026-11-24
 
 - Clean local/fetched exact main `8dd961bfb23d7fe090a8cf2895a269bb544db09e`;
