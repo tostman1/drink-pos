@@ -24,14 +24,18 @@ Observed results are dated in PROGRESS.md; no invented coverage percentages.
 
 ## RL-03 distinct financial-history findings — OPEN
 
-### RL-05 active implementation (verification pending)
+### RL-05 implemented contract (independent review pending)
 
 FH-04 new ordinary corrections append complete source-linked signed TI/metadata/
 operation identity; normal net consumption at original period, serialized decisions,
 keyed retries and correction-only pay. Round addendum replaces count/index allocation
 for new tracked units with exact deduction/reversal provenance; unsupported old,
-paid, closed or uncertain states block, not guessed. No FH-04 closure before final
-tests/CI/actual-image/recovery. FH-05 still open; original financial snapshots preserved.
+paid, closed or uncertain states block, not guessed. **FH-04 new-operation audit gap
+addressed**, exact corrected-head branch/PR CI `45367327293`/`45367337289` passes
+both matrices/all 30 new tests/actual-image net+round/v1 transition/full recovery+DR.
+Historical T-only originals are not reconstructed. FH-05 still open; original
+financial snapshots preserved. Final receipt head requires its own CI; independent
+review/manual/operational acceptance not implied by implementation closure.
 Former RL-04 T-only/replay/HTTP ambiguity receipts below are historical baseline.
 
 ### RL-04 current disposition — 2026-11-24 (review pending)

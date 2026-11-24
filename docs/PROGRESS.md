@@ -80,6 +80,35 @@ gates rerun required after this correction. Committed-head local 3.12/3.13 pass
 retained, new head/local counts follow after verification. FH-04 closure deferred
 until final evidence; original financial and deployment boundaries unchanged.
 
+### Corrected-head actual-image verification
+
+Reservation correction `23420966af12044b16dd3320a03ef16e4f9ff6f8` passed exact branch
+https://github.com/tostman1/drink-pos/actions/runs/45367327293 and PR
+https://github.com/tostman1/drink-pos/actions/runs/45367337289, both Linux matrices
+**293 discovered/292 passed/one Windows-only skip**, all **30** new methods execute
+ok. Quality/security/Chromium first-party replay/real-age pass. Actual Dockerfile/
+4 Compose/start-restart/legacy upgrade/prepared v1→v2/fresh-adoption-repeat/full net+
+round financial scenario/independent EF08 recovery/encrypted source+owned-image-loss
+DR/image audit pass; publication skipped. 26 original tables preserved/no historical
+rewrite/recovery=true/network_attempts=0/two mocked paid/unknown calls. Branch image
+exact head; PR image merge-test `63b9a72f83ebb61f71dad6145ae3b24340c8612d`. PR synthetic
+RPO age 0.359133s/RTO 2.287388s, no geographic/immutable/operator guarantees.
+
+FH-04 new-operation missing-detail/replay/transaction/net contract addressed; no old
+history fabrication, FH-05/broader OQ-06/WinError 5/device/operational evidence stay
+open. Independent review pending. Documentation-only final receipt requires its own
+final branch/PR CI/local gate and exact final SHA in PR comment/report. No merge/
+release/deploy/production data/migration/real SumUp/SMTP/updater/schedule changes.
+Initial reservation local gate failed cached formatting in two count assertions;
+formatter rerun produced **no tracked byte changes**, current Ruff passes and CI
+quality confirmed; no new style commit, no ignored check. Fresh local recheck running.
+
+Corrected-head local recheck **exit 0** Python 3.12.13/3.13.15: **293 discovered/287
+passed/six POSIX skips** each, **149.388s/162.474s** unittest. Ruff/format/syntax/
+traceability/real age/security audits none known/Chromium/keyed UI replay/diff pass;
+logs outside Git `rl05-reserved-recheck312.log`/`rl05-reserved-recheck313.log`. Still
+no Windows WinError 5 fix, manual device/operational acceptance or local Docker claim.
+
 ## RL-04 final integration — 2026-11-24
 
 - Owner independent review complete, no approved-scope merge blockers; explicit

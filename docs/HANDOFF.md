@@ -1,5 +1,40 @@
 # Handoff and protected work
 
+## RL-05 review submission receipt — 2026-11-24
+
+PR https://github.com/tostman1/drink-pos/pull/10 **OPEN/unmerged**, exact base remains
+`2cc36fd69ec56dbdfe65ffb7ed98600d7c33b7c4`. Core/UI/tests/docs `a013878`/`e50ba38`/
+`62464be`/`33c0d82`, final reservation fix **`23420966af12044b16dd3320a03ef16e4f9ff6f8`**.
+Exact branch https://github.com/tostman1/drink-pos/actions/runs/45367327293 and PR
+https://github.com/tostman1/drink-pos/actions/runs/45367337289 success; Linux both
+matrices **293 discovered/292 passed/one Windows-only skip**, all 30 new tests execute
+ok. Actual Docker/4 Compose/restart/legacy upgrade/prepared v1→v2/fresh-adoption-repeat/
+net consumption+round cancellation financial scenario/EF08 recovery/encrypted source+
+owned-image-loss DR/image audit pass, publication skipped. 26 tables preserved,
+history_rewritten=false/recovery_verified=true/network_attempts=0/two mocked card calls.
+Synthetic only, not authentic historical or production evidence. PR image binds merge-
+test SHA `63b9a72f83ebb61f71dad6145ae3b24340c8612d`, branch image exact head.
+
+FH-04 new operations addressed through source-linked signed correction/provenance,
+durable keyed retries, exact original-period net reporting and round-unit/deduction/
+reservation/cancellation/reversal relations. Paid/closed/unknown/legacy attribution
+fail closed; no reconstructed missing old details/refunds/stock return/new physical
+consumption. FH-05/broader OQ-06/EF-08a WinError 5/manual/operational acceptance remain.
+Real v2 additive nine-table schema, no original rebuild/backfill/additional old schema
+fingerprint; default legacy retained. First-party IDs/preview/worker v109 compatibility
+changes documented. No production/deploy/publication/real provider/mail/schedule/merge.
+
+This documentation-only descendant receipt must pass its **own** final-head CI and
+full local gates; resolve final SHA/links/results after push and record on PR/report,
+not a self-referential SHA or predecessor inference. Retain current reservation/full
+gate logs including initial local Ruff-cache stale-format warning/failure (formatter
+rerun changed no Git bytes); Linux exact-head quality passed without suppression.
+Stop after complete review delivery; independent owner review next, no next package.
+
+Corrected-head local full gate: Python 3.12.13/3.13.15 **exit 0**, 293 discovered/287
+passed/six POSIX skips, 149.388s/162.474s; all quality/browser/security/traceability/
+real age pass. Final receipt descendant needs own exact-head local/CI verification.
+
 ## RL-05 active handoff — 2026-11-24
 
 Owner authorizes net-consumption/source-linked correction/idempotency/transaction
