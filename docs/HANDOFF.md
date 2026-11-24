@@ -2,6 +2,41 @@
 
 ## Current checkpoint — EF-03 governance / deterministic CI waiting, 2026-11-24
 
+**Integrated:** PR #13 https://github.com/tostman1/drink-pos/pull/13 MERGED,
+2026-11-24T16:46:46Z, normal exact-head guarded merge
+`07e0207d401cf192ef5e1ff578078ad886f36cfe`. Owner explicitly reviewed reported
+implementation/local results and authorized controlled delivery/integration;
+actual scoped final review complete, GitHub additional reviews/threads empty,
+MERGEABLE/CLEAN, protection absent/active rules empty, no bypass/settings changes.
+Parent 1 exact `7a6aa5d...`, parent 2 reviewed candidate
+`e88fe4fa7f5232c507c2ef131ee60fb41413219a`; both merged/reviewed trees
+`d4c0d5aefac349c574de61870a4cdc1ae24a01c9`.
+
+- Exact candidate branch `45440033641` / PR `45440074259` success; both Linux
+  matrices and container passed, publication intentionally skipped. Actual branch
+  quality evidence: each 351/350 passed/one Windows-only skip, all 33 helper tests
+  and previously Windows-skipped POSIX cases executed. Windows local 351/345/six
+  POSIX skips and Git Bash 33 tests remain separate; macOS unverified.
+- Exact merge-main https://github.com/tostman1/drink-pos/actions/runs/45441083613
+  success, attempt 1, exact merge SHA, both quality matrices/container success,
+  publication skipped. No production/deployment/Synology/provider/mail operations.
+- Governance worktree is on synchronized main; unrelated clean docs branch
+  `ac5b7e73...` / OPEN PR #12 unchanged. Original feature and protected history retained.
+- **Current receipt is documentation-only.** Its own final SHA is the commit
+  carrying this section (read HEAD after commit); final-main helper CI is pending.
+  Final SHA/run/metrics recorded in PR #13 receipt/report after verification, not
+  recursively committed or inferred from predecessor/same-tree evidence.
+- Next action: commit/push this authorized integration receipt, wait once for its
+  exact final-main CI with fresh outside-Git result/metrics, post final PR receipt
+  and stop. No new package/product epic/release/deployment. Existing Windows
+  WinError 5, DSM/mobile/PWA/provider/operator acceptance remain unresolved.
+- All candidate/merge monitors completed. Three deterministic operations so far:
+  17 gh invocations, seven run-status reads, zero model polling/extra metric probes,
+  no timeout/rate limit observed. Timings/paths in PROGRESS. Final receipt monitor
+  will be the fourth operation; no model token/request usage measurements available.
+
+This integrated checkpoint supersedes the following retained pre-delivery notes.
+
 - Branch `feature/governance-ci-wait`; HEAD/base
   `7a6aa5dff411c8fb5601b87758a0fc64810aa0c3`, uncommitted scoped governance/helper/tests.
   Worktree `C:/Users/fritz/AppData/Local/Temp/opencode/drink-pos-governance-ci-wait`.

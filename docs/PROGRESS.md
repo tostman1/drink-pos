@@ -1,5 +1,54 @@
 # Engineering foundation progress
 
+## EF-03 integrated — final receipt verification pending, 2026-11-24
+
+PR #13 https://github.com/tostman1/drink-pos/pull/13 **MERGED** under explicit
+owner controlled-integration authority following final actual-change review and
+exact candidate CI. Normal `--merge --match-head-commit`, no squash/rebase/force/
+admin bypass/settings change. Merge **`07e0207d401cf192ef5e1ff578078ad886f36cfe`**,
+2026-11-24T16:46:46Z; exact base `7a6aa5d...` and candidate
+`e88fe4fa7f5232c507c2ef131ee60fb41413219a` parents, reviewed/merged tree
+`d4c0d5aefac349c574de61870a4cdc1ae24a01c9`. Final boundary GitHub reviews/threads
+empty, MERGEABLE/CLEAN, main protection absent/active rules empty; none bypassed.
+
+- Exact branch https://github.com/tostman1/drink-pos/actions/runs/45440033641 and
+  PR https://github.com/tostman1/drink-pos/actions/runs/45440074259 success, attempt 1,
+  mandatory matrices/container pass, publication skipped. PR all current latest
+  contexts success and final HEAD recheck correct. Candidate receipt:
+  https://github.com/tostman1/drink-pos/pull/13#issuecomment-7138190239.
+- Linux branch quality-job logs retrieved ONCE each solely for requested test
+  execution proof, not complete successful workflow logs. Python 3.12/3.13 each
+  **351 discovered/350 passed/one Windows-only skip**, 31.808s/21.655s; all **33 helper
+  methods** and all previously Windows-skipped POSIX cases execute. Relevant logs
+  `governance-linux-45440033641-138608269949.log` / `-138608270403.log` and compact
+  `governance-linux-evidence.json` outside Git. No workflow modification required.
+  Initial PowerShell jq metadata command rejected quoting (no usable response);
+  explicit Python argument array corrected transport, no verification weakening.
+- Exact merge-main https://github.com/tostman1/drink-pos/actions/runs/45441083613
+  **success**, attempt 1, exact merge SHA, both matrices/container pass/publication
+  skipped. JSON `governance-delivery-main-07e0207-result.json`, metrics counterpart
+  retained outside Git. Governance main worktree fast-forwarded; original unrelated
+  docs checkout/PR #12 untouched. No deploy/image publication/Synology/provider/mail.
+- Dogfood actual observed helper invocations (no additional metric requests):
+  branch **4 calls / 2 run reads / 153.938s**, PR **9 calls / 3 run reads / 218.344s**,
+  merge-main **4 calls / 2 run reads / 153.860s**. Three operations, **17 calls/seven
+  run reads**, summed operation duration **526.142s**; candidate monitors concurrent,
+  so sum is NOT wall-clock integration wait (candidate phase approximately 218.344s).
+  Zero agent-driven polling/short sleeps/periodic commentary, no tool timeout or
+  GitHub rate limit observed; no model-provider rate-limit error observed in session.
+  Background completion notifications used; tokens/provider request counts unavailable.
+  wrapper `governance-delivery-monitor.py` outside Git counts only helper's own gh
+  invocations (not gh transport-internal retries or all integration API requests).
+- Local successful full suites not repeated: unchanged implementation/exact merged
+  tree already verified and owner explicitly directs reuse. Existing Linux/full
+  CI and Windows evidence separate. macOS and authentic DSM/PWA/operator/provider/
+  ACL/offsite acceptance, EF-08a Windows WinError 5 remain open, not green-CI claims.
+
+This commit edits only HANDOFF/PROGRESS/AUDIT integration receipts. Its **own**
+exact final-main SHA/CI remain pending until push and are recorded in PR final
+receipt/report, avoiding self-reference/recursive evidence commits. Fourth helper
+operation will verify that exact descendant. No next package/product epic begun.
+
 ## EF-03 controlled delivery authorization — 2026-11-24
 
 Owner reviewed reported implementation/local results and explicitly authorizes

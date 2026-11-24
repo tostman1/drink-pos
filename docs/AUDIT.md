@@ -1,5 +1,20 @@
 # Technical audit — evidence, not a rewrite mandate
 
+## EF-03 integration receipt — 2026-11-24
+
+Owner-reviewed reported implementation/local gates, final scoped review and explicit
+controlled-integration authority; PR #13 normal guarded merge `07e0207...` preserves
+exact reviewed `e88fe4f...` tree/base. Exact branch/PR `45440033641`/`45440074259`
+and merge-main `45441083613` pass mandatory quality/container gates, publication
+skipped, no review/protection bypass/settings change. Actual Linux matrices execute
+all 33 new helper methods and previously Windows-skipped POSIX tests; each 351/350/
+one Windows-specific skip. Windows native/Git Bash/client compatibility remain
+separate evidence; macOS unverified. Final docs-only receipt's own CI verified
+separately after push in PR final receipt/report; no predecessor success inference.
+No runtime/financial/migration/UI/CI/Compose/Synology/provider/mail/publication change.
+Actual dogfood measurements in PROGRESS, no measured model-token savings. Existing
+WinError 5 and real-device/operator/provider/security-operational gaps remain open.
+
 ## EF-03 governance audit — deterministic external waiting (2026-11-24)
 
 Owner reports model rate limits during GitHub waiting; no token/call measurements
