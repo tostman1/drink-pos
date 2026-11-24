@@ -2,6 +2,13 @@
 
 ## RL-06 active increment — 2026-11-24
 
+- Network-fixed CI `45399453115`/`45399465044` passed host-to-internal reachability,
+  financial/round/event/persistence, baseline startup/backup/full restore and older
+  v1 rejection. Rehearsal then renamed independent EF-08b bundle; correct verifier
+  rejects directory/backup-ID mismatch. Copy now preserves exact backup-ID name,
+  regression covers rejection of renamed versus success of original-name copy.
+  Installable artifact remains withheld; no verifier weakening/format change.
+
 - First branch/PR CI `45398131061`/`45398216593`: both Python matrices and all
   pre-existing actual-image/financial/migration/full/encrypted recovery/audit gates
   passed, new Compose reachability failed. App startup and in-container health

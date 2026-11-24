@@ -138,6 +138,14 @@ class SynologyTestTests(unittest.TestCase):
             self.assertEqual(backed.returncode, 0, backed.stderr)
             bundle = Path(json.loads(backed.stdout)["bundle"])
             self.assertEqual(self.command(env, "verify", str(bundle)).returncode, 0)
+            import shutil
+
+            renamed = root / "evidence/renamed"
+            shutil.copytree(bundle, renamed)
+            self.assertNotEqual(self.command(env, "verify", str(renamed)).returncode, 0)
+            independent = root / "evidence" / bundle.name
+            shutil.copytree(bundle, independent)
+            self.assertEqual(self.command(env, "verify", str(independent)).returncode, 0)
             self.assertNotEqual(self.command(env, "restore", str(bundle), "independent").returncode, 0)
             wrong = dict(env, APP_BUILD_COMMIT="b" * 40)
             self.assertNotEqual(

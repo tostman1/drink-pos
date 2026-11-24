@@ -292,7 +292,8 @@ def rehearsal(image: str, commit: str, target: Path, baseline_image: str, unsupp
         del prefix[-2:]
         env["DRINK_POS_TEST_IMAGE"] = candidate_tag
         current_commit = commit
-        shutil.copytree(bundle, target / "evidence/independent-bundle")
+        independent_bundle = "/test/evidence/" + backed["backup_id"]
+        shutil.copytree(bundle, target / "evidence" / backed["backup_id"])
         old_schema = subprocess.run(
             [
                 "docker",
@@ -329,7 +330,7 @@ def rehearsal(image: str, commit: str, target: Path, baseline_image: str, unsupp
             p.relative_to(target / "data"): p.read_bytes() for p in (target / "data").rglob("*") if p.is_file()
         }
         env["DRINK_POS_TEST_IMAGE"] = candidate_tag
-        tool("verify", "/test/evidence/independent-bundle", readonly=True)
+        tool("verify", independent_bundle, readonly=True)
         identity = json.loads(tool("identity", readonly=True).stdout)
         # Exact-baseline -> candidate same-schema/no-financial-change decision is
         # synthetic evidence only, not compatibility for arbitrary older images.
@@ -361,7 +362,7 @@ def rehearsal(image: str, commit: str, target: Path, baseline_image: str, unsupp
         ready = tool(
             "preflight",
             "--bundle",
-            "/test/evidence/independent-bundle",
+            independent_bundle,
             "--current",
             "/test/evidence/current.json",
             "--candidate",
@@ -389,7 +390,7 @@ def rehearsal(image: str, commit: str, target: Path, baseline_image: str, unsupp
         # not just balances. No permitted financial/startup transformation.
         full_check = (
             "from pathlib import Path; from application_recovery import database_metadata,read_json; "
-            "m=read_json(Path('/test/evidence/independent-bundle/manifest.json')); "
+            f"m=read_json(Path('{independent_bundle}/manifest.json')); "
             "assert database_metadata(Path('/test/data/database.db'),original_references=m['event_references'])==m['database']"
         )
         compose("exec", "drink-pos-test", "python", "-B", "-c", full_check)
