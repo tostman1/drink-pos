@@ -122,92 +122,67 @@ environment naming alone does not enforce approval. No automatic deploy exists.
 
 ## Deterministic CI waiting — EF-03
 
-Mandatory orchestration policy is in [PROCESS](PROCESS.md#mandatory-token-efficient-github-and-ci-workflow).
-`scripts/wait_for_ci.py` is Python 3.12/3.13 standard library + authenticated GitHub
-CLI `gh` on PATH. Runs from PowerShell, Windows Git Bash or Linux/macOS shells; no
-Bash, jq, pip package, LLM or OpenCode dependency. Only github.com OWNER/REPO is
-supported. It makes explicit `gh api --method GET --include` requests, never mutations.
+`scripts/wait_for_ci.py` is the only CI-waiting mechanism: Python 3.12/3.13 standard
+library + authenticated GitHub CLI `gh` on PATH; PowerShell, Windows Git Bash or
+Linux/macOS; no Bash, jq, pip package, LLM or OpenCode dependency; github.com
+OWNER/REPO only. Read-only: explicit `gh api --method GET --include` requests, never
+mutations. The top-level branch/PR workflow is `container.yml` (quality `ci.yml` is
+reusable, not separately triggered). The policy it serves is in
+[PROCESS](PROCESS.md#delivery-and-ci-waiting): one deterministic invocation per CI
+phase, no LLM polling.
 
-Evaluation: no existing repository monitor was found. `gh run watch` defaults to 3s
-and `gh pr checks --watch` to 10s; interval flags exist but neither alone supplies
-the full exact-HEAD/attempt/required-job binding, overall deadline, header-aware
-bounded backoff and distinct terminal statuses. Reuse `gh` authentication/HTTP
-instead of adding another client. Default workflow is `container.yml`, the actual
-top-level branch/PR workflow (quality `ci.yml` is reusable, not separately triggered).
+### Usage
 
-### Exact usage
-
-Capture HEAD once after the authorized commit/push. PowerShell:
+Capture HEAD once after the authorized commit/push, then invoke the helper ONCE per
+distinct required run/PR (never as a sequence of polling invocations):
 
 ```powershell
 $sha = git rev-parse HEAD
-python scripts/wait_for_ci.py --repo tostman1/drink-pos --run-id RUN_ID --sha $sha --result-file 'C:/Users/fritz/AppData/Local/Temp/opencode/ci-UNIQUE.json'
-python scripts/wait_for_ci.py --repo tostman1/drink-pos --pr PR_NUMBER --sha $sha --result-file 'C:/Users/fritz/AppData/Local/Temp/opencode/pr-ci-UNIQUE.json'
+python scripts/wait_for_ci.py --repo tostman1/drink-pos --run-id RUN_ID --sha $sha --result-file OUTSIDE_GIT_PATH
+python scripts/wait_for_ci.py --repo tostman1/drink-pos --pr PR_NUMBER --sha $sha --result-file OUTSIDE_GIT_PATH
+python scripts/wait_for_ci.py --repo tostman1/drink-pos --branch BRANCH_NAME --sha FULL_SHA --result-file OUTSIDE_GIT_PATH
 ```
 
-Git Bash / POSIX (replace placeholders and choose new outside-Git result paths):
+(POSIX: same arguments with `$sha=$(git rev-parse HEAD)` and POSIX quoting.)
+`--run-id` may be combined with `--branch` or `--pr` for explicit binding; otherwise
+explicit run mode expects a push event. Branch discovery also finds exact
+main/post-merge push runs. PR mode verifies the PR HEAD before waiting, discovers
+only `pull_request` runs bound to that PR/SHA, checks all observed latest commit
+check runs/status contexts after workflow success, and rechecks the PR HEAD before
+accepting success. It never treats the synthetic merge-test SHA as the feature HEAD;
+artifact/image binding to that SHA is a separate verification.
 
-```sh
-sha=$(git rev-parse HEAD)
-python scripts/wait_for_ci.py --repo tostman1/drink-pos --run-id RUN_ID --sha "$sha" --result-file "$CI_RESULT"
-python scripts/wait_for_ci.py --repo tostman1/drink-pos --pr PR_NUMBER --sha "$sha" --result-file "$PR_CI_RESULT"
-```
+Mandatory jobs (always required, no removal flag): `checks / Python 3.12 / Node 24`,
+`checks / Python 3.13 / Node 24`, `Non-publishing container verification`. Extra jobs:
+repeatable `--require-job NAME`; new required check contexts: `--require-check NAME`
+(verify the current rule inventory once at the integration boundary; the helper does
+not infer protection/review rules). Only `Explicit owner-triggered main publication`
+may intentionally be skipped in non-publishing runs. A run selection is pinned once:
+no silent substitution of a cancelled run, different commit, or rerun; a newly
+authorized rerun is a new verification event. Unknown/fork PR association (empty
+`pull_requests` metadata) fails closed. Pagination is bounded to 1000 evidence rows;
+incomplete evidence returns unavailable, not success.
 
-Automatic push-run discovery including exact main/post-merge SHA:
+### Flags, defaults, and result contract
 
-```sh
-python scripts/wait_for_ci.py --repo tostman1/drink-pos --branch BRANCH_NAME --sha FULL_SHA --result-file OUTSIDE_GIT_NEW_PATH
-```
-
-Use each command ONCE for its distinct required run/PR, not as a sequence of polling
-invocations. `--run-id` can be combined with `--branch` or `--pr` for explicit binding;
-otherwise explicit run mode expects a push event. PR mode verifies PR HEAD before
-waiting, discovers only pull_request runs bound to that PR/SHA, checks all observed
-latest commit check runs/status contexts after workflow success, and rechecks PR HEAD
-before accepting success. It never uses the synthetic merge-test SHA as the expected
-feature HEAD; artifact/image binding to that SHA remains a separate verification.
-
-Current mandatory jobs (always required, no removal flag):
-`checks / Python 3.12 / Node 24`, `checks / Python 3.13 / Node 24`, and
-`Non-publishing container verification`. Extra jobs use repeatable `--require-job NAME`.
-Only `Explicit owner-triggered main publication` may intentionally be skipped in
-non-publishing runs; missing/skipped required jobs or any other non-success are not
-passes. When new checks/protection are configured, supply exact additional names:
-
-```sh
-python scripts/wait_for_ci.py --repo tostman1/drink-pos --pr PR_NUMBER --sha FULL_SHA --require-check 'EXACT_REQUIRED_CONTEXT' --require-job 'EXACT_ADDITIONAL_JOB' --result-file OUTSIDE_GIT_NEW_PATH
-```
-
-The helper does NOT infer branch protection/review rules or promise that no new
-checks can appear later. Verify current rule inventory once at the integration
-boundary, supply missing required contexts, and retain normal GitHub protections.
-Unknown/fork PR association (empty `pull_requests` metadata) fails closed/discovery
-times out: use an independently verified exact run/PR association, not relaxed SHA
-checks. A run selection is pinned once; it never silently substitutes a cancelled
-run, different commit, or rerun. A newly authorized rerun is a new verification event.
-Pagination is bounded to 1000 evidence rows (100/page); excessive/incomplete results
-return unavailable, not success. Custom workflows still retain the mandatory jobs.
-
-### Defaults and result contract
-
-All time options are seconds. Initial/discovery/poll/backoff happen inside Python:
+All time options are seconds; delays happen inside Python:
 
 | Flag | Default |
 | --- | --- |
-| `--initial-delay` | 90 (use 0 only for an already completed run or justified verification) |
+| `--initial-delay` | 90 (0 only for an already completed run or justified verification) |
 | `--discovery-delay` | 30 |
 | `--interval` | 60 |
 | `--long-interval` / `--long-after` | 120 / 600 |
 | `--max-wait` | 1800, includes delays and bounded requests |
-| `--max-retries` | 3 additional attempts; configurable 0..3 |
+| `--max-retries` | 3 additional attempts (0..3) |
 | `--retry-base` | 15, exponentially 15/30/60 for transient failures |
 | `--request-timeout` | 30 or remaining overall budget, whichever is shorter |
 
-Rate limits use the later of Retry-After (seconds/HTTP date), exhausted-primary
-reset (+1s margin) and 60s exponential secondary backoff. A successful response
-with exhausted quota also delays the next API call. No reset endpoint probes.
-If permitted retry falls outside the budget, return rate_limited immediately with
-`retry_at_epoch`. No fixed delay guarantees LLM-provider recovery.
+Rate limits use the later of `Retry-After` (seconds/HTTP date), exhausted-primary
+reset (+1s margin) and 60s exponential secondary backoff; a successful response with
+exhausted quota also delays the next call. No reset endpoint probes; if the permitted
+retry falls outside the budget, the helper returns `rate_limited` with
+`retry_at_epoch` immediately.
 
 | Exit | JSON `status` | Meaning |
 | --- | --- | --- |
@@ -220,39 +195,27 @@ If permitted retry falls outside the budget, return rate_limited immediately wit
 | 6 | invalid_input | Bad target/options or already-existing result path |
 | 7 | interrupted | Ctrl-C; no resource mutation |
 
-stdout is one JSON line at terminal completion (except explicit `--help`). It includes
-schema version, PID/start/finish, repo/expected SHA, run ID/URL/attempt, PR identity,
-status/exit/reason and, on success only, verified SHA + job names/conclusions. Raw
-headers, secrets, full API bodies/logs are never output. `--result-file` reserves a
-NEW path with pending identity immediately and atomically writes final JSON; parent
-must exist. Existing results are never overwritten/reused. Output path must be
-outside Git; credentials remain in existing gh auth. Forced kill/output failure can
-leave pending; never treat that as success. Verify recorded process identity once
-on interrupted resume, not a loop. Result persistence failure is nonzero.
+stdout is one JSON line at terminal completion (except `--help`): schema version,
+PID/start/finish, repo/expected SHA, run ID/URL/attempt, PR identity, status/exit/
+reason and, on success only, verified SHA plus job names/conclusions. Raw headers,
+secrets, full API bodies and logs are never output. `--result-file` must be a NEW
+outside-Git path: it is reserved with pending identity immediately and atomically
+replaced by the terminal result; existing results are never overwritten, forced kill
+can leave a pending record (never success), and result persistence failure is
+nonzero. Verify the recorded process identity once on interrupted resume, not a loop.
 
-### OpenCode execution and failure diagnostics
+Harness execution: one supported blocking/background shell invocation with timeout
+covering the 1800s budget plus cleanup margin, correct workdir, absolute Python
+executable, outside-Git result path; the harness delivers completion automatically.
+Do not poll/sleep/read the result file while it runs. If the environment cannot
+reliably outlive the wait, checkpoint and stop; do not recreate the wait as repeated
+model invocations.
 
-Use the harness background shell invocation described in PROCESS (1860000ms timeout
-for default 1800s budget + cleanup, automatic completion notification). Set correct
-workdir/absolute Python and an outside-Git result path. Do not run a 30-minute wait
-under an explicitly background 120000ms timeout: it can kill the watcher. Do not
-poll/sleep/read the file while it runs; one completion notification, then read once.
-If long blocking/background execution is unsupported, preserve HANDOFF and stop.
-No success is claimed for that execution gap. Other OpenCode versions/harnesses
-must verify their tool contract instead of assuming identical timeout semantics.
-
-For a failed run, get job/step metadata first, for the exact attempt:
-
-```sh
-gh api --method GET 'repos/tostman1/drink-pos/actions/runs/RUN_ID/attempts/ATTEMPT/jobs?per_page=100' --jq '.jobs[] | select(.conclusion != "success" and .conclusion != "skipped") | {id,name,conclusion,steps:[.steps[] | select(.conclusion == "failure") | {name,number,conclusion}]}'
-gh run view RUN_ID --repo tostman1/drink-pos --attempt ATTEMPT --job FAILED_JOB_ID --log-failed > OUTSIDE_GIT_FAILED_JOB_LOG
-```
-
-Use targeted search/read against that saved log, once. Paginate metadata if needed;
-retrieve other relevant failing steps/cancelled/timed-out details as justified.
-`gh --log-failed` can internally obtain an archive; do not repeatedly redownload it.
-Escalate to full logs only when targeted evidence cannot establish root cause; don't
-truncate essential information. For success, retain compact JSON/evidence, not logs.
+Failure diagnostics: for the recorded attempt, query failed jobs/steps first, then
+`gh run view RUN_ID --repo OWNER/REPO --attempt ATTEMPT --job FAILED_JOB_ID
+--log-failed > OUTSIDE_GIT_FAILED_JOB_LOG` once; search that saved log targetedly and
+escalate to complete logs only when root cause is not established. For success,
+report compact evidence (run/SHA/checks/conclusion), not full logs or PR JSON.
 
 Focused mocked tests (no network/workflow/sleep/model calls):
 

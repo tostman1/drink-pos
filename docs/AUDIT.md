@@ -1,5 +1,39 @@
 # Technical audit — evidence, not a rewrite mandate
 
+## EF-03b governance consolidation audit — 2026-11-24
+
+Owner-directed reduction of duplicate EF-03 policy text after PR #13 integration.
+Scope: governance documentation only (AGENTS.md, docs/PROCESS.md,
+docs/standard-checks.md, README.md, .github/pull_request_template.md,
+AGENT_PROMPT_FIX.md, REVIEW_FINDINGS_AND_REFACTORING_PLAN.md,
+docs/ai-agent-manual.md, IMPLEMENTATION_PLAN.md). No product, runtime, migration,
+Compose, workflow-definition, publication-permission or security-gate change;
+`scripts/wait_for_ci.py` and all 33 `test_ci_wait.py` methods untouched; DP-018/
+019 catalog statements, sources, and test references unchanged.
+
+Consolidation map (single source of truth per concern):
+- Policy "waiting is deterministic, no LLM polling": one short AGENTS section;
+  PROCESS keeps the detailed workflow (sequence, failure path, checkpoint, limit
+  responses); Standard Checks keeps exact usage, flags, defaults, exit/status
+  contract and result-file semantics. The pinned test
+  `test_policy_is_discoverable_and_preserves_integration_gates` passes on the
+  consolidated text (phrase and keyword anchors retained).
+- Anchor `docs/standard-checks.md#deterministic-ci-waiting--ef-03` preserved;
+  PROCESS anchor renamed `#delivery-and-ci-waiting` with all inbound references
+  updated (README, IMPLEMENTATION_PLAN). No stale anchors remain.
+- Historical documents (AGENT_PROMPT_FIX, REVIEW_FINDINGS, ai-agent-manual) keep
+  one-line pointers to the current authoritative docs; their historical text is
+  unchanged.
+
+Known conflict recorded, not resolved here: OPEN PR #12
+(`docs/product-operability-requirements`, `ac5b7e7`) was branched from
+`7a6aa5d` before EF-03 landed, so its AGENTS/PROCESS/README/IMPLEMENTATION_PLAN/
+AUDIT/PROGRESS/standard-checks/requirements.json/HANDOFF edits overlap this
+consolidation and would delete the EF-03 helper if merged as-is. Correct sequence
+is this PR first, then re-base/reconcile PR #12 onto main preserving both the
+owner-approved product requirements and the integrated governance, with
+independent re-review before that merge. PR #12 was not touched by this work.
+
 ## EF-03 integration receipt — 2026-11-24
 
 Owner-reviewed reported implementation/local gates, final scoped review and explicit

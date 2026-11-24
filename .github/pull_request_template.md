@@ -10,7 +10,7 @@
 - [ ] Standard Checks: command, environment, result recorded in docs/PROGRESS.md
 - [ ] Non-publishing container/Compose verification passed
 - [ ] Exact final HEAD branch/PR CI: run IDs/URLs, SHA, workflow/checks and conclusions recorded
-- [ ] Waited once per target with `scripts/wait_for_ci.py` (no LLM polling); failures diagnosed with targeted saved logs
+- [ ] Waited once per CI phase with `scripts/wait_for_ci.py` bound to the exact HEAD (no LLM polling), per docs/standard-checks.md; failures diagnosed with targeted saved logs
 - [ ] Relevant test links and architecture updated
 - [ ] Full diff and generated-state/secrets reviewed
 - Manual/device/external-service checks completed or explicitly pending:
