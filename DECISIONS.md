@@ -21,6 +21,15 @@
 
 ## Unresolved decisions (not implementation authorization)
 
+RL-03 integration (2026-11-24): owner completed independent PR #8 evidence review
+and explicitly approved guarded merge of reviewed `0b43f379...`; merged
+`9d09015b2d83d652d88b283ef9f5ab45050128bf`, exact reviewed tree preserved.
+**OQ-06 remains OPEN.** This approval accepts the evidence package only, **not**
+snapshot rewrite prevention, accounting/reporting policy, inferred-cost storage,
+append-only corrections, historical repair, new migrations/schema allowlists or
+production rollout. FH-01..FH-06 and severities remain open; preserve-original
+recommendation below stays **PROPOSED/NOT APPROVED**. No next work package authorized.
+
 RL-03 proposal (2026-11-23), **not approved**: [financial-history decision record](docs/financial-history-policy.md)
 compares A exact originals, B separate provenance-labelled inference, C controlled
 corrections. Recommend A preservation invariant plus separately authorized B;

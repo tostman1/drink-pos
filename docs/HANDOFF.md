@@ -1,5 +1,67 @@
 # Handoff and protected work
 
+## RL-03 integrated handoff — 2026-11-24
+
+PR #8 https://github.com/tostman1/drink-pos/pull/8 is **MERGED** after completed
+independent owner implementation/evidence review, no approved-scope blockers and
+explicit conditional merge authorization. This supersedes historical open/no-merge
+notes below for PR #8 only; **no accounting policy or next work package approved**.
+
+- Clean local/fetched exact reviewed head
+  **`0b43f379f0b48dcd82e555287a3a301fe3838969`**, verified main/base
+  **`33c16979d2ae17a5d53c118c7f173f324e02e75b`**. Specified branch
+  https://github.com/tostman1/drink-pos/actions/runs/45270641734 and PR
+  https://github.com/tostman1/drink-pos/actions/runs/45270653100 passed both Python
+  matrices/ten RL-03 tests/browser/security/actual Docker/four Compose/migration/
+  recovery/DR/image-audit gates; publication skipped. GitHub reviews/threads/inline
+  findings empty, MERGEABLE/CLEAN, no conflicts. No configured required checks;
+  none bypassed, no admin merge/force push/rebase/history rewrite or delegation.
+- Normal `--merge --match-head-commit` integration:
+  **`9d09015b2d83d652d88b283ef9f5ab45050128bf`**, 2026-11-24T05:55:46Z.
+  First parent exact base, second exact reviewed head. Whole merged tree equals
+  reviewed **`221909081ee78cff6173476805d69bf2eba786e8`**. Primary checkout safely
+  switched/fast-forwarded to main clean/synchronized; all feature/handoff branches
+  retained. Complete app/.github/Dockerfile/production Compose/examples trees unchanged
+  vs base; financial/reporting/schema/migration/payment/invoice/recovery/UI untouched.
+- Exact merge-main CI https://github.com/tostman1/drink-pos/actions/runs/45336723411
+  **success**: Linux both matrices **242 discovered/241 passed/one Windows-only skip**;
+  all ten new tests execute ok. Full browser/security/actual Docker/start-restart/
+  legacy upgrade/strict fresh-adoption-repeat/independent recovery/encrypted source+
+  owned-image-loss DR/image-audit gates pass, publication **skipped**, deployment
+  query empty. Synthetic history_rewritten=false/recovery_verified=true/network_attempts=0;
+  not authentic historical or production adoption evidence.
+- Local merged-main full Standard Checks **exit 0** Python 3.12.13/3.13.15: **242
+  discovered/236 passed/six POSIX skips each**, 122.929s/126.518s unittest. Ruff/format/
+  syntax/24-ID traceability/real age/audits (none known)/Chromium/diff/actionlint pass.
+  Outside-Git logs `rl03-integrated312.log`/`rl03-integrated313.log`/`rl03-merge-main-ci.log`.
+  Lifecycle/TestClient/Node-action warnings retained; no local Docker installed.
+- This is a **documentation-only main descendant receipt**. Final main SHA is the
+  commit carrying this section (read HEAD/origin/main after synchronization). Verify
+  its **own** exact-head CI independently and record resolved final SHA/run/result on
+  PR #8 integration-delivery comment and final report; never infer predecessor pass
+  or embed an impossible self-referential SHA. No app/test/tool code changed after review.
+
+**RL-03 evidence package integrated; stop. OQ-06 remains OPEN/unresolved.** The
+historical-snapshot preservation recommendation remains **PROPOSED/NOT APPROVED**;
+merge grants no rewrite prevention, accounting/reporting policy, inferred-cost storage,
+append-only correction mechanism, historical repair, schema allowlist/migration path
+or rollout approval. FH-01..FH-06 remain OPEN with preserved severity: FH-01/02/06
+High historical rewrites, FH-03/04 Medium reporting/audit detail gaps, FH-05 High
+conditional adoption-provenance readiness risk (strict gate remains fail-closed).
+Eight source-derived fresh schemas/113 fixed-baseline source commits and synthetic
+ALTER counterexample do **not** establish historical installation/DB/release-image
+authenticity or broader compatibility. No authentic historical artifact verified.
+
+EF-08a Windows backup rename **WinError 5 remains unresolved**, reproduced during
+RL-03 submission; successful reruns/current Linux/local gates are not a fix. MV-01
+tablet/mobile, MV-02 installed-PWA upgrade, MV-03 real SMTP, MV-04 real SumUp, MV-05
+offline/reconnect devices pending. MV-06 automated synthetic evidence exists; actual
+geography/hardware/immutable/encrypted storage/scratch/Windows ACL/key-image retrieval/
+timed human provider/mail reconciliation and acceptance remain partial. No new manual
+acceptance or operational guarantee from CI. No RL-04/new package begun, production
+data/migration/history repair, release/image publication/deploy/updater/config/schedule
+change, real SumUp/SMTP or member-data access. Preserve history and stop after final CI.
+
 ## RL-03 authorized review-submission handoff — 2026-11-23
 
 **Review receipt:** PR https://github.com/tostman1/drink-pos/pull/8 **OPEN/unmerged**.

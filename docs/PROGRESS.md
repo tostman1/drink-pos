@@ -1,5 +1,71 @@
 # Engineering foundation progress
 
+## RL-03 final integration — 2026-11-24
+
+- Independent owner implementation/evidence review complete; no approved-scope merge
+  blockers. Explicit conditional authorization for PR #8 only, no policy/production/
+  future work. Clean fetched/local reviewed **`0b43f379f0b48dcd82e555287a3a301fe3838969`**
+  and expected base **`33c16979d2ae17a5d53c118c7f173f324e02e75b`** matched Git/GitHub.
+  Specified exact-head branch https://github.com/tostman1/drink-pos/actions/runs/45270641734
+  and PR https://github.com/tostman1/drink-pos/actions/runs/45270653100 success, both
+  Linux 242 discovered/241 passed/one Windows-only skip; all ten RL-03 methods ok and
+  browser/security/actual image/container/migration/recovery/DR/image audit passed,
+  publication skipped. No reviews/threads/inline findings/conflicts, MERGEABLE/CLEAN.
+  No configured required checks, no checks/protection bypassed. Full 16-file scope
+  exact allowlist verified; complete app/deployment tree parity versus base.
+- Guarded normal `gh pr merge 8 --merge --match-head-commit 0b43f379...`:
+  **`9d09015b2d83d652d88b283ef9f5ab45050128bf`**, 2026-11-24T05:55:46Z.
+  Parent 1 exact base above, parent 2 reviewed head above; whole tree matches reviewed
+  **`221909081ee78cff6173476805d69bf2eba786e8`**. Primary checkout switched to main /
+  `git merge --ff-only origin/main`, clean/synchronized. No reset/rebase/force push,
+  protected branches/owner merges/feature branch retained, no delegation.
+- Exact merge-main https://github.com/tostman1/drink-pos/actions/runs/45336723411
+  **success**. Both Linux Python 3.12/3.13 matrices: **242 discovered/241 passed/one
+  Windows-only skip**, all ten characterization tests confirmed ok. Ruff/format/
+  Python/JS/data/24-ID traceability/browser/security/real-age/financial/migration/
+  recovery/POSIX tests passed. Four Compose validations, actual local-only Dockerfile
+  image/start-restart-persistence/legacy synthetic upgrade/strict fresh-adoption-repeat/
+  independent EF-08b recovery/encrypted source+owned-image-loss DR/image audit passed.
+  Publication **skipped**, merge deployment query 0. Installed synthetic evidence
+  history_rewritten=false/recovery_verified=true/network_attempts=0, no authenticity/
+  compatibility/production guarantees. Log `rl03-merge-main-ci.log` outside Git.
+- Full merged-main local Standard Checks **exit 0** Python **3.12.13 / 3.13.15**,
+  Node 24.11.1/trusted age: **242 discovered/236 passed/six POSIX-only skips** each,
+  unittest **122.929s / 126.518s**. Lint/format/syntax/traceability/real age/audits
+  (**no known vulnerabilities**)/Chromium/diff/actionlint pass. Logs outside Git
+  `rl03-integrated312.log` / `rl03-integrated313.log`; local Docker unavailable, actual
+  container proof is exact main CI above. Lifecycle/TestClient/Node-action warnings
+  retained. Initial inspection's uppercase exact-string proposal guard failed; case-only
+  query corrected, verified original policy blob/NOT-approved meaning unchanged.
+- Merged-main source-only inventory receipt reproduced: eight fresh schema/source
+  identities, 113 original-baseline reachable commits, distinct illustrative ALTER
+  hash. No historical DB/release/image artifact authenticated or support broadened.
+  Exact app tree/financial/reporting/schema/migration/payment/invoice/recovery/UI/
+  worker/.github/Dockerfile/production Compose/examples blobs unchanged vs base.
+  Audit/decision/proposal severity records unchanged versus reviewed head.
+- Integration receipt modifies **documentation only**, no app/test/source-tool or
+  policy changes. Its final main SHA/own exact-head CI must be read after commit/push,
+  independently verified and recorded on PR #8 integration-delivery/report. No
+  predecessor-CI inference/self-referential SHA. Stop after final-main verification.
+
+**OQ-06 OPEN; FH-01..FH-06 OPEN**, severities retained (FH-01/02/06 High,
+FH-03/04 Medium, FH-05 High conditional adoption-readiness provenance risk).
+Preserve-original recommendation **PROPOSED/NOT APPROVED**. Merge accepts evidence,
+not rewrite prevention, financial/report policy, inference storage, append-only
+correction, history repair, new migration/schema allowlist, default mode or production
+rollout. Current behavior including documented historical rewrites remains unchanged.
+No authentic historical installation evidence from source schemas/synthetic tests.
+
+EF-08a Windows **WinError 5 remains unresolved** despite current successful runs;
+earlier committed 3.13 backup-rename failure retained, no retry/suppression/fix.
+MV-01..05 target-device/PWA/real SMTP/SumUp/offline reconnect pending. MV-06 automated
+synthetic all-state/recovery/DR evidence exists, actual geography/hardware/immutable/
+encrypted storage/scratch/Windows ACL/secure key-image retrieval/timed human external
+payment-mail reconciliation/operator acceptance remain partial. CI is not operational
+acceptance. No RL-04 or next package, production data/real migrations/member records,
+financial repair/publication/release/deployment/updater/config/schedule/payment/mail
+operations. All historical branches/owner merges preserved; stop after integration.
+
 ## RL-03 review-submission continuation — 2026-11-23
 
 ### Committed decision/evidence review receipt
