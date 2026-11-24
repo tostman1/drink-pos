@@ -463,7 +463,6 @@ def _init_legacy(*, connection=None):
         ensure_default_items(conn)
         ensure_round_item(conn)
         migrate_old_orders(conn)
-        backfill_missing_purchase_snapshots(conn)
         ensure_settings(conn)
         ensure_indexes(conn)
 
@@ -573,7 +572,7 @@ def migrate_items(conn: sqlite3.Connection):
 def ensure_default_items(conn: sqlite3.Connection):
     for index, item in enumerate(DEFAULT_ITEMS, start=1):
         default_purchase = float(item.get("purchase_price_eur", 0) or 0)
-        row = conn.execute("SELECT id, purchase_price_eur FROM items WHERE name = ?", (item["name"],)).fetchone()
+        row = conn.execute("SELECT id FROM items WHERE name = ?", (item["name"],)).fetchone()
         if not row:
             conn.execute(
                 """
@@ -589,14 +588,6 @@ def ensure_default_items(conn: sqlite3.Connection):
                     index,
                     now_text(),
                 ),
-            )
-        elif default_purchase > 0 and float(row["purchase_price_eur"] or 0) == 0:
-            # Upgrade alter Installationen: Vor dem EK-Feature existierende Standardartikel
-            # hatten automatisch EK=0. Beim ersten Start mit dieser Version bekommen sie
-            # sinnvolle Default-EKs, solange noch kein eigener EK gepflegt wurde.
-            conn.execute(
-                "UPDATE items SET purchase_price_eur = ? WHERE id = ? AND purchase_price_eur = 0",
-                (default_purchase, row["id"]),
             )
 
 
@@ -672,68 +663,6 @@ def migrate_old_orders(conn: sqlite3.Connection):
                 now_text(),
             ),
         )
-
-
-def backfill_missing_purchase_snapshots(conn: sqlite3.Connection):
-    """Backfill EK-Snapshots for data created before the EK feature existed.
-
-    New consumptions always snapshot the item's EK at consumption time. Older rows from
-    previous app versions can have 0.00 simply because the column did not exist yet.
-    For those rows only, use the current item EK so reports do not show false zero cost.
-    """
-    conn.execute(
-        """
-        UPDATE order_lines
-        SET unit_purchase_price_eur = (
-            SELECT purchase_price_eur FROM items WHERE items.id = order_lines.item_id
-        )
-        WHERE item_id IS NOT NULL
-          AND COALESCE(unit_purchase_price_eur, 0) = 0
-          AND COALESCE((SELECT purchase_price_eur FROM items WHERE items.id = order_lines.item_id), 0) > 0
-        """
-    )
-    conn.execute(
-        """
-        UPDATE transaction_items
-        SET
-            unit_purchase_price_eur = (
-                SELECT purchase_price_eur FROM items WHERE items.id = transaction_items.item_id
-            ),
-            purchase_total_eur = quantity * (
-                SELECT purchase_price_eur FROM items WHERE items.id = transaction_items.item_id
-            ),
-            profit_eur = total_eur - (quantity * (
-                SELECT purchase_price_eur FROM items WHERE items.id = transaction_items.item_id
-            ))
-        WHERE item_id IS NOT NULL
-          AND COALESCE(unit_purchase_price_eur, 0) = 0
-          AND COALESCE((SELECT purchase_price_eur FROM items WHERE items.id = transaction_items.item_id), 0) > 0
-        """
-    )
-    # „1 Runde“ ist ein interner Runden-Preis, kein Getränk mit eigenem EK.
-    # Falls eine frühere Version dort versehentlich einen EK-Snapshot gespeichert
-    # hat, wird dieser korrigiert. Der Runden-EK kommt ausschließlich aus den
-    # tatsächlich abgezogenen Getränken im round_events-Bericht.
-    conn.execute(
-        """
-        UPDATE order_lines
-        SET unit_purchase_price_eur = 0
-        WHERE item_name_snapshot = ?
-           OR item_id IN (SELECT id FROM items WHERE name = ?)
-        """,
-        (ROUND_ITEM_NAME, ROUND_ITEM_NAME),
-    )
-    conn.execute(
-        """
-        UPDATE transaction_items
-        SET unit_purchase_price_eur = 0,
-            purchase_total_eur = 0,
-            profit_eur = total_eur
-        WHERE item_name_snapshot = ?
-           OR item_id IN (SELECT id FROM items WHERE name = ?)
-        """,
-        (ROUND_ITEM_NAME, ROUND_ITEM_NAME),
-    )
 
 
 def ensure_settings(conn: sqlite3.Connection):

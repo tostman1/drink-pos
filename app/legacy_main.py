@@ -438,11 +438,6 @@ def migrate_old_orders(conn: sqlite3.Connection):
     return schema_service.migrate_old_orders(conn)
 
 
-def backfill_missing_purchase_snapshots(conn: sqlite3.Connection):
-    _configure_schema_runtime()
-    return schema_service.backfill_missing_purchase_snapshots(conn)
-
-
 def ensure_settings(conn: sqlite3.Connection):
     _configure_schema_runtime()
     return schema_service.ensure_settings(conn)
@@ -4975,27 +4970,8 @@ def admin_update_drink(req: AdminItemUpdate):
             )
         except sqlite3.IntegrityError:
             raise HTTPException(status_code=400, detail="Neuer Artikelname existiert bereits")
-        # Alte Zeilen aus Versionen ohne EK hatten 0.00 als Platzhalter. Wenn nun
-        # ein EK gesetzt/geändert wird, korrigieren wir nur diese fehlenden Snapshots.
-        if purchase_price > 0:
-            conn.execute(
-                """
-                UPDATE order_lines
-                SET unit_purchase_price_eur = ?
-                WHERE item_id = ? AND COALESCE(unit_purchase_price_eur, 0) = 0
-                """,
-                (purchase_price, item["id"]),
-            )
-            conn.execute(
-                """
-                UPDATE transaction_items
-                SET unit_purchase_price_eur = ?,
-                    purchase_total_eur = quantity * ?,
-                    profit_eur = total_eur - (quantity * ?)
-                WHERE item_id = ? AND COALESCE(unit_purchase_price_eur, 0) = 0
-                """,
-                (purchase_price, purchase_price, purchase_price, item["id"]),
-            )
+        # Master-data edits affect new bookings, never recorded financial snapshots.
+        # A recorded zero is not evidence of a missing historical purchase cost.
         log_transaction(
             conn,
             None,
