@@ -272,7 +272,7 @@ class FinancialIntegrityTests(unittest.TestCase):
         self.assertEqual(result["network_attempts"], 0)
         self.assertTrue(result["recovery_verified"])
         self.assertTrue(result["versioned_adoption_verified"])
-        self.assertEqual(result["original_tables_preserved"], 17)
+        self.assertEqual(result["original_tables_preserved"], 26)
 
 
 class CorrectionAuditTests(unittest.TestCase):
@@ -307,7 +307,7 @@ class CorrectionAuditTests(unittest.TestCase):
             "/api/admin/change-request/decide", json={"pin": pin, "request_id": request_id, "decision": decision}
         )
 
-    def test_request_approval_replay_and_consumption_gap(self):
+    def test_request_approval_replay_and_net_consumption(self):
         before = self.fixture.state()
         request_id = self.request()
         pending = self.fixture.state()
@@ -318,11 +318,11 @@ class CorrectionAuditTests(unittest.TestCase):
         self.assertEqual(self.fixture.state(), pending)
         self.assertEqual(self.decide(request_id).status_code, 200)
         after = self.fixture.state()
-        self.assertEqual(after["transaction_items"], before["transaction_items"])
+        self.assertEqual(after["transaction_items"][: len(before["transaction_items"])], before["transaction_items"])
         self.assertEqual(after["transactions"][-1][2:4], ("CHANGE_APPROVED", 0))
         self.assertEqual(self.client.get(f"/api/kassa/person/{self.person['id']}").json()["total"], 3)
-        self.assertEqual(self.fixture.report("consumption")["rows"][0][0], 2)
-        self.assertEqual(self.decide(request_id).status_code, 400)
+        self.assertEqual(self.fixture.report("consumption")["rows"][0][0], 1)
+        self.assertEqual(self.decide(request_id).status_code, 200)
         self.assertEqual(self.fixture.state(), after)
 
     def test_rejection_and_duplicate_pending_capacity_do_not_change_debt(self):
@@ -336,7 +336,7 @@ class CorrectionAuditTests(unittest.TestCase):
         self.assertEqual(self.decide(request_id, "reject").status_code, 200)
         self.assertEqual(self.client.get(f"/api/kassa/person/{self.person['id']}").json()["total"], 6)
 
-    def test_negative_admin_adjustment_caps_latest_debt_and_is_not_idempotent(self):
+    def test_negative_admin_adjustment_caps_latest_debt_and_replays_idempotently(self):
         # New selling price creates a separate remaining snapshot, removed first.
         self.post(
             "/api/admin/drinks/update",
@@ -344,14 +344,28 @@ class CorrectionAuditTests(unittest.TestCase):
         )
         self.fixture.book()
         before = self.fixture.state()["transaction_items"]
-        payload = {"pin": "1234", "person_id": self.person["id"], "item_id": self.item["id"], "delta": -1}
+        payload = {
+            "pin": "1234",
+            "person_id": self.person["id"],
+            "item_id": self.item["id"],
+            "delta": -1,
+            "correction_operation_id": "admin-1",
+            "correction_purpose": "erroneous_booking",
+        }
         self.post("/api/admin/adjust-drink", payload)
         self.assertEqual(self.client.get(f"/api/kassa/person/{self.person['id']}").json()["total"], 6)
         self.post("/api/admin/adjust-drink", payload)
+        self.assertEqual(self.client.get(f"/api/kassa/person/{self.person['id']}").json()["total"], 6)
+        self.post("/api/admin/adjust-drink", {**payload, "correction_operation_id": "admin-2"})
         self.assertEqual(self.client.get(f"/api/kassa/person/{self.person['id']}").json()["total"], 3)
-        self.post("/api/admin/adjust-drink", {**payload, "delta": -10})
-        self.assertEqual(self.fixture.state()["transaction_items"], before)
-        self.assertEqual(self.client.post("/api/admin/adjust-drink", json=payload).status_code, 400)
+        self.post("/api/admin/adjust-drink", {**payload, "delta": -10, "correction_operation_id": "admin-3"})
+        self.assertEqual(self.fixture.state()["transaction_items"][: len(before)], before)
+        self.assertEqual(
+            self.client.post(
+                "/api/admin/adjust-drink", json={**payload, "correction_operation_id": "admin-4"}
+            ).status_code,
+            400,
+        )
         with self.legacy.get_conn() as conn:
             self.assertEqual(
                 [r[0] for r in conn.execute("SELECT total FROM transactions WHERE type='ADMIN_ADJUSTMENT'")],
@@ -363,7 +377,14 @@ class CorrectionAuditTests(unittest.TestCase):
         request_id = self.request(2)
         self.post(
             "/api/admin/adjust-drink",
-            {"pin": "1234", "person_id": self.person["id"], "item_id": self.item["id"], "delta": -1},
+            {
+                "pin": "1234",
+                "person_id": self.person["id"],
+                "item_id": self.item["id"],
+                "delta": -1,
+                "correction_operation_id": "insufficient",
+                "correction_purpose": "erroneous_booking",
+            },
         )
         before = self.fixture.state()
         self.assertEqual(self.decide(request_id).status_code, 400)
@@ -379,14 +400,20 @@ class CorrectionAuditTests(unittest.TestCase):
             self.assertEqual(
                 conn.execute("SELECT quantity FROM transaction_items WHERE kind='PAID_CASH'").fetchone()[0], 1
             )
-            self.assertEqual(conn.execute("SELECT COUNT(*) FROM transaction_items WHERE quantity<0").fetchone()[0], 0)
+            self.assertEqual(
+                conn.execute(
+                    "SELECT COUNT(*) FROM transaction_items WHERE kind='CONSUMPTION_CORRECTION' AND quantity<0"
+                ).fetchone()[0],
+                1,
+            )
 
-    def test_payment_without_remaining_lines_commits_resolution_before_error(self):
+    def test_payment_without_remaining_lines_returns_successful_correction_only(self):
         self.request(2)
         response = self.client.post(
             "/api/pay", json={"pin": "1234", "person_id": self.person["id"], "approve_pending": True}
         )
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "correction_only")
         with self.legacy.get_conn() as conn:
             self.assertEqual(conn.execute("SELECT status FROM change_requests").fetchone()[0], "APPROVED")
             self.assertEqual(conn.execute("SELECT SUM(quantity) FROM order_lines").fetchone()[0], 0)
@@ -400,7 +427,14 @@ class CorrectionAuditTests(unittest.TestCase):
                 "ADMIN_ADJUSTMENT",
                 lambda: self.client.post(
                     "/api/admin/adjust-drink",
-                    json={"pin": "1234", "person_id": self.person["id"], "item_id": self.item["id"], "delta": -1},
+                    json={
+                        "pin": "1234",
+                        "person_id": self.person["id"],
+                        "item_id": self.item["id"],
+                        "delta": -1,
+                        "correction_operation_id": "audit-fault",
+                        "correction_purpose": "erroneous_booking",
+                    },
                 ),
             ),
             (
@@ -445,7 +479,14 @@ class CorrectionAuditTests(unittest.TestCase):
         self.assertEqual(
             self.client.post(
                 "/api/admin/adjust-drink",
-                json={"pin": "1234", "person_id": self.person["id"], "item_id": self.item["id"], "delta": -1},
+                json={
+                    "pin": "1234",
+                    "person_id": self.person["id"],
+                    "item_id": self.item["id"],
+                    "delta": -1,
+                    "correction_operation_id": "active-guard",
+                    "correction_purpose": "erroneous_booking",
+                },
             ).status_code,
             409,
         )

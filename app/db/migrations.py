@@ -17,7 +17,7 @@ from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
 
-VERSION = 1
+VERSION = 2
 APPLICATION_ID = 0x44504F53
 # Exact sqlite_master fingerprint of synthetic current baseline at 65d7a869.
 # No custom triggers/indexes/prototype tables, no historical-release claim.
@@ -34,6 +34,15 @@ LEDGER_SQL = """CREATE TABLE schema_migrations (
     completed_at TEXT NOT NULL
 )"""
 CHECKSUM = hashlib.sha256((MIGRATION_ID + "\n" + BASELINE_SCHEMA + "\n" + LEDGER_SQL).encode()).hexdigest()
+CURRENT_SCHEMA = "39dbd90c2aaefdc7437aef27e5ad16bb21db8b1583d2c51d855e50bec32209c5"
+TRANSITION_ID = "0002-transaction-integrity"
+try:
+    from app.db.transaction_schema import SQL as TRANSACTION_SQL, initialize as initialize_transaction_schema
+except ImportError:
+    from db.transaction_schema import SQL as TRANSACTION_SQL, initialize as initialize_transaction_schema
+TRANSITION_CHECKSUM = hashlib.sha256(
+    (TRANSITION_ID + "\n" + BASELINE_SCHEMA + "\n" + CURRENT_SCHEMA + "\n" + "\n".join(TRANSACTION_SQL)).encode()
+).hexdigest()
 
 
 class MigrationRejected(RuntimeError):
@@ -93,7 +102,7 @@ def inspect_connection(conn: sqlite3.Connection) -> dict:
         "application_schema_sha256": fingerprint,
         "ledger_present": bool(ledger_rows),
     }
-    if fingerprint != BASELINE_SCHEMA:
+    if fingerprint not in {BASELINE_SCHEMA, CURRENT_SCHEMA}:
         return result
     if not ledger_rows:
         result["state"] = "recognized-unversioned" if version == 0 and app_id == 0 else "missing-ledger"
@@ -104,7 +113,7 @@ def inspect_connection(conn: sqlite3.Connection) -> dict:
             ("index", "sqlite_autoindex_schema_migrations_1", "schema_migrations", None),
             ("table", "schema_migrations", "schema_migrations", LEDGER_SQL),
         ]
-        or version != VERSION
+        or version not in {1, VERSION}
         or app_id != APPLICATION_ID
     ):
         result["state"] = "inconsistent-ledger"
@@ -112,7 +121,11 @@ def inspect_connection(conn: sqlite3.Connection) -> dict:
     records = conn.execute(
         "SELECT target_version,migration_id,source_version,checksum,source_schema_sha256,target_schema_sha256,kind,completed_at FROM schema_migrations ORDER BY target_version"
     ).fetchall()
-    if len(records) != 1:
+    if not records:
+        result["state"] = "inconsistent-ledger"
+        return result
+    direct_v2 = version == 2 and len(records) == 1
+    if not direct_v2 and len(records) != version:
         result["state"] = "inconsistent-ledger"
         return result
     target, identity, source, checksum, source_hash, target_hash, kind, completed = records[0]
@@ -121,17 +134,44 @@ def inspect_connection(conn: sqlite3.Connection) -> dict:
         valid_time = timestamp.tzinfo is not None and timestamp <= datetime.now(timezone.utc)
     except (ValueError, TypeError):
         valid_time = False
+    expected_first = (
+        (2, TRANSITION_ID, 0, TRANSITION_CHECKSUM, CURRENT_SCHEMA)
+        if direct_v2
+        else (1, MIGRATION_ID, 0, CHECKSUM, BASELINE_SCHEMA)
+    )
     if (
-        (target, identity, source, checksum, target_hash) != (VERSION, MIGRATION_ID, 0, CHECKSUM, BASELINE_SCHEMA)
+        (target, identity, source, checksum, target_hash) != expected_first
         or kind not in {"initialize", "adopt"}
-        or source_hash != (BASELINE_SCHEMA if kind == "adopt" else "")
+        or source_hash != ((CURRENT_SCHEMA if direct_v2 else BASELINE_SCHEMA) if kind == "adopt" else "")
         or not valid_time
     ):
         result["state"] = "inconsistent-ledger"
         return result
-    result["state"] = "versioned-current"
-    result["migration_id"] = identity
-    result["checksum"] = checksum
+    if version == 1:
+        if fingerprint != BASELINE_SCHEMA:
+            result["state"] = "inconsistent-ledger"
+            return result
+        result["state"] = "versioned-upgrade-required"
+    elif not direct_v2:
+        second = records[1]
+        try:
+            second_time = datetime.fromisoformat(second[7])
+            valid_second = second_time.tzinfo is not None and timestamp <= second_time <= datetime.now(timezone.utc)
+        except (ValueError, TypeError):
+            valid_second = False
+        if (
+            fingerprint != CURRENT_SCHEMA
+            or tuple(second[:7])
+            != (2, TRANSITION_ID, 1, TRANSITION_CHECKSUM, BASELINE_SCHEMA, CURRENT_SCHEMA, "initialize")
+            or not valid_second
+        ):
+            result["state"] = "inconsistent-ledger"
+            return result
+        result["state"] = "versioned-current"
+    else:
+        result["state"] = "versioned-current" if fingerprint == CURRENT_SCHEMA else "inconsistent-ledger"
+    result["migration_id"] = TRANSITION_ID if version == 2 else identity
+    result["checksum"] = TRANSITION_CHECKSUM if version == 2 else checksum
     return result
 
 
@@ -165,7 +205,7 @@ def inspect(database: Path) -> dict:
 def permitted(result: dict, *, allow_fresh: bool, adopt_legacy: bool) -> None:
     state = result["state"]
     if (
-        state == "versioned-current"
+        state in {"versioned-current", "versioned-upgrade-required"}
         or state == "fresh-permission-required"
         and allow_fresh
         or state == "recognized-unversioned"
@@ -239,18 +279,38 @@ def migrate(
                         raise MigrationRejected("Fresh initialization schema differs from verified baseline")
                 elif inspect_connection(conn) != initial:
                     raise MigrationRejected("Source prerequisites changed before transaction")
-                conn.execute(LEDGER_SQL)
+                upgrading = initial["state"] == "versioned-upgrade-required"
+                if not upgrading:
+                    conn.execute(LEDGER_SQL)
                 checkpoint("after-schema", conn)
+                old_baseline = initial.get("application_schema_sha256") == BASELINE_SCHEMA and not fresh
+                if not upgrading and old_baseline:
+                    conn.execute(
+                        "INSERT INTO schema_migrations VALUES(?,?,?,?,?,?,?,?)",
+                        (
+                            1,
+                            MIGRATION_ID,
+                            0,
+                            CHECKSUM,
+                            BASELINE_SCHEMA,
+                            BASELINE_SCHEMA,
+                            "adopt",
+                            datetime.now(timezone.utc).isoformat(),
+                        ),
+                    )
+                initialize_transaction_schema(conn)
+                checkpoint("after-transaction-schema", conn)
+                transitioning = upgrading or old_baseline
                 conn.execute(
                     "INSERT INTO schema_migrations VALUES(?,?,?,?,?,?,?,?)",
                     (
-                        VERSION,
-                        MIGRATION_ID,
-                        0,
-                        CHECKSUM,
-                        "" if fresh else BASELINE_SCHEMA,
-                        BASELINE_SCHEMA,
-                        "initialize" if fresh else "adopt",
+                        2,
+                        TRANSITION_ID,
+                        1 if transitioning else 0,
+                        TRANSITION_CHECKSUM,
+                        BASELINE_SCHEMA if transitioning else ("" if fresh else CURRENT_SCHEMA),
+                        CURRENT_SCHEMA,
+                        "initialize" if transitioning or fresh else "adopt",
                         datetime.now(timezone.utc).isoformat(),
                     ),
                 )

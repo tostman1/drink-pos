@@ -114,6 +114,23 @@ See `docs/release-safety.md`, `docs/rl-01-contract.md` and proposed RL-02.
 
 ## Migration Strategy
 
+RL-05 adds bounded correction persistence (`services/corrections.py`) and literal
+additive DDL (`db/transaction_schema.py`), not prototype route replacement. Operation
+receipts/source links/correction details and stable round units/payment links/
+deductions/cancellations/reversals retain originals and provide relational audit.
+Served write boundaries use BEGIN IMMEDIATE; helpers share caller transaction.
+New exact v2 schema/frozen transition preserves v1 ledger and original rows; strict
+still opt-in/fail-closed/no WAL recovery. Legacy initializer adds only empty tables/
+indexes/triggers transactionally; no automatic historical source reconstruction.
+Normal consumption reads explicit signed sources, paid snapshots distinct; person
+history no longer heuristically subtracts old request names/time. See RL-05 contracts.
+
+R5-02 adds read-only `services/correction_coverage.py` for complete ordinary/round
+parent-audit linkage validation, not financial reconstruction or authorization. New
+member decisions populate the existing receipt transaction_id; old receipts remain.
+R5-01 round finance readers apply opposite VK signs to deduction/reversal, matching
+their expense/profit convention; consumption/paid paths and v2 DDL are unchanged.
+
 RL-04 scoped preservation supersedes former RL-01/03 rewrite descriptions below:
 `admin_update_drink` is master-only plus audit; legacy initializer no longer calls
 historical cost backfill/round reset and initializes missing default products only.

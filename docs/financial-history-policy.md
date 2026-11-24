@@ -1,5 +1,25 @@
 # Historical financial preservation and legacy adoption decisions
 
+## RL-05 scoped owner decisions — 2026-11-24
+
+Normal consumption is current net consumption after approved erroneous-booking
+corrections, attributed to original consumption period. Original T/TI financial
+snapshots remain unchanged; corrections append source-linked detail and actual audit
+timestamp. Round cancellation separately cancels durable unit entitlement and reverses
+only exact linked deductions when unpaid/current/unsettled; paid/closed/unknown/legacy
+attribution blocks. Paid revenue/profit snapshots stay authoritative; restoration is
+not new physical consumption. See correction-audit/round-cancellation/rl-05 contracts.
+No old correction inference, historical export/invoice regeneration, refunds, as-of
+reports or extra historical fingerprint. FH-05 and broader OQ-06 remain open.
+
+R5-01/02 review corrections: round-finance VK uses original deduction +abs(total)
+and compensating reversal −abs(total), matching its signed expense/profit and separate
+round-event totals. Physical net consumption/paid snapshots unchanged. Audit coverage
+recognizes complete source-linked round as well as ordinary corrections; incomplete
+or historical T-only/NULL-parent receipts remain unverified. New member receipts
+record the existing approval parent FK, never backfilled. See correction/round contracts;
+no storage/migration/historical financial UPDATE or provider/refund change.
+
 ## RL-04 scoped owner authorization — 2026-11-24
 
 **Routine snapshot preservation is approved and implemented for review**, baseline

@@ -24,6 +24,45 @@ Observed results are dated in PROGRESS.md; no invented coverage percentages.
 
 ## RL-03 distinct financial-history findings — OPEN
 
+### RL-05 independent review R5-01/02 — implemented; second review pending
+
+- **R5-01 Medium:** profit report/statistics finance used +abs(VK) for deduction and
+  reversal (3,00+3,00=6,00; mixed-member 8,00+8,00=16,00). Reversal now contributes
+  opposite VK; cost/profit signs, paid snapshots/physical consumption/old records
+  unchanged. Served preview/CSV/statistics/RE/read-only/replay tests added.
+- **R5-02 Low/Medium:** ordinary-detail existence misclassified member round approvals
+  and missed partial new operations. Read-time complete ordinary/round relationship
+  validation added; missing/contradictory links remain unverified. Narrow related
+  discovery: member-decision receipts lacked exact parent transaction_id; now populated
+  for new decisions only, pre-fix NULL-parent receipts remain explicitly unverified.
+  No guesses/backfill/global suppression/schema/migration or provider effects.
+- `tests/test_review_reporting.py` adds 16 served regressions. Initial nine tests
+  produced seven expected failures (including subtest parent-link failures); subsequent
+  fixtures cover old T-only, partial detail/reversal/cancellation, unrelated/NULL parent,
+  malformed receipt, multi-parent operation, RE mismatch and second-boundary timestamps.
+  Exact full gates/PR second review pending; earlier FH-04 closure does not negate
+  these specific findings. FH-05/broader OQ-06/Windows/manual limits unchanged.
+
+Implementation `c26879f…` full exact-head branch `45381146469` / PR `45381154883`
+passed both Python matrices/all 16 review regressions/actual-image reconciliation/
+v1 transition/recovery/encrypted DR/image audit, publication skipped. R5-01/02 fixed
+in implementation; second independent review pending, final receipt head CI verified
+separately at delivery. No historical-data repair or authenticity guarantee.
+
+### RL-05 implemented contract (independent review pending)
+
+FH-04 new ordinary corrections append complete source-linked signed TI/metadata/
+operation identity; normal net consumption at original period, serialized decisions,
+keyed retries and correction-only pay. Round addendum replaces count/index allocation
+for new tracked units with exact deduction/reversal provenance; unsupported old,
+paid, closed or uncertain states block, not guessed. **FH-04 new-operation audit gap
+addressed**, exact corrected-head branch/PR CI `45367327293`/`45367337289` passes
+both matrices/all 30 new tests/actual-image net+round/v1 transition/full recovery+DR.
+Historical T-only originals are not reconstructed. FH-05 still open; original
+financial snapshots preserved. Final receipt head requires its own CI; independent
+review/manual/operational acceptance not implied by implementation closure.
+Former RL-04 T-only/replay/HTTP ambiguity receipts below are historical baseline.
+
 ### RL-04 current disposition — 2026-11-24 (review pending)
 
 | Finding | Current status / new evidence |

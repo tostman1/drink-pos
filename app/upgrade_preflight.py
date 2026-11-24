@@ -131,10 +131,10 @@ def evaluate(
     migration = inspect_migrations(bundle / "state/database.db")
     ledger_present = "schema_migrations" in manifest["database"]["tables"] or migration.get("ledger_present", False)
     if ledger_present or manifest["database"]["user_version"] != 0 or manifest["database"]["application_id"] != 0:
-        if migration["state"] != "versioned-current":
+        if migration["state"] not in {"versioned-current", "versioned-upgrade-required"}:
             issue("migration-ledger-unsupported-or-inconsistent", "unsafe")
         else:
-            issue("migration-ledger-verified-v1", "rehearsal-ready")
+            issue("migration-ledger-verified", "rehearsal-ready")
     if not STATE_TABLES.issubset(manifest["database"]["tables"]):
         issue("required-application-state-tables-missing", "unsafe")
     for name, identity in (("current", current), ("candidate", candidate)):
@@ -147,10 +147,13 @@ def evaluate(
             or identity["format_version"] != 1
             or identity["application_bundle_version"] != 1
             or identity["schema_version"] is not None
-            and (type(identity["schema_version"]) is not int or identity["schema_version"] != 1)
+            and (type(identity["schema_version"]) is not int or identity["schema_version"] not in {1, 2})
         ):
             issue(name + "-identity-format-unsupported", "unknown")
-        if identity["schema_version"] == 1 and migration["state"] != "versioned-current":
+        if identity["schema_version"] is not None and (
+            migration["state"] not in {"versioned-current", "versioned-upgrade-required"}
+            or identity["schema_version"] != migration["version"]
+        ):
             issue(name + "-declared-schema-ledger-unverified", "unknown")
         for field, pattern in (
             ("git_commit", r"[0-9a-f]{40}"),

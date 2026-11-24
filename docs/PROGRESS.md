@@ -1,5 +1,189 @@
 # Engineering foundation progress
 
+## RL-05 R5-01/02 review corrections — 2026-11-24
+
+Continued clean fetched/local/remote reviewed `f4d56ffcb4992dfbef813f05ab5feafc19a88f52`
+on existing feature/rl-05-transaction-integrity / PR #10 OPEN. Main unchanged
+`2cc36fd69ec56dbdfe65ffb7ed98600d7c33b7c4`, no rewrite/restart/delegation. Mandatory
+docs and served handlers/actual receipt schema inspected; bounded ready-gate addendum
+in rl-05-contract before code. R5-01/02 plus narrow omitted approval-parent discovery.
+
+Initial 9 served regressions **7 expected failures**, proves VK 6/16 instead of zero,
+NULL member-decision parent and missed partial detail/reversal (`rl05-review-red.log`
+outside Git). Expanded **16 tests pass** locally, full gates still pending. Reversal
+VK sign corrected in both read paths; separate RE/expense/profit/payment/consumption
+unchanged. Complete ordinary/round coverage validates relational snapshots/receipt/
+request/reservations/all reversal/RE details, fails unverified for partial/old data.
+New member receipt existing transaction_id links exact parent; never UPDATE old rows.
+
+Installed-style served financial rehearsal covers two VK/EK generations/member approval/
+exact zero round report, physical quantity/debt/original audit/replay and coverage;
+network_attempts=0/recovery_verified=true. Initial synthetic placement after seed
+hit preserved UNKNOWN-card guard; moved scenario before provider uncertainty, no
+guard bypass. Mistyped fixture settings route corrected to existing /settings/update.
+Original implementation/migrations/DDL/ledger/provider/UI/deployment untouched except
+new receipt insert field. Final local 3.12/3.13/CI/container/recovery receipts pending.
+No production/provider/refund/mail/release/publication/deploy/schedule/merge.
+
+First full 3.12/3.13 Standard Checks stopped at Ruff format for the changed legacy
+handler (no suite pass claimed); changed-handler formatting corrected and full
+reruns running. Focused 16-test gate passes, including chronology across second
+boundaries/missing receipts/RE inconsistency; no existing format/check weakened.
+
+### Review correction pre-commit verification
+
+Full Standard Checks **exit 0** Python **3.12.13/3.13.15**: **309 discovered/303
+passed/six POSIX-only skips**, **179.707s/180.073s** unittest. All existing 293 and
+16 new review methods execute; Ruff/84-file format/syntax/24-ID traceability/Chromium
+keyed UI replay/real age/security audits (**no known vulnerabilities**)/diff pass.
+Logs outside Git `rl05-review-full312.log`/`rl05-review-full313.log`; initial format
+failures retained. No WinError 5 during successful gates (still unresolved/not fixed).
+Final installed scenario additionally asserts served finance and RE zero totals;
+committed-tree/full actual-image/exact-head CI verification remains required.
+
+Full scoped diff review: only 2 report VK sign changes, member receipt parent insert,
+read-only coverage service/new tests/installed rehearsal/docs. Existing source IDs/
+quantities/round lifecycle/concurrency locks/card uncertainty/refund/paid-profit/
+period logic/UI/worker/v2 DDL/hash/ledger/migration/EF08 tools/deployment have zero
+diff vs reviewed head. No original financial UPDATE; synthetic damage only in tests.
+
+### R5-01/02 committed implementation CI
+
+Fix commit **`c26879f9c1a7b674d25acda5abf6a72f1a3a03bc`** pushed on existing PR #10;
+exact branch https://github.com/tostman1/drink-pos/actions/runs/45381146469 and PR
+https://github.com/tostman1/drink-pos/actions/runs/45381154883 **success**. Both Linux
+Python matrices **309 discovered/308 passed/one Windows-only skip**, all 16 new
+review methods execute ok. Full quality/browser/security/real-age, actual Docker/
+four Compose/start-restart/legacy upgrade/prepared v1→v2/strict fresh-adoption-repeat/
+served mixed-snapshot round-report+coverage/full independent application recovery/
+encrypted source+owned-image-loss DR/image audit pass; publication **skipped**.
+Installed evidence reporting_verified/coverage_verified/history_rewritten=false/
+recovery_verified=true/network_attempts=0, 26 tables, two mocked card calls. Branch
+image binds c26879f; PR image binds GitHub merge-test `819414909aaa23c7b6c0e345bd0690c8455f2529`.
+PR synthetic RPO 0.353222s/RTO 2.316512s, not operational guarantees. Logs/validated
+summaries outside Git `rl05-r5-45381146469-*`/`rl05-r5-45381154883-*`.
+
+This evidence update is documentation-only and needs its **own** final-head CI/local
+verification after push; exact final SHA/run/results recorded in PR delivery comment,
+never predecessor inference. Second independent owner review pending; PR stays OPEN,
+no merge/deploy/publication/production/provider/mail/history repair or new package.
+
+Committed implementation local Standard Checks **exit 0** Python 3.12.13/3.13.15:
+309 discovered/303 passed/six POSIX skips each, 203.933s/205.353s; all quality,
+traceability/real-age/audit none known/Chromium/diff pass. Outside-Git logs
+`rl05-r5-committed312.log`/`rl05-r5-committed313.log`. Lifecycle/TestClient/Node-action/
+LF→CRLF warnings retained; no Windows WinError 5 fix inferred. Final evidence-only
+descendant requires own full local/exact-head CI results as above.
+
+## RL-05 active — 2026-11-24
+
+Verified clean/fetched main `2cc36fd69ec56dbdfe65ffb7ed98600d7c33b7c4`, dedicated
+feature/rl-05-transaction-integrity; all earlier branches preserved, no agents.
+Mandatory docs/runtime inspected; owner addendum incorporated before persistence
+design in `docs/rl-05-contract.md`. Original test-first run 17 discovered/12 failures/
+five errors proves missing new contracts (`rl05-red.log` outside Git). Initial expanded
+22 targeted correction/round/migration tests pass; full gates still pending.
+
+New source-linked signed corrections/committed receipts, net original-period reports,
+correction-only HTTP success, serialized requests/pay/cashup and exact round unit/
+deduction/reversal model implemented under review. Additive v2 empty extension,
+no old historical links inferred; paid/closed/unknown/unassigned round states block.
+Worker v109/vanilla first-party action IDs; APIs intentionally require negative
+purpose/ID and manual round unit. Existing defect tests converted, financial originals
+still compared. Whole application/source-loss fixture extended with reversal state.
+
+Broad runs failed (not passes): first lacked age PATH and exposed compatibility/
+count expectations; subsequent run used age but found unpopulated new recovery tables,
+old person-history expectations/traceability and concurrent code-edit schema mismatch.
+Fixes/populated served recovery tests and frozen model verification in progress; no
+production data/provider/network operations, no commits/push/PR yet. Full Python
+3.12/3.13/browser/security/container/migration/DR/exact-head CI required before delivery.
+FH-04 not closed yet, FH-05/OQ-06 broader/WinError 5/device/operational gaps retained.
+
+Model expanded: nine provenance/receipt/round tables with exact v2 hash
+`39dbd90c2aaefdc7437aef27e5ad16bb21db8b1583d2c51d855e50bec32209c5`, immutable
+provenance/snapshot/permanent cancellation guards. Actual prepared v1 transition
+keeps all old tables/sequence/ledger; direct v2 establishes actual history only.
+29 targeted tests pass including admin/member replay, net 5−2=3, original-period cost,
+round cancellation versus cashup/payment concurrency, SQL stage faults and interrupted
+v1 migration. Existing broad failed receipts retained: formatting failed first full
+Standard Checks; later checks overlapped code/model additions and produced stale
+PayRequest attribute/schema failures, not accepted evidence. Frozen-tree rerun in
+progress; no guards weakened. Chromium expanded to first-party keyed removal/replay;
+worker v109/manual device acceptance remains pending.
+
+Frozen broad Standard Checks reached 292 tests with only one remaining old
+unqualified recovery SELECT expectation failing; now explicitly selects original
+historical row, preserving assertion. First-party Chromium correction/replay passes
+after synthetic session PIN reset before separate admin login (initial smoke failed
+hidden login field, not application correction failure). Formatted changed files only.
+Installed-style migration script additionally prepares original exact v1/ledger then
+executes real v2 and proves no invented correction/unit rows, full independent recovery,
+network_attempts=0; local actual-container verification still unavailable.
+
+### Local review candidate gate
+
+Full Standard Checks **exit 0** Python **3.12.13/3.13.15**, **292 discovered/286
+passed/six POSIX skips** each, **161.748s/163.662s** unittest. Ruff/82-file format/
+syntax/24-ID traceability/real age/financial+29 new RL-05 tests/migration/recovery/
+audits (**no known vulnerabilities**)/Chromium first-party keyed correction replay/
+diff pass; actionlint passes. Logs `rl05-gate312.log`/`rl05-gate313.log` outside Git.
+Earlier failed runs retained, no WinError 5 during successful gate (not a fix).
+Model/code stable; installed-style script adds actual prepared v1 rehearsal and passes,
+exact-head CI/actual Docker/final committed-tree gates still required. Refetched main
+unchanged exact baseline; deployment/Compose/provider/EF08 tool code unchanged.
+
+### First committed-head verification and reservation review
+
+PR #10 https://github.com/tostman1/drink-pos/pull/10 OPEN at implementation/doc
+`33c0d82e7374c4e1c0d378558a7a460421af58bb`, four commits `a013878`/`e50ba38`/
+`62464be`/`33c0d82`. Exact branch `45365814913` and PR `45365827911` **success**:
+Linux each 292 discovered/291 passed/one Windows-only skip, all 29 new tests ok;
+actual Docker/4 Compose/legacy upgrade/prepared v1→v2/repeat/financial net+round
+reversal/independent recovery/encrypted source+owned-image-loss DR/image audit pass,
+publication skipped, network_attempts=0. Prior eight-table model yielded 25 tables;
+current reservation extension below changes model/evidence needs final rerun.
+
+Final review found pending round approval could select a newer unit after another
+booking aggregated into same O. Added `round_request_units` immutable request↔unit
+reservation at creation, approval uses exact IDs, conflicting direct cancellation
+blocks; focused regression before final delivery. Current genuine v2 DDL updated
+(not another migration of published state, no production adoption), nine tables/26
+total. Pending-round approved sources not reconstructed for legacy requests. Also
+serializes old pending round-add decision. No other new policy; exact final-head
+gates rerun required after this correction. Committed-head local 3.12/3.13 pass
+retained, new head/local counts follow after verification. FH-04 closure deferred
+until final evidence; original financial and deployment boundaries unchanged.
+
+### Corrected-head actual-image verification
+
+Reservation correction `23420966af12044b16dd3320a03ef16e4f9ff6f8` passed exact branch
+https://github.com/tostman1/drink-pos/actions/runs/45367327293 and PR
+https://github.com/tostman1/drink-pos/actions/runs/45367337289, both Linux matrices
+**293 discovered/292 passed/one Windows-only skip**, all **30** new methods execute
+ok. Quality/security/Chromium first-party replay/real-age pass. Actual Dockerfile/
+4 Compose/start-restart/legacy upgrade/prepared v1→v2/fresh-adoption-repeat/full net+
+round financial scenario/independent EF08 recovery/encrypted source+owned-image-loss
+DR/image audit pass; publication skipped. 26 original tables preserved/no historical
+rewrite/recovery=true/network_attempts=0/two mocked paid/unknown calls. Branch image
+exact head; PR image merge-test `63b9a72f83ebb61f71dad6145ae3b24340c8612d`. PR synthetic
+RPO age 0.359133s/RTO 2.287388s, no geographic/immutable/operator guarantees.
+
+FH-04 new-operation missing-detail/replay/transaction/net contract addressed; no old
+history fabrication, FH-05/broader OQ-06/WinError 5/device/operational evidence stay
+open. Independent review pending. Documentation-only final receipt requires its own
+final branch/PR CI/local gate and exact final SHA in PR comment/report. No merge/
+release/deploy/production data/migration/real SumUp/SMTP/updater/schedule changes.
+Initial reservation local gate failed cached formatting in two count assertions;
+formatter rerun produced **no tracked byte changes**, current Ruff passes and CI
+quality confirmed; no new style commit, no ignored check. Fresh local recheck running.
+
+Corrected-head local recheck **exit 0** Python 3.12.13/3.13.15: **293 discovered/287
+passed/six POSIX skips** each, **149.388s/162.474s** unittest. Ruff/format/syntax/
+traceability/real age/security audits none known/Chromium/keyed UI replay/diff pass;
+logs outside Git `rl05-reserved-recheck312.log`/`rl05-reserved-recheck313.log`. Still
+no Windows WinError 5 fix, manual device/operational acceptance or local Docker claim.
+
 ## RL-04 final integration — 2026-11-24
 
 - Owner independent review complete, no approved-scope merge blockers; explicit

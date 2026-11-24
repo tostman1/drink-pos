@@ -14,6 +14,7 @@ PYTHON_BASELINE = ["3.12", "3.13"]
 MIGRATION_INPUTS = (
     "db/schema.py",
     "db/migrations.py",
+    "db/transaction_schema.py",
     "db/connection.py",
     "config.py",
     "utils/helpers.py",

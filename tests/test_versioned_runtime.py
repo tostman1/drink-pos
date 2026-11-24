@@ -76,4 +76,4 @@ class VersionedRuntimeTests(unittest.TestCase):
                 self.assertEqual(client.get(f"/api/kassa/person/{person['id']}").json()["lines"], [])
                 with legacy.get_conn() as conn:
                     self.assertEqual(conn.execute("PRAGMA foreign_keys").fetchone()[0], 1)
-                    self.assertEqual(conn.execute("PRAGMA user_version").fetchone()[0], 1)
+                    self.assertEqual(conn.execute("PRAGMA user_version").fetchone()[0], 2)

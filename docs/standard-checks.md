@@ -27,6 +27,19 @@ but is not the full gate and is less isolated from a caller's environment.
 
 ## Required stages
 
+RL-05 adds served net-consumption/keyed correction/pay/round reversal and actual
+concurrency/fault/v1→v2 interruption tests in test_transaction_integrity. Full all-table
+recovery fixtures populate nine new tables through served operations; disaster fixture
+includes cancelled/reversed round and corrected consumption before source loss.
+Worker shell v109 review required; device/installed-PWA upgrade MV-01/02 still pending.
+
+R5-01/02 add `tests/test_review_reporting.py`: served round VK/cost/profit/RE
+preview/CSV reconciliation, paid stored-zero preservation, mixed-member snapshots,
+replay/no-write and complete-versus-partial/legacy ordinary/round provenance. Installed
+financial rehearsal asserts reporting and coverage before introducing mock provider
+uncertainty; no UNKNOWN guard bypass. Existing v2/migration/browser/EF08 gates retained.
+No UI/worker change in this review correction, no extra cache bump/device pass inferred.
+
 RL-04 adds `tests/test_financial_integrity.py` (served snapshot/report/correction
 faults and full scenario) and converts RL-03/RL-01 old-defect expectations into
 preservation regressions; former failures/receipts stay documented. Actual-image CI

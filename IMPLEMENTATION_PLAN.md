@@ -1,5 +1,15 @@
 # Engineering foundation work packages
 
+## RL-05 — approved transaction integrity + round addendum (2026-11-24)
+
+Ready gate `docs/rl-05-contract.md`, exact round lifecycle/blocks in
+`docs/round-cancellation-contract.md`. Append source-linked corrections, net-original-
+period reports, keyed negative admin/payment receipts, serialized request decisions,
+explicit correction-only success and existing vanilla UI adaptation. Real additive
+v2 migration plus durable round unit/deduction/reversal provenance and fail-closed
+paid/closed/unknown/legacy states. Synthetic full financial/container/source-loss
+recovery and both Python exact-head CI; no merge/publication/production/history repair.
+
 ## RL-04 — approved scoped financial integrity (2026-11-24)
 
 DP-002/004/005/013/014/024; ready gate `docs/rl-04-contract.md`. Remove routine

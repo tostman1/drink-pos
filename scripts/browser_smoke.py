@@ -91,6 +91,26 @@ def verify() -> None:
                             page.locator("#drinkButtons button").first.click()
                         page.locator(".finish-button").click()
                         expect(page.locator("#personDialog")).not_to_be_visible()
+                        # RL-05 first-party negative correction carries a durable
+                        # action ID/purpose; replay through served API changes no debt.
+                        page.on("dialog", lambda dialog: dialog.accept("847296"))
+                        page.locator("#adminButton").click()
+                        page.locator(".person-row").first.click()
+                        expect(page.locator("#adminAdjustBox")).to_be_visible()
+                        with page.expect_response(
+                            lambda response: response.url.endswith("/api/admin/adjust-drink") and response.status == 200
+                        ) as correction_response:
+                            page.locator("#adminAdjustBox button.danger:enabled").first.click()
+                        response = correction_response.value
+                        payload = response.request.post_data_json
+                        assert (
+                            payload["correction_operation_id"] and payload["correction_purpose"] == "erroneous_booking"
+                        )
+                        original_result = response.json()
+                        replay = context.request.post(base + "/api/admin/adjust-drink", data=payload)
+                        assert replay.status == 200 and replay.json() == original_result
+                        page.locator(".finish-button").click()
+                        page.evaluate("sessionStorage.removeItem('drinkPosAdminPin')")
                         page.goto(base + "/admin")
                         page.locator("#pinInput").fill("847296")
                         page.get_by_role("button", name="Einloggen", exact=True).click()
@@ -123,7 +143,9 @@ def verify() -> None:
                         context.close()
                     finally:
                         browser.close()
-                print("Browser smoke passed: Chromium/member booking/admin/event +1/-1/kassa/self-pay, no page errors.")
+                print(
+                    "Browser smoke passed: Chromium/member booking/keyed correction replay/admin/event +1/-1/kassa/self-pay, no page errors."
+                )
             except Exception:
                 print("".join(lines))
                 raise

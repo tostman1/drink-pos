@@ -1,5 +1,92 @@
 # Handoff and protected work
 
+## Active RL-05 R5-01/02 review continuation — 2026-11-24
+
+Owner authorizes bounded review fixes on existing PR #10, not merge/new package.
+Incoming clean reviewed/local/remote `f4d56ffcb4992dfbef813f05ab5feafc19a88f52`, main
+`2cc36fd69ec56dbdfe65ffb7ed98600d7c33b7c4`. Preserve original RL05 work/branches.
+R5-01 opposite round-reversal VK; R5-02 complete ordinary/round read-time provenance
+classification. Narrow necessary new member receipt parent T field only, no old
+receipt rewrite/DDL/v2/ledger change. 16 served tests pass after initial failing
+regressions; actual full local/exact-final-head container+DR/PR gates still required.
+Paid/physical net/source-period/idempotency/round safety untouched. Old incomplete
+or NULL-parent approvals stay unverified; no reconstruction. FH-05/broader OQ-06/
+WinError 5/MV01..05/operational MV06 remain unresolved. Leave PR open; second review
+after complete delivery, no merge/deploy/publish/production/payment/refund/mail/schedules.
+
+R5-01/02 implementation **`c26879f9c1a7b674d25acda5abf6a72f1a3a03bc`** passed exact
+branch https://github.com/tostman1/drink-pos/actions/runs/45381146469 and PR
+https://github.com/tostman1/drink-pos/actions/runs/45381154883; both Linux matrices
+309 discovered/308 passed/one Windows-only skip, all 16 new regressions ok; actual
+image financial reporting/coverage/v1→v2/recovery/DR/image-audit and all original
+gates pass, publication skipped. Scope only reporting validation/new receipt parent
+INSERT and synthetic tests/docs; original schema/ledger/financial snapshots untouched.
+This final documentation-only evidence descendant must pass its own final-head
+CI/local gate; read actual SHA and record final branch/PR links/results on PR #10
+delivery receipt. No self-referential SHA/predecessor inference; stop after delivery.
+
+## RL-05 review submission receipt — 2026-11-24
+
+PR https://github.com/tostman1/drink-pos/pull/10 **OPEN/unmerged**, exact base remains
+`2cc36fd69ec56dbdfe65ffb7ed98600d7c33b7c4`. Core/UI/tests/docs `a013878`/`e50ba38`/
+`62464be`/`33c0d82`, final reservation fix **`23420966af12044b16dd3320a03ef16e4f9ff6f8`**.
+Exact branch https://github.com/tostman1/drink-pos/actions/runs/45367327293 and PR
+https://github.com/tostman1/drink-pos/actions/runs/45367337289 success; Linux both
+matrices **293 discovered/292 passed/one Windows-only skip**, all 30 new tests execute
+ok. Actual Docker/4 Compose/restart/legacy upgrade/prepared v1→v2/fresh-adoption-repeat/
+net consumption+round cancellation financial scenario/EF08 recovery/encrypted source+
+owned-image-loss DR/image audit pass, publication skipped. 26 tables preserved,
+history_rewritten=false/recovery_verified=true/network_attempts=0/two mocked card calls.
+Synthetic only, not authentic historical or production evidence. PR image binds merge-
+test SHA `63b9a72f83ebb61f71dad6145ae3b24340c8612d`, branch image exact head.
+
+FH-04 new operations addressed through source-linked signed correction/provenance,
+durable keyed retries, exact original-period net reporting and round-unit/deduction/
+reservation/cancellation/reversal relations. Paid/closed/unknown/legacy attribution
+fail closed; no reconstructed missing old details/refunds/stock return/new physical
+consumption. FH-05/broader OQ-06/EF-08a WinError 5/manual/operational acceptance remain.
+Real v2 additive nine-table schema, no original rebuild/backfill/additional old schema
+fingerprint; default legacy retained. First-party IDs/preview/worker v109 compatibility
+changes documented. No production/deploy/publication/real provider/mail/schedule/merge.
+
+This documentation-only descendant receipt must pass its **own** final-head CI and
+full local gates; resolve final SHA/links/results after push and record on PR/report,
+not a self-referential SHA or predecessor inference. Retain current reservation/full
+gate logs including initial local Ruff-cache stale-format warning/failure (formatter
+rerun changed no Git bytes); Linux exact-head quality passed without suppression.
+Stop after complete review delivery; independent owner review next, no next package.
+
+Corrected-head local full gate: Python 3.12.13/3.13.15 **exit 0**, 293 discovered/287
+passed/six POSIX skips, 149.388s/162.474s; all quality/browser/security/traceability/
+real age pass. Final receipt descendant needs own exact-head local/CI verification.
+
+## RL-05 active handoff — 2026-11-24
+
+Owner authorizes net-consumption/source-linked correction/idempotency/transaction
+integrity plus mandatory coordinated round cancellation, **not merge/production**.
+Base `2cc36fd69ec56dbdfe65ffb7ed98600d7c33b7c4`, feature/rl-05-transaction-integrity.
+Plan `docs/rl-05-contract.md`; round safe/blocked/legacy lifecycle in
+`docs/round-cancellation-contract.md`. Existing work preserved/no delegation.
+Implementation uncommitted, tests/gates in progress; do not treat initial failures
+or targeted passes as full delivery. v2 real additive schema/zero historical inference;
+net correction does not refund/return stock, round restoration not new consumption.
+Paid/closed/uncertain/unattributed round reversals blocked. FH-04 closure pending,
+FH-05 and broader OQ-06/EF-08a WinError 5/manual devices/operational recovery open.
+Final complete local/exact-head container CI/open PR required; no new work/merge/
+deploy/publication/production state/SumUp/SMTP/updater schedules authorization.
+
+Current frozen candidate: 29 targeted RL-05 tests pass; full both-version Standard
+Checks running, earlier formatting/stale in-flight model checks failed and retained.
+No commits/push/PR yet. Full synthetic source-loss fixture includes corrected
+consumption/cancelled round/exact reversal; actual-image CI still required. Use
+current migration/schema (not prior interim hashes) and preserve all evidence gaps.
+
+Full local candidate gate now passes Python 3.12.13/3.13.15, 292 discovered/286
+passed/six POSIX skips each; quality/traceability/real age/audits none known/Chromium
+keyed correction replay/diff pass. 29 new RL05 tests; previous failed logs retained.
+Commit/open PR and exact-final-head CI/recovery receipts pending; do not infer actual
+container proof locally. No merge permission or broader OQ/FH05/manual closure.
+
 ## RL-04 integrated handoff — 2026-11-24
 
 PR #9 https://github.com/tostman1/drink-pos/pull/9 is **MERGED** after completed

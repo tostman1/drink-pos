@@ -148,6 +148,24 @@ and follow-up gates in `docs/correction-audit-contract.md`. FH-05/OQ-06 historic
 correction/inference/adoption/accounting decisions remain open. Prior RL-03 text
 records the former baseline, superseded only by this scoped authorization.
 
+## Approved RL-05 net consumption and coordinated rounds (2026-11-24)
+
+DP-004/005/006/013/024: normal consumption reflects net after source-linked approved
+erroneous-booking reversals, original period attribution, separate immutable audit.
+Negative admin correction requires identity/purpose; keyed replay is once-only,
+request decisions serialized/idempotent, correction-only pay is explicit HTTP success
+without payment. New round units/deductions have durable attribution; safe unpaid
+current cancellation restores exact drink debt once, never physical consumption.
+Paid/closed/unknown/unattributed states fail closed. Genuine additive v2 migration,
+no original rebuild/backfill or additional historical support. See rl-05 and round
+contracts; legacy audit completeness and broad OQ-06/FH-05 remain unresolved.
+
+R5-01/02 scoped review acceptance (DP-004/005/013): exact round deduction/reversal
+nets zero round-finance VK/cost/profit, no paid revenue or physical-consumption change.
+Report coverage distinguishes complete ordinary/round provenance from incomplete/
+ambiguous historical parent audits, without inferring missing detail. New approval
+receipts retain their exact parent T ID using existing fields; old records unchanged.
+
 ## Classification rules
 
 **Confirmed behavior** has direct served-code and test evidence; it may still be

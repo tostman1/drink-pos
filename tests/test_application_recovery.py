@@ -497,6 +497,7 @@ class ApplicationRecoveryTests(unittest.TestCase):
         fixture.setUp()
         try:
             database, _, _, event_id = fixture.populate_operational_database()
+            fixture.populate_transaction_integrity(database)
             with sqlite_conn(database) as conn:
                 conn.row_factory = sqlite3.Row
                 event = conn.execute("SELECT * FROM event_sessions WHERE id=?", (event_id,)).fetchone()
@@ -548,7 +549,7 @@ class ApplicationRecoveryTests(unittest.TestCase):
                 )
                 with sqlite_conn(copied_db) as source, sqlite_conn(target) as recovered:
                     tables = [row[0] for row in source.execute("SELECT name FROM sqlite_master WHERE type='table'")]
-                    self.assertEqual(len(tables), 17)
+                    self.assertEqual(len(tables), 26)
                     for table in tables:
                         self.assertGreater(source.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0], 0)
                         if table != "event_sessions":

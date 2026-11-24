@@ -1,5 +1,11 @@
 # Release identity, preflight and controlled upgrade runbook (RL-01)
 
+RL-05: release migration hash includes transaction_schema; read-only preflight accepts
+verified v1 pending upgrade/v2 ledgers while unknown/corrupt states still fail. Different
+target schema still requires explicit transition evidence (no automatic readiness).
+Actual additive v1→v2 and recovery rehearsed separately; no older image on v2 or
+historical adoption claim. Production rollout requires separate approval.
+
 RL-04 (2026-11-24) supersedes the **former** financial-backfill descriptions below:
 upgrade rehearsal now compares exact pre-startup snapshots with permitted_changes=[];
 no independent expected-cost UPDATE or routine history rewrite. The initializer

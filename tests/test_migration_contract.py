@@ -48,7 +48,7 @@ class MigrationContractTests(unittest.TestCase):
         self.assertFalse((self.root / "messages.json").exists())
         self.apply(database, allow_fresh=True)
         self.assertEqual(m.inspect(database)["state"], "versioned-current")
-        self.assertEqual(m.inspect(database)["version"], 1)
+        self.assertEqual(m.inspect(database)["version"], 2)
         before = recovery.database_metadata(database)
         self.apply(database)
         self.assertEqual(before, recovery.database_metadata(database))
@@ -106,7 +106,7 @@ class MigrationContractTests(unittest.TestCase):
         self.apply(database, adopt_legacy=True)
         baseline = database.read_bytes()
         for sql in (
-            "PRAGMA user_version=2",
+            "PRAGMA user_version=3",
             "DROP TABLE schema_migrations",
             "UPDATE schema_migrations SET checksum='wrong'",
             "DELETE FROM schema_migrations",

@@ -59,6 +59,8 @@ try:
         PinRequest,
         ReportRequest,
         RoundRequestIn,
+        RoundCancellationRequest,
+        RoundDeductionRequest,
         SelfPayRequest,
         SettingsUpdateRequest,
         StatisticsRequest,
@@ -110,6 +112,8 @@ except ImportError:
         PinRequest,
         ReportRequest,
         RoundRequestIn,
+        RoundCancellationRequest,
+        RoundDeductionRequest,
         SelfPayRequest,
         SettingsUpdateRequest,
         StatisticsRequest,
@@ -133,6 +137,8 @@ try:
     from .db import schema as schema_service
     from .services import events as event_service
     from .services import messages as message_service
+    from .services import corrections as correction_service
+    from .services.correction_coverage import ambiguous_correction_transactions
     from .services.statistics import log_transaction, log_transaction_item
     from .services.sync import get_sync_state
     from .utils.formatting import (
@@ -158,6 +164,8 @@ except ImportError:
     import db.schema as schema_service
     from services import events as event_service
     from services import messages as message_service
+    from services import corrections as correction_service
+    from services.correction_coverage import ambiguous_correction_transactions
     from services.statistics import log_transaction, log_transaction_item
     from services.sync import get_sync_state
     from utils.formatting import (
@@ -915,7 +923,40 @@ def current_event_round_units(conn: sqlite3.Connection) -> list[dict]:
                 "deductions": [],
             }
         )
-    return units
+    tracked = conn.execute("""SELECT ru.*,ol.person_id,ol.unit_price_eur,p.name,p.first_name,p.last_name,
+        rup.paid_round_unit_id FROM round_units ru
+        JOIN order_lines ol ON ol.id=ru.original_order_line_id JOIN people p ON p.id=ol.person_id
+        LEFT JOIN round_unit_payments rup ON rup.round_unit_id=ru.id
+        WHERE ru.cancelled_operation_id IS NULL AND ru.closed_transaction_id IS NULL
+        ORDER BY ru.id""").fetchall()
+    tracked_lines = {r[0] for r in conn.execute("SELECT DISTINCT original_order_line_id FROM round_units")}
+    result = []
+    current_start = current_event_start_transaction_id(conn)
+    for row in tracked:
+        if (row["event_start_transaction_id"] or 0) != current_start:
+            continue
+        if conn.execute(
+            "SELECT 1 FROM change_requests WHERE order_line_id=? AND status='PENDING'", (row["original_order_line_id"],)
+        ).fetchone():
+            continue
+        result.append(
+            {
+                "source": "paid_unit" if row["paid_round_unit_id"] else "open_line",
+                "round_unit_id": row["id"],
+                "round_index": len(result) + 1,
+                "payer_person_id": row["person_id"],
+                "payer_name": display_name(row["first_name"], row["last_name"]) or row["name"],
+                "round_price_eur": row["unit_price_eur"],
+                "order_line_id": row["original_order_line_id"],
+                "paid_round_unit_id": row["paid_round_unit_id"],
+                "already_paid": row["paid_round_unit_id"] is not None,
+                "deductions": [],
+            }
+        )
+    for unit in units:
+        if unit["order_line_id"] not in tracked_lines:
+            result.append({**unit, "round_unit_id": None, "round_index": len(result) + 1})
+    return result
 
 
 def current_event_start_transaction_id(conn: sqlite3.Connection) -> int:
@@ -927,12 +968,14 @@ def current_event_round_deduction_counts(conn: sqlite3.Connection) -> dict[int, 
     last_cashup_id = current_event_start_transaction_id(conn)
     rows = conn.execute(
         """
-        SELECT person_id, COALESCE(SUM(ABS(quantity)), 0) AS quantity
-        FROM transaction_items
-        WHERE kind = 'ROUND_DEDUCTED'
-          AND person_id IS NOT NULL
-          AND transaction_id > ?
-        GROUP BY person_id
+        SELECT ti.person_id, COALESCE(SUM(ABS(ti.quantity)), 0) AS quantity
+        FROM transaction_items ti
+        LEFT JOIN round_deductions rd ON rd.transaction_item_id=ti.id
+        LEFT JOIN round_reversals rr ON rr.deduction_id=rd.id
+        WHERE ti.kind = 'ROUND_DEDUCTED'
+          AND ti.person_id IS NOT NULL
+          AND ti.transaction_id > ? AND rr.deduction_id IS NULL
+        GROUP BY ti.person_id
         """,
         (last_cashup_id,),
     ).fetchall()
@@ -943,7 +986,9 @@ def current_event_rounds_revision(conn: sqlite3.Connection) -> str:
     parts = []
     for unit in current_event_round_units(conn):
         source_id = unit["paid_round_unit_id"] if unit["source"] == "paid_unit" else unit["order_line_id"]
-        parts.append(f"{unit['source']}:{source_id}:{unit['payer_person_id']}:{unit['round_price_eur']}")
+        parts.append(
+            f"{unit['source']}:{source_id}:{unit.get('round_unit_id')}:{unit['payer_person_id']}:{unit['round_price_eur']}"
+        )
     raw = "|".join(parts)
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:24]
 
@@ -968,6 +1013,7 @@ def build_person_round_deduction_plan(conn: sqlite3.Connection, person_id: int) 
     round_units = current_event_round_units(conn)
     if not round_units:
         return empty_person_round_deduction_plan()
+    guard_unattributed_round_deductions(conn)
     already_deducted = min(
         len(round_units),
         max(0, current_event_round_deduction_counts(conn).get(int(person_id), 0)),
@@ -1000,7 +1046,16 @@ def build_person_round_deduction_plan(conn: sqlite3.Connection, person_id: int) 
     ).fetchall()
     remaining = {int(row["id"]): max(0, int(row["quantity"]) - int(row["pending_remove"] or 0)) for row in drink_rows}
     deductions = []
-    for round_unit in round_units[already_deducted:]:
+    for round_unit in round_units:
+        if not round_unit.get("round_unit_id"):
+            correction_service.intervention(
+                "Historische Runde ohne eindeutige Zuordnung; Rundenabzug erfordert Admin-Abgleich."
+            )
+        if conn.execute(
+            "SELECT 1 FROM round_deductions WHERE round_unit_id=? AND person_id=?",
+            (round_unit["round_unit_id"], person_id),
+        ).fetchone():
+            continue
         chosen = None
         for row in drink_rows:
             if remaining.get(int(row["id"]), 0) > 0:
@@ -1016,6 +1071,7 @@ def build_person_round_deduction_plan(conn: sqlite3.Connection, person_id: int) 
         deductions.append(
             {
                 "round_index": round_unit["round_index"],
+                "round_unit_id": round_unit["round_unit_id"],
                 "payer_name": round_unit["payer_name"],
                 "person_id": int(chosen["person_id"]),
                 "name": display_name(chosen["first_name"], chosen["last_name"]) or chosen["name"] or "Unbekannt",
@@ -1093,6 +1149,26 @@ def validate_round_deductions_are_current(conn: sqlite3.Connection, deductions: 
     by_line: dict[int, int] = {}
     expected: dict[int, dict] = {}
     for item in deductions:
+        unit = conn.execute("SELECT * FROM round_units WHERE id=?", (item.get("round_unit_id"),)).fetchone()
+        if conn.execute(
+            "SELECT 1 FROM self_payment_sessions WHERE person_id=? AND UPPER(status)='UNKNOWN'", (item["person_id"],)
+        ).fetchone():
+            correction_service.intervention(
+                "Unklare Kartenzahlung der betroffenen Person; kein automatischer Rundenabzug"
+            )
+        if unit is None or unit["cancelled_operation_id"] or unit["closed_transaction_id"]:
+            raise HTTPException(409, "Runde ist nicht mehr gültig oder nicht eindeutig zugeordnet")
+        if (unit["event_start_transaction_id"] or 0) != current_event_start_transaction_id(conn):
+            raise HTTPException(409, "Runde wurde seit der Vorschau abgeschlossen")
+        if conn.execute(
+            "SELECT 1 FROM round_deductions WHERE round_unit_id=? AND person_id=?", (unit["id"], item["person_id"])
+        ).fetchone():
+            raise HTTPException(409, "Runde wurde für diese Person bereits abgezogen")
+        if conn.execute(
+            "SELECT 1 FROM change_requests WHERE order_line_id=? AND status='PENDING'",
+            (unit["original_order_line_id"],),
+        ).fetchone():
+            raise HTTPException(409, "Rundenkorrektur wartet auf Entscheidung")
         line_id = int(item["line_id"])
         by_line[line_id] = by_line.get(line_id, 0) + 1
         expected[line_id] = item
@@ -1191,7 +1267,24 @@ def apply_person_round_deductions(
             f"Vor Zahlung abgezogen: {details_main}",
         ),
     )
+    event_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    link_round_deductions(conn, tx_id, event_id, deductions)
     return tx_id
+
+
+def link_round_deductions(conn, transaction_id, event_id, deductions):
+    details = conn.execute(
+        "SELECT id FROM transaction_items WHERE transaction_id=? AND kind='ROUND_DEDUCTED' ORDER BY id",
+        (transaction_id,),
+    ).fetchall()
+    if len(details) != len(deductions):
+        raise HTTPException(409, "Unvollständiger Runden-Audit")
+    for item, detail in zip(deductions, details):
+        line = conn.execute("SELECT consumed_date FROM order_lines WHERE id=?", (item["line_id"],)).fetchone()
+        conn.execute(
+            "INSERT INTO round_deductions(round_unit_id,person_id,original_order_line_id,transaction_item_id,round_event_id,consumed_date) VALUES(?,?,?,?,?,?)",
+            (item["round_unit_id"], item["person_id"], item["line_id"], detail["id"], event_id, line["consumed_date"]),
+        )
 
 
 def preserve_paid_round_units(
@@ -1220,15 +1313,22 @@ def preserve_paid_round_units(
             for _ in range(qty)
         )
     if rows:
-        conn.executemany(
-            """
+        for values in rows:
+            cur = conn.execute(
+                """
             INSERT INTO paid_round_units (
                 source_order_line_id, payer_person_id, payer_name_snapshot, round_price_eur,
                 payment_transaction_id, event_open, created_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            rows,
-        )
+                values,
+            )
+            unit = conn.execute(
+                "SELECT ru.id FROM round_units ru LEFT JOIN round_unit_payments rup ON rup.round_unit_id=ru.id WHERE ru.original_order_line_id=? AND ru.cancelled_operation_id IS NULL AND rup.round_unit_id IS NULL ORDER BY ru.id LIMIT 1",
+                (values[0],),
+            ).fetchone()
+            if unit:
+                conn.execute("INSERT INTO round_unit_payments VALUES(?,?)", (unit["id"], cur.lastrowid))
 
 
 def kassa_history_timestamp_labels(timestamp: str | None) -> tuple[str, str, str]:
@@ -1251,13 +1351,6 @@ def make_kassa_person_history(
     limit: int = 200,
     include_corrections: bool = False,
 ) -> list[dict]:
-    def history_key(row: sqlite3.Row | dict) -> tuple[object, str, str]:
-        return (
-            row_get(row, "item_id"),
-            str(row_get(row, "item_name_snapshot", "") or ""),
-            str(row_get(row, "item_short_label_snapshot", "") or ""),
-        )
-
     def history_entry(row: sqlite3.Row, quantity: int, type_label: str, direction: str) -> dict:
         date_label, time_label, timestamp_label = kassa_history_timestamp_labels(row["timestamp"])
         return {
@@ -1320,7 +1413,7 @@ def make_kassa_person_history(
         SELECT id, transaction_id, person_id, item_id, kind, timestamp, item_name_snapshot, item_short_label_snapshot, quantity
         FROM transaction_items
         WHERE person_id = ?
-          AND kind IN ('CONSUME', 'ROUND_DEDUCTED', 'ROUND_REQUEST_APPROVED')
+          AND kind IN ('CONSUME', 'ROUND_DEDUCTED', 'ROUND_REQUEST_APPROVED','CONSUMPTION_CORRECTION','ROUND_CANCELLATION','ROUND_DEDUCTION_REVERSAL')
           {item_where}
         ORDER BY timestamp DESC, id DESC
         LIMIT ?
@@ -1354,16 +1447,6 @@ def make_kassa_person_history(
         """,
         correction_params,
     ).fetchall()
-    corrections = [
-        {
-            "key": history_key(row),
-            "decided_at": row["decided_at"],
-            "remaining": int(row["quantity_to_remove"] or 0),
-        }
-        for row in correction_rows
-        if row["status"] == "APPROVED" and int(row["quantity_to_remove"] or 0) > 0
-    ]
-
     history = []
     for row in rows:
         kind = row["kind"]
@@ -1381,28 +1464,31 @@ def make_kassa_person_history(
             quantity = abs(qty)
             type_label = "Runde bezahlt"
             direction = "round_payment"
+        elif kind in {"CONSUMPTION_CORRECTION", "ROUND_CANCELLATION", "ROUND_DEDUCTION_REVERSAL"}:
+            quantity = qty
+            type_label = "Rundenabzug umgekehrt" if kind == "ROUND_DEDUCTION_REVERSAL" else "Fehlbuchung korrigiert"
+            direction = "correction"
         else:
             quantity = abs(qty)
-            row_key = history_key(row)
-            for correction in corrections:
-                if correction["remaining"] <= 0:
-                    continue
-                if correction["key"] != row_key:
-                    continue
-                if correction["decided_at"] and str(row["timestamp"]) > str(correction["decided_at"]):
-                    continue
-                take = min(quantity, int(correction["remaining"]))
-                quantity -= take
-                correction["remaining"] -= take
-                if quantity <= 0:
-                    break
-            if quantity <= 0:
-                continue
             type_label = "Konsum"
             direction = "consume"
-        history.append(history_entry(row, quantity, type_label, direction))
+        entry = history_entry(row, quantity, type_label, direction)
+        if kind == "CONSUMPTION_CORRECTION":
+            detail = conn.execute(
+                "SELECT reason,operation_id,original_order_line_id,consumed_date FROM correction_details WHERE transaction_item_id=?",
+                (row["id"],),
+            ).fetchone()
+            if detail:
+                entry.update(dict(detail))
+        history.append(entry)
     if include_corrections:
-        history.extend(correction_history_entry(row) for row in correction_rows)
+        history.extend(
+            correction_history_entry(row)
+            for row in correction_rows
+            if not conn.execute(
+                "SELECT 1 FROM operation_receipts WHERE operation_id=?", (f"member-decision:{row['id']}",)
+            ).fetchone()
+        )
     history.sort(key=lambda entry: (str(entry.get("timestamp") or ""), int(entry.get("id") or 0)), reverse=True)
     if last_payment:
         date_label, time_label, timestamp_label = kassa_history_timestamp_labels(last_payment["timestamp"])
@@ -1553,6 +1639,8 @@ def add_order_line(
           AND consumed_date = ?
           AND event_open = 1
           AND quantity > 0
+          AND (EXISTS(SELECT 1 FROM booking_sources bs WHERE bs.original_order_line_id=order_lines.id)
+               OR EXISTS(SELECT 1 FROM round_units ru WHERE ru.original_order_line_id=order_lines.id))
         ORDER BY id DESC
         LIMIT 1
         """,
@@ -1609,10 +1697,12 @@ def remove_from_order_line(conn: sqlite3.Connection, line_id: int, quantity: int
     current_qty = int(row["quantity"])
     actual = min(current_qty, quantity)
     new_qty = current_qty - actual
-    if new_qty <= 0:
-        conn.execute("UPDATE order_lines SET quantity = 0, updated_at = ? WHERE id = ?", (now_text(), line_id))
-    else:
-        conn.execute("UPDATE order_lines SET quantity = ?, updated_at = ? WHERE id = ?", (new_qty, now_text(), line_id))
+    changed = conn.execute(
+        "UPDATE order_lines SET quantity = ?, updated_at = ? WHERE id = ? AND quantity = ?",
+        (max(0, new_qty), now_text(), line_id, current_qty),
+    )
+    if changed.rowcount != 1:
+        raise HTTPException(409, "Offener Posten wurde gleichzeitig geändert")
     return row, actual
 
 
@@ -2425,6 +2515,7 @@ def agent_book_drink(req: AgentBookDrinkRequest, request: Request):
             "CONSUME",
             timestamp=booking_timestamp,
         )
+        correction_service.link_booking(conn, line_id, tx_id, "CONSUME")
         if client_operation_id:
             conn.execute(
                 "UPDATE client_operations SET transaction_id = ? WHERE client_operation_id = ?",
@@ -3353,7 +3444,7 @@ def add_drink(req: AddDrinkRequest):
                 }
 
         booking_timestamp = client_booking_timestamp(req.client_time) if req.offline_queued else None
-        add_order_line(conn, person["id"], item, 1, booked_at=booking_timestamp)
+        line_id = add_order_line(conn, person["id"], item, 1, booked_at=booking_timestamp)
         detail_parts = [f"+1x {item['name']} à {eur_text(item['price_eur'])}"]
         if client_operation_id and req.offline_queued:
             detail_parts.append("offline/Client-Queue")
@@ -3391,6 +3482,7 @@ def add_drink(req: AddDrinkRequest):
                 "UPDATE client_operations SET transaction_id = ? WHERE client_operation_id = ?",
                 (tx_id, client_operation_id),
             )
+        correction_service.link_booking(conn, line_id, tx_id, "CONSUME")
         conn.commit()
         return {"status": "ok", "transaction_id": tx_id, **get_sync_state(conn)}
 
@@ -3398,9 +3490,21 @@ def add_drink(req: AddDrinkRequest):
 @app.post("/api/edit-request")
 def create_edit_request(req: EditRequestIn):
     with get_conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        request_payload = {
+            "person_id": req.person_id,
+            "line_quantities": req.line_quantities,
+            "changes": req.changes,
+            "reason": req.reason,
+        }
+        if req.correction_operation_id:
+            previous = correction_service.replay(conn, req.correction_operation_id, "edit-request", request_payload)
+            if previous is not None:
+                return previous
         if not setting_bool(conn, "enable_delete_requests", "1"):
             raise HTTPException(status_code=403, detail="Löschanfragen sind aktuell deaktiviert")
         person = get_person(conn, req.person_id, allow_archived=False)
+        correction_service.guard_uncertain_payment(conn, req.person_id)
         ensure_no_active_self_payment(conn, int(person["id"]))
         requested: list[tuple[int, int]] = []
 
@@ -3468,16 +3572,33 @@ def create_edit_request(req: EditRequestIn):
                 """,
                 (person["id"], line_id, line["item_id"], qty_to_remove, req.reason, now_text()),
             )
+            request_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+            if is_round_order_line(line):
+                selected = conn.execute(
+                    "SELECT ru.id FROM round_units ru WHERE ru.original_order_line_id=? AND ru.cancelled_operation_id IS NULL AND ru.closed_transaction_id IS NULL AND NOT EXISTS(SELECT 1 FROM round_request_units rru JOIN change_requests cr ON cr.id=rru.change_request_id WHERE rru.round_unit_id=ru.id AND cr.status='PENDING') ORDER BY ru.id DESC LIMIT ?",
+                    (line_id, qty_to_remove),
+                ).fetchall()
+                if len(selected) != qty_to_remove:
+                    correction_service.intervention(
+                        "Rundeneinheiten sind historisch nicht eindeutig zugeordnet; Anfrage nicht gespeichert"
+                    )
+                conn.executemany(
+                    "INSERT INTO round_request_units VALUES(?,?)", [(request_id, row["id"]) for row in selected]
+                )
             details.append(f"-{qty_to_remove}x {line['item_name_snapshot']}")
 
         log_transaction(conn, person["id"], "CHANGE_REQUEST", 0, "Löschanfrage: " + ", ".join(details))
+        result = {"status": "pending", "requests": len(requested)}
+        if req.correction_operation_id:
+            correction_service.receipt(conn, req.correction_operation_id, "edit-request", request_payload, result)
         conn.commit()
-    return {"status": "pending", "requests": len(requested)}
+    return result
 
 
 @app.post("/api/round-request")
 def create_round_request(req: RoundRequestIn):
     with get_conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
         person = get_person(conn, req.person_id, allow_archived=False)
         qty = int(req.quantity or 1)
         if qty < 1 or qty > 20:
@@ -3490,7 +3611,7 @@ def create_round_request(req: RoundRequestIn):
             ).fetchone()
         if not item:
             raise HTTPException(status_code=400, detail="Rundenartikel nicht gefunden")
-        add_order_line(conn, person["id"], item, qty)
+        line_id = add_order_line(conn, person["id"], item, qty)
         total = qty * float(item["price_eur"])
         tx_id = log_transaction(
             conn,
@@ -3520,6 +3641,7 @@ def create_round_request(req: RoundRequestIn):
             """,
             (person["id"], item["id"], qty, req.reason, now_text(), now_text()),
         )
+        correction_service.link_booking(conn, line_id, tx_id, "ROUND_REQUEST_APPROVED")
         conn.commit()
     return {"status": "approved", "requests": qty, "total": round(total, 2)}
 
@@ -3561,33 +3683,8 @@ def resolve_pending_for_payment(conn: sqlite3.Connection, req: PayRequest):
     handled = []
     for item in pending:
         request_id = int(item["id"])
-        if request_id in approve_ids:
-            line, actual = remove_from_order_line(conn, int(item["line_id"]), int(item["quantity_to_remove"]))
-            conn.execute(
-                "UPDATE change_requests SET status = 'APPROVED', decided_at = ? WHERE id = ?",
-                (now_text(), request_id),
-            )
-            log_transaction(
-                conn,
-                req.person_id,
-                "CHANGE_APPROVED",
-                0,
-                f"Bestätigt: -{actual}x {line['item_name_snapshot']}",
-            )
-            handled.append({**item, "decision": "APPROVED"})
-        else:
-            conn.execute(
-                "UPDATE change_requests SET status = 'REJECTED', decided_at = ? WHERE id = ?",
-                (now_text(), request_id),
-            )
-            log_transaction(
-                conn,
-                req.person_id,
-                "CHANGE_REJECTED",
-                0,
-                f"Abgelehnt: -{item['quantity_to_remove']}x {item['item']}",
-            )
-            handled.append({**item, "decision": "REJECTED"})
+        result = decide_single_change_request(conn, request_id, "approve" if request_id in approve_ids else "reject")
+        handled.append({**item, "decision": result["decision"]})
     return handled
 
 
@@ -3600,6 +3697,11 @@ def decide_single_change_request(conn: sqlite3.Connection, request_id: int, deci
 
     if decision_norm not in {"APPROVED", "REJECTED"}:
         raise HTTPException(status_code=400, detail="Ungültige Entscheidung")
+    identity = f"member-decision:{request_id}"
+    payload = {"request_id": request_id, "decision": decision_norm}
+    previous = correction_service.replay(conn, identity, "member-decision", payload)
+    if previous is not None:
+        return previous
 
     row = conn.execute(
         """
@@ -3629,28 +3731,48 @@ def decide_single_change_request(conn: sqlite3.Connection, request_id: int, deci
     item_name = row["item_name_snapshot"]
 
     if decision_norm == "APPROVED":
+        correction_service.guard_uncertain_payment(conn, row["person_id"])
         if int(row["current_quantity"]) < qty:
             raise HTTPException(
                 status_code=400, detail="Der offene Posten ist nicht mehr in ausreichender Menge vorhanden"
             )
-        line, actual = remove_from_order_line(conn, int(row["order_line_id"]), qty)
+        original = conn.execute("SELECT * FROM order_lines WHERE id=?", (row["order_line_id"],)).fetchone()
+        if is_round_order_line(original):
+            round_cancellation_for_line(
+                conn, original, qty, identity, reason=f"Mitgliedsanfrage #{request_id}", request_id=request_id
+            )
+            line, actual = original, qty
+        else:
+            correction_service.sources_for_correction(conn, original, qty)
+            line, actual = remove_from_order_line(conn, int(row["order_line_id"]), qty)
         conn.execute(
             "UPDATE change_requests SET status = 'APPROVED', decided_at = ? WHERE id = ?",
             (now_text(), request_id),
         )
-        log_transaction(
+        tx_id = log_transaction(
             conn,
             int(row["person_id"]),
             "CHANGE_APPROVED",
             0,
             f"Bestätigt: -{actual}x {line['item_name_snapshot']}",
         )
+        if not is_round_order_line(original):
+            correction_service.append_correction(
+                conn,
+                identity,
+                original,
+                actual,
+                tx_id,
+                reason=conn.execute("SELECT reason FROM change_requests WHERE id=?", (request_id,)).fetchone()[0],
+                authorized_by="admin-pin",
+                request_id=request_id,
+            )
     else:
         conn.execute(
             "UPDATE change_requests SET status = 'REJECTED', decided_at = ? WHERE id = ?",
             (now_text(), request_id),
         )
-        log_transaction(
+        tx_id = log_transaction(
             conn,
             int(row["person_id"]),
             "CHANGE_REJECTED",
@@ -3658,18 +3780,21 @@ def decide_single_change_request(conn: sqlite3.Connection, request_id: int, deci
             f"Abgelehnt: -{qty}x {item_name}",
         )
 
-    return {
+    result = {
         "status": "ok",
         "request_id": request_id,
         "decision": decision_norm,
         "person_id": int(row["person_id"]),
     }
+    correction_service.receipt(conn, identity, "member-decision", payload, result, tx_id)
+    return result
 
 
 @app.post("/api/admin/change-request/decide")
 def admin_decide_change_request(req: AdminChangeRequestDecision):
     with get_conn() as conn:
         require_pin(conn, req.pin)
+        conn.execute("BEGIN IMMEDIATE")
         result = decide_single_change_request(conn, req.request_id, req.decision)
         conn.commit()
         return result
@@ -3687,6 +3812,7 @@ def admin_decide_round_request(req: AdminRoundRequestDecision):
 
     with get_conn() as conn:
         require_pin(conn, req.pin)
+        conn.execute("BEGIN IMMEDIATE")
         row = conn.execute(
             """
             SELECT rr.*, p.name AS person_name, p.first_name, p.last_name, i.name AS item_name, i.short_label, i.price_eur, i.purchase_price_eur
@@ -3712,7 +3838,7 @@ def admin_decide_round_request(req: AdminRoundRequestDecision):
         person_name = display_name(row["first_name"], row["last_name"]) or row["person_name"]
 
         if decision_norm == "APPROVED":
-            add_order_line(conn, int(row["person_id"]), item, qty)
+            line_id = add_order_line(conn, int(row["person_id"]), item, qty)
             total = qty * float(item["price_eur"])
             tx_id = log_transaction(
                 conn,
@@ -3735,6 +3861,7 @@ def admin_decide_round_request(req: AdminRoundRequestDecision):
                 qty,
                 "ROUND_REQUEST_APPROVED",
             )
+            correction_service.link_booking(conn, line_id, tx_id, "ROUND_REQUEST_APPROVED")
         else:
             log_transaction(
                 conn,
@@ -3761,7 +3888,14 @@ def admin_decide_round_request(req: AdminRoundRequestDecision):
 def pay(req: PayRequest):
     with get_conn() as conn:
         require_pin(conn, req.pin)
+        conn.execute("BEGIN IMMEDIATE")
+        pay_payload = req.model_dump(exclude={"pin", "payment_operation_id"})
+        if req.payment_operation_id:
+            previous = correction_service.replay(conn, req.payment_operation_id, "cash-pay", pay_payload)
+            if previous is not None:
+                return previous
         person = get_person(conn, req.person_id, allow_archived=True)
+        correction_service.guard_uncertain_payment(conn, req.person_id)
         ensure_no_active_self_payment(conn, int(person["id"]))
         handled = resolve_pending_for_payment(conn, req)
         round_pending = conn.execute(
@@ -3772,9 +3906,40 @@ def pay(req: PayRequest):
 
         lines = get_open_lines(conn, req.person_id)
         round_plan = build_person_round_deduction_plan(conn, req.person_id)
-        if not lines and int(round_plan.get("deducted_items", 0) or 0) <= 0:
+        if req.corrections_only:
+            if not handled:
+                raise HTTPException(400, {"status": "no_work", "message": "Keine Korrekturen bearbeitet"})
+            debt = person_total_from_lines(lines)
+            result = {
+                "status": "corrections_applied" if debt > 0 else "correction_only",
+                "total": round(debt, 2),
+                "pending_handled": len(handled),
+                "payment_required": debt > 0,
+                "round_deduction_items": 0,
+                "round_deduction_total_eur": 0,
+            }
+            if req.payment_operation_id:
+                correction_service.receipt(conn, req.payment_operation_id, "cash-pay", pay_payload, result)
             conn.commit()
-            raise HTTPException(status_code=400, detail="Keine offenen Posten")
+            return result
+        if not lines and int(round_plan.get("deducted_items", 0) or 0) <= 0:
+            if not handled:
+                raise HTTPException(
+                    status_code=400,
+                    detail={"status": "no_work", "message": "Keine offenen Posten und keine bearbeiteten Korrekturen"},
+                )
+            result = {
+                "status": "correction_only",
+                "total": 0,
+                "pending_handled": len(handled),
+                "round_deduction_items": 0,
+                "round_deduction_total_eur": 0,
+                "payment_required": False,
+            }
+            if req.payment_operation_id:
+                correction_service.receipt(conn, req.payment_operation_id, "cash-pay", pay_payload, result)
+            conn.commit()
+            return result
         total_after_round_deductions = payment_total_after_round_deductions(lines, round_plan)
         if total_after_round_deductions <= 0:
             raise HTTPException(status_code=400, detail=no_payable_total_detail())
@@ -3810,6 +3975,15 @@ def pay(req: PayRequest):
                 f"UPDATE order_lines SET quantity = 0, updated_at = ? WHERE id IN ({placeholders})",
                 [now_text(), *line_ids],
             )
+        result = {
+            "status": "paid",
+            "total": round(total, 2),
+            "round_deduction_items": int(round_plan.get("deducted_items", 0) or 0),
+            "round_deduction_total_eur": rounded_money(float(round_plan.get("deducted_vk_eur", 0) or 0)),
+            "pending_handled": len(handled),
+        }
+        if req.payment_operation_id:
+            correction_service.receipt(conn, req.payment_operation_id, "cash-pay", pay_payload, result, tx_id)
         conn.commit()
 
     return {
@@ -3827,6 +4001,7 @@ def kassa_pay(req: KassaPayRequest):
         require_pin(conn, req.pin)
         conn.execute("BEGIN IMMEDIATE")
         person = get_person(conn, req.person_id, allow_archived=False)
+        correction_service.guard_uncertain_payment(conn, req.person_id)
         ensure_no_active_self_payment(conn, int(person["id"]))
         lines = get_open_lines(conn, req.person_id)
         pending = get_pending_requests_for_person(conn, req.person_id)
@@ -3902,14 +4077,30 @@ def kassa_pay(req: KassaPayRequest):
 def admin_adjust_drink(req: AdminAdjustItemRequest):
     with get_conn() as conn:
         require_pin(conn, req.pin)
+        conn.execute("BEGIN IMMEDIATE")
+        payload = req.model_dump(exclude={"pin", "correction_operation_id"})
+        if req.delta < 0:
+            identity = correction_service.operation_id(req.correction_operation_id)
+            if req.correction_purpose != "erroneous_booking":
+                raise HTTPException(400, "Korrekturzweck erroneous_booking erforderlich; kein Erlass oder Rückzahlung.")
+            previous = correction_service.replay(conn, identity, "admin-adjust", payload)
+            if previous is not None:
+                return previous
         person = get_person(conn, req.person_id, allow_archived=True)
-        item = get_item_by_id_or_name(conn, req.item_id, req.drink)
+        if req.delta < 0:
+            correction_service.guard_uncertain_payment(conn, req.person_id)
+        if req.delta < 0 and req.item_id is not None:
+            item = conn.execute("SELECT * FROM items WHERE id=?", (req.item_id,)).fetchone()
+            if item is None:
+                raise HTTPException(400, "Artikel nicht gefunden")
+        else:
+            item = get_item_by_id_or_name(conn, req.item_id, req.drink)
         delta = int(req.delta)
         if delta == 0:
             raise HTTPException(status_code=400, detail="Keine Änderung ausgewählt")
 
         if delta > 0:
-            add_order_line(conn, person["id"], item, delta)
+            line_id = add_order_line(conn, person["id"], item, delta)
             total = delta * float(item["price_eur"])
             details = f"Admin: +{delta}x {item['name']} à {eur_text(item['price_eur'])}"
             tx_id = log_transaction(conn, person["id"], "ADMIN_ADJUSTMENT", total, details)
@@ -3927,6 +4118,7 @@ def admin_adjust_drink(req: AdminAdjustItemRequest):
                 delta,
                 "CONSUME",
             )
+            correction_service.link_booking(conn, line_id, tx_id, "CONSUME")
         else:
             to_remove = abs(delta)
             removed_qty = 0
@@ -3941,6 +4133,28 @@ def admin_adjust_drink(req: AdminAdjustItemRequest):
                 """,
                 (person["id"], item["id"]),
             ).fetchall()
+            if is_system_item_name(item["name"]):
+                for line in lines:
+                    take = min(to_remove, int(line["quantity"]))
+                    if take:
+                        round_cancellation_for_line(
+                            conn, line, take, identity, reason=req.correction_reason or "Admin-Rundenkorrektur"
+                        )
+                        to_remove -= take
+                        removed_qty += take
+                if to_remove:
+                    raise HTTPException(400, "Nicht genügend offene Runden")
+                result_lines = get_open_lines(conn, person["id"])
+                result = {
+                    "status": "ok",
+                    "counts": make_counts(result_lines),
+                    "total": person_total_from_lines(result_lines),
+                    "lines": [serialize_open_line(entry) for entry in result_lines],
+                }
+                correction_service.receipt(conn, identity, "admin-adjust", payload, result)
+                conn.commit()
+                return result
+            original_parts = []
             for line in lines:
                 if to_remove <= 0:
                     break
@@ -3948,25 +4162,34 @@ def admin_adjust_drink(req: AdminAdjustItemRequest):
                 take = min(to_remove, line_qty)
                 if take <= 0:
                     continue
+                correction_service.sources_for_correction(conn, line, take)
                 _, actual = remove_from_order_line(conn, int(line["id"]), take)
+                original_parts.append((line, actual))
                 to_remove -= actual
                 removed_qty += actual
                 removed_total += actual * float(line["unit_price_eur"])
                 removed_parts.append(f"-{actual}x {line['item_name_snapshot']} à {eur_text(line['unit_price_eur'])}")
             if removed_qty == 0:
                 raise HTTPException(status_code=400, detail="Dieser Artikel ist bei dieser Person nicht offen")
-            log_transaction(
+            tx_id = log_transaction(
                 conn, person["id"], "ADMIN_ADJUSTMENT", -removed_total, "Admin: " + ", ".join(removed_parts)
             )
+            for line, actual in original_parts:
+                correction_service.append_correction(
+                    conn, identity, line, actual, tx_id, reason=req.correction_reason, authorized_by="admin-pin"
+                )
 
-        conn.commit()
         lines = get_open_lines(conn, person["id"])
-        return {
+        result = {
             "status": "ok",
             "counts": make_counts(lines),
             "total": person_total_from_lines(lines),
             "lines": [serialize_open_line(line) for line in lines],
         }
+        if delta < 0:
+            correction_service.receipt(conn, identity, "admin-adjust", payload, result, tx_id)
+        conn.commit()
+        return result
 
 
 @app.post("/api/admin-login")
@@ -4031,6 +4254,7 @@ def build_auto_round_plan(conn: sqlite3.Connection) -> dict:
     round_units = current_event_round_units(conn)
     if not round_units:
         return empty_auto_round_plan()
+    guard_unattributed_round_deductions(conn)
     round_count = len(round_units)
     already_paid_rounds_count = sum(1 for item in round_units if bool(item.get("already_paid")))
     open_rounds_count = round_count - already_paid_rounds_count
@@ -4102,8 +4326,15 @@ def build_auto_round_plan(conn: sqlite3.Connection) -> dict:
     all_deductions = []
     assigned_by_person = dict(already_deducted_by_person)
     for round_index, round_unit in enumerate(round_units, start=1):
+        if not round_unit.get("round_unit_id"):
+            correction_service.intervention(
+                "Historische Runde ohne eindeutige Abzugszuordnung; Admin-Abgleich erforderlich"
+            )
         for person_id in people_order:
-            if assigned_by_person.get(person_id, 0) >= round_index:
+            if conn.execute(
+                "SELECT 1 FROM round_deductions WHERE round_unit_id=? AND person_id=?",
+                (round_unit["round_unit_id"], person_id),
+            ).fetchone():
                 continue
             chosen = None
             for line in lines_by_person[person_id]:
@@ -4119,6 +4350,7 @@ def build_auto_round_plan(conn: sqlite3.Connection) -> dict:
             )
             deduction = {
                 "round_index": round_unit["round_index"],
+                "round_unit_id": round_unit["round_unit_id"],
                 "payer_name": round_unit["payer_name"],
                 "person_id": chosen["person_id"],
                 "name": display_name(chosen["first_name"], chosen["last_name"]) or chosen["name"] or "Unbekannt",
@@ -4230,6 +4462,8 @@ def apply_auto_round_deductions(conn: sqlite3.Connection, plan: dict):
                 f"Automatisch bei Kassensturz; bezahlt von {round_unit['payer_name']}: {details_main}",
             ),
         )
+        event_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        link_round_deductions(conn, tx_id, event_id, deductions)
     paid_unit_ids = [
         int(round_unit["paid_round_unit_id"])
         for round_unit in plan.get("rounds", [])
@@ -4308,18 +4542,28 @@ def admin_cashup(req: CashupRequest):
     """
     with get_conn() as conn:
         require_pin(conn, req.pin)
+        conn.execute("BEGIN IMMEDIATE")
         ensure_no_active_self_payments(conn)
+        if conn.execute(
+            "SELECT 1 FROM change_requests cr JOIN order_lines ol ON ol.id=cr.order_line_id WHERE cr.status='PENDING' AND ol.item_name_snapshot=?",
+            (ROUND_ITEM_NAME,),
+        ).fetchone():
+            raise HTTPException(409, "Rundenstornierung wartet auf Entscheidung; vor Kassensturz klären")
         data = calculate_cashup_preview(conn)
         auto_rounds = data.get("auto_rounds", {})
         if data["gross_lines"] or int(auto_rounds.get("rounds_count", 0) or 0) > 0:
             apply_auto_round_deductions(conn, auto_rounds)
         if data["closed_lines"] or int(auto_rounds.get("rounds_count", 0) or 0) > 0:
-            log_transaction(
+            cashup_tx = log_transaction(
                 conn,
                 None,
                 "CASHUP",
                 data["total"],
                 f"Kassensturz: {data['closed_items']} Striche auf offene Rechnungen übertragen; Summe {eur_text(data['total'])}",
+            )
+            conn.execute(
+                "UPDATE round_units SET closed_transaction_id=? WHERE closed_transaction_id IS NULL AND cancelled_operation_id IS NULL",
+                (cashup_tx,),
             )
         if data["closed_lines"]:
             conn.execute(
@@ -4339,64 +4583,235 @@ def pending_request_count(conn: sqlite3.Connection) -> int:
 def calculate_round_preview(conn: sqlite3.Connection):
     if pending_request_count(conn):
         raise HTTPException(status_code=400, detail="Bitte zuerst alle offenen Änderungswünsche klären")
+    plan = build_auto_round_plan(conn)
+    unit = next((unit for unit in plan.get("rounds", []) if unit.get("deductions")), None)
+    if unit is None:
+        return [], 0.0
+    return unit["deductions"], rounded_money(sum(item["subtotal_eur"] for item in unit["deductions"]))
 
-    removed = []
-    total = 0.0
-    people = conn.execute(
-        """
-        SELECT * FROM people
-        WHERE active = 1 AND archived_at IS NULL
-        """
-    ).fetchall()
-    people = sorted(
-        people, key=lambda r: normalize_for_sort(display_name(r["first_name"], r["last_name"]) or r["name"])
-    )
 
-    for person in people:
-        rows = conn.execute(
-            """
-            SELECT *
-            FROM order_lines
-            WHERE person_id = ?
-              AND quantity > 0
-              AND admin_only_snapshot = 0
-              AND event_open = 1
-            ORDER BY unit_price_eur ASC, consumed_date ASC, created_at ASC, id ASC
-            """,
-            (person["id"],),
+def round_cancellation_for_line(conn, line, quantity, identity, *, reason, request_id=None):
+    if request_id is not None:
+        units = conn.execute(
+            "SELECT round_unit_id AS id FROM round_request_units WHERE change_request_id=? ORDER BY round_unit_id",
+            (request_id,),
         ).fetchall()
-        if not rows:
-            continue
-        cheapest = rows[0]
-        price = float(cheapest["unit_price_eur"])
-        purchase = float(cheapest["unit_purchase_price_eur"] if "unit_purchase_price_eur" in cheapest.keys() else 0)
-        removed.append(
-            {
-                "person_id": person["id"],
-                "name": display_name(person["first_name"], person["last_name"]) or person["name"],
-                "line_id": cheapest["id"],
-                "item": cheapest["item_name_snapshot"],
-                "drink": cheapest["item_name_snapshot"],
-                "price": round(price, 2),
-                "purchase_price": round(purchase, 2),
-                "consumed_date": cheapest["consumed_date"],
-            }
+    else:
+        units = conn.execute(
+            "SELECT ru.id FROM round_units ru WHERE ru.original_order_line_id=? AND ru.cancelled_operation_id IS NULL AND NOT EXISTS(SELECT 1 FROM round_request_units rru JOIN change_requests cr ON cr.id=rru.change_request_id WHERE rru.round_unit_id=ru.id AND cr.status='PENDING') ORDER BY ru.id DESC LIMIT ?",
+            (line["id"], quantity),
+        ).fetchall()
+    if len(units) != quantity:
+        correction_service.intervention("Historische Rundeneinheiten fehlen; automatische Stornierung nicht möglich")
+    return cancel_round_units(conn, [r["id"] for r in units], identity, reason, request_id=request_id)
+
+
+def guard_unattributed_round_deductions(conn):
+    if conn.execute(
+        "SELECT 1 FROM transaction_items ti LEFT JOIN round_deductions rd ON rd.transaction_item_id=ti.id WHERE ti.kind='ROUND_DEDUCTED' AND ti.transaction_id>? AND rd.id IS NULL",
+        (current_event_start_transaction_id(conn),),
+    ).fetchone():
+        correction_service.intervention(
+            "Aktuelle historische Rundenabzüge ohne Einzelzuordnung; erst Admin-Abgleich, keine weitere automatische Runde"
         )
-        total += price
-    return removed, total
+
+
+def cancel_round_units(conn, unit_ids, identity, reason, *, request_id=None):
+    if not unit_ids or len(set(unit_ids)) != len(unit_ids):
+        raise HTTPException(400, "Eindeutige Rundeneinheiten erforderlich")
+    guard_unattributed_round_deductions(conn)
+    units, deductions = [], []
+    for unit_id in unit_ids:
+        unit = conn.execute(
+            "SELECT ru.*,ol.person_id,ol.quantity,ol.event_open FROM round_units ru JOIN order_lines ol ON ol.id=ru.original_order_line_id WHERE ru.id=?",
+            (unit_id,),
+        ).fetchone()
+        if unit is None or unit["cancelled_operation_id"]:
+            correction_service.intervention("Runde fehlt oder wurde bereits storniert; Vorgangs-ID prüfen")
+        reservation = conn.execute(
+            "SELECT rru.change_request_id FROM round_request_units rru JOIN change_requests cr ON cr.id=rru.change_request_id WHERE rru.round_unit_id=? AND cr.status='PENDING'",
+            (unit_id,),
+        ).fetchone()
+        if reservation and reservation["change_request_id"] != request_id:
+            correction_service.intervention("Rundeneinheit ist für eine andere Mitgliedsanfrage reserviert")
+        if (
+            unit["closed_transaction_id"]
+            or not unit["event_open"]
+            or conn.execute("SELECT 1 FROM round_unit_payments WHERE round_unit_id=?", (unit_id,)).fetchone()
+        ):
+            correction_service.intervention(
+                "Bezahlte oder abgeschlossene Runde: keine automatische Rückzahlung/Wiedereröffnung; Admin-Abgleich erforderlich"
+            )
+        ensure_no_active_self_payment(conn, unit["person_id"])
+        if (unit["event_start_transaction_id"] or 0) != current_event_start_transaction_id(conn):
+            correction_service.intervention(
+                "Runde stammt aus abgeschlossenem Kassensturz; keine automatische Wiedereröffnung"
+            )
+        correction_service.guard_uncertain_payment(conn, unit["person_id"])
+        linked = conn.execute(
+            """SELECT rd.*,ti.unit_price_eur,ti.unit_purchase_price_eur,ti.item_id,
+            ti.item_name_snapshot,ti.item_short_label_snapshot,ti.timestamp
+            FROM round_deductions rd JOIN transaction_items ti ON ti.id=rd.transaction_item_id
+            WHERE rd.round_unit_id=?""",
+            (unit_id,),
+        ).fetchall()
+        for deduction in linked:
+            line = conn.execute(
+                "SELECT * FROM order_lines WHERE id=?", (deduction["original_order_line_id"],)
+            ).fetchone()
+            if (
+                not line
+                or not line["event_open"]
+                or conn.execute("SELECT 1 FROM round_reversals WHERE deduction_id=?", (deduction["id"],)).fetchone()
+            ):
+                correction_service.intervention("Abzug bereits umgekehrt oder Periode abgeschlossen")
+            if (
+                line["person_id"] != deduction["person_id"]
+                or line["item_id"] != deduction["item_id"]
+                or line["unit_price_eur"] != deduction["unit_price_eur"]
+                or line["unit_purchase_price_eur"] != deduction["unit_purchase_price_eur"]
+                or line["consumed_date"] != deduction["consumed_date"]
+            ):
+                correction_service.intervention(
+                    "Abzugssnapshot widerspricht dem ursprünglichen Posten; keine Wiederherstellung"
+                )
+            ensure_no_active_self_payment(conn, deduction["person_id"])
+            correction_service.guard_uncertain_payment(conn, deduction["person_id"])
+            if conn.execute(
+                "SELECT 1 FROM transactions WHERE person_id=? AND type IN ('PAID_CASH','PAID_SUMUP') AND id>(SELECT transaction_id FROM transaction_items WHERE id=?)",
+                (deduction["person_id"], deduction["transaction_item_id"]),
+            ).fetchone():
+                correction_service.intervention(
+                    "Betroffene Person wurde bereits abgerechnet; keine automatische neue Schuld"
+                )
+            deductions.append(deduction)
+        units.append(unit)
+    by_line = {}
+    for unit in units:
+        by_line[unit["original_order_line_id"]] = by_line.get(unit["original_order_line_id"], 0) + 1
+    for line_id, count in by_line.items():
+        line = conn.execute("SELECT * FROM order_lines WHERE id=?", (line_id,)).fetchone()
+        if int(line["quantity"]) < count:
+            correction_service.intervention("Rundenschuld ist nicht mehr ausreichend offen")
+    tx_id = log_transaction(conn, None, "ROUND_CANCELLED", 0, reason)
+    for line_id, count in by_line.items():
+        remove_from_order_line(conn, line_id, count)
+    for unit in units:
+        conn.execute(
+            "UPDATE round_units SET cancelled_operation_id=? WHERE id=? AND cancelled_operation_id IS NULL",
+            (identity, unit["id"]),
+        )
+        original = conn.execute("SELECT * FROM order_lines WHERE id=?", (unit["original_order_line_id"],)).fetchone()
+        log_transaction_item(conn, tx_id, unit["person_id"], original, -1, "ROUND_CANCELLATION")
+        item_detail = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        conn.execute(
+            "INSERT INTO round_cancellations VALUES(?,?,?,?,?,?,?)",
+            (unit["id"], identity, item_detail, request_id, reason, "admin-pin", now_text()),
+        )
+    for deduction in deductions:
+        conn.execute(
+            "UPDATE order_lines SET quantity=quantity+1,updated_at=? WHERE id=?",
+            (now_text(), deduction["original_order_line_id"]),
+        )
+        log_transaction_item(conn, tx_id, deduction["person_id"], deduction, 1, "ROUND_DEDUCTION_REVERSAL")
+        detail_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        conn.execute(
+            "INSERT INTO round_events(transaction_id,timestamp,round_price_eur,deducted_vk_eur,deducted_purchase_eur,profit_vs_purchase_eur,profit_vs_retail_eur,details) VALUES(?,?,0,?,?,?,?,?)",
+            (
+                tx_id,
+                now_text(),
+                -deduction["unit_price_eur"],
+                -deduction["unit_purchase_price_eur"],
+                deduction["unit_purchase_price_eur"],
+                deduction["unit_price_eur"],
+                "Rundenabzug umgekehrt; keine neue Konsumation",
+            ),
+        )
+        event_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        conn.execute(
+            "INSERT INTO round_reversals VALUES(?,?,?,?,?)",
+            (deduction["id"], identity, detail_id, event_id, now_text()),
+        )
+    return {
+        "status": "round_cancelled",
+        "round_unit_ids": unit_ids,
+        "restored_drinks": len(deductions),
+        "transaction_id": tx_id,
+    }
+
+
+@app.post("/api/admin/rounds/cancel")
+def admin_cancel_rounds(req: RoundCancellationRequest):
+    with get_conn() as conn:
+        require_pin(conn, req.pin)
+        conn.execute("BEGIN IMMEDIATE")
+        identity = correction_service.operation_id(req.correction_operation_id)
+        payload = {"round_unit_ids": sorted(req.round_unit_ids), "reason": req.correction_reason}
+        previous = correction_service.replay(conn, identity, "round-cancel", payload)
+        if previous is not None:
+            return previous
+        result = cancel_round_units(conn, payload["round_unit_ids"], identity, req.correction_reason)
+        correction_service.receipt(conn, identity, "round-cancel", payload, result, result["transaction_id"])
+        conn.commit()
+        return result
+
+
+@app.post("/api/admin/rounds/cancel-preview")
+def admin_cancel_rounds_preview(req: RoundCancellationRequest):
+    # Preview performs no writes. Commit repeats all validation under IMMEDIATE.
+    with get_conn() as conn:
+        require_pin(conn, req.pin)
+        impact = []
+        for unit_id in req.round_unit_ids:
+            row = conn.execute(
+                "SELECT ru.*,ol.person_id,ol.quantity,ol.event_open FROM round_units ru JOIN order_lines ol ON ol.id=ru.original_order_line_id WHERE ru.id=?",
+                (unit_id,),
+            ).fetchone()
+            if row is None:
+                correction_service.intervention("Historische Rundenzuordnung fehlt")
+            paid = conn.execute("SELECT 1 FROM round_unit_payments WHERE round_unit_id=?", (unit_id,)).fetchone()
+            if row["cancelled_operation_id"] or row["closed_transaction_id"] or paid or not row["event_open"]:
+                correction_service.intervention(
+                    "Runde bezahlt, geschlossen oder bereits storniert; manueller Abgleich erforderlich"
+                )
+            for deduction in conn.execute(
+                "SELECT rd.id,rd.person_id,rd.original_order_line_id,rd.consumed_date,ti.item_name_snapshot,ti.unit_price_eur,ti.unit_purchase_price_eur FROM round_deductions rd JOIN transaction_items ti ON ti.id=rd.transaction_item_id WHERE rd.round_unit_id=?",
+                (unit_id,),
+            ):
+                impact.append({"round_unit_id": unit_id, **dict(deduction)})
+        return {
+            "status": "preview",
+            "round_unit_ids": req.round_unit_ids,
+            "restored_drinks": len(impact),
+            "impact": impact,
+            "note": "Keine Rückzahlung und keine neue Konsumation; Commit prüft Zahlungs-/Periodenzustand erneut.",
+        }
 
 
 @app.post("/api/deduct-round-preview")
-def deduct_round_preview(req: PinRequest):
+def deduct_round_preview(req: RoundDeductionRequest):
     with get_conn() as conn:
         require_pin(conn, req.pin)
-        removed, total = calculate_round_preview(conn)
-        round_price = float(
-            get_setting(conn, "round_item_price_eur", DEFAULT_ROUND_PRICE_EUR) or DEFAULT_ROUND_PRICE_EUR
+        if pending_request_count(conn):
+            raise HTTPException(409, "Bitte zuerst alle offenen Änderungswünsche klären")
+        plan = build_auto_round_plan(conn)
+        unit = next(
+            (
+                unit
+                for unit in plan.get("rounds", [])
+                if unit.get("deductions") and (req.round_unit_id is None or unit["round_unit_id"] == req.round_unit_id)
+            ),
+            None,
         )
-        deducted_purchase = round(sum(float(item.get("purchase_price", 0)) for item in removed), 2)
+        if unit is None:
+            raise HTTPException(409, "Keine gültige Runde mit verfügbaren Getränken")
+        removed = unit["deductions"]
+        total = sum(row["subtotal_eur"] for row in removed)
+        round_price = unit["round_price_eur"]
+        deducted_purchase = round(sum(float(item["purchase_total_eur"]) for item in removed), 2)
         return {
             "status": "preview",
+            "round_unit_id": unit["round_unit_id"],
             "removed_count": len(removed),
             "total": round(total, 2),
             "round_price_eur": round(round_price, 2),
@@ -4409,72 +4824,40 @@ def deduct_round_preview(req: PinRequest):
 
 
 @app.post("/api/deduct-round")
-def deduct_round(req: PinRequest):
+def deduct_round(req: RoundDeductionRequest):
     with get_conn() as conn:
         require_pin(conn, req.pin)
+        conn.execute("BEGIN IMMEDIATE")
         ensure_no_active_self_payments(conn)
-        removed, total = calculate_round_preview(conn)
-        round_price = float(
-            get_setting(conn, "round_item_price_eur", DEFAULT_ROUND_PRICE_EUR) or DEFAULT_ROUND_PRICE_EUR
-        )
-        deducted_vk = round(float(total), 2)
-        deducted_purchase = round(sum(float(item.get("purchase_price", 0)) for item in removed), 2)
-        profit_vs_purchase = round(round_price - deducted_purchase, 2)
-        profit_vs_retail = round(round_price - deducted_vk, 2)
-        for item in removed:
-            remove_from_order_line(conn, int(item["line_id"]), 1)
-        if removed:
-            details_main = " | ".join(f"{item['name']}: -1x {item['item']}" for item in removed)
-            metrics = (
-                f"Rundenpreis {eur_text(round_price)}; "
-                f"EK abgezogen {eur_text(deducted_purchase)}; Gewinn EK→Rundenpreis {eur_text(profit_vs_purchase)}; "
-                f"VK abgezogen {eur_text(deducted_vk)}; Gewinn/Verlust VK→Rundenpreis {eur_text(profit_vs_retail)}"
+        if req.round_unit_id is None:
+            raise HTTPException(
+                400, "round_unit_id aus der aktuellen Vorschau erforderlich; keine unzugeordnete Wiederholung"
             )
-            tx_id = log_transaction(
-                conn,
-                None,
-                "ROUND_DEDUCTED",
-                deducted_vk,
-                details_main + " | nur aktuelle Strichliste seit letztem Kassensturz | " + metrics,
+        units = current_event_round_units(conn)
+        unit = next((u for u in units if u.get("round_unit_id") == req.round_unit_id), None)
+        if unit is None:
+            raise HTTPException(
+                409, "Keine gültige eindeutig zugeordnete Runde; zuerst Runde buchen oder Admin-Abgleich"
             )
-            for item in removed:
-                line = {
-                    "item_id": None,
-                    "item_name_snapshot": item["item"],
-                    "item_short_label_snapshot": item["item"],
-                    "unit_price_eur": item["price"],
-                    "unit_purchase_price_eur": item.get("purchase_price", 0),
-                }
-                log_transaction_item(conn, tx_id, item["person_id"], line, -1, "ROUND_DEDUCTED")
-            conn.execute(
-                """
-                INSERT INTO round_events (
-                    transaction_id, timestamp, round_price_eur, deducted_vk_eur, deducted_purchase_eur,
-                    profit_vs_purchase_eur, profit_vs_retail_eur, details
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    tx_id,
-                    now_text(),
-                    round_price,
-                    deducted_vk,
-                    deducted_purchase,
-                    profit_vs_purchase,
-                    profit_vs_retail,
-                    details_main,
-                ),
-            )
-        conn.commit()
-        return {
+        identity = f"manual-round:{unit['round_unit_id']}"
+        payload = {"round_unit_id": unit["round_unit_id"]}
+        previous = correction_service.replay(conn, identity, "manual-round-deduct", payload)
+        if previous is not None:
+            return previous
+        plan = build_auto_round_plan(conn)
+        deductions = [d for d in plan["deductions"] if d["round_unit_id"] == unit["round_unit_id"]]
+        if not deductions:
+            raise HTTPException(409, "Diese Runde wurde bereits abgezogen oder hat keine verfügbaren Getränke")
+        tx_id = apply_person_round_deductions(conn, 0, {"deductions": deductions}, "Manueller zugeordneter Rundenabzug")
+        result = {
             "status": "ok",
-            "removed_count": len(removed),
-            "total": round(deducted_vk, 2),
-            "round_price_eur": round(round_price, 2),
-            "deducted_purchase_eur": round(deducted_purchase, 2),
-            "profit_vs_purchase_eur": round(profit_vs_purchase, 2),
-            "profit_vs_retail_eur": round(profit_vs_retail, 2),
-            "details": [f"{item['name']}: 1x {item['item']}" for item in removed],
+            "round_unit_id": unit["round_unit_id"],
+            "removed_count": len(deductions),
+            "total": rounded_money(sum(d["subtotal_eur"] for d in deductions)),
         }
+        correction_service.receipt(conn, identity, "manual-round-deduct", payload, result, tx_id)
+        conn.commit()
+        return result
 
 
 # ---------------------------------------------------------------------------
@@ -5526,35 +5909,38 @@ def build_report_rows(conn: sqlite3.Connection, req: ReportRequest) -> tuple[lis
         return headers, out
     else:
         if report_type == "consumption":
-            kinds = ("CONSUME",)
+            kinds = ("CONSUME", "CONSUMPTION_CORRECTION")
         elif report_type == "revenue":
             kinds = PAID_TRANSACTION_KINDS
         elif report_type == "profit":
-            kinds = (*PAID_TRANSACTION_KINDS, "ROUND_DEDUCTED")
+            kinds = (*PAID_TRANSACTION_KINDS, "ROUND_DEDUCTED", "ROUND_DEDUCTION_REVERSAL")
         else:
             raise HTTPException(status_code=400, detail="Unbekannter Berichtstyp")
 
         placeholders = ",".join("?" for _ in kinds)
         rows = conn.execute(
             f"""
-            SELECT ti.*, COALESCE(p.name, 'System/Admin') AS person_name,
+            SELECT ti.*, COALESCE(cd.consumed_date,substr(ti.timestamp,1,10)) AS reporting_date, COALESCE(p.name, 'System/Admin') AS person_name,
                    COALESCE(i.admin_only, 0) AS current_admin_only
             FROM transaction_items ti
             LEFT JOIN people p ON p.id = ti.person_id
             LEFT JOIN items i ON i.id = ti.item_id
+            LEFT JOIN correction_details cd ON cd.transaction_item_id=ti.id
             WHERE ti.kind IN ({placeholders})
             ORDER BY ti.timestamp ASC, ti.id ASC
             """,
             kinds,
         ).fetchall()
         for r in rows:
-            date_value = str(r["timestamp"])[:10]
+            date_value = r["reporting_date"]
             if not date_in_range(date_value, req.date_from, req.date_to):
                 continue
             kind = r["kind"]
             if report_type == "consumption" and (
                 bool(r["current_admin_only"]) or is_system_item_name(r["item_name_snapshot"])
             ):
+                continue
+            if report_type == "consumption" and kind == "CONSUME" and int(r["quantity"]) <= 0:
                 continue
             qty = int(r["quantity"])
             total = float(r["total_eur"])
@@ -5588,8 +5974,10 @@ def build_report_rows(conn: sqlite3.Connection, req: ReportRequest) -> tuple[lis
                     }
                 )
             else:  # profit
-                if kind == "ROUND_DEDUCTED":
-                    cost = abs(purchase_total)
+                if kind in {"ROUND_DEDUCTED", "ROUND_DEDUCTION_REVERSAL"}:
+                    # Original deduction VK is +abs(total); compensation must be
+                    # -abs(total), not a second positive retail contribution.
+                    cost = abs(purchase_total) * (-1 if kind == "ROUND_DEDUCTION_REVERSAL" else 1)
                     raw.append(
                         {
                             "date": date_value,
@@ -5600,7 +5988,7 @@ def build_report_rows(conn: sqlite3.Connection, req: ReportRequest) -> tuple[lis
                             "revenue_eur": 0,
                             "cost_eur": cost,
                             "profit_eur": -cost,
-                            "vk_value_eur": abs(total),
+                            "vk_value_eur": abs(total) * (-1 if kind == "ROUND_DEDUCTION_REVERSAL" else 1),
                         }
                     )
                 else:
@@ -5749,31 +6137,34 @@ def admin_statistics(req: StatisticsRequest):
         include_admin_items = bool(req.include_admin_items)
 
         kpis = empty_stat_bucket()
+        kpis.update(gross_quantity=0, corrected_quantity=0)
+        kpis.update(consumption_cost_eur=0.0, gross_consumption_cost_eur=0.0, corrected_consumption_cost_eur=0.0)
         top_items: dict[str, dict] = {}
         finance_by_date: dict[str, dict] = {}
         ti_where, ti_params = statistics_timestamp_where("ti", period)
 
         consumption_rows = conn.execute(
-            f"""
-            SELECT ti.*, COALESCE(i.admin_only, 0) AS current_admin_only,
+            """
+            SELECT ti.*, COALESCE(source.timestamp,ti.timestamp) AS reporting_timestamp, COALESCE(i.admin_only, 0) AS current_admin_only,
                    COALESCE(p.name, 'System/Admin') AS person_name,
                    p.first_name, p.last_name
             FROM transaction_items ti
             LEFT JOIN items i ON i.id = ti.item_id
             LEFT JOIN people p ON p.id = ti.person_id
-            WHERE ti.kind = 'CONSUME'
-            {ti_where}
+            LEFT JOIN correction_details cd ON cd.transaction_item_id=ti.id
+            LEFT JOIN transaction_items source ON source.id=cd.source_transaction_item_id
+            WHERE ti.kind IN ('CONSUME','CONSUMPTION_CORRECTION')
             ORDER BY ti.timestamp ASC, ti.id ASC
             """,
-            ti_params,
+            [],
         ).fetchall()
         for row in consumption_rows:
-            if not timestamp_in_statistics_scope(row["timestamp"], period):
+            if not timestamp_in_statistics_scope(row["reporting_timestamp"], period):
                 continue
             if not statistics_item_visible(row, include_admin_items):
                 continue
             qty = int(row["quantity"] or 0)
-            if qty <= 0:
+            if qty <= 0 and row["kind"] != "CONSUMPTION_CORRECTION":
                 continue
             total = float(row["total_eur"] or 0)
             cost = float(row["purchase_total_eur"] or 0)
@@ -5787,6 +6178,18 @@ def admin_statistics(req: StatisticsRequest):
                 },
             )
             item["quantity"] += qty
+            item.setdefault("gross_quantity", 0)
+            item.setdefault("corrected_quantity", 0)
+            component = "corrected_quantity" if row["kind"] == "CONSUMPTION_CORRECTION" else "gross_quantity"
+            item[component] += abs(qty)
+            kpis[component] += abs(qty)
+            kpis["consumption_cost_eur"] += cost
+            cost_component = (
+                "corrected_consumption_cost_eur"
+                if row["kind"] == "CONSUMPTION_CORRECTION"
+                else "gross_consumption_cost_eur"
+            )
+            kpis[cost_component] += abs(cost)
             item["vk_value_eur"] += total
             item["cost_eur"] += cost
             item["profit_eur"] += total - cost
@@ -5798,7 +6201,7 @@ def admin_statistics(req: StatisticsRequest):
             SELECT ti.*, COALESCE(i.admin_only, 0) AS current_admin_only
             FROM transaction_items ti
             LEFT JOIN items i ON i.id = ti.item_id
-            WHERE ti.kind IN ('PAID_CASH', 'PAID_SUMUP', 'ROUND_DEDUCTED')
+            WHERE ti.kind IN ('PAID_CASH', 'PAID_SUMUP', 'ROUND_DEDUCTED','ROUND_DEDUCTION_REVERSAL')
             {ti_where}
             ORDER BY ti.timestamp ASC, ti.id ASC
             """,
@@ -5810,11 +6213,12 @@ def admin_statistics(req: StatisticsRequest):
             if not statistics_item_visible(row, include_admin_items):
                 continue
             kind = row["kind"]
-            if kind == "ROUND_DEDUCTED":
+            if kind in {"ROUND_DEDUCTED", "ROUND_DEDUCTION_REVERSAL"}:
+                # Same signed compensation convention as the profit preview/CSV.
                 revenue = 0.0
-                cost = abs(float(row["purchase_total_eur"] or 0))
+                cost = abs(float(row["purchase_total_eur"] or 0)) * (-1 if kind == "ROUND_DEDUCTION_REVERSAL" else 1)
                 profit = -cost
-                vk_value = abs(float(row["total_eur"] or 0))
+                vk_value = abs(float(row["total_eur"] or 0)) * (-1 if kind == "ROUND_DEDUCTION_REVERSAL" else 1)
             else:
                 revenue = float(row["total_eur"] or 0)
                 cost = float(row["purchase_total_eur"] or 0)
@@ -5925,7 +6329,11 @@ def admin_statistics(req: StatisticsRequest):
             )
         ]
 
+        legacy_corrections = ambiguous_correction_transactions(conn)
         return {
+            "consumption_basis": "current-net-corrected",
+            "historical_correction_coverage": "unverified" if legacy_corrections else "new-source-linked-operations",
+            "legacy_ambiguous_correction_transactions": legacy_corrections,
             "period": {**period, "include_admin_items": include_admin_items},
             "kpis": {key: rounded_money(value) if key.endswith("_eur") else int(value) for key, value in kpis.items()},
             "open": {

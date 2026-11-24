@@ -35,6 +35,7 @@ def worker(target: Path, commit: str) -> dict:
     import main
     from application_recovery import create_backup, verify_application_bundle, restore_application, database_metadata
     from db.migrations import inspect
+    import db.migrations as migration
     from disaster_fixture import seed
 
     attempts = []
@@ -53,6 +54,42 @@ def worker(target: Path, commit: str) -> dict:
     main.startup()
     assert database_metadata(Path(main.DB_PATH)) == fresh_before
     assert inspect(Path(main.DB_PATH))["state"] == "versioned-current"
+    # Independently prepare the exact original v1 schema/ledger, then execute the
+    # real installed v1→v2 transition. No invented old correction provenance.
+    v1_database = target / "prepared-v1.db"
+    with closing(sqlite3.connect(v1_database)) as conn:
+        conn.row_factory = sqlite3.Row
+        main.schema_service._init_legacy(connection=conn)
+        conn.execute(migration.LEDGER_SQL)
+        conn.execute(
+            "INSERT INTO schema_migrations VALUES(?,?,?,?,?,?,?,?)",
+            (
+                1,
+                migration.MIGRATION_ID,
+                0,
+                migration.CHECKSUM,
+                "",
+                migration.BASELINE_SCHEMA,
+                "initialize",
+                "2026-01-01T00:00:00+00:00",
+            ),
+        )
+        conn.execute("PRAGMA user_version=1")
+        conn.execute(f"PRAGMA application_id={migration.APPLICATION_ID}")
+        conn.commit()
+    v1_before = database_metadata(v1_database)
+    main.DB_PATH = str(v1_database)
+    main.startup()
+    assert inspect(v1_database)["state"] == "versioned-current"
+    assert inspect(v1_database)["version"] == 2
+    with closing(sqlite3.connect(v1_database)) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM correction_details").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM round_units").fetchone()[0] == 0
+        assert conn.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0] == 2
+    assert (
+        database_metadata(v1_database)["tables"].items()
+        >= {key: value for key, value in v1_before["tables"].items() if key != "schema_migrations"}.items()
+    )
     main.DB_PATH = original_path
     os.environ["DRINK_POS_MIGRATION_MODE"] = "legacy"
     os.environ.pop("DRINK_POS_ALLOW_FRESH")
@@ -107,10 +144,11 @@ def worker(target: Path, commit: str) -> dict:
     result = dict(
         status="synthetic-versioned-migration-verified",
         commit=commit,
-        schema_version=1,
+        schema_version=2,
         original_tables_preserved=len(before["tables"]),
         history_rewritten=False,
         repeat_startup_verified=True,
+        v1_to_v2_verified=True,
         recovery_verified=True,
         network_attempts=0,
         production_authorized=False,
