@@ -18,10 +18,10 @@ def workflow(filename):
 class FoundationContractTests(unittest.TestCase):
     def test_catalog_links_resolve(self):
         count, external = validate_catalog()
-        self.assertEqual((count, external), (24, 0))
+        self.assertEqual((count, external), (25, 0))
         catalog = json.loads((ROOT / "docs/requirements.json").read_text(encoding="utf-8"))
         self.assertEqual(
-            sorted(req["id"] for req in catalog["requirements"]), [f"DP-{index:03}" for index in range(1, 25)]
+            sorted(req["id"] for req in catalog["requirements"]), [f"DP-{index:03}" for index in range(1, 26)]
         )
 
     def test_ci_cannot_publish_on_push_or_pull_request(self):

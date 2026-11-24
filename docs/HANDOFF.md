@@ -1,5 +1,19 @@
 # Handoff and protected work
 
+## RL-06 in progress — 2026-11-24
+
+Owner requested RL-06 after approved RL-05 integration. Verified clean HEAD/fetched
+main `25a78ba6606e74760969cce7c993d60d3a139f2e`; created
+`feature/rl-06-synology-test-deployment`. Ready gate `rl-06-contract.md` records
+inspection/plan. Scoped isolated Compose, explicit synthetic v2 tool, non-publishing
+AMD64 archive/export and actual Compose rehearsal under implementation; German
+guide `synology-test-deployment.md`. Initial failing regressions captured before
+implementation. Verification/PR/artifact receipts still pending, no NAS/production
+execution or publication. Real devices/HTTPS/operator/offsite/key acceptance OPEN.
+Local full 3.12.13/3.13.15 gates pass 318/312/six POSIX skips, 172.711s/182.238s,
+browser/security included; exact-head actual Compose/artifact CI still required.
+
+
 ## RL-05 integrated handoff — 2026-11-24
 
 PR #10 https://github.com/tostman1/drink-pos/pull/10 is **MERGED** after completed

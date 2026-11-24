@@ -1,5 +1,35 @@
 # Engineering foundation progress
 
+## RL-06 active increment — 2026-11-24
+
+- Exact clean/fetched main baseline `25a78ba6606e74760969cce7c993d60d3a139f2e`;
+  branch `feature/rl-06-synology-test-deployment`; ready gate `rl-06-contract.md`.
+- New local-only internal-network Compose and empty synthetic-only v2 initializer;
+  no fresh/adopt on serve, credentials/weak PIN blocked, read-only inspection,
+  quiesced EF-08b backup/full new-root recovery and exact-candidate preflight.
+- CI export saves the already-tested AMD64 image (no publication), exact archive/
+  config-ID/source/release/CI receipts and German operator guide. Actual deliverable
+  Compose rehearsal added; full final gates and receipt are not yet claimed.
+- Initial red regressions: missing Compose/module; subsequent first four pass.
+  Windows zoneinfo dependency avoided through bounded supported IANA names;
+  isolated new-test SQLite handle leak fixed with explicit close, unrelated to the
+  existing EF-08a `WinError 5` gap. No production runtime/UI/updater changes.
+- Eight focused boundary regressions pass. First full 3.12/3.13 executions found
+  only stale foundation catalog-count expectation (24→25); 317 tests, 6 POSIX skips,
+  one failure each, 205.824s/211.566s; corrected expectation, full reruns pending.
+  Actual-image evidence expanded from same-image recreation to exact main baseline
+  → candidate, unsupported older v1 image startup rejection/unchanged state and
+  full-table/ledger/receipt comparison, independent restore and post-backup retention.
+- Full reruns pass 3.12/3.13: 317 discovered, 311 passed, six POSIX skips;
+  174.910s/177.717s, browser and dependency audit pass. A subsequent ninth red/green
+  regression closes mutable/mismatched test image tags; final 318-test reruns next.
+- Latest full local 3.12.13/3.13.15 gates pass: **318 discovered / 312 passed /
+  six POSIX skips**, 172.711s/182.238s. Ruff/format/syntax (88 Python, 130 JS),
+  traceability 25/zero external, full financial/security/migration/recovery/DR
+  regressions, dependency audit and Chromium smoke pass. Subsequent Messages
+  presence check and artifact runtime inventory also require exact-head CI; no
+  actual Compose/image run possible locally (Docker unavailable).
+
 ## RL-05 final integration — 2026-11-24
 
 - Second independent owner review complete, R5-01/R5-02 verified, no approved-scope

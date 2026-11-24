@@ -1,0 +1,46 @@
+# Local archive only. Never use compose.synology.yaml or the production updater.
+# CLI: docker compose --env-file .env.test -p drink-pos-test -f compose.synology.test.yaml ...
+services:
+  drink-pos-test:
+    image: "${DRINK_POS_TEST_IMAGE:?Exact imported test image required}"
+    platform: linux/amd64
+    pull_policy: never
+    container_name: drink-pos-test
+    restart: "no"
+    read_only: true
+    user: "${DRINK_POS_TEST_UID:?Test folder owner UID required}:${DRINK_POS_TEST_GID:?Test folder owner GID required}"
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: [/tmp]
+    command: [python, -B, /app/synology_test.py, serve]
+    ports:
+      - "${DRINK_POS_TEST_BIND_IP:-127.0.0.1}:${DRINK_POS_TEST_PORT:-8089}:8000"
+    volumes:
+      - type: bind
+        source: "${DRINK_POS_TEST_HOST_ROOT:?Dedicated absolute test root required}"
+        target: /test
+        bind:
+          create_host_path: false
+    environment:
+      TZ: "${DRINK_POS_TEST_TZ:?Explicit timezone required}"
+      DRINK_POS_ENV: production
+      DRINK_POS_PIN: "${DRINK_POS_TEST_PIN:?Strong test-only PIN required}"
+      DRINK_POS_TEST_ID: "${DRINK_POS_TEST_ID:?Explicit test identity required}"
+      DRINK_POS_TEST_ROOT: /test
+      DRINK_POS_TEST_STATE: "${DRINK_POS_TEST_STATE:-data}"
+      DRINK_POS_DB: "/test/${DRINK_POS_TEST_STATE:-data}/database.db"
+      DRINK_POS_MESSAGES: "/test/${DRINK_POS_TEST_STATE:-data}/messages.json"
+      DRINK_POS_BACKUP_DIR: /test/backups
+      DRINK_POS_IMAGE_REF: "${DRINK_POS_TEST_IMAGE:?Exact imported test image required}"
+      DRINK_POS_MIGRATION_MODE: versioned
+      DRINK_POS_ALLOW_FRESH: "0"
+      DRINK_POS_ADOPT_LEGACY: "0"
+      DRINK_POS_AGENT_TOKEN: ""
+      PAYMENT_PROVIDER: ""
+      DRINK_POS_ALLOW_TEST_CARD_PAYMENTS: "0"
+      SUMUP_API_KEY: ""
+      DRINK_POS_SMTP_HOST: ""
+    networks: [test-only]
+networks:
+  test-only:
+    internal: true
