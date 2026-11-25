@@ -3,7 +3,47 @@
 Lokale touch-freundliche Getraenkeliste / Strichliste fuer Vereins- oder Veranstaltungsbetrieb.
 Die App besteht aus einem FastAPI-Backend, SQLite/WAL und einer Vanilla HTML/CSS/JS PWA.
 
+## Produktziel — beschlossen, noch nicht umgesetzt
+
+**Compose einfügen → Starten → Browser öffnen → Einrichtung abschließen → Betreiben.**
+Ein gewöhnlicher Vereinsadministrator soll Installation, Einstellungen, Wartung und
+Wiederherstellung ohne SSH/CLI, manuelle Datenbankbearbeitung, `.env`-Änderungen oder
+Entwicklerhilfe durchführen können. Synology Container Manager ist der Hauptweg;
+andere Docker-kompatible Systeme bleiben unterstützt. Einfache Compose-Datei,
+persistente Daten, keine gemeinsame Standard-PIN, keine Freigabe allein durch Start,
+keine privilegierten Container oder Docker-Socket als Standard.
+
+Geplant sind Ersteinrichtungsassistent (RL-07), sichere SumUp-Einstellungen/
+Diagnose/Abnahme/Freischaltung (RL-08), Backup-/Recovery-GUI (RL-09), eingeschränkte
+Update-Wartung (RL-10) und echte DSM-/Mobil-/PWA-/Betriebsabnahme (RL-11).
+**Diese GUIs sind noch nicht implementiert.** Bar-only-Betrieb soll ohne optionale
+Integrationen möglich sein; unbereites SumUp muss Kartenfunktionen vollständig
+ausblenden und serverseitig sperren. Echte Zahlungstests benötigen eigene Freigabe.
+
+Details und messbare Kriterien: [Produkt-Betriebsspezifikation](docs/product-operability.md).
+Die folgenden ENV-/CLI-Anleitungen beschreiben **bestehende** Schnittstellen, nicht
+das Zielerlebnis und keine neue Produktionsfreigabe. RL-06 bleibt unveränderte,
+isolierte Testlieferung; NAS-/Geräteabnahme ist offen. Bestehende automatische
+Pull-/Recreate-/Prune-Updater erfüllen die geplanten Sicherheitsgates nicht:
+[Release-/Recovery-Grenzen](docs/release-safety.md). Nicht ungeprüft ausführen.
+
 ## Engineering foundation / Entwicklung
+
+**Codex / agent entry:** [`AGENTS.md`](AGENTS.md), then the current checkpoint in
+[`docs/HANDOFF.md`](docs/HANDOFF.md). Candidate: `docs/codex-handoff`; exact SHA/PR/
+final CI in its delivery receipt. Main verified 2026-11-25:
+`613ff7195428063e875b9b5d301273c1b4613407`; PR #14 merged, PR #12 open/conflicting,
+reconciliation not yet merged. [Fresh environment](docs/standard-checks.md#fresh-codex-environment).
+Product Experience & Functional Completion / RL-07 and interactive mockup/design
+gates in IMPLEMENTATION_PLAN are not implementation authority.
+
+**Produktziel, noch nicht umgesetzt:** GUI-first Installation/Administration ohne
+SSH/CLI/manuelle DB-/ENV-Arbeit: [`docs/product-operability.md`](docs/product-operability.md),
+DP-026–040. Betriebsanleitungen unten beschreiben den Bestand, nicht eine bereits
+erfüllte Abnahme oder Genehmigung für produktive Eingriffe. Gemeldeter isolierter
+DS224+-Test bei `3f9e9d3...`: Initialisierung/Installation/Start/Health/Reverse-Proxy/
+Zugriff erfolgreich; SYN-001 und weitere Geräte/PWA/Betriebsabnahmen offen. Exakte
+Identitäten im aktuellen HANDOFF, NAS bleibt unverändert.
 
 Isolierte **Testinstallation** auf Synology DS224+ (kein `stable`/Produktionsupdate):
 [`docs/synology-test-deployment.md`](docs/synology-test-deployment.md),
