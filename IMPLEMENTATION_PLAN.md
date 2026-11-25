@@ -4,8 +4,12 @@
 
 Owner-requested repository workflow improvement; DP-018/019, no product changes.
 Binding for all existing/future EF/RL/documentation packages: follow
-[`docs/PROCESS.md`](docs/PROCESS.md#mandatory-token-efficient-github-and-ci-workflow)
+[`docs/PROCESS.md`](docs/PROCESS.md#delivery-and-ci-waiting)
 and [`docs/standard-checks.md`](docs/standard-checks.md#deterministic-ci-waiting--ef-03).
+EF-03b (this increment) consolidates the duplicated EF-03 policy text into one
+AGENTS rule, one PROCESS workflow and one Standard Checks reference, and aligns the
+historical discovery documents with the unchanged exact-HEAD/waiting helper; it
+authorizes no product, deployment or merge change.
 One read-only waiting helper invocation per run/PR+exact HEAD, bounded internal
 delays/backoff/final result; no model-driven waiting, duplicate monitors or repeated
 context reconstruction. All local/security/container/review/final-head/post-merge/

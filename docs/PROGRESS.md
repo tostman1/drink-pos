@@ -1,5 +1,41 @@
 # Engineering foundation progress
 
+## EF-03b governance consolidation — delivery in progress, 2026-11-24
+
+Owner-directed simplification of the merged EF-03 governance (PR #13). Verified
+base/fetched main `81bc120d39f1b5b6694d9c970be97c613a9aed0e`; exact final-main CI
+`45442040972` success. Branch `feature/governance-simplification` in dedicated
+outside-Git worktree; unrelated OPEN PR #12 branch/checkout preserved untouched
+(its `ac5b7e7` base predates EF-03; reconciliation after this PR is the owner's
+next decision, recorded in HANDOFF).
+
+- Duplication removed: AGENTS 16-line waiting section → one short rule; PROCESS
+  136-line "Mandatory token-efficient GitHub and CI workflow" → consolidated
+  "Delivery and CI waiting" + "Review and merge" + "Durable checkpoint and
+  recovery" + "Failure, limits, and diagnostics" (all pinned phrases retained);
+  Standard Checks EF-03 section de-duplicated to the operational reference
+  (exact usage/flags/defaults/exit/result contract preserved, `#deterministic-
+  ci-waiting--ef-03` anchor unchanged). README/PR-template/AGENT_PROMPT_FIX/
+  REVIEW_FINDINGS/ai-agent-manual anchor and wording aligned; IMPLEMENTATION_PLAN
+  EF-03 section extended with the EF-03b scope note.
+- Unchanged: `scripts/wait_for_ci.py`, `tests/test_ci_wait.py` (33 methods),
+  workflow definitions, publication gates, DP-018/019 catalog entries, security
+  gates, app/tests/product code. No CI weakening; no deployment/publication.
+- Local evidence (Python 3.12.13, approved temp venv/age/Node):
+  focused `test_ci_wait`+`test_foundation_contracts` 38/38 pass; first full
+  Standard Checks run: 351 discovered/17 failed — every failure the documented
+  missing external `age`/`age-keygen` gap (not silently skipped per EF-08c
+  contract), no Node stage failure; with pinned age v1.3.2 on PATH full 3.12 run:
+  351 discovered/345 passed/six POSIX-only skips, 194.212s, Ruff/format/syntax/
+  25-ID traceability/pip-audit (none known)/Chromium browser smoke/diff all pass,
+  "Standard Checks passed." Python 3.13.15 full run: 351 discovered/345
+  passed/six POSIX-only skips, 193.479s, all quality stages pass, "Standard
+  Checks passed." (First 3.13 run: 351/1 error — the documented intermittent
+  EF-08a Windows WinError 5 backup-rename gap, reproduced once, not fixed and
+  not suppressed; unchanged-gate rerun passed.)
+- Exact-head branch/PR CI: PENDING — one deterministic `scripts/wait_for_ci.py`
+  invocation per required phase after push, outside-Git result paths.
+
 ## EF-03 integrated — final receipt verification pending, 2026-11-24
 
 PR #13 https://github.com/tostman1/drink-pos/pull/13 **MERGED** under explicit

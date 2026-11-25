@@ -33,10 +33,11 @@ Never use production databases, production Compose startup, live payments or
 email delivery as routine verification. PR #1 was owner-merged as `052c2bb`;
 its manual verification items remain open.
 
-Coding agents must follow [the mandatory token-efficient CI workflow](docs/PROCESS.md#mandatory-token-efficient-github-and-ci-workflow):
-waiting is deterministic automation, not repeated model interactions. Exact
-`scripts/wait_for_ci.py` commands, timeouts, exit codes and limitations are in
-[Standard Checks](docs/standard-checks.md#deterministic-ci-waiting--ef-03).
+Coding agents follow the delivery and CI-waiting workflow in
+[`docs/PROCESS.md`](docs/PROCESS.md#delivery-and-ci-waiting): GitHub waiting is
+one deterministic `scripts/wait_for_ci.py` invocation per CI phase, never repeated
+model interactions. Exact commands, flags, defaults, exit codes and limitations
+are in [Standard Checks](docs/standard-checks.md#deterministic-ci-waiting--ef-03).
 
 ## Lokal starten
 

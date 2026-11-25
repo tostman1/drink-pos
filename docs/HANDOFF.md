@@ -1,6 +1,45 @@
 # Handoff and protected work
 
-## Current checkpoint — EF-03 governance / deterministic CI waiting, 2026-11-24
+## Current checkpoint — EF-03b governance consolidation, 2026-11-24
+
+**OPEN PR pending:** branch `feature/governance-simplification` from verified
+main `81bc120d39f1b5b6694d9c970be97c613a9aed0e` (final-main CI `45442040972`
+success); worktree `C:/Users/fritz/AppData/Local/Temp/opencode/drink-pos-gov-simplify`.
+Owner authorization: governance-simplification PR and integration according to
+existing authorization rules; no product/runtime/UI/migration/Compose/workflow
+change. Unrelated OPEN PR #12 (`docs/product-operability-requirements`,
+`ac5b7e7`) preserved untouched: its base predates EF-03 and it textually
+overlaps AGENTS/PROCESS/README/IMPLEMENTATION_PLAN/AUDIT/PROGRESS/
+standard-checks/requirements.json/HANDOFF. Its unmerged product requirements are
+not imported into main; after this PR merges, PR #12 must be re-based onto main
+with both owners' content preserved, then re-reviewed before its own merge.
+Integration sequence: EF-03b → PR #12 reconciliation.
+
+- Scope: duplicate/outdated EF-03 policy text consolidated — one short AGENTS
+  rule (CI waiting is deterministic), one PROCESS workflow (Delivery and CI
+  waiting; Review and merge; checkpoint; limits/diagnostics), one Standard
+  Checks reference (usage/flags/defaults/exit/result contract retained verbatim
+  in substance). Historical discovery docs (README, PR template, AGENT_PROMPT_FIX,
+  REVIEW_FINDINGS, ai-agent-manual) aligned with the existing exact-HEAD helper.
+  `#deterministic-ci-waiting--ef-03` anchor preserved; DP-018/019 statements,
+  sources, tests, security gates, publication boundaries unchanged.
+- Verification: focused `test_ci_wait`+`test_foundation_contracts` 38/38 pass
+  (3.12.13). Full local Standard Checks 3.12: 351/345 passed/six POSIX-only
+  skips, all quality stages pass, "Standard Checks passed." 3.13: 351/345/
+  six POSIX-only skips, all stages pass (first run hit the documented
+  intermittent EF-08a WinError 5 once; unchanged-gate rerun passed). Age
+  v1.3.2/Node 24.11.1 from approved outside-Git temp; missing tools were the
+  only failure class in the first 3.12 run. Exact-head PR CI: PENDING after
+  push (one deterministic wait).
+- Next action: push → open PR → one `scripts/wait_for_ci.py` invocation bound to
+  the exact head for branch/PR CI → post receipt → owner review → conditional
+  exact-head-guarded merge if approved → exact merge-main CI once. Final
+  SHA/run results recorded in the PR receipt; no additional receipt-only commits.
+- No production/deployment/payment/mail/publication operation occurred. Existing
+  EF-08a Windows WinError 5 and DSM/mobile/PWA/provider/operator acceptance
+  remain unresolved.
+
+## Retained receipt — EF-03 governance / deterministic CI waiting, 2026-11-24
 
 **Integrated:** PR #13 https://github.com/tostman1/drink-pos/pull/13 MERGED,
 2026-11-24T16:46:46Z, normal exact-head guarded merge
