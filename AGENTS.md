@@ -12,6 +12,15 @@ rehabilitation of an existing application, not permission to rewrite it. Use
 Drink-POS code, tests and requirements as the application baseline; do not import
 another application's architecture or business rules. Historical agent prompts are
 background, not approval to execute every proposed refactoring.
+Also read `docs/product-operability.md`: owner-approved target requirements,
+explicitly planned, with open architecture choices and acceptance gates.
+
+Codex/fresh-environment setup is in `docs/standard-checks.md#fresh-codex-environment`.
+Use the branch/exact delivery SHA in the current handoff PR, not stale historical
+branch instructions. Product Experience & Functional Completion is next; RL-07 is
+not yet implementation-authorized. Its interactive HTML mockup needs separate
+scope authorization and Product Owner design review before broad production GUI
+changes. Agent execution instructions stay English; product GUI stays German.
 
 ## Preserve behavior
 
@@ -55,6 +64,45 @@ exit/status contract are in [Standard Checks](docs/standard-checks.md#determinis
 Missing, skipped, stale or failed checks are never success, and success is never
 merge permission: review, exact-head guard, protection, and approval gates stay
 unchanged.
+
+## Binding product operability (owner approved 2026-11-24)
+
+- Ordinary association administrators must install, configure, maintain and recover
+  without SSH/CLI, manual SQLite/YAML/.env operations or developer assistance.
+  Target: Paste Compose → Start → Browser → Guided Setup → Operate. DSM Container
+  Manager is principal; support other Docker-compatible systems. Runbooks supplement,
+  not replace, routine GUI journeys. These are future requirements, not a claim
+  existing deployment/recovery interfaces already meet them.
+- One simple Compose, minimal unavoidable image/port/persistent-volume inputs,
+  one app service by default; justify extra isolation only for safety. No shared
+  default admin PIN, activation on container start, default privileged container
+  or Docker socket. A web app cannot change all host/container settings.
+- GUI settings require typed/versioned persistence and explicit precedence/migration.
+  Secrets need approved server-only protection, masking, rotation and independent
+  key/new-hardware recovery; never plaintext API-key settings or stored-secret
+  responses/browser state/JS/logs/CSV/receipts. Existing SMTP/PIN TEXT storage is a
+  migration risk, not an approved secure-secret implementation.
+- Every sensitive payment setting change requires fresh action-bound server-side
+  admin PIN verification, warnings, confirmation and secret-free audit. Session or
+  reused browser PIN alone is insufficient. Serialize against active/unresolved
+  payments; retain original provider identities/reconciliation access on disable.
+- SumUp incomplete/unverified/inactive/unavailable means no normal card/Self-Pay/
+  fee/rounding controls or card-creation calls; backend fails closed/no provider
+  request/fake payment. Cash remains subject to financial holds. Production must
+  reject fake/test providers. Completeness/connectivity is not readiness/payment.
+- Live acceptance tests use separate durable records, not member debt/beverage
+  revenue; explicit live-test approval and fresh PIN required. Verify exact provider
+  success; cancel acknowledgement/local timeout never proves failure. UNKNOWN stays
+  held/intervention; no unsafe replay or automatic refund. Docs approval is not
+  permission to run SumUp/SMTP tests or use credentials.
+- Backup/restore/update GUIs reuse EF-08 and exact release/migration contracts.
+  Drain all writers; restore to isolated new state, preserve old/failed/post-backup
+  financial activity and reconcile before activation. Independent browser recovery
+  must work without the main DB. Readiness is not container replacement permission;
+  updates need a restricted execution boundary, not unrestricted host access.
+- RL-07–RL-11 are planned and separately authorized; resolve PO-ADR gates before
+  implementing recommendations. Preserve RL-01–06/EF-08 evidence and unchanged
+  RL-06 artifacts. CI does not close DSM/mobile/PWA/provider/operator acceptance.
 
 ## Reviewable increments
 

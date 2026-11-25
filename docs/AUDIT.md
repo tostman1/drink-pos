@@ -1,5 +1,32 @@
 # Technical audit — evidence, not a rewrite mandate
 
+## Current handoff audit — 2026-11-25
+
+Verified main `613ff7195428063e875b9b5d301273c1b4613407`, PR #14 merged; PR #12
+OPEN/CONFLICTING at `ac5b7e73fd12e67ac66e427abc93b5a524e650ca`. New handoff branch
+preserves both histories through a docs reconciliation merge. Historical conflict
+warning below is resolved **in this candidate**, not by rewriting/merging PR #12.
+Waiter/tests/workflows must remain byte-identical to main; product IDs/gates/history
+retained. No runtime fixes, publication or NAS operation.
+
+**SYN-001 — initialization diagnostics (OPEN):** owner reports insufficient
+diagnostic feedback during otherwise successful isolated DS224+ initialization.
+Exact tested source/deployment/schema in HANDOFF. No error transcript/specific
+failing input supplied: do not invent root cause or reproduction. Next approved
+UX scope should capture actionable stage/cause/recovery messages and safe repeat
+behavior using synthetic regression, never secret leakage. Startup success is not
+closure. Windows EF-08a rename **WinError 5** remains unresolved; successful reruns
+are not a fix. FH-05/authentic historical adoption and broad OQ-06 stay OPEN.
+FH-01/02/03/06 scoped gaps and FH-04 **new operations** addressed by RL-04/05;
+old partial/NULL-parent audit history remains unverified, never reconstructed.
+
+Owner-reported NAS init/install/startup/health/reverse-proxy/app access supersedes
+only those pending steps. Trusted-TLS/ACL/tablet/mobile/installed-PWA/offline/full
+finance/provider/SMTP/independent keys/images/offsite/immutable/timed operator
+recovery/reconciliation remains pending or partial; all PO-V01–15 pending.
+Codex harness unverified; empty releases/zero GitHub deployments do not inventory
+external runtime. Source-observed product-operability gaps remain planned fixes.
+
 ## EF-03b governance consolidation audit — 2026-11-24
 
 Owner-directed reduction of duplicate EF-03 policy text after PR #13 integration.
@@ -71,6 +98,41 @@ Standard Checks each pass 351 tests/345 passed/six POSIX skips; 33 focused metho
 also pass in Windows Git Bash. Real completed-run/open-PR gh compatibility succeeds
 without triggering workflows; candidate Linux/container/exact-head CI still pending.
 See current PROGRESS/HANDOFF.
+## Product operability decision/evidence receipt — documentation only, 2026-11-24
+
+Exact inspected clean/current origin/main
+`7a6aa5dff411c8fb5601b87758a0fc64810aa0c3`; new docs branch, baseline CI
+`45410477163` independently queried success/publication skipped. Owner approves
+product outcomes D-18–25/DP-026–040, not technical PO-ADR-01–14 options or RL-07
+implementation. No existing PR altered/merged; RL-01–06/EF08 evidence preserved.
+
+Served code inventory in `docs/product-operability.md` follows main/application/
+registry/legacy and SumUp/security/events/build helpers. Findings are **source evidence
+and future gaps**, not asserted live incidents or authorized fixes:
+
+| Gap at inspected baseline | Evidence | Planned owner requirement / boundary |
+| --- | --- | --- |
+| No guided secure product bootstrap | ENV PIN/current stored TEXT admin PIN/legacy initialization; RL06 explicit synthetic CLI | DP-026/027: safe strong no-default GUI ownership, exact migration gates, DB-independent recovery |
+| SumUp operational ENV only | `sumup_payment_settings`, config builder; admin ENV text/status, list/pair/status APIs | DP-029/032: GUI persistence/discovery, no promised new functionality yet |
+| Completeness advertised as ready/partial UI hiding | admin “SumUp bereit”; member panel uses enabled, cashier button shown disabled, kassa rounding amount-based | DP-028/033/034: separate current readiness/activation, complete hiding and server gating |
+| Production fake-provider flag loophole | `test_card_payment_mode`: explicit allow-test flag/provider branch independent of APP_ENV production | DP-033: reject production fake/test regardless of flag. Docs only, no fix/deployment here |
+| Sensitive auth/secrets weaker than target | Browser-held reused PIN; `admin_pin` and `mail_smtp_password` stored TEXT; ENV provider keys; no action grant/encrypted key hierarchy | DP-030/031: fresh action-bound PIN and protected persistence/recovery; no current encryption claim |
+| Local uncertainty labels insufficient for new acceptance contract | Session local CANCELLED before terminate; poll TIMEOUT/expiry; current success accepts missing amount and currency fallback; no per-session merchant/reader/config revision | DP-031/035–037: immutable identities/exact success/definitive cancel, UNKNOWN holds/report/acceptance policy |
+| Backup/update interfaces not product GUI | Standalone EF08/release tools, exports/build labels, unsafe legacy pull/recreate/prune scripts | DP-038/039: all-writer isolated recovery/restricted updater with independent keys/images and post-backup reconciliation |
+
+No provider query, credential access, database inspection or real-device testing was
+performed. Existing uncertainty means no paid debt without provider evidence; new
+strict contracts do not retroactively claim old tests establish stronger merchant/
+config matching. Historical windows/audit/adoption gaps remain named below.
+
+Evidence receipt consists of updated authoritative docs/focused spec and planned JSON
+partition, PO-V01–15 all pending. Existing traceability validator covers only unchanged
+DP-001–025; supplemental source/status/unique-ID/ADR/roadmap audit is required and
+recorded in PROGRESS/PR. RL-07 owns lifecycle validation extension. No Python/test/CI
+loosening to mask a doc catalog change. Documentation review is not implementation,
+independent review/merge or NAS/operator/provider acceptance. Runtime/migrations/UI/
+Compose/RL06 deployment artifacts stay unchanged; final SHA/PR/checks recorded after
+commit/push without predecessor-CI inference. No production/deploy/payment/mail/release.
 
 ## RL-06 scoped deployment evidence — integrated, manual acceptance pending
 

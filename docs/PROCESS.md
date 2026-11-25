@@ -13,6 +13,13 @@ Contradictions are recorded, not silently turned into requirements. Automated
 tests characterize behavior; they do not prove target-device usability or real
 external-service behavior.
 
+Owner-approved product operability (2026-11-24) is now binding for future sessions:
+`docs/product-operability.md`, DP-026–040, D-18–25. GUI-only routine administrator
+journeys are approved **requirements**, not implemented features or approval of open
+PO-ADR recommendations. RL-07–11 execution/merge/deployment/live tests need separate
+authorization. Historical package stop/integration notes are retained, not renewed
+authority for another session. Inspect current HANDOFF/PROGRESS first.
+
 ## Ready gate
 
 1. Read the current handoff checkpoint and inspect Git state, base, affected
@@ -23,8 +30,8 @@ external-service behavior.
 4. For structural work, first demonstrate behavior parity at the actual runtime
    seam; do not substitute an extracted prototype based only on its name.
 5. Anything changing business rules, deployment, or destructive recovery needs
-   owner approval. Requirements in this baseline are reconstructed observations,
-   not a claim of separate stakeholder sign-off.
+   owner approval. Historical baseline requirements are reconstructed observations;
+   explicitly approved product targets are separately labeled planned, not completion.
 
 ## Implementation loop
 
@@ -137,6 +144,13 @@ statement, source paths, verification test references and/or manual checks, and
 scope. Validate links with `python scripts/check_traceability.py`; update
 references when tests move. New unresolved requirements must be marked as such,
 never given fictitious tests.
+
+Documentation-only DP-026–040 uses `planned_requirements` with pending PO-V01–15
+acceptance references in the focused specification and owning RL package. Schema-v1
+checker and exact-count tests still cover only DP-001–025: preserve them unchanged,
+run a supplemental combined ID/source/status/spec/package audit and label the gap.
+RL-07 must extend validator/schema/tests for both lifecycle partitions before promotion
+to implementation; do not weaken checks or cite old mocks as evidence for planned GUIs.
 
 ## Integration / release boundaries
 

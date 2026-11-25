@@ -1,5 +1,123 @@
 # Standard Checks
 
+## Fresh Codex environment
+
+Codex-specific execution is **unverified**. These repository-supported recipes do
+not imply that a hosted agent permits networking, browsers, Docker or persistent
+background work. AGENTS/HANDOFF/PROCESS apply regardless of harness.
+
+Prerequisites: Git with full ancestry (unshallow if necessary), Python 3.12/3.13,
+Node **24 LTS**, pip/venv or uv, authenticated GitHub CLI `gh` for read-only CI and
+authorized PR operations. Credentials belong in the harness/store, never Git/logs.
+
+```sh
+git clone https://github.com/tostman1/drink-pos.git
+cd drink-pos
+git fetch origin
+git switch --track origin/docs/codex-handoff
+git rev-parse HEAD
+git status --short
+```
+
+Match HEAD against the handoff PR delivery receipt; inspect any change rather than
+assuming branch identity. Read AGENTS/current HANDOFF first. Implementation starts
+on a separate branch from verified integrated main only after scope approval.
+Do not run historical `gh repo create` or start new work on original PR #12.
+
+Use venv recipes below; install trusted external `age`/`age-keygen` with
+`python scripts/install_age.py --destination <new-outside-Git-tool-dir>` and put
+the reported binary directory on PATH. Node must be on PATH or explicitly passed.
+Linux Playwright Chromium dependencies may require OS privileges. Missing tools,
+browser/network/advisory access are gaps/failures, never successful skipped gates.
+Run `python scripts/standard_checks.py`; focused browser is
+`python scripts/browser_smoke.py` (owned synthetic state, off-origin traffic and
+service workers blocked). No OpenCode in-app browser needed; Codex may use
+Playwright if supported. This does not verify installed-PWA/device acceptance.
+
+Interactive **development-only** loopback startup from repo root, POSIX example:
+
+```sh
+scratch=$(mktemp -d)
+env -i PATH="$PATH" HOME="$HOME" \
+  DRINK_POS_ENV=development DRINK_POS_DB="$scratch/drink-pos.db" \
+  DRINK_POS_MESSAGES="$scratch/messages.json" DRINK_POS_BACKUP_DIR="$scratch/backups" \
+  DRINK_POS_PIN=847296 PAYMENT_PROVIDER=none \
+  .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8088 --workers 1
+```
+
+That PIN is a visible synthetic fixture, **never** a deployment default. Windows:
+use a new approved outside-Git scratch directory, remove inherited prefixes exactly
+as `scripts/standard_checks.py::test_environment` does, set equivalent values and
+run `.venv/Scripts/python.exe -m uvicorn app.main:app ...`. Open loopback `/`,
+`/admin`, `/kassa`, `/self-pay`. No existing DB, `.env`, provider/mail credentials;
+stop the owned process before inspecting/retaining scratch. This is not production
+versioned initialization. Docker Engine/compatible Docker CLI+Compose is needed for
+local container evidence; otherwise use mandatory Linux CI. Never start production
+Compose/update/restore as a test. AMD64 archives differ from ARM/new builds.
+
+Use authorized `git commit -F`/push/PR; review and merge/publication/deployment/
+production resources/live provider/mail require separate authority. OpenCode
+completion notifications are harness-specific. Codex must use **one** blocking or
+supported persistent background shell covering the full deterministic waiter budget
+plus cleanup, new outside-Git JSON, then verify terminal SHA/run/attempt/jobs once.
+Copy compact redacted evidence to the PR. If execution cannot outlive the wait,
+checkpoint and stop: no LLM polling/repeated queries/scheduled agent-turn loops.
+Pending/forced-killed JSON is not success. Private keys/images/temp logs and Windows
+ACL acceptance do not transfer through GitHub automatically.
+
+### Planned-catalog supplemental audit
+
+The existing checker validates only 25 baseline entries. For documentation changes
+also audit all 40 unique DP IDs, 15 planned-not-implemented entries with empty tests/
+pending PO-V01–15, actual source paths, PO-V headings, all 14 OPEN ADR headings and
+RL-07–11 dependencies; check edited local Markdown file/anchor links. No checker/
+schema/test change here to manufacture completion; RL-07 owns lifecycle evolution.
+
+## Product-operability documentation gate (2026-11-24)
+
+DP-026–040 are owner-approved **planned** targets in `docs/product-operability.md`:
+PO-V01–15 are pending specification acceptance, not implemented test methods or
+new manual passes. Preserve the MV-01–06 register and unchanged code/CI gates.
+The schema-v1 catalog checker/exact-count tests cover only `requirements` DP-001–025;
+they do **not** validate `planned_requirements`. This docs-only package additionally
+audits both partitions for unique/exact IDs, source/spec references, pending/no-test
+status, owning RL packages/dependencies, open ADRs and prior-catalog/tree preservation.
+Record this supplemental result separately, not “40 requirements covered by CI”.
+RL-07 must separately extend schema/checker/tests for combined lifecycle validation
+before promotion; no weakening of CI/exact-ID assertions to accommodate documentation.
+Full Standard Checks still run on disposable state with provider/SMTP mocked;
+they authorize no deployment/real tests and do not implement the planned GUIs.
+
+Reproducible read-only supplemental catalog check (Python from repo root; developer
+verification, **not a normal administrator procedure**). Run this snippet through
+Python stdin or a temporary file outside Git, alongside the existing traceability
+command. The broader human/receipt audit also checks ADR options, roadmap dependencies,
+historical evidence, local Markdown links and documentation-only protected-tree parity.
+
+```python
+import json
+import re
+from pathlib import Path
+
+root = Path.cwd()
+catalog = json.loads((root / "docs/requirements.json").read_text(encoding="utf-8"))
+planned = catalog["planned_requirements"]
+ids = [r["id"] for r in catalog["requirements"] + planned]
+assert len(ids) == len(set(ids)) == 40
+assert [r["id"] for r in planned] == [f"DP-{n:03}" for n in range(26, 41)]
+spec = (root / "docs/product-operability.md").read_text(encoding="utf-8")
+headings = re.findall(r"^### (PO-V\d{2}) — planned acceptance:", spec, re.M)
+for n, requirement in enumerate(planned, 1):
+    assert requirement["status"] == "planned-not-implemented"
+    assert requirement["verification_status"] == "pending" and not requirement["tests"]
+    assert requirement["verification_id"] == f"PO-V{n:02}" in headings
+    assert requirement["acceptance"] and requirement["work_packages"]
+    for source in requirement["sources"]:
+        path = (root / source).resolve()
+        assert path.is_relative_to(root.resolve()) and path.is_file()
+print("Supplemental planned catalog passed; PO-V acceptance still pending")
+```
+
 ## Local setup and single command
 
 Python 3.12 (container baseline) or 3.13, Node 24 LTS. No npm install/build.

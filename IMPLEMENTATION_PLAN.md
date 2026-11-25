@@ -1,5 +1,61 @@
 # Engineering foundation work packages
 
+## Product Experience & Functional Completion — next phase
+
+Owner priorities recorded 2026-11-25: fundamentally reorganize the confusing GUI,
+complete agreed functionality, improve member/cashier/admin workflows, GUI-first
+setup/configuration/administration, preserve validated financial/security/migration/
+recovery guarantees, deliver meaningful visible improvements and prepare an improved
+isolated Synology test release for later practical acceptance. Governance is
+sufficiently established; change it only for a concrete defect/blocker. This handoff
+implements none of these priorities and grants no product implementation authority.
+
+**Immediate authorized package:** review this docs/codex-handoff reconciliation;
+integration requires owner approval. **Next product candidate remains RL-07**, not
+a new competing package or automatic EF modernization programme. Its existing
+DP-026–031/PO-V01–06 and PO-ADR dependencies below remain binding. Need explicit
+bounded scope authorization before creating the mockup or product code; all listed
+blocking architecture choices must resolve before their affected implementation.
+
+### RL-07 intended deliverables and design acceptance
+
+- A substantial **interactive HTML GUI mockup** before broad production GUI work,
+  reviewed by the Product Owner. Include coherent navigation and realistic synthetic
+  member booking/debt, cashier settlement/holds, admin master/settings/report/event
+  workflows, first-run setup, cash-only/incomplete/unverified/intervention states,
+  and previews of dependent payment/recovery/maintenance journeys. Preview is not
+  implementation of RL-08–10. No real provider/mail/backend writes/secrets; no SPA
+  transplant. German wording/EUR/touch layouts, representative long lists and
+  actionable errors (including SYN-001), not a static screenshot or empty wireframe.
+- Review records explicit approved navigation/workflows/responsive layouts and
+  missing-functional priorities mapped to **existing DP IDs**. Broad production
+  GUI changes wait for design approval; unagreed behavior/roles/business rules stay
+  open. Test mockup with supported browser tooling; real device acceptance remains
+  separate. Resolve UX scope within RL-07, not speculative approval of every TODO.
+- Then, when explicitly authorized and technically ready, deliver a coherent visible
+  first-run/configuration experience together with necessary typed settings, secure
+  ownership/secret/recovery foundations, precedence/migration and lifecycle catalog
+  gates. Keep foundations tied to usable journeys rather than an unnecessary chain
+  of documentation-only/infrastructure-only packages. Preserve existing workflows
+  during incremental integration; broad all-page replacement is not implied.
+- Acceptance: PO-approved interactive design; requirement/state/error traceability;
+  PO-V01–06 evidence scoped to actual implemented foundations; failing served-boundary
+  regression before each behavior change, full Standard Checks, exact-head container
+  CI, worker-version review and explicit outstanding device/provider/DSM checks.
+  No test may mark planned PO-V gates complete solely from mockup or CI success.
+
+**Blocking decisions:** PO-ADR-01–06, 09–11, 13 and key/retention preparedness of 14
+for RL-07; OQ-05/07 for distribution identity/protection. Retain open alternatives
+and owner/security/accounting review in DECISIONS; no inferred choice of crypto,
+first-visitor ownership, host execution or new roles. SYN-001 should inform the
+approved diagnostic design; WinError 5 needs a separately bounded reliability fix
+before Windows recovery readiness. No live acceptance or NAS update here.
+
+RL-08 completes secure SumUp configuration/diagnostics/acceptance/full gating;
+RL-09 completes independent recovery GUI; RL-10 restricted update/maintenance;
+RL-11 actual improved Synology/mobile/PWA/operator acceptance. Retain these package
+boundaries and safety dependencies, but prioritize visible coherent user journeys.
+
 ## EF-03 governance increment — deterministic CI orchestration (2026-11-24)
 
 Owner-requested repository workflow improvement; DP-018/019, no product changes.
@@ -18,6 +74,46 @@ precede helper implementation; no real workflow triggered for scenario testing.
 Owner subsequently authorizes controlled commit/push/PR/candidate CI/integration and
 post-merge verification subject to all review/approval gates (2026-11-24). No image
 publication/deployment/Synology operations or RL-07 authority. See current HANDOFF.
+## Current roadmap authority — 2026-11-24
+
+Main baseline `7a6aa5dff411c8fb5601b87758a0fc64810aa0c3`; RL-01–RL-06 are
+integrated (PRs #6–11). RL-06 NAS/manual acceptance is still pending. The original
+package scopes/approval-time exclusions below remain historical; their OPEN/no-merge/
+no-v2 wording is superseded **only** by recorded integration/RL-05 evidence, not
+deleted or renumbered. No RL-07–11 entries previously existed; IDs are now reserved.
+EF modernization suggestions remain separate, not silently replaced product policy.
+
+The owner approved target requirements DP-026–040 and documentation delivery only.
+**Every implementation, real integration test, deployment and merge needs separate
+authorization.** Read [focused specification](docs/product-operability.md) and open
+PO-ADR-01–14 in DECISIONS; recommended options are not approved designs.
+
+| Planned package | Depends on / decision gates | Target acceptance and exclusions |
+| --- | --- | --- |
+| RL-07 — Simple Deployment, Configuration Foundation & First-Run Wizard | RL-01–06/EF-08 retained; PO-ADR-01–06, 09–11, 13 and preparedness part of 14 | DP-026–031 foundations; PO-V01–06. Strong no-default admin/bootstrap, one-Compose/no-CLI GUI setup, typed settings/secret/key/ENV transition, DB-independent recovery design and trusted image/TLS prerequisite. Extend traceability schema/checker/tests for planned+implemented lifecycle **before promotion**. No implicit production rollout/SumUp activation. |
+| RL-08 — SumUp GUI, Diagnostics, Guided Payment Acceptance & Feature Gating | RL-07 settings/secrets/auth/bootstrap accepted; PO-ADR-06–08, provider capability/limits and acceptance policy verified | DP-028/030/031 integration + DP-032–037; PO-V03/05–12. All nine settings, pairing, no-charge diagnostics, isolated success/cancel/timeout tests, exact config/identity/UNKNOWN holds, explicit activation, complete UI/API gating and no production fake provider. Mocks/synthetic tests first; real tests need separate owner approval/credentials. |
+| RL-09 — Integrated Backup, Restore & Recovery GUI | RL-07 independent control/key/format architecture, RL-08 unresolved provider identity/access model; EF-08a/b/c and release/migration contracts; PO-ADR-03/04/07/09/10/14 | DP-030/038; PO-V05/13. Consistent complete encrypted backups/history/upload/prevalidation, all-writer maintenance/new-root recovery and DB-unavailable GUI, original/post-backup retention and reconciliation. No second incompatible format/active DB overwrite/auto-payment-mail replay. Resolve EF-08a Windows reliability in separately bounded scope before claiming that platform's readiness. |
+| RL-10 — Updates & Maintenance Center | RL-07 image provenance, RL-09 proven restore/key/maintenance, RL-08 payment holds; PO-ADR-11/12 and exact compatibility policy | DP-039; PO-V14. Version/image/schema/backup/storage/pending/recovery status, candidate approval/quiescence/verified backup/isolated rehearsal, restricted install/restart, health/full-state verification/recovery. No unrestricted Docker socket/privileged host control, blind pruning/unattended updates or incompatible image-only rollback. |
+| RL-11 — Synology, Mobile, PWA & Operational Acceptance | RL-07, RL-08, RL-09 and RL-10 implementation individually accepted; PO-ADR-13/14 and unresolved device/operator gaps; explicit authorization for devices/integrations | DP-040 plus all journey requirements; PO-V01–15 and retained MV-01–06. Actual DSM GUI-only install/security/HTTPS, tablet/mobile/installed-PWA/cache/offline, finance/net correction/round block matrix, live provider only approved, independent key/image/DB-unavailable loss/update recovery and post-backup reconciliation. Record assistance/errors/time/real RPO/RTO; never infer hardware/offsite/immutable/provider passes from CI. |
+
+### Package ready/done gates
+
+Before each implementation: verify current main, secure approval/scope, select DP IDs,
+resolve blocking technical choices with owner/security/accounting review, write failing
+served-boundary regressions and define migration/recovery/rollback evidence. Preserve
+existing interfaces unless explicitly reviewed, never substitute prototypes wholesale.
+RL-07 does not bypass strict unknown/future/WAL gates or adopt arbitrary historical DBs.
+
+Each package must deliver small commits, updated traceability/docs, full unchanged
+Standard Checks and exact-head non-publishing branch/PR container gates. GUI work
+also reviews worker cache version and device/PWA checks. Implemented, review-ready,
+owner-merged and operationally accepted are distinct states. For live tests record
+separate owner authority; a C timeout safety pass with UNKNOWN still blocks activation.
+At each handoff retain partial/failed evidence and outstanding choices, then stop.
+
+The current docs-only package uses no behavioral regression/code edits: old 25-entry
+catalog remains intact and new planned partition is supplementally audited (details
+in product-operability). RL-07 owns machine-gate evolution; current CI is not weakened.
 
 ## RL-06 — isolated Synology test deployment (2026-11-24)
 

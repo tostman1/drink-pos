@@ -1,5 +1,68 @@
 # Engineering foundation progress
 
+## Complete Codex handoff / reconciliation — 2026-11-25
+
+Owner authorizes docs handoff/commit/push/PR/exact-head CI, not merge/product code/
+NAS/publication/deployment/production/provider/mail. New `docs/codex-handoff` from
+verified fetched main `613ff7195428063e875b9b5d301273c1b4613407`. Exact main push
+CI `45582091244` success: both Python/Node and non-publishing container; publication
+skipped. GitHub release list empty/deployment API zero, not external runtime inventory.
+PR #14 merged 2026-11-25T09:05:23Z head `8a0e8f0f4b13154f8dfe70c675f5bc16477fa4fc`
+as current main; PR #13 merged `07e0207d401cf192ef5e1ff578078ad886f36cfe`.
+PR #12 OPEN/CONFLICTING/no reviews, unchanged head
+`ac5b7e73fd12e67ac66e427abc93b5a524e650ca`, base
+`7a6aa5dff411c8fb5601b87758a0fc64810aa0c3`. Merge its **committed** docs into
+the new branch, resolving conflicts and retaining governance/product targets/history.
+No rebase/cherry-pick/force-push or original PR edit. New PR is reconciled candidate,
+not integrated; owner decides its merge and old PR closure. Never merge both blindly.
+
+### Retained work and nontransferred private state
+
+Original checkout `docs/product-operability-requirements` / `ac5b7e7...` has only
+uncommitted 11-line AGENTS CI-rule draft, no untracked files reported; untouched.
+Equivalent binding rule already preserved here, no essential knowledge local-only.
+Other worktrees inspected: `drink-pos-gov-simplify` / governance-simplification
+`8a0e8f0...`; `drink-pos-governance-ci-wait` / main `613ff71...`;
+`drink-pos-handoff-verification` / detached original `250a4e6...`; new isolated
+`drink-pos-codex-handoff`. These labels are inventory, not required absolute paths.
+Historical remote-backed refs retained: engineering-foundation `250a4e6...`,
+foundation-baseline `64018bd...`, EF-08a `e7a6073...`, EF-08b `0fbd743...`, EF-08c
+`982dbf1...`, governance-ci-wait `e88fe4f...`, governance-simplification `8a0e8f0...`,
+RL-01 `03853fd...`, RL-02 `9b33859...`, RL-03 `0b43f37...`, RL-04 `9410400...`,
+RL-05 `0b59724...`, RL-06 `3f9e9d3...`; all track corresponding remotes.
+No deletion/reset/unrelated file publication. Private RL-06 archive/receipts outside
+Git are not offsite durability; original full identity/URL/expiry in HANDOFF.
+Keys/env/DBs/messages/invoices intentionally excluded; no secret knowledge required
+for synthetic development. Retain installation artifacts privately before expiry.
+
+### Product / operational transfer and evidence
+
+Existing hierarchy only: AGENTS/current HANDOFF/README, requirements/architecture/
+decisions/plan/process/checks/audit/progress/catalog and product-operability spec.
+Owner priorities mapped to RL-07 candidate with substantial interactive HTML mockup
+and PO design review before broad GUI; no new implementation authority/governance.
+Owner-reported DS224+ AMD64 tested source
+`3f9e9d36f572072600390dbdfff3dc611a1e24e6`, deployment `drink-pos-test-ds224`,
+project `drink-pos-test`, schema2/`0002-transaction-integrity`: synthetic init,
+installation verification, startup/health/reverse proxy/owner app access pass.
+No new NAS inspection/evidence beyond listed steps; SYN-001/WinError5/FH-05/OQ-06/
+manual/provider/operator gaps retained, NAS unchanged.
+
+Final **GitHub PR delivery receipt** records actual handoff SHA, full local Standard
+Checks, supplemental 40-ID/source/status/PO-V/ADR/dependency/local-link audit,
+branch/PR run IDs/attempts/mandatory jobs and warnings. No recursive self-SHA/receipt
+commit loop; no predecessor CI counts as candidate proof. Final-head local and
+branch/PR actual-container gates required before delivery; no post-merge phase
+until approved merge. Large raw logs/results outside Git; compact redacted terminal
+evidence must be on GitHub, not session-only. No running monitor transferred.
+
+Environment gaps: Windows default python/py launcher and Node/age PATH initially
+unusable; verified explicit isolated interpreters/trusted tools required, not a
+product bug. Local Docker unavailable; actual CI container proof required. Codex/
+macOS/devices unverified; Windows POSIX skips, WinError5, lifecycle/Node-action
+warnings, existing 25-ID checker scope and manual gaps remain. No suppression or
+fake pass. Stop at independent review/integration approval, RL-07 not started.
+
 ## EF-03b governance consolidation — delivery in progress, 2026-11-24
 
 Owner-directed simplification of the merged EF-03 governance (PR #13). Verified
@@ -214,6 +277,72 @@ still clean on its original docs branch. An extra `git -c core.autocrlf=false di
 lines as changes; this command-local override was inappropriate for the Windows
 checkout, not a source whitespace fix. No Git configuration/source normalization
 changed. Use the repository's ordinary `git diff --check` gate instead.
+## Product operability requirements — documentation only, 2026-11-24
+
+- Clean local/current fetched origin/main baseline exactly
+  **`7a6aa5dff411c8fb5601b87758a0fc64810aa0c3`**; new
+  `docs/product-operability-requirements` branch. Independent exact-baseline CI query
+  `45410477163`: Python 3.12/3.13 and non-publishing container verification success;
+  publication skipped. RL-06 integrated through PR #11, no historical evidence removed.
+- Owner approves binding GUI-only ordinary-admin product journey, D-18–25, future
+  DP-026–040 with measurable PO-V01–15 acceptance; **not implemented**. Focused spec
+  `docs/product-operability.md` distinguishes served ENV SumUp/reader APIs/partial
+  gating/SMTP+invoice GUI/CLI EF08/build labels from planned first-run, protected secrets,
+  fresh authorization, live acceptance/gating, recovery and restricted update GUIs.
+- PO-ADR-01–14 record options/trade-offs/recommendation/resolving packages without
+  pretending technical approval. RL-07→08→09→10→11 reserved, dependencies/gates and
+  real operator/DSM/mobile/PWA/financial/recovery acceptance explicitly pending.
+- Preserve old catalog `requirements` DP-001–025; new planned partition has no tests,
+  explicit pending status and spec/package mappings. Legacy checker/tests still cover
+  only 25 implemented/engineering entries: supplemental documentation audit now,
+  combined schema/checker/test lifecycle evolution is RL-07 prerequisite, no CI weakening.
+- Scope: root/docs Markdown plus `docs/requirements.json` only. No app/tests/scripts/
+  migrations/UI/worker/Dockerfile/Compose/env/deploy/workflow/dependency changes.
+  No NAS/production data/provider networking/payment/refund/SMTP/release/publication,
+  no prior PR update/merge/history rewrite/delegation or RL-07 implementation.
+- Existing FH-05/broader OQ-06/EF-08a Windows WinError 5/manual MV01–05/partial MV06
+  remain. Real-device/operator acceptance is not inferred from documentation/CI.
+
+Supplemental source-only audit **passed**: 40 unique IDs (25 preserved + 15 planned),
+15 pending PO-V heading/anchor mappings, 14 ADRs with options/trade-offs/recommendation/
+resolving package, D-18–25, RL-07–11 dependencies and 51 local Markdown links. Prior
+requirements array bytes/historical HANDOFF/PROGRESS/AUDIT receipts/protected trees
+unchanged. Temporary audit tool outside Git:
+`C:/Users/fritz/AppData/Local/Temp/opencode/product-operability-doc-audit.py`.
+First audit rejected shorthand RL-07–10 dependency text; roadmap now lists all four
+explicit prerequisites, not a dropped dependency/check.
+
+Initial full Python 3.12.13/3.13.15 runs **failed** (318 discovered, 17 failures,
+six POSIX skips each; 187.097s/188.053s): command-local PATH incorrectly pointed at
+the parent of existing pinned `age`/`age-keygen` binaries, so required encryption
+tests correctly failed. Ruff/format/syntax/old 25-ID traceability passed; later
+audit/browser stages not reached. Corrected PATH to `drink-pos-age-v1.3.2/tool/age`,
+rerunning unchanged full gates; failed logs retained outside Git as
+`product-operability-precommit312.log`/`product-operability-precommit313.log`.
+No code/check/suppression/retry logic changed; this was tooling setup, not a pass.
+
+Corrected full local Standard Checks **exit 0** on Python **3.12.13/3.13.15**,
+Node **24.11.1**, existing pinned external age: **318 discovered/312 passed/six
+POSIX-only skips**, **195.457s/203.889s** unittest. Ruff/88-file format, 88 Python/
+130 JS syntax/data, unchanged 25-ID/zero-external traceability, all synthetic
+financial/migration/recovery/encryption regressions, strict audits (no known
+vulnerabilities), Chromium booking/keyed correction/admin/event/kassa/self-pay and
+diff checks passed. Logs outside Git `product-operability-correct-path312.log`/
+`product-operability-correct-path313.log`. Existing lifecycle/TestClient/LF→CRLF
+warnings remain; EF-08a WinError 5 unresolved, not fixed by this run.
+
+Documented supplemental snippet in standard-checks executed successfully from
+Python UTF-8 file content. First PowerShell stdin attempt mangled Unicode em dash
+into regex syntax; corrected transport, no doc/check weakening. Broader supplemental
+audit and protected-tree/history parity rechecked successfully. Refetched main
+remains exact baseline; final receipt edits documentation only.
+
+Committed-tree local gates/new-PR exact-head CI still require separate results after
+push; final report/PR record them, never predecessor inference. No local Docker;
+unchanged non-publishing CI must supply actual container evidence. No publication
+dispatch, production Compose/updater/recovery operation or manual acceptance.
+The final commit's own SHA/PR/checks are recorded in the PR/final report after push.
+PR must remain OPEN/UNMERGED; independent review next, no automatic implementation.
 
 ## RL-06 approved integration — 2026-11-24
 

@@ -3,6 +3,10 @@
   "baseline": "052c2bbc54f05f7c7d850feb8ad597a4e4868670",
   "previous_baseline": "fb0812837694949dc6d228b781f2aa7af2b29d98",
   "handoff": "250a4e6d3e4180b469d4f2a91623b60f2fd1ed72",
+  "product_operability_baseline": "7a6aa5dff411c8fb5601b87758a0fc64810aa0c3",
+  "handoff_verified_main": "613ff7195428063e875b9b5d301273c1b4613407",
+  "synology_baseline_note": "Owner-reported isolated DS224+ AMD64 source 3f9e9d36f572072600390dbdfff3dc611a1e24e6, deployment drink-pos-test-ds224, project drink-pos-test, schema 2 / 0002-transaction-integrity: synthetic initialization, installation verification, startup/health, DSM reverse proxy and application access passed. SYN-001 OPEN; full device/PWA/provider/operator acceptance and every planned PO-V remain pending. See current docs/HANDOFF.md; not latest repository HEAD.",
+  "planned_catalog_note": "Owner-approved product targets, 2026-11-24, NOT IMPLEMENTED. Schema-v1 checker and unchanged exact-count tests inspect only requirements (DP-001-025). Supplemental documentation audit validates planned_requirements now; RL-07 must extend lifecycle schema/checker/tests before promotion. PO-V checks are pending specification acceptance, not existing tests or device/provider evidence.",
   "requirements": [
     {
       "id": "DP-025", "scope": "engineering",
@@ -159,6 +163,113 @@
       "statement": "Preserve owner-merged PR #1 transfer; independent foundation from verified main has reviewable commits, requirements/process/work packages/handoff; PR merge/production activity require owner approval.",
       "sources": ["AGENTS.md", "docs/PROCESS.md", "docs/HANDOFF.md", "docs/PROGRESS.md", "IMPLEMENTATION_PLAN.md"],
       "tests": ["tests/test_foundation_contracts.py::FoundationContractTests.test_catalog_links_resolve"], "manual": []
+    }
+  ],
+  "planned_requirements": [
+    {
+      "id": "DP-026", "scope": "owner-approved-product-target", "status": "planned-not-implemented",
+      "statement": "An ordinary association administrator installs through one simple Synology Container Manager Compose, starts and opens guided browser setup; routine configuration, maintenance and recovery require no SSH/CLI, manual SQLite/YAML/.env work or developer help. Minimal infrastructure inputs, persistent image-independent data, one service unless safety requires more, no shared default PIN/start activation/socket/privilege; portable Docker self-hosting.",
+      "sources": ["docs/product-operability.md", "REQUIREMENTS.md", "ARCHITECTURE.md", "AGENTS.md"],
+      "tests": [], "acceptance": ["docs/product-operability.md#po-v01--planned-acceptance-installation"],
+      "verification_id": "PO-V01", "verification_status": "pending", "work_packages": ["RL-07", "RL-11"]
+    },
+    {
+      "id": "DP-027", "scope": "owner-approved-product-target", "status": "planned-not-implemented",
+      "statement": "A resumable protected first-run wizard establishes strong named admin credentials, association/installation identity, German language/timezone/EUR financial defaults, basic settings/intentional initial data, backup/key preparedness and optional SumUp/SMTP before explicit activation. Main-DB-independent bootstrap/recovery, no first-visitor/shared-PIN ownership or migration bypass; incomplete optional integrations allow eligible cash-only use.",
+      "sources": ["docs/product-operability.md", "REQUIREMENTS.md", "ARCHITECTURE.md", "DECISIONS.md"],
+      "tests": [], "acceptance": ["docs/product-operability.md#po-v02--planned-acceptance-setup"],
+      "verification_id": "PO-V02", "verification_status": "pending", "work_packages": ["RL-07"]
+    },
+    {
+      "id": "DP-028", "scope": "owner-approved-product-target", "status": "planned-not-implemented",
+      "statement": "Expose distinct not-configured, partial, configured-unverified, operational-explicitly-activated, degraded-unavailable and intervention-required states. Persisted completeness, acceptance, diagnostic freshness and current capability differ; offline/busy/unknown cannot be ready and optional failures do not block eligible cash-only core or bypass financial holds.",
+      "sources": ["docs/product-operability.md", "REQUIREMENTS.md", "ARCHITECTURE.md"],
+      "tests": [], "acceptance": ["docs/product-operability.md#po-v03--planned-acceptance-state-matrix"],
+      "verification_id": "PO-V03", "verification_status": "pending", "work_packages": ["RL-07", "RL-08"]
+    },
+    {
+      "id": "DP-029", "scope": "owner-approved-product-target", "status": "planned-not-implemented",
+      "statement": "Classify A infrastructure/B operational GUI/C freshly authorized/D protected secrets; typed versioned revision-bound settings include payment, SMTP, association, invoice, backup, retention and maintenance candidates. Preview and explicitly approve ENV-to-GUI precedence/import; atomic validated changes/audit, conflict rejection, no secret blank fallback/restart drift/arbitrary path or command; preserve financial history and migration guarantees.",
+      "sources": ["docs/product-operability.md", "REQUIREMENTS.md", "ARCHITECTURE.md", "DECISIONS.md"],
+      "tests": [], "acceptance": ["docs/product-operability.md#po-v04--planned-acceptance-settings-inventory-and-precedence"],
+      "verification_id": "PO-V04", "verification_status": "pending", "work_packages": ["RL-07"]
+    },
+    {
+      "id": "DP-030", "scope": "owner-approved-product-target", "status": "planned-not-implemented",
+      "statement": "GUI-managed credentials use reviewed protected server-only persistence/key hierarchy, masking, explicit rotation/revocation, encrypted backup/export, retained old-backup keys and independent new-NAS recovery. No plaintext API-key settings or stored secrets in API/browser/JS/log/CSV/receipts; missing keys fail closed and restored integrations remain unverified/off. Legacy plaintext SMTP/PIN handling needs explicit safe migration, not a claim of current encryption.",
+      "sources": ["docs/product-operability.md", "REQUIREMENTS.md", "ARCHITECTURE.md", "DECISIONS.md", "AGENTS.md"],
+      "tests": [], "acceptance": ["docs/product-operability.md#po-v05--planned-acceptance-secret-lifecycle"],
+      "verification_id": "PO-V05", "verification_status": "pending", "work_packages": ["RL-07", "RL-08", "RL-09"]
+    },
+    {
+      "id": "DP-031", "scope": "owner-approved-product-target", "status": "planned-not-implemented",
+      "statement": "Every sensitive payment setting change requires fresh action/revision-bound server-side admin PIN verification, explicit confirmation, risk warnings and secret-free audit; login/session/reused browser PIN is insufficient. Serialize changes against active/unresolved operations including uncertain local timeout/cancel/expiry, retain provider identities/reconciliation on disable and define safe key rotation/reader replacement without silently clearing debt or holds.",
+      "sources": ["docs/product-operability.md", "REQUIREMENTS.md", "ARCHITECTURE.md", "DECISIONS.md", "AGENTS.md"],
+      "tests": [], "acceptance": ["docs/product-operability.md#po-v06--planned-acceptance-fresh-authorization"],
+      "verification_id": "PO-V06", "verification_status": "pending", "work_packages": ["RL-07", "RL-08"]
+    },
+    {
+      "id": "DP-032", "scope": "owner-approved-product-target", "status": "planned-not-implemented",
+      "statement": "Administration Settings Card Payments SumUp manages PAYMENT_PROVIDER, SUMUP_API_BASE/API_KEY/MERCHANT_CODE/READER_ID/AFFILIATE_KEY/AFFILIATE_APP_ID/CURRENCY/TIMEOUT_SECONDS with disabled/EUR/official HTTPS/120s defaults, protected secrets, discovery/pairing where supported and readable state. Advanced endpoint substitution requires fresh authorization and reviewed SSRF/exfiltration/redirect/DNS controls, not arbitrary credential forwarding.",
+      "sources": ["docs/product-operability.md", "REQUIREMENTS.md", "DECISIONS.md"],
+      "tests": [], "acceptance": ["docs/product-operability.md#po-v07--planned-acceptance-sumup-administration"],
+      "verification_id": "PO-V07", "verification_status": "pending", "work_packages": ["RL-08"]
+    },
+    {
+      "id": "DP-033", "scope": "owner-approved-product-target", "status": "planned-not-implemented",
+      "statement": "Without proper verified activation/current capability, hide normal cashier/member card buttons, Self-Pay advertisements and card fee/rounding controls; direct creation APIs fail closed with zero provider requests, fake PAID records or debt mutation. Cash stays available for eligible debt and administration/reconciliation remains accessible after disable; production rejects fake/test/mock/demo even with mistaken test flags and stale PWA cannot bypass gating.",
+      "sources": ["docs/product-operability.md", "REQUIREMENTS.md", "ARCHITECTURE.md", "AGENTS.md"],
+      "tests": [], "acceptance": ["docs/product-operability.md#po-v08--planned-acceptance-fail-closed-matrix"],
+      "verification_id": "PO-V08", "verification_status": "pending", "work_packages": ["RL-08"]
+    },
+    {
+      "id": "DP-034", "scope": "owner-approved-product-target", "status": "planned-not-implemented",
+      "statement": "SumUp Test connection independently diagnoses completeness/authentication/merchant/API/discovery/pairing/availability/idle-busy where supported with timestamp/config identity and explicit unsupported/unknown guidance. HTTP success is not readiness/payment success; sanitized diagnostics generate no charge/refund/debt operation and remain separate from explicit live tests.",
+      "sources": ["docs/product-operability.md", "REQUIREMENTS.md", "DECISIONS.md"],
+      "tests": [], "acceptance": ["docs/product-operability.md#po-v09--planned-acceptance-test-connection"],
+      "verification_id": "PO-V09", "verification_status": "pending", "work_packages": ["RL-08"]
+    },
+    {
+      "id": "DP-035", "scope": "owner-approved-product-target", "status": "planned-not-implemented",
+      "statement": "Admin live acceptance uses isolated durable unique operations separate from member debt/beverage revenue, immutable request/config/merchant/reader/amount/currency/expected outcome, timestamps/provider refs/observed evidence/reconciliation/guidance and fresh authorization. Persist before checkout; replay returns same record, changed parameters conflict, lost responses preserve UNKNOWN/no blind creating retries; retain terminal ownership and records across restart/disable/recovery.",
+      "sources": ["docs/product-operability.md", "REQUIREMENTS.md", "ARCHITECTURE.md", "DECISIONS.md"],
+      "tests": [], "acceptance": ["docs/product-operability.md#po-v10--planned-acceptance-records-and-replay"],
+      "verification_id": "PO-V10", "verification_status": "pending", "work_packages": ["RL-08"]
+    },
+    {
+      "id": "DP-036", "scope": "owner-approved-product-target", "status": "planned-not-implemented",
+      "statement": "Separately authorized guided real-terminal tests default EUR 1.00 within verified provider limits: A exact successful amount/currency/merchant/transaction; B supported definitive manual terminal cancellation and no successful payment, not terminate acknowledgement; C deadline/reconciliation with UNKNOWN/intervention and duplicate holds when no definitive result. Warn real money/fees, no automatic refund/debt/revenue mutation; timeout safety pass is not resolved provider outcome, and no live test is authorized here.",
+      "sources": ["docs/product-operability.md", "REQUIREMENTS.md", "DECISIONS.md", "AGENTS.md"],
+      "tests": [], "acceptance": ["docs/product-operability.md#po-v11--planned-acceptance-live-tests-abc"],
+      "verification_id": "PO-V11", "verification_status": "pending", "work_packages": ["RL-08"]
+    },
+    {
+      "id": "DP-037", "scope": "owner-approved-product-target", "status": "planned-not-implemented",
+      "statement": "Guided redacted report separates connectivity/A success/B cancellation/C timeout expected-observed results, unresolved operations/provider refs/amount/time/config identity/operator confirmation/readiness. Enable card only for exact effective config with satisfied documented required acceptance, fresh readiness, no unresolved blocker and freshly authorized explicit activation; material changes/stale evidence require revalidation, UNKNOWN timeout safety pass cannot enable.",
+      "sources": ["docs/product-operability.md", "REQUIREMENTS.md", "DECISIONS.md"],
+      "tests": [], "acceptance": ["docs/product-operability.md#po-v12--planned-acceptance-activation-policy"],
+      "verification_id": "PO-V12", "verification_status": "pending", "work_packages": ["RL-08"]
+    },
+    {
+      "id": "DP-038", "scope": "owner-approved-product-target", "status": "planned-not-implemented",
+      "statement": "Administration Backup & Recovery creates/verifies complete application backups/history/encrypted downloads/uploads, exact version/schema compatibility/consequence previews, fresh authorization and durable controlled progress. Reuse EF-08 formats, hold all writers, restore only isolated new roots, preserve old/failed/post-backup financial state and reconcile before activation; no arbitrary paths/commands. Protected DB-unavailable recovery via browser/Container Manager requires independent backups/keys/images, not SSH or total-loss GUI guarantees.",
+      "sources": ["docs/product-operability.md", "REQUIREMENTS.md", "ARCHITECTURE.md", "DECISIONS.md", "docs/application-recovery.md", "docs/disaster-recovery.md"],
+      "tests": [], "acceptance": ["docs/product-operability.md#po-v13--planned-acceptance-backup--recovery"],
+      "verification_id": "PO-V13", "verification_status": "pending", "work_packages": ["RL-09"]
+    },
+    {
+      "id": "DP-039", "scope": "owner-approved-product-target", "status": "planned-not-implemented",
+      "statement": "Administration System & Updates shows evidence-bound installed version/image/schema/update/compatibility/backup/storage/pending/recovery state. GUI-led exact candidate approval, all-writer hold, verified backup/keys, isolated rehearsal, separately authorized restricted install/restart, health/full-state verification and reconciliation preserve old/failed/post-backup state. Readiness is not container permission; no unrestricted Docker socket/privilege/prune/commands or incompatible-schema image-only rollback.",
+      "sources": ["docs/product-operability.md", "REQUIREMENTS.md", "ARCHITECTURE.md", "DECISIONS.md", "docs/release-safety.md"],
+      "tests": [], "acceptance": ["docs/product-operability.md#po-v14--planned-acceptance-system--updates"],
+      "verification_id": "PO-V14", "verification_status": "pending", "work_packages": ["RL-10"]
+    },
+    {
+      "id": "DP-040", "scope": "owner-approved-product-target", "status": "planned-not-implemented",
+      "statement": "Real nondeveloper operator acceptance verifies DSM GUI-only install/setup/maintenance/DB-unavailable and new-hardware independent recovery, HTTPS/security/mobile/touch/installed-PWA upgrade/ordinary-only offline/gating and financial net-correction/round block/reconciliation scenarios. Record assistance/errors/time/actual RPO-RTO/key-image/offsite-immutable evidence; live provider/SMTP only separately authorized, no real-device or operational pass inferred from CI.",
+      "sources": ["docs/product-operability.md", "REQUIREMENTS.md", "IMPLEMENTATION_PLAN.md", "docs/standard-checks.md"],
+      "tests": [], "acceptance": ["docs/product-operability.md#po-v15--planned-acceptance-operational-evidence"],
+      "verification_id": "PO-V15", "verification_status": "pending", "work_packages": ["RL-11"]
     }
   ]
 }

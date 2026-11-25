@@ -1,5 +1,96 @@
 # Handoff and protected work
 
+## Current Codex execution checkpoint — 2026-11-25
+
+**Repository:** https://github.com/tostman1/drink-pos. Start at `AGENTS.md`.
+**Package:** complete agent handoff / documentation reconciliation, not product code.
+**Starting branch:** `docs/codex-handoff`. Its exact delivered commit, PR number and
+final-head CI are in the GitHub PR delivery receipt (read once); use that immutable
+SHA, not an inferred predecessor pass. This section intentionally cannot name its
+own containing commit. No merge, release, publication or deployment authorized.
+
+### Where we are
+
+- Verified fetched/GitHub main **`613ff7195428063e875b9b5d301273c1b4613407`**.
+  Exact push CI [45582091244](https://github.com/tostman1/drink-pos/actions/runs/45582091244)
+  completed successfully: both Python/Node matrices and non-publishing container;
+  publication skipped. No GitHub releases listed; deployment API returned zero.
+  Those API observations do not inventory external deployments or registry history.
+- EF-01–03/03b, EF-08a/b/c and RL-01–06 integrated. PR #13 merged
+  `07e0207d401cf192ef5e1ff578078ad886f36cfe`; PR #14 **MERGED** as current main.
+  [PR #12](https://github.com/tostman1/drink-pos/pull/12) **OPEN/CONFLICTING**, head
+  `ac5b7e73fd12e67ac66e427abc93b5a524e650ca`, original base `7a6aa5d...`.
+  This handoff merges that exact committed docs branch into verified main on a
+  **new** branch, resolving documentation conflicts while preserving EF-03/03b.
+  PR #12/local drafts are not rewritten. New PR is the reconciled candidate, not
+  evidence that either documentation PR is integrated. Owner must decide merge
+  and subsequent PR #12 closure; do not merge both independently.
+- Approved product targets DP-026–040/D-18–25 are preserved as **planned**, all
+  PO-V01–15 pending. PO-ADR-01–14 remain OPEN recommendations, not selected designs.
+  Existing functional/safety contracts and source-observed gaps are in
+  `REQUIREMENTS.md`, `ARCHITECTURE.md`, `docs/product-operability.md`, `docs/AUDIT.md`.
+  RL-07 has not begun. Governance is established; no further governance programme.
+- Only this handoff is active. Historical OPEN/no-merge/no-v2/all-NAS-pending text
+  below is dated evidence, superseded only by later scoped receipts, not authority.
+
+### Tested Synology is not repository HEAD
+
+Owner-reported acceptance (not a new agent/NAS inspection): **DS224+, AMD64**,
+tested **`3f9e9d36f572072600390dbdfff3dc611a1e24e6`**, deployment
+`drink-pos-test-ds224`, Compose project `drink-pos-test`, schema **2**, migration
+`0002-transaction-integrity`. Synthetic initialization, installation verification,
+container startup/health and DSM reverse-proxy access succeeded; Product Owner
+confirmed application accessibility. This closes only those listed baseline steps.
+**SYN-001:** initialization diagnostics insufficient; unresolved. No credentials,
+network addresses or production data transferred. Existing installation untouched.
+Original reviewed archive/identity/expiry in RL-06 receipt below remains authoritative;
+new main/handoff artifacts are different and must not replace/retag the NAS image.
+Private retention before **2026-12-08T13:25:50Z** is still necessary; local temp is
+not durable offsite retention. See `docs/synology-test-deployment.md`.
+
+### Exact next action and gates
+
+**Currently authorized:** independent review of this pushed handoff/reconciliation
+PR and its exact-head evidence, then stop for owner integration approval. No product
+implementation is authorized by this assignment. If main moves, reconcile it on
+this branch preserving work and reverify changed HEAD before an approved merge.
+
+**Next product candidate:** RL-07 — Simple Deployment, Configuration Foundation &
+First-Run Wizard, within **Product Experience & Functional Completion**. Owner
+priorities, substantial interactive HTML mockup/design-review deliverables and ready
+gates are in `IMPLEMENTATION_PLAN.md#product-experience--functional-completion--next-phase`.
+Ask for bounded RL-07/mockup authorization and resolve its listed PO-ADR gates;
+do not reinterpret priorities as implementation or broad GUI approval. RL-08–11
+remain dependent, separately approved packages, not automatic follow-ons.
+
+### Resume without the original machine
+
+Read this checkpoint and `docs/PROCESS.md`, then relevant requirements/architecture/
+decisions/audit/plan and `docs/product-operability.md`; environment recipes and CI
+contract are in `docs/standard-checks.md#fresh-codex-environment`.
+Verify Git status/HEAD and external state once. Use exact-SHA deterministic waiter;
+do not repeat completed foundation/NAS work, reload historical receipts routinely,
+poll CI with model turns or loop receipt commits. Final evidence lives on the PR.
+
+Preserved local state inventory in `docs/PROGRESS.md`: original checkout has an
+uncommitted CI-rule-only `AGENTS.md` draft whose semantic rule is already preserved
+here; no essential requirement remains exclusively there. Historical branch refs
+remain on GitHub; private archives/keys/env/databases are intentionally excluded.
+No running CI monitor is transferred; result JSON/logs must be persisted in the
+redacted PR receipt before delivery. Codex harness/browser/background support has
+not been tested. Missing tools/platform checks are evidence gaps, not passes.
+
+**Remaining:** EF-08a Windows WinError 5 reliability; FH-05/authentic historical
+adoption and broader OQ-06; SYN-001; OQ-01–07/PO-ADR choices. Real trusted-TLS/device/
+installed-PWA/offline/provider/SMTP and independent key/image/offsite/immutable/
+timed operator recovery/reconciliation acceptance still pending or partial.
+Real payments/mail, credentials, NAS changes, production data/migrations, release/
+publication/deployment and merge each require separate owner authorization.
+
+---
+
+## Historical checkpoints (not current execution authority)
+
 ## Current checkpoint — EF-03b governance consolidation, 2026-11-24
 
 **OPEN PR pending:** branch `feature/governance-simplification` from verified
@@ -116,6 +207,46 @@ automatic background completion or clean checkpoint, never LLM polling. This ONE
 current checkpoint is updated on meaningful transitions; historical receipts below
 are preserved evidence, not instructions to repeat watcher/recheck/log/context loops
 or renewed authority. Final-head/post-merge/local/manual/approval gates stay intact.
+## Product operability documentation handoff — 2026-11-24
+
+Active branch `docs/product-operability-requirements`, created directly from clean
+fresh fetched/current main **`7a6aa5dff411c8fb5601b87758a0fc64810aa0c3`**.
+Exact-baseline CI `45410477163` independently queried: both Python matrices and
+container success, publication skipped. RL-06/PR #11 integrated; preserved original
+artifact identities/expiry below. No existing PR/branch/history rewritten/delegated.
+
+Owner approved **product requirements/docs only**, with commit/push/new OPEN PR;
+no merge/RL-07 implementation/production/Compose/migration/UI/provider/SMTP/NAS/
+image publication. Current authoritative target is `docs/product-operability.md`,
+DP-026–040, PO-V01–15 pending, D-18–25 binding; PO-ADR-01–14 OPEN recommendations
+unapproved. Read AGENTS/REQUIREMENTS/ARCHITECTURE/DECISIONS/IMPLEMENTATION_PLAN/PROCESS.
+
+- Binding journey: ordinary admin Compose → Start → Browser → Setup → Operate,
+  no SSH/CLI/manual SQLite/YAML/.env/developer help for routine operation; minimal
+  infrastructure remains host-GUI-controlled. One default service, no shared PIN/
+  start activation/socket/privilege; GUI secure settings/first-run, SumUp acceptance/
+  activation/full gating, complete recovery and restricted updates are **planned**.
+- Source-only inventory distinguishes served ENV SumUp/partial gating/fake-provider
+  flag risk/plaintext SMTP-PIN/settings/reader APIs/CLI EF08/build metadata from future
+  GUIs. No current feature or safety fix inferred from approved docs. Preserve exact
+  debt/tally/event/round/snapshots/idempotency/payment uncertainty/ordinary-only offline.
+- Schema-v1 old catalog DP-001–025 unchanged; new `planned_requirements` has explicit
+  pending/no-tests/spec/package references. Existing 25-ID checker/tests do not validate
+  this partition; supplemental combined audit required, no CI weakening. RL-07 must
+  separately evolve combined lifecycle machine gates before promoting requirements.
+- RL-07–11 sequence in plan; all need separate implementation approval and resolved
+  PO-ADR design gates. Next safe action after this delivery: **independent review of
+  the new OPEN documentation PR**. Do not merge/update prior PRs/start RL-07/live tests.
+- Existing FH-05/broader OQ-06/EF-08a WinError 5 and MV-01–05/partial MV-06 remain;
+  DSM/HTTPS/mobile/PWA/provider/offsite/key/operator acceptance still pending.
+
+Validation: supplemental 40-ID/15 pending anchors/14 ADR/dependency/local-link audit
+and full local Python 3.12.13/3.13.15 gates passed (318/312/six POSIX skips). Initial
+wrong age PATH failures retained; old 25-ID machine-gate scope and lifecycle warning/
+Windows/manual gaps explicit. See current PROGRESS and new PR description/final report.
+Committed/final-head local and branch/PR container CI are verified separately there.
+Final HEAD/PR/exact-head checks are read after commit/push, not self-referential SHA
+or predecessor-CI pass. Historical integrated receipts below remain untouched.
 
 ## RL-06 integrated handoff — 2026-11-24
 
